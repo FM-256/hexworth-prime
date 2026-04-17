@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freedom of Expression | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d001a 0%, #130020 50%, #160025 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 0, 26, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #0d001a; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Freedom of Expression | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:3.03%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 33 &nbsp;|&nbsp; ETH-W2-05 &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Freedom of Expression<br>
+                <span class="accent">and the Internet</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                First Amendment &nbsp;&bull;&nbsp; Section 230 &nbsp;&bull;&nbsp; Defamation &nbsp;&bull;&nbsp; Anonymity &nbsp;&bull;&nbsp; DMCA &nbsp;&bull;&nbsp; Content Moderation
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Warehouse question: In 1997, a federal law made it a crime to transmit "indecent" or "patently offensive" content online where minors might access it. The Supreme Court struck it down in Reno v. ACLU, calling the internet a free speech medium deserving the highest level of First Amendment protection. The case established that online speech is not television -- it cannot be regulated as broadly. Nearly three decades later, courts and Congress are still figuring out what that means.
+        </div>
+        <div class="title-meta-row">
+            <span>33 Slides</span>
+            <span>ETH-W2-05</span>
+            <span>Week 2</span>
+            <span>Ethics in IT</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- FIRST AMENDMENT FOUNDATIONS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 33</div>
+        <div class="slide-title">First Amendment <span class="accent">Foundations</span></div>
+        <div class="slide-subtitle">The most important constitutional provision for the internet -- and the most frequently misunderstood by non-lawyers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What the First Amendment Does</div>
+                <div class="card-desc">Congress shall make no law abridging freedom of speech or of the press. It prohibits government censorship of speech. It does not prevent private actors -- companies, employers, platforms -- from restricting speech. When a social media company removes a post, it is not violating the First Amendment. When Congress passes a law requiring or prohibiting removal, that is a First Amendment issue.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The State Action Requirement</div>
+                <div class="card-desc">First Amendment rights apply against government actors. Private companies are not government actors and have their own First Amendment rights to decide what content they publish or host. The platform that bans a user for violating its community standards is exercising its own editorial freedom -- a First Amendment-protected activity.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Public Square Misconception</div>
+            The argument that large platforms are "the new public square" and therefore must be treated as government actors is a policy argument, not a legal one. The Supreme Court has not held that private platforms' size or market dominance converts them to state actors. Moody v. NetChoice (2024) and related cases are addressing the outer limits of state power to compel or prohibit platform speech moderation.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Why IT Professionals Need to Understand This</div>
+            You will build systems that make speech decisions at scale -- recommendation algorithms, moderation classifiers, content review queues. Understanding the legal and ethical framework for those decisions is a professional competency requirement. "The lawyers approved it" is not a sufficient answer when your system suppresses speech at global scale.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PROTECTED SPEECH ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 33</div>
+        <div class="slide-title">Protected vs. <span class="accent">Unprotected Speech</span></div>
+        <div class="slide-subtitle">The First Amendment protects nearly all speech against government restriction. The exceptions are narrow, well-defined, and frequently misapplied in public debate.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Protected Speech (Examples)</div>
+                <div class="card-desc">Political speech (highest protection). Hate speech (unless it crosses into true threats or incitement). Offensive speech. Satire and parody. Commercial speech (intermediate protection). Anonymous speech. Symbolic speech (flag burning). Prior restraint is almost never permitted. Unpopular ideas receive full constitutional protection.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Unprotected Speech</div>
+                <div class="card-desc">True threats (Brandenburg v. Ohio: speech directed to inciting imminent lawless action). Defamation (false statements of fact, not opinion). Obscenity (Miller v. California three-part test). Fighting words (Chaplinsky -- face-to-face provocation). Child sexual abuse material. Fraud. Perjury. These categories may be regulated or criminalized.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Line Is Contested</div>
+                <div class="card-desc">Misinformation, harassment, coordinated inauthentic behavior, and political advertising are not established categories of unprotected speech but create serious social harms. Platforms that moderate these forms of speech are making editorial judgments -- not constitutional ones. How those decisions are made and whether they should be regulated is the central content moderation debate of the current era.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RENO V ACLU ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 33 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">Case Study: <span class="accent">Reno v. ACLU</span></div>
+        <div class="slide-subtitle">The Supreme Court's first major internet speech decision. It set the constitutional baseline for online expression and for any regulation of internet content.</div>
+
+        <div class="scenario-strip">
+            Congress passed the Communications Decency Act of 1996. Section 223 made it a federal crime to transmit "indecent" or "patently offensive" content over telecommunications networks in a manner accessible to minors. Violations carried penalties of up to $250,000 and two years in prison. The ACLU challenged it immediately. A three-judge district court unanimously struck it down. The Supreme Court unanimously affirmed in 1997.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Court's Reasoning</div>
+                <div class="card-desc">Justice Stevens: the internet is not like broadcasting (where FCC regulation is permitted) or like telephones (where unsolicited calls to households can be regulated). The internet is an interactive medium where anyone can speak to anyone. The vagueness of "indecent" and "patently offensive" would chill vast amounts of constitutionally protected speech. The internet deserves the full protection of the First Amendment.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Survived: Section 230</div>
+                <div class="card-desc">Section 230 of the CDA was not challenged. It provided that online platforms are not "publishers or speakers" of user-generated content and therefore not liable for that content. Section 230 survived and became arguably the most consequential provision ever written for the internet -- enabling the modern platform economy by shielding platforms from defamation and other liability for user posts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- SECTION 230 ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 33</div>
+        <div class="slide-title">Section 230: <span class="accent">The 26 Words</span></div>
+        <div class="slide-subtitle">"No provider or user of an interactive computer service shall be treated as the publisher or speaker of any information provided by another information content provider." -- 47 U.S.C. 230(c)(1)</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What Section 230 Provides</div>
+                <div class="card-desc">Platforms are not liable for the content their users post. A platform that hosts defamatory user content does not become liable for defamation as a publisher would be. Section 230(c)(2) also provides immunity when platforms act "in good faith" to restrict access to material they find "objectionable" -- meaning platforms can moderate without losing immunity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Enabled the Internet</div>
+                <div class="card-desc">Without Section 230, every platform hosting user content would face unlimited liability for what users post. The practical result would be either no user-generated content (publish nothing you cannot pre-screen) or no moderation (remove nothing to avoid becoming a "publisher"). Neither option is viable. Section 230 enabled platforms to host and moderate simultaneously.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Section 230's Critics</div>
+                <div class="card-desc">Left critique: platforms are not liable for algorithmic amplification of harmful content (harassment, extremism, misinformation) and have no incentive to address it. Right critique: platforms use moderation powers to suppress conservative speech without accountability. Both critiques have produced legislative proposals that would limit or condition 230 immunity.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What 230 Does Not Cover</div>
+            Federal criminal law, intellectual property claims, and sex trafficking (FOSTA-SESTA carved out sex trafficking liability). Platforms remain liable for their own first-party content. Platforms that are "information content providers" -- meaning they create or develop the objectionable content rather than merely hosting it -- may lose immunity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- CONTENT MODERATION ETHICS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 33</div>
+        <div class="slide-title">Content Moderation <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">Every content moderation decision is a speech decision affecting real people. At scale, those decisions amount to private governance of global communication.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Scale Problem</div>
+                <div class="card-desc">Facebook processes billions of pieces of content per day. Human review at that scale is impossible. Automated classifiers make the vast majority of removal decisions. Classifiers trained on historical moderation decisions encode the biases, gaps, and errors of that history and apply them at global scale. The engineer who trains the classifier is making speech decisions for billions of people.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Inconsistency and Bias</div>
+                <div class="card-desc">Research consistently finds that moderation systems apply inconsistently across languages, regions, and communities. Content in English is reviewed by more human moderators with more training. Content in less-resourced languages is more often handled by automated systems with higher error rates. The same speech act may result in removal in one language and no action in another.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Marginalized Communities</div>
+                <div class="card-desc">Multiple studies find that automated moderation disproportionately flags speech by marginalized communities -- Black users, LGBTQ users, disability advocates -- while missing hate speech directed at those communities. When platforms moderate "hate speech" using classifiers trained on data that underrepresents targeted communities, the classifier learns to suppress the speech of the targets rather than the attackers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Accountability Gap</div>
+                <div class="card-desc">There is no meaningful appeals process for content removal at most platforms. The user whose account is suspended has no right to explanation, no right to representation, and no right to independent review. For users and communities whose primary communication infrastructure is a private platform, the consequences of arbitrary moderation decisions can be professionally and personally severe.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ONLINE DEFAMATION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 33</div>
+        <div class="slide-title">Online <span class="accent">Defamation</span></div>
+        <div class="slide-subtitle">Defamation law has always been the tension between free speech and reputation. The internet changed the scale, permanence, and anonymity of potentially defamatory speech.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Elements of Defamation</div>
+                <div class="card-desc">A false statement of fact (not opinion). Publication to a third party. Identification of the plaintiff. Fault (negligence for private figures, actual malice for public figures -- New York Times v. Sullivan). Damages. Key distinctions: opinion is protected, parody is protected, truth is an absolute defense. "I think he is a terrible person" is not defamation. "He committed fraud" may be.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Public Figures vs. Private Individuals</div>
+                <div class="card-desc">Public figures (politicians, celebrities, executives who have voluntarily entered the public arena) must prove "actual malice" -- knowledge that the statement was false or reckless disregard for its truth. Private individuals only need to prove negligence. This distinction heavily favors open public discourse while protecting private individuals from casual defamation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Section 230 and Defamation</div>
+                <div class="card-desc">The platform hosting a defamatory post is immune under Section 230. The user who posted it is potentially liable. But identifying anonymous online speakers requires legal process -- a subpoena to the platform to unmask the poster. Platforms respond to these requests in ways that range from vigorous resistance to immediate compliance, with significant consequences for online anonymity and accountability.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Persistence Problem</div>
+                <div class="card-desc">Online defamation persists indefinitely and spreads instantly. A defamatory article from 2012 appears in the first search result for a person's name in 2025. The "right to be forgotten" under GDPR allows individuals in EU jurisdictions to request removal of outdated search results. No equivalent right exists in the US. The internet's permanence dramatically increases the harm of defamatory content.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ANONYMITY ONLINE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 33</div>
+        <div class="slide-title">Anonymity and <span class="accent">Pseudonymity</span></div>
+        <div class="slide-subtitle">The right to speak anonymously is constitutionally protected. The internet enables anonymity at unprecedented scale -- for both protected dissent and unaccountable harm.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Constitutional Right</div>
+                <div class="card-desc">McIntyre v. Ohio Election Commission (1995): anonymous political leafleting is constitutionally protected. The Federalist Papers were published anonymously. Anonymous speech enables dissent, political organizing, and whistleblowing by those who fear retaliation. The right to speak without identifying yourself is part of the right to speak.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Accountability Problem</div>
+                <div class="card-desc">Anonymity enables harassment, disinformation, coordinated inauthentic behavior, and defamation without accountability. Trolls, state-sponsored influence operations, and online abuse campaigns all rely on anonymity or pseudonymity to insulate bad actors from consequence. The same property that protects whistleblowers protects coordinated harassment campaigns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Platform Verification Policies</div>
+                <div class="card-desc">Platforms that require verified real-name identity (like Facebook's real-name policy) reduce anonymity and force accountability. They also expose dissidents, abuse survivors, LGBTQ users in hostile environments, and others whose safety depends on pseudonymity. The real-name policy harmed exactly the people anonymity most importantly protects.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Warehouse Question</div>
+            An online harassment campaign against a journalist uses dozens of anonymous accounts to coordinate targeted abuse. The platform has log data that could identify many of the accounts. Law enforcement requests the data. The journalist requests the data. Are those the same request? Should the platform respond differently to each?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- DMCA AND COPYRIGHT ONLINE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 33</div>
+        <div class="slide-title">DMCA: <span class="accent">Copyright Online</span></div>
+        <div class="slide-subtitle">The Digital Millennium Copyright Act creates the takedown system that governs copyrighted content on the internet. It is widely abused and widely necessary.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Safe Harbor (Section 512)</div>
+                <div class="card-desc">Online service providers (hosting companies, platforms) are not liable for copyright infringement by users, provided they: have no actual knowledge of infringement, do not financially benefit directly from it, and respond expeditiously to valid takedown notices (DMCA 512(c)(3) notices). The safe harbor enabled YouTube, social media, and virtually all user-generated content platforms to exist.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Notice-and-Takedown Process</div>
+                <div class="card-desc">Copyright holder sends a written notice to the platform identifying the infringing content. Platform must "expeditiously" remove it. The user can send a counter-notice claiming the content is non-infringing. If the copyright holder then sues within 10-14 days, the content stays down. If not, the platform may restore it. The burden is on users to counter-notice and copyright holders to litigate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Abuse of the System</div>
+                <div class="card-desc">DMCA notices can be filed with no verification of copyright ownership and no personal liability for false claims (though the notice requires certification). Corporations file millions of automated takedowns per year. Critics, journalists, and researchers who quote copyrighted material under fair use routinely have content removed without recourse. The system strongly favors copyright holders over speech.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Fair Use and Takedowns</div>
+                <div class="card-desc">Fair use (commentary, criticism, news reporting, education, transformation) is a legal defense to copyright infringement. A DMCA takedown does not require consideration of fair use by the platform -- the notice comes in, the content goes down. Artists who create parodies, researchers who quote primary sources, and journalists who clip news footage all face DMCA removal of content that is legally protected.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DMCA ANTI-CIRCUMVENTION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 33</div>
+        <div class="slide-title">DMCA: <span class="accent">Anti-Circumvention</span></div>
+        <div class="slide-subtitle">Section 1201 prohibits circumventing technological protection measures. It has become one of the most significant restrictions on security research and repair rights.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Section 1201 Prohibits</div>
+                <div class="card-desc">Circumventing access controls that protect copyrighted works -- even to access content you own or have licensed. Breaking the DRM on a DVD you purchased to make a personal backup copy is technically a violation. Reverse engineering software to interoperate with other products is generally prohibited unless specific exemptions apply.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Security Research Impact</div>
+                <div class="card-desc">Security researchers who identify vulnerabilities in DRM-protected software face legal risk under DMCA 1201, even if their research would benefit the public. The Librarian of Congress grants renewable exemptions -- security researchers have received exemptions for good-faith vulnerability disclosure -- but the exemption process creates uncertainty that chills legitimate research.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Right-to-Repair Connection</div>
+            Farm equipment manufacturers have used DMCA 1201 to restrict farmers from repairing their own equipment -- the software controlling the tractor is copyrighted, and accessing it to repair the hardware "circumvents" a technical protection measure. The same argument applies to medical devices, consumer electronics, and vehicles. The conflict between IP protection and repair rights is an active legislative and ethical debate.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ALGORITHMIC AMPLIFICATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 33</div>
+        <div class="slide-title">Algorithmic <span class="accent">Amplification</span></div>
+        <div class="slide-subtitle">Recommendation systems that amplify some speech over others are making editorial decisions with massive consequences for public discourse.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What Amplification Does</div>
+                <div class="card-desc">A platform hosting one billion users and showing each of them 100 pieces of content per day is making 100 billion editorial decisions per day. The algorithm that decides which 100 pieces each user sees is exercising more influence over public information than any newspaper, television network, or government ministry in history. These are not neutral technical decisions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Engagement vs. Truth</div>
+                <div class="card-desc">Engagement-optimizing algorithms favor content that generates strong emotional responses: outrage, fear, moral indignation. These emotional responses are more likely from false information (which can be more sensational than accurate reporting) and from extreme content (which provokes more engagement than moderate content). Optimizing for engagement creates systematic incentives to amplify harmful speech.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Section 230 and Amplification</div>
+                <div class="card-desc">Courts have generally held that Section 230 protects platforms' algorithmic recommendations as well as the underlying user content. Force v. Facebook (2019): Facebook's algorithmic amplification of Hamas-posted content was protected by Section 230. Gonzalez v. Google (2023): the Supreme Court declined to narrow 230's application to recommendation algorithms, leaving the issue for Congress to address.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Professional's Question</div>
+            If you are building a recommendation algorithm optimized for engagement, and you have data showing that the algorithm amplifies misinformation and extremist content at higher rates than accurate content, do you have a professional ethical obligation to surface that finding? What if surfacing it would kill the feature?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- HATE SPEECH AND PLATFORMS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 33</div>
+        <div class="slide-title">Hate Speech and <span class="accent">Platform Governance</span></div>
+        <div class="slide-subtitle">Hate speech is not a legal category in the US. It is a major content moderation category. The distinction matters enormously.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">US Legal Position</div>
+                <div class="card-desc">Hate speech is protected under the First Amendment. Matal v. Tam (2017): the government cannot deny trademark registration based on content being "disparaging." Snyder v. Phelps (2011): Westboro Baptist Church anti-LGBTQ protests at military funerals are protected. The government cannot prohibit speech because of its viewpoint, even when that viewpoint is hateful.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">European Legal Position</div>
+                <div class="card-desc">EU member states and many democracies criminalize speech that incites hatred or violence based on protected characteristics. The EU Digital Services Act (2022) requires large platforms to address "illegal content," which in EU jurisdictions includes hate speech. A US company operating globally must navigate a fundamental conflict between US and EU legal standards for the same user-generated content.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Platform Community Standards</div>
+                <div class="card-desc">Platforms write their own hate speech standards. Facebook's Dangerous Organizations policy, Twitter's Hateful Conduct policy, YouTube's Harassment and Cyberbullying policy -- these are private contractual standards, not legal categories. They can be changed at will, applied inconsistently, and enforced through automated systems trained on data that encodes existing biases.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Counter-Speech Argument</div>
+                <div class="card-desc">The traditional liberal response to harmful speech is more speech: challenge, refute, contextualize. This argument assumes speakers have roughly equal platform access. When a viral piece of misinformation reaches 50 million people in 24 hours and the correction reaches 500,000, the counter-speech model fails at scale. The speed and reach asymmetry between original false claims and corrections undermines the argument.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- DISINFORMATION AND PLATFORMS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 33</div>
+        <div class="slide-title">Disinformation and <span class="accent">Platform Responsibility</span></div>
+        <div class="slide-subtitle">Intentional disinformation -- false information spread to deceive -- poses a distinct challenge from error or honest disagreement.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What Makes Disinformation Different</div>
+                <div class="card-desc">Disinformation is intentional. It is designed to create false beliefs for political, commercial, or social purposes. Misinformation is false but spread without intent to deceive. Malinformation is true but used to harm. These distinctions matter for platform policy design: the appropriate response to honest error is different from the appropriate response to coordinated deception.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Health Disinformation</div>
+                <div class="card-desc">COVID vaccine disinformation on social media has been linked to measurable decreases in vaccination rates in studies that tracked exposure and behavior. The platforms that amplified that content were not neutral information conduits -- their recommendation systems actively distributed false health claims to populations that would not have otherwise encountered them. Lives were affected.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Election Integrity</div>
+                <div class="card-desc">False claims about voting processes, election officials, and electoral results spread via social platforms have demonstrably affected political behavior, democratic trust, and in the case of January 6, 2021, resulted in violence. Whether platforms are legally responsible under current law is unsettled. Whether platforms are morally responsible for their amplification role is a different question.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Would You Do?</div>
+            You are a data scientist at a major platform. Your analysis finds that a specific category of health disinformation is being amplified by your recommendation algorithm at 3x the rate of accurate health information. You present the finding. Leadership says suppressing the content would appear politically biased and create bad press. What is your next action?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- GOVERNMENT PRESSURE ON PLATFORMS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 33</div>
+        <div class="slide-title">Government Pressure <span class="accent">on Platforms</span></div>
+        <div class="slide-subtitle">When government officials contact platforms to request content removal, is that government speech or government coercion?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Jawboning</div>
+                <div class="card-desc">Informal government pressure on private parties to take action that government could not mandate directly. When White House officials contact Twitter to request removal of specific accounts, they are not issuing a legal order -- but the implicit threat of regulatory retaliation gives the request a coercive character. Murthy v. Missouri (2024) addressed whether this constitutes unconstitutional government coercion of protected speech.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Murthy v. Missouri (2024)</div>
+                <div class="card-desc">Missouri and Louisiana sued Biden administration officials, claiming they pressured platforms to remove COVID-related content in violation of the First Amendment. The Supreme Court reversed a lower court injunction on standing grounds -- the plaintiffs could not show they were directly harmed by the government contacts. The underlying substantive question of when government-platform communications become unconstitutional coercion was not fully resolved.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Core Tension</div>
+            Platforms make better content moderation decisions with information from domain experts, including government health and security agencies. Some government-platform communication is clearly legitimate information sharing. Some crosses into coercion. The line depends on: whether the government is threatening regulatory action, whether the communication is public or private, and whether the platform has meaningful ability to refuse.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- POLITICAL ADVERTISING ONLINE ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 33</div>
+        <div class="slide-title">Political Advertising <span class="accent">Online</span></div>
+        <div class="slide-subtitle">Political speech receives the highest First Amendment protection. Online political advertising is the least regulated form of political communication in the US.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Disclosure Gap</div>
+                <div class="card-desc">TV and radio political ads require disclosure of who paid for them. Online political ads have no equivalent federal disclosure requirement. The FEC has not issued comprehensive rules for digital political advertising despite years of rulemaking proceedings. Dark money groups, foreign-funded organizations, and undisclosed PACs can run targeted political ads online with minimal transparency obligation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Microtargeting</div>
+                <div class="card-desc">Political campaigns can target ads to voters based on profile attributes that predict how they will respond to specific messages. Different ads can be shown to Black voters, white voters, suburban women, rural men -- each tailored to different anxieties. Opponents and the press cannot see the ads being shown to other demographic groups. The Honest Ads Act has not passed despite multiple attempts.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Platform Policies on Political Ads</div>
+            Twitter banned all political advertising in 2019 (policy subsequently modified under new ownership). Google limited targeting for political ads in 2020. Facebook (Meta) continued allowing highly targeted political advertising. These are private editorial decisions, not legal requirements. The inconsistency across platforms means political advertisers route to the least regulated option.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">What Would You Do?</div>
+            You are an engineer at a social platform. Your team is building the political advertising targeting system. You realize that the system allows advertisers to exclude Black voters from seeing voter registration ads -- an old discrimination tactic newly enabled by digital ad targeting. No law specifically prohibits this digital targeting exclusion. What is your ethical obligation?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- NET NEUTRALITY ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 33</div>
+        <div class="slide-title">Net Neutrality and <span class="accent">Speech Infrastructure</span></div>
+        <div class="slide-subtitle">The principle that internet service providers must treat all traffic equally. Its relationship to free expression is structural rather than direct.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Net Neutrality Requires</div>
+                <div class="card-desc">ISPs cannot block lawful content, throttle traffic from specific sources, or create "fast lanes" for preferred content in exchange for payment. Without net neutrality, an ISP owned by a media company could theoretically slow competitor streaming services, prioritize its own news sites, or block political content it disagrees with.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The US History</div>
+                <div class="card-desc">FCC adopted net neutrality rules in 2015 under Obama. Repealed in 2017 under Trump. Reinstated in 2024 under Biden. Blocked by courts pending further litigation. The regulatory status of net neutrality has changed repeatedly, creating uncertainty for ISPs, content providers, and the engineers building infrastructure that depends on non-discriminatory traffic handling.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Speech Connection</div>
+            If ISPs can selectively throttle or block internet traffic, they become infrastructure gatekeepers for expression. An ISP that throttles a political dissident's website is engaging in censorship through technical means rather than content removal. The free expression argument for net neutrality is structural: equal access to the communications infrastructure is a precondition for equal access to the speech it carries.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- GLOBAL INTERNET GOVERNANCE ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 33</div>
+        <div class="slide-title">Global Internet <span class="accent">Governance</span></div>
+        <div class="slide-subtitle">The internet was built on US First Amendment values. Most countries have different values. The resulting conflicts are daily professional realities.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Internet Censorship Infrastructure</div>
+                <div class="card-desc">China's Great Firewall blocks access to foreign social media, news, and search. Iran, Russia, North Korea, and dozens of other states filter internet access at the infrastructure level. Technology companies that provide infrastructure, cloud services, or software tools that enable this censorship are making an ethical choice regardless of their legal obligation to comply with local law.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Google China (Project Dragonfly)</div>
+                <div class="card-desc">In 2018, Google worked on a censored search engine for China (Project Dragonfly) that would have identified and removed results for politically sensitive terms and linked search queries to phone numbers for potential government access. Internal employee protests and public reporting killed the project before launch. The ethical question: is building a censorship tool for an authoritarian government compatible with "don't be evil"?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Localization Requirements</div>
+                <div class="card-desc">Russia requires personal data of Russian citizens to be stored on servers in Russia (accessible to Russian law enforcement). Turkey has required platforms to establish local legal entities subject to local court orders. Platforms that comply are accepting a legal architecture designed to enable censorship and surveillance. Platforms that do not comply are blocked in those markets.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- ONLINE HARASSMENT AND FREE SPEECH ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 33</div>
+        <div class="slide-title">Online Harassment <span class="accent">and Free Speech</span></div>
+        <div class="slide-subtitle">Online harassment silences speech through fear. The free expression implications run in both directions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">How Harassment Silences Speech</div>
+                <div class="card-desc">Research shows that targeted harassment campaigns cause victims to withdraw from online participation -- deleting accounts, ceasing to post, abandoning platforms. The speakers most targeted for harassment are women, journalists, activists, and members of minority communities. The net effect of unaddressed online harassment is a reduction in the diversity of voices in public discourse.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Tools and Design</div>
+                <div class="card-desc">Platforms have features that enable or inhibit harassment at scale: the ability to mass-report accounts (used to falsely trigger suspensions), the ability to coordinate via group DMs (used to organize harassment campaigns), public follower lists (used to dox targets), and algorithmic amplification of inflammatory content about specific individuals. These are design choices with free expression consequences.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Design Question</div>
+            If you are building a platform feature that allows users to block or filter content, you are making an engineering decision about the free expression environment. Features that make harassment easier are not neutral. Features that make self-protection easier are not censorship. The ethical question for the engineer is: whose speech interests does this design choice favor?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- AI-GENERATED CONTENT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 33</div>
+        <div class="slide-title">AI-Generated Content and <span class="accent">Expression</span></div>
+        <div class="slide-subtitle">Generative AI creates new questions about authorship, copyright, defamation, and the integrity of the information environment.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Is AI Speech Protected?</div>
+                <div class="card-desc">The First Amendment protects speech, not speakers -- but doctrine has evolved around human expression. Whether AI-generated content is protected speech, whether the company that deploys the AI is the speaker, and whether the First Amendment applies to compelled disclosures about AI origin are unresolved questions that will require new doctrine.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deepfakes and Defamation</div>
+                <div class="card-desc">A synthetic video showing a real person saying something they never said is potentially defamatory if it creates a false impression of fact. But the deep fake that is obviously satirical, or clearly labeled as AI-generated, may be protected expression. The line is not different in kind from written defamation -- but the synthetic realism changes the audience's ability to recognize it as false.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Watermarking and Disclosure</div>
+                <div class="card-desc">Proposals to require watermarking of AI-generated content would impose a disclosure requirement on AI speech. EU AI Act requires disclosure when AI is generating synthetic media. This is both a transparency measure and an expression regulation -- it requires speakers to identify their tool. The First Amendment implications of compelled disclosure in this context are being actively litigated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- ACADEMIC FREEDOM AND EMPLOYEE SPEECH ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 33</div>
+        <div class="slide-title">Employee Speech and <span class="accent">Workplace Expression</span></div>
+        <div class="slide-subtitle">What can your employer limit? What protections do employees have for speech about their work, their employer, or public affairs?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Private Employer Speech Restrictions</div>
+                <div class="card-desc">Private employers can restrict employee speech about confidential information, competitors, and company operations. They can require social media policies. They can terminate employees for public statements that damage the company's reputation. None of this violates the First Amendment -- the First Amendment does not apply to private employers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NLRA Protection</div>
+                <div class="card-desc">The National Labor Relations Act protects "concerted activity" by employees -- discussions about wages, working conditions, and unionization -- from employer retaliation. Social media posts where employees discuss working conditions among themselves may be protected concerted activity even if the employer objects to the content. Employers who discipline employees for discussing pay may violate the NLRA regardless of their social media policy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Whistleblower Speech</div>
+                <div class="card-desc">Federal and state whistleblower protection statutes protect employees who report violations of law to government agencies from employer retaliation. The protection applies to the speech act of reporting -- not to prior complaints to supervisors or subsequent public disclosure. The scope and strength of protection varies substantially by the underlying law and the agency involved.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Engineer's Dilemma</div>
+                <div class="card-desc">Frances Haugen, the Facebook whistleblower, shared internal documents with Congress and journalists after internal escalation produced no results. The actions she took violated her employment agreement. They were protected from retaliation by the SEC whistleblower program because some of her disclosures related to investor-relevant information. Most IT professional disclosures do not fit neatly into existing whistleblower frameworks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CENSORSHIP INFRASTRUCTURE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 33</div>
+        <div class="slide-title">Building <span class="accent">Censorship Tools</span></div>
+        <div class="slide-subtitle">Technology companies build tools that can be used for censorship. The ethics of building versus deploying are related but distinct.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Dual-Use Problem</div>
+                <div class="card-desc">Network filtering technology can block child sexual abuse material or block political opposition websites. Deep packet inspection can identify malware or identify journalists' sources. Content moderation AI can remove violent extremism or suppress minority voices. The technology is not the ethical issue. The question is who controls it, under what constraints, and with what accountability.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Export Controls and Censorship</div>
+                <div class="card-desc">The US government has imposed export restrictions on certain surveillance and censorship technologies that could be used to oppress civilians in foreign countries. The Commerce Department Entity List restricts sales to specific companies known to have provided technology to authoritarian surveillance programs. Building and selling these technologies to blacklisted parties is both illegal and the subject of significant ethical debate in the security community.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Professional's Responsibility</div>
+                <div class="card-desc">An engineer who builds a content filtering system for sale to foreign governments is building dual-use infrastructure. The ethical obligation to consider the likely use of that system is not discharged by noting that legitimate uses exist. The professional who builds systems for authoritarian censorship, even when paid to do so, bears responsibility for what those systems do.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- TERMS OF SERVICE AS LAW ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 33</div>
+        <div class="slide-title">Terms of Service as <span class="accent">Private Law</span></div>
+        <div class="slide-subtitle">Platform terms of service are contracts that govern billions of people's access to communications infrastructure. They are written unilaterally by one party and accepted under compulsion.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What ToS Contracts Permit</div>
+                <div class="card-desc">Platforms' terms of service permit them to: modify the service without notice, suspend or terminate accounts for any reason or no reason, change content ownership terms, arbitrate disputes rather than litigate them, and change any of the above at will. The user's acceptance of these terms, made by clicking "agree" to a document they have not read, is formally legally valid consent to this arrangement.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Adhesion Contracts and Power</div>
+                <div class="card-desc">A contract offered on a take-it-or-leave-it basis, with no opportunity to negotiate terms, by a party in a vastly superior bargaining position, is called an adhesion contract. Courts sometimes refuse to enforce unconscionable adhesion contract terms. But most platform ToS terms survive legal challenge. The absence of a viable alternative to accepting the terms -- when the service is a practical requirement for participation in modern life -- undermines the voluntariness of consent.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Democratic Governance Problem</div>
+            Platform community standards function as a form of private governance over global communications. They are written by corporate employees, ratified by no democratic process, subject to no judicial review, and enforceable by the platform's unilateral judgment. The people most affected by these rules have no representation in writing them. This is a governance structure with no democratic legitimacy -- and it controls most of global online public discourse.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- APPLIED SCENARIOS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 33</div>
+        <div class="slide-title">Applied <span class="accent">Scenarios</span></div>
+        <div class="slide-subtitle">Apply the frameworks. Identify whether First Amendment, Section 230, or DMCA analysis applies -- and what the ethical position is independent of the legal one.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A platform's AI moderation system removes posts containing the phrase "Black Lives Matter" at 4x the rate it removes posts containing racist slurs targeting Black people. The moderation team says the system is working as designed. What is the ethical obligation of the engineers who built it?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A copyright holder sends a DMCA notice for a three-second video clip a user posted. The clip appears to be commentary on the copyrighted work -- arguably fair use. Section 230 does not protect the platform if it has "red flag" knowledge of infringement. The DMCA safe harbor requires expeditious removal. What should the platform do?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">An internet service provider in a US jurisdiction throttles traffic to an online news site that has been critical of the ISP's lobbying activities. Net neutrality is not in force. Is this a free expression issue? Is there any legal remedy? What is the ethical analysis?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">You are a software engineer at a company building content moderation AI for sale to foreign governments. One of your prospective clients is a government that has used your competitor's tools to identify and arrest LGBTQ individuals. Your manager says the contract is legal and valuable. What is your ethical position?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 33 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Written responses required for exercises 1 and 3.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Write a one-page analysis of whether social media platforms should be subject to First Amendment constraints -- either because they function as public utilities or because their market dominance makes them effectively unavoidable. Use at least two ethical frameworks and address the strongest counter-argument.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Section 230 was written in 1996 before recommendation algorithms existed. What, if anything, should Congress change about Section 230 to address algorithmic amplification of harmful content without creating a system where platforms remove all contested content to avoid liability?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">You are a content policy engineer at a platform. You must write a policy on "satire and parody" that allows criticism of public figures while not enabling defamation through false statements of fact disguised as satire. Draft a 200-word policy with three concrete examples of what it does and does not cover.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Reno v. ACLU struck down content regulations aimed at protecting children. The result is that the internet has minimal government regulation of content that children can access. Is this the right outcome? What legal mechanisms, if any, could address the harms to children without violating the First Amendment framework the case established?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- KEY REFERENCES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 33</div>
+        <div class="slide-title">Key <span class="accent">References</span></div>
+        <div class="slide-subtitle">Primary sources for the cases and statutes covered in this module.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Case Law</div>
+                <div class="card-desc">Reno v. ACLU, 521 US 844 (1997). New York Times v. Sullivan, 376 US 254 (1964). Brandenburg v. Ohio, 395 US 444 (1969). McIntyre v. Ohio Elections Commission, 514 US 334 (1995). Matal v. Tam, 582 US 218 (2017). Gonzalez v. Google, 598 US 617 (2023). Murthy v. Missouri, 603 US (2024).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Statutes</div>
+                <div class="card-desc">Communications Decency Act, 47 USC 230 (Section 230). Digital Millennium Copyright Act, 17 USC 512 (Safe Harbor), 17 USC 1201 (Anti-Circumvention). Computer Fraud and Abuse Act, 18 USC 1030. NLRA, 29 USC 151 et seq. (employee protected concerted activity).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Academic and Policy Sources</div>
+                <div class="card-desc">Electronic Frontier Foundation -- eff.org. Center for Democracy and Technology -- cdt.org. Knight First Amendment Institute -- knightcolumbia.org. Citron, Danielle Keats: "Hate Crimes in Cyberspace." Wu, Tim: "The Attention Merchants." Zittrain, Jonathan: "The Future of the Internet and How to Stop It."</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Content Moderation Research</div>
+                <div class="card-desc">Santa Clara Principles on Transparency and Accountability in Content Moderation -- santaclaraprinciples.org. Real Facebook Oversight Board research. MIT Technology Review -- ongoing coverage of content moderation bias and algorithmic amplification studies. Haugen, Frances -- Senate testimony (2021) and accompanying Facebook documents.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- DISCUSSION: PLATFORM POWER ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 33</div>
+        <div class="slide-title">Discussion: <span class="accent">Platform Power</span></div>
+        <div class="slide-subtitle">Consider these positions before the next class discussion. You will be asked to defend a position and respond to objections.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Position A</div>
+                <div class="card-desc">Large social platforms exercise such significant power over public discourse that they should be regulated as common carriers, like phone companies -- required to carry all lawful speech without discrimination. This would prevent politically motivated suppression of speech and ensure equal access to digital public discourse.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Position B</div>
+                <div class="card-desc">Requiring platforms to host all lawful speech would force them to amplify harassment, disinformation, and extremism without the ability to moderate. The cure would be worse than the disease. Platforms' editorial discretion, including their moderation policies, is itself First Amendment-protected private speech that cannot be compelled by the government.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Position C</div>
+                <div class="card-desc">Neither extreme works. Platforms should be required to apply their own stated community standards consistently and with due process -- not to host everything, not to censor anything, but to enforce their own rules fairly and transparently. Arbitrary inconsistent enforcement is the core of the accountability problem, not the existence of standards.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- AI AND CONTENT MODERATION FUTURE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 33</div>
+        <div class="slide-title">AI and the Future of <span class="accent">Content Moderation</span></div>
+        <div class="slide-subtitle">Generative AI will simultaneously create more harmful content and more sophisticated tools for detecting it. The engineering decisions made now define the battlefield.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">AI-Generated Harms at Scale</div>
+                <div class="card-desc">Synthetic media enables coordinated disinformation at scales that require no human creation. Deepfake political videos, AI-generated fake news articles, synthetic voice audio of public figures -- these can be produced faster than detection systems can identify them. The asymmetry between generation cost and detection cost fundamentally changes the information environment.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AI-Based Detection</div>
+                <div class="card-desc">The same AI capabilities that generate synthetic content can detect it. Watermarking, hash-matching, and classifier-based detection are all active research areas. But the cat-and-mouse dynamic is well established: detection methods train generators to evade detection, and each generation of detection capability is quickly followed by evasion. The detection gap is a permanent feature of the problem.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Engineer's Responsibility</div>
+            If you build generative AI capable of creating realistic synthetic media of real people, you have created a tool that will be used for non-consensual intimate imagery, political disinformation, and targeted harassment -- regardless of your intended use case. The professional obligation to consider foreseeable misuse before deployment is not dischargeable by a terms of service clause.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- GLOBAL INTERNET FRAGMENTATION ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 33</div>
+        <div class="slide-title">Internet <span class="accent">Fragmentation</span></div>
+        <div class="slide-subtitle">The global internet is fragmenting into national and regional networks with incompatible legal and ethical frameworks. IT professionals will work in this environment.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Splinternet</div>
+                <div class="card-desc">China's internet, Russia's Runet, and the EU's data-sovereignty framework represent different visions of what the internet should be. Data localization requirements, content removal mandates, and infrastructure nationalization are creating a fragmented internet where data flows differently depending on whose servers it crosses and under whose jurisdiction it falls.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What This Means in Practice</div>
+                <div class="card-desc">An email passing through servers in Russia, the EU, and the US is subject to different access, retention, and content requirements in each jurisdiction. The global web developer who builds a product used across all three jurisdictions is simultaneously subject to GDPR, Russian data localization law, US CLOUD Act provisions, and local content restriction requirements that may be fundamentally incompatible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Professional's Preparation</div>
+                <div class="card-desc">IT professionals working in any globally deployed product must understand that the legal and ethical framework governing their system varies by geography. "We comply with applicable law" requires knowing which laws apply, which conflict, and which choices the organization must make explicitly about whose rules govern when they cannot all be satisfied simultaneously.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- ETHICAL FRAMEWORK FOR SPEECH DECISIONS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 33</div>
+        <div class="slide-title">An Ethical Framework for <span class="accent">Speech Decisions</span></div>
+        <div class="slide-subtitle">For IT professionals making content policy, moderation system, or speech architecture decisions: a structured approach to evaluating competing values.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Identify whose speech interests are affected.</strong> Not just the speaker, but the audience that benefits from the speech, the individuals targeted by the speech, and communities affected by its amplification or suppression.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Assess the harm potential.</strong> Is the speech a true threat? Coordinated inauthentic behavior? Disinformation with measurable real-world harm potential? Or is the harm speculative or contingent on how receivers interpret the content?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Consider the least restrictive means.</strong> Is removal the only option, or are there intermediate responses -- labeling, demotion, friction before sharing -- that address the harm with less impact on the speech value?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Check consistency.</strong> Would this policy apply consistently across political viewpoints, communities, and languages? Inconsistent enforcement is not neutral -- it reveals whose speech the system actually protects.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Build in due process.</strong> Is there a meaningful appeals mechanism? Is the enforcement decision explainable to the affected party? Is there a human review pathway for consequential decisions made by automated systems?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- ADDITIONAL CASES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 33</div>
+        <div class="slide-title">Additional <span class="accent">Cases for Discussion</span></div>
+        <div class="slide-subtitle">Research one of these cases for the written assignment.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Alex Jones / Infowars</div>
+                <div class="card-desc">Multiple platforms simultaneously removed Alex Jones in 2018. The coordination raised questions about informal platform deplatforming agreements. Jones was not convicted of any crime before removal. He was subsequently ordered to pay $1.5 billion in defamation damages to Sandy Hook families. The case implicates Section 230, defamation law, and the limits of platform editorial discretion.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Twitter/X Under Elon Musk</div>
+                <div class="card-desc">The 2022 acquisition of Twitter reversed prior moderation decisions, reinstated previously banned accounts, eliminated trust and safety teams, and reframed content moderation as "free speech absolutism." The subsequent increase in hate speech, harassment, and disinformation on the platform is documented by multiple researchers. The case is a live experiment in what reduced moderation does to platform discourse.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Myanmar Facebook Genocide</div>
+                <div class="card-desc">Facebook's algorithm amplified anti-Rohingya content in Myanmar, where Facebook was effectively the internet for millions of people. The UN attributed Facebook's role in amplifying hate speech to the 2017 Rohingya genocide. Facebook's delayed response to reported content and inadequate Burmese-language moderation capacity are documented. Facebook was served with a $150 billion lawsuit by Rohingya survivors.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- MORE DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 33</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Bring a considered position to next class.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Section 230 has been called "the law that created the modern internet." Is that a good thing? What would the internet look like if Section 230 had never been passed?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Does a corporation have First Amendment rights to engage in political speech? Citizens United v. FEC said yes for spending. Do platforms have the same rights when making content moderation decisions? Should corporate free speech rights be the same as individual free speech rights?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">If a platform's recommendation algorithm amplifies content that contributes to genocide in a foreign country, but that content does not violate any US law, should Section 230 still protect the platform from civil liability? What ethical standard should apply?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Anonymous speech protected political organizing in pre-revolutionary America. Does the same logic apply to anonymous political activity in 2025? Has the internet changed the balance of power between anonymous speakers and their targets in ways that should change the legal analysis?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- PROFESSIONAL IMPLICATIONS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 33</div>
+        <div class="slide-title">Professional <span class="accent">Implications</span></div>
+        <div class="slide-subtitle">What free expression law and ethics means for your daily engineering decisions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Every Moderation System Is a Speech Decision</div>
+                <div class="card-desc">The classifier you train, the threshold you set, the languages you prioritize, the appeals process you build or omit -- each is a choice about whose speech is amplified, whose is suppressed, and whether affected users have any recourse. These are editorial and ethical decisions wearing an engineering costume.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Your Code Outlasts the Context</div>
+                <div class="card-desc">A content moderation system built to address one category of harm will be adapted for others. A censorship tool built for a trusted government client will be sold to less trusted ones. The ethical evaluation of a system must include its foreseeable repurposing, not just its stated initial purpose. Build with the worst foreseeable operator in mind, not the best.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Engineer's Accountability</div>
+            The Facebook engineer who built the EdgeRank algorithm that amplified outrage-driving content did not know it would contribute to genocide in Myanmar. Foreseeing all consequences is impossible. But a professional who never asks "who will be harmed by this system and how" has not met the ethical standard of professional due diligence. The question must be asked before the system ships.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SUMMARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 33 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">The internet created the greatest expansion of expressive freedom in human history and the most powerful privately controlled speech infrastructure ever built. Both are true simultaneously.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            First Amendment limits government. Section 230 limits platform liability. DMCA governs copyright takedowns. None of these fully addresses the ethical question of what platforms should do with the power they hold over global public discourse. That question falls to the professionals who build and maintain the infrastructure.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The First Amendment restricts government, not private companies. Platform content moderation is not a First Amendment issue -- it is a private contract and editorial discretion issue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Reno v. ACLU (1997): the internet gets full First Amendment protection. The government cannot regulate "indecent" online speech as broadly as it can regulate broadcast speech.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Section 230: platforms are not publishers of user content. They can moderate in good faith without losing immunity. This provision enabled the modern internet.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Defamation: false statements of fact, not opinion. Public figures must prove actual malice. Truth is an absolute defense. Section 230 protects platforms from liability for user defamation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">DMCA: notice-and-takedown for copyright. Safe harbor requires expeditious removal on notice. Anti-circumvention (1201) restricts security research and right-to-repair. Fair use is not considered in the takedown process.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Anonymous speech is constitutionally protected (McIntyre). The right to speak without identifying yourself is part of the right to speak. Real-name requirements harm exactly the speakers anonymity most protects.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Algorithmic amplification is a speech decision. The engineer who builds an engagement-optimizing algorithm that amplifies harmful content is making editorial choices at a scale no editor in history has matched.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Every moderation system is a speech decision affecting real people. Consistency, due process, least restrictive means, and accountability are the ethical standards -- not just the legal minimum.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 33</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 33;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w2-expression', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

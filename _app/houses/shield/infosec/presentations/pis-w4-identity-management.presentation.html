@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity Management &amp; Access Control | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px;
+            border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+        .ic { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Identity Management &amp; Access Control | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-14 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; SY0-701: 5.3, 5.4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Identity Management &amp;<br>
+                <span class="accent">Access Control</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Least Privilege &nbsp;&bull;&nbsp; RBAC / ABAC / MAC / DAC &nbsp;&bull;&nbsp; PAM &nbsp;&bull;&nbsp; Account Lifecycle &nbsp;&bull;&nbsp; Service Accounts
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Epsilon. Specimen containment has been breached. Initial investigation reveals a lab technician account was used to modify firewall rules -- a task requiring network administrator privileges. The technician had never held that role. Access was granted "temporarily" six months ago and never revoked. One orphaned permission. One breach.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-14</span>
+            <span>Week 4 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — ACCESS CONTROL PRINCIPLES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Core <span class="accent">Access Control Principles</span></div>
+        <div class="slide-subtitle">Foundational principles that underpin every access control model and policy. These are not optional -- they are the architecture of defense.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Least Privilege</div>
+                <div class="card-desc">Every subject (user, process, service) should have the minimum access rights necessary to perform its function -- nothing more. Limits blast radius: a compromised account with minimal access causes minimal damage. Requires ongoing enforcement -- privilege creep accumulates over time through job changes and "temporary" grants.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Need-to-Know</div>
+                <div class="card-desc">Beyond least privilege for data access: access is granted only when there is a demonstrable operational need. Common in government/intelligence (compartmented information). Prevents authorized users from accessing sensitive information outside their direct mission requirement even if their clearance level would technically allow it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Separation of Duties (SoD)</div>
+                <div class="card-desc">Critical tasks require multiple participants -- no single person can complete the entire process alone. Prevents fraud and error. Examples: the person who initiates a financial transaction cannot also approve it; the person who writes code cannot also deploy it to production without review. Two-person integrity (TPI) is the physical security equivalent.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Dual Control</div>
+                <div class="card-desc">Two people must be present and must both act for a sensitive operation to proceed. Distinguished from SoD (which separates roles across time or systems). Physical example: missile launch requires simultaneous turn of two keys by two officers. Digital example: M-of-N authorization for cryptographic key ceremonies (N people needed, any M of them suffice).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Principle of Complete Mediation</div>
+                <div class="card-desc">Every access attempt to every resource must be checked against the access control policy -- no exceptions, no bypass paths, no cached authorization that skips the policy engine. Cached access decisions must be re-verified when policy changes. This is why session tokens must be invalidated when roles change, not just on expiration.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Fail-Secure (Fail-Closed)</div>
+                <div class="card-desc">If the access control system fails, access should be denied by default -- not granted. A firewall that fails open passes all traffic. A door lock that fails open allows anyone in. Contrast with fail-safe (physical safety: doors that fail open for fire egress are fail-safe for life safety but fail-insecure for security). Context determines which failure mode is correct.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — ACCESS CONTROL MODELS OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Access Control <span class="accent">Model Overview</span></div>
+        <div class="slide-subtitle">Access control models define the rules for how subjects access objects. Each model has different flexibility, rigidity, and use case fit.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">DAC -- Discretionary Access Control</div>
+                <div class="card-desc">Object owners control access to their own resources. Owner sets permissions (read, write, execute) for other users. Highly flexible, low administrative overhead. Weakness: relies on every owner making correct security decisions. Malware running as user inherits user's permissions. Traditional Unix file permissions and Windows ACLs are DAC implementations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MAC -- Mandatory Access Control</div>
+                <div class="card-desc">Central authority assigns sensitivity labels (classification levels) to objects and clearance levels to subjects. System enforces access -- owners cannot override. Used in government/military environments (Confidential, Secret, Top Secret). Bell-LaPadula model: no read up, no write down (prevents data leakage upward). SELinux implements MAC on Linux.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RBAC -- Role-Based Access Control</div>
+                <div class="card-desc">Access is granted to roles, not directly to users. Users are assigned to roles; roles have permissions. Scalable: changing role permissions affects all role members simultaneously. Simplifies administration (onboard/offboard by assigning/removing roles). Access review at role level rather than per-user-per-resource. Industry standard for enterprise systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ABAC -- Attribute-Based Access Control</div>
+                <div class="card-desc">Policy evaluates attributes of the subject (role, department, clearance), object (classification, owner, sensitivity), environment (time, location, device), and action (read, write, delete). Most flexible -- fine-grained policies impossible with pure RBAC. Examples: "Allow access if user.department=Research AND resource.classification=Internal AND device.managed=True AND time.hour BETWEEN 06:00 AND 22:00." XACML is the ABAC policy language standard.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Rule-Based Access Control (RBAC Variant)</div>
+            Rule-based: access controlled by system-wide rules independent of user identity (firewall ACLs, router access lists, time-of-day restrictions). Do not confuse with Role-Based Access Control -- the acronym RBAC typically refers to role-based in identity contexts. Exams may test the distinction.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — MAC DEEP DIVE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Mandatory Access Control <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">MAC uses security labels and clearances to enforce information flow policy. Understanding the models is essential for SY0-701 and government security contexts.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Security Labels and Clearances</div>
+                <div class="card-desc">Objects receive classification labels (Unclassified, Confidential, Secret, Top Secret). Subjects receive clearance levels. Access requires: subject clearance >= object classification (read access) AND subject clearance == object classification for write. Labels may also carry compartment tags (e.g., SCI, SAP) -- clearance alone insufficient without compartment access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Bell-LaPadula Model (Confidentiality)</div>
+                <div class="card-desc">Focus: prevent unauthorized disclosure of classified information. Simple Security Rule (no read up): subject cannot read objects at higher classification than their clearance. Star Property (no write down): subject cannot write data to objects at lower classification than their current level (prevents data leakage downward). Strong Star: read/write only at same level.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Biba Model (Integrity)</div>
+                <div class="card-desc">Focus: prevent unauthorized modification and preserve integrity. Simple Integrity Rule (no read down): subject cannot read objects at lower integrity level (contamination risk). Star Integrity Property (no write up): subject cannot write to objects at higher integrity level (corruption risk). Biba is the integrity complement to Bell-LaPadula. Used for systems prioritizing accuracy over confidentiality.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Clark-Wilson Model</div>
+                <div class="card-desc">Commercial integrity model. Focuses on well-formed transactions and separation of duties. Constrained Data Items (CDI): data that must maintain integrity. Unconstrained Data Items (UDI): input from untrusted sources. Transformation Procedures (TP): only valid operations on CDIs. Integrity Verification Procedures (IVP): verify CDI integrity. Users access CDIs only through authorized TPs -- not directly.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Brewer-Nash (Chinese Wall)</div>
+                <div class="card-desc">Conflict of interest model. Used in financial and legal contexts. Objects grouped into conflict-of-interest classes (competing companies). Once a subject accesses an object from one company's data, they cannot access data from a competing company in the same conflict class. Prevents consultants from using knowledge of one client against another. Dynamic access control based on access history.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">SELinux and AppArmor</div>
+                <div class="card-desc">SELinux: Linux kernel MAC implementation using type enforcement (TE) and role-based policies. Every process and file has a security context. Policy defines allowed transitions. Default-deny: anything not explicitly allowed is denied. AppArmor: simpler MAC using path-based profiles. Both reduce exploitation impact -- compromised web server process cannot access files outside its SELinux/AppArmor profile regardless of Linux DAC permissions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — RBAC DESIGN ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">RBAC Design &amp; <span class="accent">Implementation</span></div>
+        <div class="slide-subtitle">Role-Based Access Control is the dominant enterprise access model. Effective RBAC requires careful role design to avoid the "role explosion" antipattern.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">RBAC Components</div>
+                <div class="card-desc">Subjects (users, service accounts, groups). Roles (job function abstractions: Analyst, Developer, Admin, Auditor). Permissions (resource + action pairs: Read Incident Tickets, Modify Firewall Rules). Role assignments (subject-to-role). Permission assignments (role-to-permission). Role hierarchy (Senior Analyst inherits Analyst permissions). Sessions (user activates subset of their roles).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Role Design Best Practices</div>
+                <div class="card-desc">Start with job functions -- not individuals. Aim for 10-50 base roles (department x function matrix). Avoid one role per person (defeats purpose). Use role hierarchy sparingly -- deep hierarchies become unmaintainable. Separate duty-sensitive roles (accounts payable vs. accounts receivable). Regular role review: quarterly. Document the business justification for each role's permissions. Name roles for function, not people.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privilege Creep</div>
+                <div class="card-desc">Accumulation of access rights over time as users change roles, take on temporary projects, or receive "temporary" exceptions. Common in organizations without automated deprovisioning. Discovered during access reviews: users holding roles from 3 previous departments. Remediation requires recertification campaigns. Prevention: link role assignment to HR system events (transfer, promotion triggers role change workflow).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Role Mining</div>
+                <div class="card-desc">Bottom-up approach: analyze existing access rights across users to discover patterns and define roles that reflect actual access needs. Used when deploying RBAC in an organization with no existing role model. Tools generate candidate role sets from access data. Role mining produces a starting point -- security review and refinement required before implementing derived roles. Avoids perpetuating existing privilege creep.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC research division audit. Access review reveals the lab technician role has accumulated permissions from three previous role assignments: specimen handling (current), network operations (3 years ago), and admin assistant (5 years ago). 47 users in the Technician role hold residual permissions from past assignments. The access review campaign initiates recertification -- managers must approve or revoke each permission within 30 days.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — ABAC DEEP DIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">ABAC — Attribute-Based <span class="accent">Access Control</span></div>
+        <div class="slide-subtitle">ABAC enables fine-grained, context-aware authorization decisions that RBAC alone cannot express -- critical for Zero Trust and cloud environments.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Attribute Categories</div>
+                <div class="card-desc">Subject attributes: user.role, user.department, user.clearance, user.location, device.managed, device.os, device.patch-level. Resource attributes: resource.classification, resource.owner, resource.sensitivity, resource.project. Environment attributes: time.hour, time.day, network.ip, network.segment, threat.level. Action attributes: action.type (read/write/delete/share).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Policy Expression</div>
+                <div class="card-desc">ABAC policies are logical expressions: IF (subject.department == resource.department OR subject.clearance >= resource.classification) AND (device.managed == TRUE) AND (time.hour BETWEEN 06 AND 20) THEN PERMIT ELSE DENY. XACML (eXtensible Access Control Markup Language) is the XML-based standard for ABAC policy definition and enforcement architecture (PAP/PDP/PEP/PIP model).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ABAC vs. RBAC Trade-offs</div>
+                <div class="card-desc">RBAC: simple, scalable, human-readable, well-tooled -- but static (cannot account for context). ABAC: flexible, context-aware, fine-grained -- but complex policies are hard to audit, attribute sources must be trusted and fresh, performance overhead of policy evaluation at access time. Hybrid: use RBAC for coarse-grained baseline, ABAC conditions for context-sensitive refinement within roles.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ABAC in Cloud IAM</div>
+                <div class="card-desc">AWS: condition keys in IAM policies (condition: aws:PrincipalTag/Department, s3:prefix, aws:RequestedRegion). Azure: attribute-based access conditions for blob storage (user must have 'Project' tag matching resource tag). GCP: IAM conditions with resource attributes. Kubernetes: OPA (Open Policy Agent) / Gatekeeper for ABAC-style workload admission control. Cloud-native ABAC enables data perimeters and tenant isolation at scale.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">ABAC Policy Pitfalls</div>
+                <div class="card-desc">Attribute staleness: if attribute source (LDAP, HR system) is not real-time, decisions may be made on stale data. Attribute spoofing: if users can modify their own attributes, policy can be subverted. Policy complexity: nested conditions become unauditable -- "policy spaghetti." Testing coverage: combinatorial explosion of attribute combinations makes full test coverage impractical. Invest in policy simulation and monitoring tools.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">OPA (Open Policy Agent)</div>
+                <div class="card-desc">CNCF project providing a general-purpose policy engine. Policies written in Rego (declarative language). Deployed as sidecar or external service. Integrations: Kubernetes admission control, API gateway authorization, Terraform compliance, microservice ABAC. Decision log enables auditing of every authorization decision with full context. OPA is increasingly the enforcement point for ABAC in cloud-native environments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — ACCOUNT TYPES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Account Types &amp; <span class="accent">Risk Profiles</span></div>
+        <div class="slide-subtitle">Different account types carry different risk profiles. Controls must be commensurate with the access and persistence each type provides.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">User Accounts</div>
+                <div class="card-desc">Standard employee account. Lowest privilege starting point -- access added by role assignment. Subject to HR lifecycle events (hire, transfer, terminate). Must be tied to a single person (no shared accounts). Password + MFA policy enforcement. Regular access review to check for accumulated permissions. Most numerous -- requires automated lifecycle management at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privileged Accounts</div>
+                <div class="card-desc">Domain admin, local admin, root, database SA, cloud IAM admin. Highest risk -- full administrative control over systems. Should be separate named accounts from daily-use accounts (admin uses PersonName-ADM account for privileged tasks, regular account for email/browsing). Managed through PAM solution -- credential vaulted, JIT access, session recording. Never use for email or web browsing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Accounts</div>
+                <div class="card-desc">Accounts used by applications and automated processes -- not human users. Cannot be subject to standard MFA or password rotation policies without application changes. Often hold elevated privileges and are forgotten during offboarding. Use managed service accounts (MSA, gMSA in AD) where possible -- OS manages password rotation automatically. Cloud: use managed identities instead of service account passwords.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Shared Accounts</div>
+                <div class="card-desc">Multiple people using one account. Security failures: no individual accountability (audit logs show account name, not person), revocation affects all users, password management is group knowledge (spreads widely, rarely rotated). Almost always prohibited by security policy and compliance frameworks. Exceptions (break-glass, shared kiosks) require compensating controls: checkout logs, dual approval, immediate rotation after use.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Generic / Default Accounts</div>
+                <div class="card-desc">Vendor-created default accounts (admin/admin, sa/blank, guest). Must be renamed, disabled, or deleted before production deployment. Default credentials are well-known and the first thing attackers try. Default account audit: run credential scanning tools against all systems in scope. CIS Benchmarks provide per-OS and per-application guidance on disabling default accounts.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Emergency / Break-Glass Accounts</div>
+                <div class="card-desc">Pre-configured, highly privileged accounts for use only when normal admin access is unavailable (IdP outage, lockout recovery). Must exist but must be tightly controlled. Controls: physical envelope with credentials in safe, dual-custody, use triggers SIEM alert, credentials rotated immediately after any use (whether legitimate or suspected compromise), quarterly verification that account still works.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — ACCOUNT LIFECYCLE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Account <span class="accent">Lifecycle Management</span></div>
+        <div class="slide-subtitle">Every account must be managed from creation through deprovisioning. Gaps in the lifecycle create the orphaned accounts that attackers exploit.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Provisioning (Joiner)</div>
+                <div class="card-desc">HR event triggers identity workflow. Account created in identity source of truth (AD, HRMS). Role assigned by job title/department mapping. Access provisioned to required applications via SCIM or manual ticket. MFA enrollment required before first login. Manager receives confirmation and must acknowledge onboarding checklist. Initial password delivered via secure out-of-band channel (not email).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Transfer (Mover)</div>
+                <div class="card-desc">Employee changes role or department. Old role removed, new role assigned. This event is often missed -- current roles added but previous roles not removed (role accumulation). Automated joiner-mover-leaver (JML) workflows driven by HR system events prevent this. Manager of old department and manager of new department should both participate in access transition. Access to sensitive former-role systems revoked immediately.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Deprovisioning (Leaver)</div>
+                <div class="card-desc">HR termination event. Account must be disabled immediately on last day -- not "when IT gets to it." Automated: HR system event triggers account disable and role removal within minutes. Manual: high-risk of orphan accounts. Steps: disable account, revoke MFA, revoke certificates, terminate active sessions, remove from all groups, archive mailbox per retention policy, remove from shared resources, document in audit log.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Orphan Accounts</div>
+                <div class="card-desc">Accounts that remain active after the associated person has left. Most common finding in identity audits. Risk: former employee or attacker who obtains credentials can use dormant account undetected (no activity baseline to compare against). Detection: identify accounts with no login activity for 30/60/90 days -- compare against active HR records. Automated scan and disable quarterly minimum. Accounts with no login in 90 days should be automatically disabled.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">JML Process Automation</div>
+            Joiner-Mover-Leaver automation driven by HR system events reduces orphan accounts from weeks to minutes. SCIM-connected applications receive provisioning/deprovisioning calls automatically. IGA platforms (SailPoint, Saviynt) orchestrate the full workflow including manager approvals, access reviews, and audit trails.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — SERVICE ACCOUNTS DEEP DIVE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Service Accounts — <span class="accent">The Hidden Risk</span></div>
+        <div class="slide-subtitle">Service accounts are among the most over-privileged, under-managed, and most often compromised account types in enterprise environments.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Why Service Accounts Are Risky</div>
+                <div class="card-desc">Non-interactive: cannot enforce MFA. Long-lived passwords: rarely rotated because rotation breaks applications. Over-privileged: often given Domain Admin "to make the app work." No individual ownership: managed by the "app team" -- no clear security owner. Not linked to HR lifecycle: survive employee departures, vendor contract ends, application decommissions. Frequently targeted in Kerberoasting attacks.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Managed Service Accounts (MSA)</div>
+                <div class="card-desc">Active Directory MSA: OS-managed password (automatically rotated, 240-character complexity). Single computer: MSA bound to one host. Group MSA (gMSA): shared across multiple hosts (AD manages key distribution). No human ever knows the password. Eliminates Kerberoasting risk for MSA accounts (240-char passwords are not crackable in reasonable time). Requires AD 2012+ and Windows 2012+ hosts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cloud Managed Identities</div>
+                <div class="card-desc">Azure Managed Identity: system-assigned (tied to resource lifecycle) or user-assigned (reusable across resources). AWS EC2 Instance Profiles + IAM Roles: temporary credentials via IMDS (STS tokens, auto-refreshed). GCP Service Accounts with Workload Identity Federation: OIDC token exchange -- no service account keys needed. None of these require managing credentials -- cloud platform handles rotation automatically.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Service Account Inventory</div>
+                <div class="card-desc">Organizations typically have more service accounts than they know about. Discovery: query AD for accounts in service account OUs + accounts with service principal names + accounts with "Password never expires" flag + accounts with non-interactive logon type. Document for each: owning application, owning team, privileges held, last password rotation, last usage. Annual certification: if no one can justify a service account, disable and monitor before deletion.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Least Privilege for Service Accounts</div>
+                <div class="card-desc">Grant only what the application requires -- verified by reviewing application documentation and testing in a lower environment. Service account running a web server does not need Domain Admin -- it needs read access to its web root and write access to its log directory. Start with no permissions and add only what is required during application testing. Review annually and remove permissions no longer needed after application updates.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Secrets Management</div>
+                <div class="card-desc">Service account credentials and API keys should never be in source code, config files, or environment variables in plaintext. Solutions: HashiCorp Vault (dynamic secrets -- new credential per request, auto-expiring), AWS Secrets Manager / Parameter Store, Azure Key Vault, GCP Secret Manager. Integrate with CI/CD (Vault agent, AWS CodeBuild secrets injection). Scan repositories for committed secrets (GitLeaks, TruffleHog, GitHub Secret Scanning).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — PAM ARCHITECTURE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">PAM Architecture &amp; <span class="accent">Capabilities</span></div>
+        <div class="slide-subtitle">Privileged Access Management is the comprehensive solution for controlling, monitoring, and auditing all privileged activity across the enterprise.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Credential Vaulting</div>
+                <div class="card-desc">All privileged account passwords, SSH keys, API keys, and certificates stored in encrypted vault. Access requires authentication to the PAM system (MFA-enforced). Users request access to credentials -- checked out for specific window and rotated afterward. Check-out is audited. Some deployments: credential injection (user never sees password -- PAM injects into RDP/SSH session). Eliminates shared, written-down, or email-transmitted admin passwords.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Just-in-Time (JIT) Privileged Access</div>
+                <div class="card-desc">No standing privileged access -- elevation granted on demand for specific task and time window. Workflow: engineer submits request (reason, resource, duration). Manager or automated approval policy approves. Access granted for defined window (30 minutes, 2 hours). Access automatically revoked at expiration -- engineer must re-request for continued access. Audit trail: who requested, who approved, what was done, when it expired.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Session Recording</div>
+                <div class="card-desc">All privileged sessions recorded: terminal sessions (keystrokes, command output), RDP graphical sessions (video recording), database sessions (query log). Recordings stored in tamper-evident repository with hash verification. Searchable by session metadata (user, time, target system, commands). Used for: insider threat investigation, compliance evidence, forensic reconstruction, training (legitimate use), and real-time monitoring.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Privileged Session Monitoring</div>
+                <div class="card-desc">Real-time behavioral analysis of privileged sessions. Alert triggers: bulk file deletion or copy (potential exfiltration), execution of unusual commands (net user /add, certutil, PowerShell encoded commands), access to systems outside normal scope, privilege escalation attempts, running known attack tools. SOC analyst can observe live sessions and terminate if threat confirmed. Automated playbook: auto-terminate + alert + capture on confirmed threat indicator.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">PAM Product Landscape</div>
+            CyberArk (market leader -- enterprise), BeyondTrust (Privileged Remote Access + Password Safe), Delinea (Thycotic/Centrify), HashiCorp Vault (DevOps/secrets-focused, open-source core), AWS Systems Manager Session Manager (cloud-native, no bastion host needed). Selection: enterprise = CyberArk/BeyondTrust; cloud-native = Vault or cloud-native; SMB = Delinea.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — ZERO STANDING PRIVILEGES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Zero Standing Privileges <span class="accent">(ZSP)</span></div>
+        <div class="slide-subtitle">ZSP eliminates persistent administrative access -- the highest-impact identity control available and the direction all mature programs move toward.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Problem with Standing Access</div>
+                <div class="card-desc">Standing privileged access = admin has persistent, always-available domain admin rights. Even if only used 1 hour per week, the account is a 24x7 target. Attacker who compromises the account at 2 AM on Saturday has immediate domain admin. No request, no approval, no audit trail. The window of exposure is 100% of time, not 1% of time when the admin is actually working.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Elevation Models</div>
+                <div class="card-desc">Permanent: admin has domain admin role always (worst). Just-in-Time Role Assignment: no role assigned until request approved, then role added for duration, then removed. Just-in-Time Group Membership: user added to privileged AD group for approved window. Temporary Token: short-lived credential (STS assume-role, JIT SSH certificate) valid for task window. Privilege as Code: infrastructure deploys privileged access via Terraform/IaC, tracked in version control, auto-expires.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Microsoft PIM (Privileged Identity Management)</div>
+                <div class="card-desc">Azure AD Privileged Identity Management implements JIT for Azure AD roles and Azure resource roles. Eligible roles: user can activate when needed. Active roles: persistent (avoid for sensitive roles). Activation: request + approval workflow + MFA + reason + time-bound. Activation triggers audit event. Access Reviews built in. Alerts: admin activating without approval, role activated but unused, suspicious activation patterns. Free for high-value roles in Entra ID P2.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Implementing ZSP Progressively</div>
+                <div class="card-desc">Phase 1: PAM vault -- eliminate standing credentials from spreadsheets/docs. Phase 2: Require PAM checkout for all privileged account use. Phase 3: JIT workflow for top-tier privileged roles (Domain Admin, Cloud Owner). Phase 4: Session recording for all PAM sessions. Phase 5: Behavioral analytics on recorded sessions. Phase 6: Zero standing on all privileged roles -- full JIT. Each phase reduces exposure window by 50-90%.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC post-breach hardening. Domain Admin accounts are enrolled in PAM. JIT workflow is implemented: engineers submit a request specifying the target system, reason, and required duration (maximum 4 hours). The PAM system notifies the on-call security lead for approval. Once approved, Domain Admin membership is temporarily granted, session recording begins, and access automatically expires with credentials rotated. The 24x7 standing privilege window is eliminated.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — ACCESS CONTROL LISTS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Access Control Lists &amp; <span class="accent">File Permissions</span></div>
+        <div class="slide-subtitle">ACLs and file permission systems are the enforcement layer for DAC at the operating system and filesystem level.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Windows ACLs (DACLs)</div>
+                <div class="card-desc">Every Windows securable object (file, folder, registry key, service, AD object) has a Security Descriptor containing an Owner, DACL (Discretionary ACL), and SACL (System ACL for auditing). DACL contains ACEs (Access Control Entries): Allow or Deny for a specific trustee (user, group). Explicit Deny overrides Allow. ACL evaluation: explicit deny, then explicit allow, then inherited, then implicit deny (default).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Permission Types</div>
+                <div class="card-desc">File system: Full Control, Modify, Read &amp; Execute, List Folder Contents, Read, Write. Share permissions: Full Control, Change, Read (evaluated separately from NTFS -- effective = most restrictive of both). Special permissions: fine-grained (e.g., "Traverse Folder" alone). Inherited vs. explicit permissions: inherited come from parent, can be blocked. Best practice: manage via groups, not individual user ACEs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Unix/Linux Permissions</div>
+                <div class="card-desc">Owner, Group, Other (world). Permission bits: read (4), write (2), execute (1). Octal notation: <span class="ic">chmod 755</span> = owner rwx, group r-x, other r-x. Special bits: setuid (run as file owner), setgid (run as file group / inherit group on new files in directory), sticky bit (only owner can delete in shared directory, e.g., /tmp). POSIX ACLs extend beyond owner/group/other for fine-grained access.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Extended ACLs (POSIX and NFS)</div>
+                <div class="card-desc">POSIX ACLs allow per-user and per-group permissions beyond the standard owner/group/other triplet. <span class="ic">setfacl -m u:alice:rwx /data/project</span> grants alice rwx even if she is not the owner or in the owning group. NFS v4 ACLs align with Windows ACL semantics (inheritance, deny entries, more fine-grained permissions). Cloud object storage (S3, Azure Blob, GCS) uses bucket/object policies as their ACL equivalent.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Capability Lists vs. ACLs</div>
+                <div class="card-desc">ACL (Access Control List): object-centric view -- each object has a list of subjects with their permissions. "Who can access this file?" Capability list: subject-centric view -- each subject has a list of objects it can access. "What can this user access?" Both represent the same access matrix from different perspectives. Revoking access: easy with ACLs (remove from object's list), complex with pure capability lists (must find all capabilities held by subject).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ACL Misconfigurations</div>
+                <div class="card-desc">World-readable sensitive files (chmod 644 on private key, 777 on web uploads directory). NTFS Everyone:Full Control on server shares. ACL inheritance broken -- permissions not flowing to subfolders correctly. Permissions granted to deprecated groups still containing members. "Domain Users" group with write access to shared folders. AD object ACLs: many privilege escalation paths in AD exploit misconfigured ACLs on AD objects (BloodHound discovers these paths).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — IDENTITY GOVERNANCE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Identity Governance &amp; <span class="accent">Administration (IGA)</span></div>
+        <div class="slide-subtitle">IGA provides the governance layer above IAM infrastructure -- ensuring access is appropriate, reviewed, and audit-ready for compliance.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IGA Core Functions</div>
+                <div class="card-desc">Identity lifecycle automation (JML workflows). Role management (role definition, assignment, hierarchy, RBAC design). Access request and approval workflows (self-service portal, manager approval, multi-level approval for sensitive access). Access certification campaigns (periodic reviews). Segregation of duties (SoD) policy enforcement -- prevent conflicting role combinations. Privileged access management integration. Audit reporting and evidence collection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Certification</div>
+                <div class="card-desc">Periodic review process where managers certify that their direct reports still require each assigned access entitlement. Campaign-based: IGA platform sends managers a list of their reports' access. Manager reviews each item: Certify (keep) or Revoke (remove). Automatic revocation of uncertified items at campaign close. Evidence: campaign completion record, individual decisions with timestamps, auditor-accessible dashboard. Frequency: privileged access quarterly, standard access annually.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Segregation of Duties (SoD)</div>
+                <div class="card-desc">IGA platforms enforce SoD rules: defined conflicts (role A + role B = conflict). Example: "Create Vendor" + "Approve Payment" = SoD violation (single person could create fictitious vendor and pay them). When an access request would create a SoD conflict, IGA blocks it and requires exception approval with documented business justification and compensating controls. SOX-required for financial systems. Annual SoD review required for compliance.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IGA Products and Integration</div>
+                <div class="card-desc">SailPoint IdentityNow / IdentityIQ, Saviynt, One Identity Manager, IBM Security Verify Governance. Integration points: HR system (authoritative identity source), Active Directory / LDAP (target system), cloud apps via SCIM connectors, PAM solution for privileged access governance. IGA is the orchestration layer -- IAM systems (AD, Okta) are the enforcement points. IGA tells them what to enforce; they carry it out.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Compliance Evidence from IGA</div>
+            IGA provides the evidence portfolio for identity-related compliance controls: access review completion rates, SoD violation reports, provisioning/deprovisioning SLA metrics, orphan account counts, role certification history. Auditors (SOX, PCI, HIPAA, SOC 2) request this evidence -- IGA systems generate it automatically.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — CLOUD IAM ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Cloud IAM &amp; <span class="accent">Permission Models</span></div>
+        <div class="slide-subtitle">Cloud IAM implements identity and access management natively within cloud platforms -- with different terminology and models across AWS, Azure, and GCP.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AWS IAM Model</div>
+                <div class="card-desc">Principals: IAM users, IAM groups, IAM roles, AWS services. Policies: JSON documents attached to principals or resources. Evaluation logic: explicit Deny wins, then explicit Allow, otherwise implicit Deny. Trust policies (for roles): who can assume this role. Permission boundaries: maximum permissions a principal can have regardless of other policies. Service Control Policies (SCPs): organization-wide guardrails applied via AWS Organizations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Azure RBAC</div>
+                <div class="card-desc">Role Definitions: collections of permissions (Actions, NotActions, DataActions, NotDataActions). Built-in roles: Owner, Contributor, Reader, User Access Administrator + service-specific roles. Custom roles: define specific permission sets. Role Assignments: assign role to security principal (user, group, service principal, managed identity) at a scope (management group, subscription, resource group, resource). DENY assignments available. Evaluated at each scope level.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GCP IAM Model</div>
+                <div class="card-desc">Members: Google accounts, service accounts, Google groups, Google Workspace / Cloud Identity domains. Roles: primitive (Owner/Editor/Viewer -- avoid), predefined (specific service roles), custom. Policy: bindings of members to roles at a resource. Resource hierarchy: organization, folder, project, resource. Policy is inherited downward and additive (more permissive wins at each level -- no explicit deny within project hierarchy; org-level deny policies available separately).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cross-Platform IAM Best Practices</div>
+                <div class="card-desc">Enforce MFA on all human identities. Use groups/roles -- not individual user policies. Apply least privilege: start with ReadOnly, add only what is needed and tested. Use service-level roles (not broad roles like Owner/Contributor/Editor). Enable CloudTrail/Activity Log/Audit Log for all IAM events. Enforce MFA via IAM policy condition. Use Permission Boundaries (AWS) or Management Group Policies (Azure) to prevent privilege escalation. Conduct quarterly IAM access reviews.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">IAM Privilege Escalation Paths</div>
+                <div class="card-desc">AWS: user with iam:CreatePolicy + iam:AttachUserPolicy can create and attach an admin policy to themselves. User with iam:PassRole + lambda:CreateFunction + lambda:InvokeFunction can create a Lambda function running as a high-privilege role. GCP: principal with iam.serviceAccounts.actAs on a high-privilege service account can impersonate it. These paths require careful permission design and regular testing (use IAM Access Analyzer, Prowler, ScoutSuite).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Data Perimeters</div>
+                <div class="card-desc">AWS: data perimeter = only trusted identities (org principals), trusted resources (org resources), and trusted networks (VPCs) can access sensitive data. Enforced via SCPs (restrict principals) + resource policies (restrict resources) + VPC endpoint policies (restrict networks). Prevents: exfiltration to attacker-controlled S3 buckets, cross-org API calls, confused deputy attacks. Defense-in-depth for cloud data -- adds a layer beyond IAM permissions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — ZERO TRUST IDENTITY ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Zero Trust <span class="accent">Identity Architecture</span></div>
+        <div class="slide-subtitle">Zero Trust reframes identity from a one-time gate to a continuous authorization signal evaluated against every access request.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Identity Pillar of Zero Trust</div>
+                <div class="card-desc">CISA ZT Maturity Model identity pillar: Traditional (user-ID + password, static role), Advanced (phishing-resistant MFA, risk-based), Optimal (continuous validation, behavior analytics, automated response to anomalies). Identity is the policy engine input: who is the user, are they the same user as when they started the session, has their risk profile changed? Every resource access is a new authorization decision.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NIST SP 800-207 Identity Tenets</div>
+                <div class="card-desc">All data sources and computing services treated as resources. All communication secured regardless of network location. Access to individual enterprise resources is granted per-session. Access determined by dynamic policy including observable state of identity, device, and application. Enterprise monitors integrity of all owned devices. Authentication and authorization dynamic and strictly enforced before access is allowed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Identity-Aware Proxy</div>
+                <div class="card-desc">IAP (Google BeyondCorp model, Cloudflare Access, Zscaler Private Access, Palo Alto Prisma) sits in front of applications and evaluates identity + device posture + context before proxying the request. No VPN required -- app is never directly exposed. Policy: user in Finance group + managed device + login within last 1 hour + request from known location = allow. Same policy applied to internal and external users consistently.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Workload Identity</div>
+                <div class="card-desc">Not just users -- services and workloads need identity too. SPIFFE (Secure Production Identity Framework for Everyone) provides SVIDs (SPIFFE Verifiable Identity Documents) to workloads. SPIRE (SPIFFE Runtime Environment) issues and manages SVIDs. Istio service mesh uses SPIFFE identities for mTLS between microservices. Every service authenticates to every other service cryptographically -- no implicit network trust between containers in the same pod.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">BeyondCorp Principles (Google)</div>
+            Google's Zero Trust model (2014-present): access depends on device and user state, not network location. All corporate apps published to the internet and protected by context-aware access control. No VPN. Device inventory + continuous posture assessment. Outcome: employees work securely from any network without VPN. Foundational model for modern ZTNA and identity-centric security.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — IDENTITY THREAT DETECTION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Identity Threat <span class="accent">Detection &amp; Response (ITDR)</span></div>
+        <div class="slide-subtitle">ITDR is the emerging category focused on detecting and responding to attacks targeting the identity infrastructure itself -- not just accounts.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Why ITDR Exists</div>
+                <div class="card-desc">Traditional EDR monitors endpoint activity. Traditional SIEM correlates logs. Neither has deep knowledge of identity attack patterns (Kerberoasting, Golden Ticket, DCSync, ADCS abuse, federation token forgery). ITDR tools (Microsoft Defender for Identity, CrowdStrike Falcon Identity Protection, Semperis DSP) monitor AD, Entra ID, and federation infrastructure for identity-specific attack techniques mapped to MITRE ATT&amp;CK.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Active Directory Attack Detection</div>
+                <div class="card-desc">DCSync: monitor for non-DC accounts requesting directory replication (DS-Replication-Get-Changes). Kerberoasting: mass TGS requests for SPNs from a single account in short window. Golden/Silver Ticket: Kerberos tickets with anomalous properties (non-standard lifetime, PAC anomalies). AdminSDHolder abuse: unauthorized changes to protected admin groups. BloodHound paths: monitor for traversal of known privilege escalation graph paths.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Entra ID / ADFS Attack Detection</div>
+                <div class="card-desc">Golden SAML: token signing certificate export (watch for certificate operations in ADFS audit log). Anomalous federation trust additions (new trusted IdP added). OAuth application consent grants (attacker app requesting Graph API access, consent phishing). Service principal credential additions (new secret or certificate added to high-privilege SP). Guest invitation spikes. Risky user signals from Entra ID Protection.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">UEBA (User and Entity Behavior Analytics)</div>
+                <div class="card-desc">Machine learning baseline of normal user behavior: typical login times, typical accessed resources, typical data volume, typical applications. Anomaly scoring: deviation from baseline raises risk score. High-risk signals: data downloaded 10x baseline on last day before vacation, login from new country, access to sensitive share never accessed before, printing sensitive documents to non-networked printer. UEBA feeds SIEM alerts and conditional access risk score.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Identity Incident Response</div>
+                <div class="card-desc">Confirmed identity compromise actions: 1. Disable account immediately (while preserving evidence -- do not delete). 2. Revoke all active sessions and tokens (including SAML sessions at all SPs). 3. Rotate all credentials (password, MFA, certificates). 4. Revoke PAM credentials for any systems accessed during compromise window. 5. Forensic timeline: reconstruct all activity during compromise period. 6. Check for persistence mechanisms (new admin accounts, new federation trusts, service principal secrets).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">AD Persistence Mechanisms</div>
+                <div class="card-desc">Attackers with domain admin establish persistence before performing primary objective. Common techniques: new admin account created, SID history injection on normal account, AdminSDHolder modification, Golden Ticket (KRBTGT hash stolen), new federation trust created, DSRM (Directory Services Restore Mode) password set for offline access, Group Policy Object backdoor. After incident: full AD security assessment required -- assume all persistence mechanisms were deployed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — PRIVILEGED ACCESS WORKSTATIONS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Privileged Access Workstations <span class="accent">(PAW)</span></div>
+        <div class="slide-subtitle">A PAW is a dedicated hardened workstation used exclusively for privileged tasks -- isolating admin activity from the high-risk browsing and email environment.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">PAW Rationale</div>
+                <div class="card-desc">Attackers compromise admin accounts by targeting the device where admin credentials are used. If an admin uses their domain-admin-capable account to also check email and browse the web, one phishing email or malicious website results in admin credential theft. PAW separates these attack surfaces: standard workstation for email/web (no admin rights), dedicated PAW for all admin tasks (no email/web, hardened, monitored).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PAW Security Controls</div>
+                <div class="card-desc">Dedicated hardware or VM running hardened OS (Windows SAW profile, STIG-compliant). Internet access blocked via proxy/firewall. Only admin tools installed. Browser access limited to admin portals. No personal email. Full disk encryption. TPM-backed credential protection. Device certificate for 802.1X / conditional access. PAM agent installed. EDR with high-fidelity alerting. Outbound traffic allowlisted (admin targets only). Incoming connections from admin networks only.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Tiered Administration Model</div>
+                <div class="card-desc">Microsoft ESAE (Enhanced Security Admin Environment) / Tiered Admin Model: Tier 0 (domain/forest control -- AD, PKI, ADFS, AAD Connect) -- most privileged, most restricted PAW. Tier 1 (server admin -- member servers, cloud resources). Tier 2 (workstation admin -- endpoint management, helpdesk). Tier 0 admins cannot administer Tier 1/2 -- prevents lateral movement from lower tiers into the most critical infrastructure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Remote PAW and Cloud Alternatives</div>
+                <div class="card-desc">Physical PAW: dedicated hardware per admin (most secure, highest cost). VM PAW: virtual machine on dedicated hypervisor, accessed from personal workstation via remote desktop. Cloud PAW: hardened Azure Virtual Desktop session (no data stored locally, fully cloud-managed). Cloud-native: AWS SSM Session Manager (browser-based, no inbound SSH port, session logged, no bastion host needed). Cost vs. security trade-off depends on admin population size and sensitivity of tier.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC IT operations. Domain administrators receive dedicated PAWs -- physical laptops with no internet access, Internet Explorer removed, web proxy allowlisted to only admin portals and Windows Update. All Tier-0 admin tasks performed only from these PAWs. The admin's personal laptop (used for email, Teams, and research) has no privileged role assignments. A phishing compromise of the personal laptop yields no domain admin access.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — DIRECTORY SERVICES SECURITY ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Directory Services <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Active Directory is the identity backbone of most enterprises -- and the primary target of advanced attackers. Securing AD is securing the enterprise.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AD Hardening Priorities</div>
+                <div class="card-desc">Protect KRBTGT (rotate password twice after any suspected compromise). Protect Domain Admin and Enterprise Admin accounts (vault in PAM, JIT access, no daily use). Enable Protected Users security group (blocks NTLM, enforces Kerberos AES, prevents delegation). Enable Credential Guard (virtualizes LSASS credentials in VBS to block Mimikatz). Implement LAPS (Local Administrator Password Solution) for unique local admin passwords on all workstations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tiered Admin + Delegation</div>
+                <div class="card-desc">AD delegation allows granting specific AD object permissions without Domain Admin. Example: helpdesk OU can have "Reset Password" delegated on User objects in their OU -- without any broader rights. Delegation model should follow Tiered Admin: Tier 1 admins delegated server OU admin rights, Tier 2 admins delegated workstation OU admin rights. Review delegated permissions annually -- inherited from org-unit-level ACL changes accumulate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AD Certificate Services (ADCS)</div>
+                <div class="card-desc">ADCS (Active Directory Certificate Services) is a common privilege escalation path. ESC1-ESC13 (SpecterOps research): certificate templates with misconfigured settings allow low-priv users to request certs that can authenticate as Domain Admin. ESC1: template allows SAN specification by requester. Mitigation: audit certificate templates (Certify tool, Certipy), disable vulnerable templates, enable HTTPS/RPC signing for CA, restrict Certificate Enrollment permissions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Monitoring AD Changes</div>
+                <div class="card-desc">Critical AD events to monitor: 4720 (account created), 4728/4732/4756 (member added to privileged group), 4765 (SID History added), 4794 (DSRM password set), 5136 (directory object modified -- AdminSDHolder, Group Policy), 4741 (computer account created -- DCSync prep). All domain controller logs must go to SIEM. Microsoft Defender for Identity (MDI) provides AD-native detection with minimal event forwarding configuration.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Red Forest / ESAE</div>
+                <div class="card-desc">Enhanced Security Admin Environment: separate dedicated AD forest for admin accounts -- physically isolated, no trust from production forest to ESAE, one-way trust only (ESAE trusts production). Admin accounts in ESAE forest, resources in production forest. Attacker who compromises production forest cannot escalate to admin forest. PAWs authenticate to ESAE only. Considered the gold standard -- implementation cost is high but matches the risk level of Tier-0 access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">BloodHound and Attack Paths</div>
+                <div class="card-desc">BloodHound (SpecterOps) maps AD permission relationships and finds the shortest path to Domain Admin from any starting point. Defenders use BloodHound to: identify all paths to Domain Admin, find Tier-0 assets with unexpected control edges, clean up high-risk ACL misconfigurations. Running BloodHound on your own environment is a standard hardening step. Common attack paths: GenericAll on admin OU, WriteDacl on protected group, AddMember on Domain Admins.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — CLOUD ACCESS GOVERNANCE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Cloud Access <span class="accent">Governance</span></div>
+        <div class="slide-subtitle">Cloud environments require the same governance disciplines as on-premises -- but the speed of cloud provisioning means controls must be automated to be effective.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Infrastructure as Code for IAM</div>
+                <div class="card-desc">Define IAM policies, roles, and permissions in Terraform / CloudFormation / Pulumi -- version controlled, peer-reviewed via pull request, applied via CI/CD. Benefits: all IAM changes are auditable in git history, peer-reviewed before application, consistent across environments (dev/staging/prod), revertible, prevents "console cowboy" changes. IAC linting tools (checkov, tfsec) catch dangerous IAM patterns before apply (wildcard resources, excessive permissions).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cloud Security Posture Management (CSPM)</div>
+                <div class="card-desc">CSPM tools (Prisma Cloud, Wiz, AWS Security Hub, Microsoft Defender for Cloud) continuously scan cloud IAM configurations for misconfigurations: root account with no MFA, overly permissive IAM roles, service accounts with Owner permissions, cross-account roles with wildcard principal, secrets in environment variables. Risk-scored findings with remediation guidance. Drift detection: alert when IaC-defined state diverges from actual cloud state.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Permission Boundaries and Guardrails</div>
+                <div class="card-desc">AWS Permission Boundaries: max permission policy attached to IAM entity -- even if inline policy grants more, boundary limits effective permissions. Used to safely delegate IAM management to dev teams (they can create roles but cannot grant more than the boundary). AWS SCPs: organization-level, apply to all accounts -- cannot be overridden by account admin. Azure Management Group Policies and Deny Assignments. GCP Organization Policies. Enforce non-negotiable constraints at organizational level.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Multi-Account / Multi-Tenant Governance</div>
+                <div class="card-desc">Enterprise cloud: separate accounts per environment (prod/nonprod), workload, and sensitivity tier. AWS Landing Zone / Control Tower: automated multi-account setup with guardrails. Azure Management Groups: hierarchy of subscriptions with inherited policies. GCP Organization: folder structure with inherited IAM and org policies. Cross-account access via IAM roles (AWS) or service principals (Azure). Centralized security account monitors all accounts without having access to their workloads.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Access Analyzer and Least Privilege Tools</div>
+            AWS IAM Access Analyzer: identifies resource policies granting access to external principals, generates least-privilege policy suggestions from CloudTrail activity. Azure Access Review: built-in access certification. GCP Policy Analyzer: who can do what on which resources. These tools generate evidence for access reviews and identify over-privileged roles automatically.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — INSIDER THREAT ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Insider Threat &amp; <span class="accent">Access Control</span></div>
+        <div class="slide-subtitle">Access control does not just defend against external attackers -- it limits the damage a malicious or negligent insider can cause.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Insider Threat Types</div>
+                <div class="card-desc">Malicious: intentionally stealing data, sabotaging systems, or assisting external attackers. Negligent: accidentally emailing sensitive data, misconfiguring systems, clicking phishing links, violating policy out of convenience. Compromised: external attacker operating through a legitimate user's account (credentials stolen). All three are insider threats -- the access level is the same regardless of intent. Controls must account for all three types.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Control Mitigations</div>
+                <div class="card-desc">Least privilege: limit what any one person can access -- reduces data exfiltration volume. Separation of duties: require multiple people for destructive or high-risk actions. DLP (Data Loss Prevention): detect and block unauthorized data movement regardless of who initiates it. Logging and UEBA: detect anomalous access patterns before or during the exfiltration event. Need-to-know compartmentalization: even authorized users cannot access data outside their mission area.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Termination Procedures</div>
+                <div class="card-desc">High-risk termination (involuntary, access to sensitive data, known discontent): immediate account disable before or concurrent with notification. Security escort off premises. Device collection before departure. Forensic baseline of device state. Revoke VPN, cloud access, email, domain accounts simultaneously. Forward email to manager for monitoring window. Check for large data movements in 30 days prior to termination (indicator of planned exfiltration).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Pre-Departure Indicators</div>
+                <div class="card-desc">UEBA indicators preceding insider data theft: unusual after-hours access, bulk data downloads, access to data outside normal scope, printing to network printers (data staging), email with attachments to personal accounts, USB device insertions (if DLP monitors), large uploads to cloud storage (Dropbox, Google Drive), keyword searches for "competitor" or "salary" or project code names, accessing HR records not related to their role.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Technical Controls</div>
+                <div class="card-desc">DLP: classify and tag sensitive data, monitor and block movement to unauthorized destinations (USB, personal cloud, email to external addresses). CASB: shadow IT detection -- employees using unauthorized cloud storage services. PAM: session recording catches malicious admin activity. UBA: baseline normal behavior, alert on deviation. Canary tokens: fake sensitive documents that trigger alerts if opened from unexpected locations or accounts.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Accountability vs. Privacy</div>
+                <div class="card-desc">Monitoring employees raises legitimate privacy concerns. Requirements vary by jurisdiction: EU GDPR requires legitimate interest basis and employee notification. NLRA (US) protects concerted activity. Policy framework: publish acceptable use policy informing employees of monitoring. Collect only what is needed for security purposes. Access to employee monitoring data restricted to HR + Legal + Security with documented justification. Balance security need against proportionality.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — PHYSICAL ACCESS CONTROL ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Physical Access Control &amp; <span class="accent">Identity</span></div>
+        <div class="slide-subtitle">Physical and logical access control must be aligned -- an attacker with physical access to a server room bypasses virtually all logical controls.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Physical Access System Integration</div>
+                <div class="card-desc">Badge access systems (HID, Lenel, Genetec) should be integrated with HR/IAM. Provisioning: badge access granted at hire, updated at role change, revoked at termination -- same JML workflow. Badge credential systems vulnerable to cloning (Wiegand protocol, HID Prox -- readable at range with commercial readers). Upgrade to MIFARE DESFire or SEOS -- cryptographically secured, cannot be silently cloned. Store building access data in SIEM for correlation with logical access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tailgating and Piggybacking</div>
+                <div class="card-desc">Tailgating: unauthorized person follows authorized person through access-controlled door without their knowledge. Piggybacking: authorized person knowingly allows unauthorized person through. Mitigations: mantrap (two-door airlock requiring separate authentication for each door), turnstiles, video analytics detecting multi-person events at single-badge entries, security awareness training, posted signage. Anti-tailgating is a physical SoD control.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Center Physical Access</div>
+                <div class="card-desc">Layered access: building security, data center floor, cage, cabinet. Each layer requires separate authentication. Server cabinet padlocks: use cipher locks or smart locks with individual access codes -- not master key. Two-person integrity for Tier-0 system access. Video surveillance with retention (90+ days). Visitor log with badge in/out time, escort required. Equipment removal requires documented authorization. Data destruction for decommissioned media.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Convergence: Physical + Logical</div>
+                <div class="card-desc">Ideal: single identity record drives both physical badge access and logical system access. When account is terminated, both access types are revoked in one workflow. Correlation use case: employee's logical accounts show activity from Chicago at same time as badge record shows they are in Atlanta -- impossible presence alert. User authenticated physically in high-security area but logical account shows login from external IP at same time -- potential account sharing or compromise.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Clean Desk and Physical Security Policy</div>
+            Clean desk policy: no sensitive documents left on desk unattended. Screen lock on unattended workstations (auto-lock after 5-10 minutes + key combo lock habit). Shredding for paper documents with sensitive information. Visitors escorted at all times in secure areas. Badge worn visibly. Tailgating reporting culture. Physical security is the last line of defense -- and the most commonly neglected.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — NETWORK ACCESS CONTROL ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Network Access Control <span class="accent">(NAC)</span></div>
+        <div class="slide-subtitle">NAC enforces identity-based and posture-based access policy at the network layer -- ensuring only compliant, authenticated devices and users gain network access.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NAC Architecture</div>
+                <div class="card-desc">Policy Server (Cisco ISE, Aruba ClearPass, Forescout): evaluates identity + device posture. Network Enforcement (switches, APs, VPN concentrators): enforces VLAN assignment, ACLs, and rate limits based on policy server response. Pre-admission: check before granting network access. Post-admission: continuous monitoring and re-evaluation mid-session. Out-of-band: policy server communicates with network device via RADIUS. Inline: traffic flows through NAC appliance for deep inspection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Posture Assessment</div>
+                <div class="card-desc">Checks performed at connection time: Is antivirus installed and definitions current (within 7 days)? Is OS patched (within 30 days of critical patch release)? Is host firewall enabled? Is disk encryption active? Is the device in the corporate MDM inventory? Is the user account's password within policy? Agent-based (persistent agent on device, most thorough) vs. agentless (SNMP, WMI queries, network scanning -- limited visibility). BYOD often agentless -- device compliance report only.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VLAN Assignment and Remediation</div>
+                <div class="card-desc">Compliant device + authenticated user: corp VLAN. Non-compliant device: quarantine VLAN (access to patch servers, remediation portal, helpdesk -- nothing else). Unknown device: guest VLAN or block. IoT device (no agent): IoT VLAN (allowlisted destinations only). BYOD: limited VLAN (email, approved cloud apps only -- no internal file servers). Remediation workflow: device placed in quarantine VLAN, user redirected to remediation portal, patching or AV update triggered, re-assessment, moved to corp VLAN on pass.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">802.1X Deployment Considerations</div>
+                <div class="card-desc">Requires network infrastructure support (802.1X capable switches and APs -- modern equipment all supports this). Supplicant software: Windows/macOS/Linux have native 802.1X supplicants. Mobile devices: managed via MDM supplicant config profile. Non-802.1X devices (printers, IP phones, IoT): MAC Authentication Bypass (MAB) with device inventory whitelist -- weaker but necessary for legacy devices. EAP method selection: EAP-TLS for highest security, PEAP for simpler deployment.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Zero Trust Network Access</div>
+                <div class="card-desc">ZTNA replaces VPN as the remote access paradigm. User and device authenticated to identity-aware proxy or broker. Application-level access granted per policy -- user cannot access entire network, only specific authorized applications. Microtunnel per application established on demand. No inbound firewall holes required -- connector inside the network makes outbound connection to broker. Cisco Duo ZTNA, Cloudflare Access, Zscaler Private Access, Palo Alto Prisma Access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Rogue Device Detection</div>
+                <div class="card-desc">Unauthorized devices connected to the network. Forescout and similar tools do continuous device discovery via network scanning, SNMP querying, DHCP monitoring, and passive traffic analysis. Any device not in approved inventory quarantined automatically. Detect unauthorized switches (VLAN trunk requests), unauthorized APs (rogue AP detection), unauthorized IoT devices (device fingerprinting by DHCP options, TTL, TCP stack behavior). Alert and isolate on discovery.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — ACCESS MODELS COMPARISON ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Access Control Models <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">High-density comparison for exam preparation and real-world model selection.</div>
+        <div class="code-block"><span class="cm">MODEL  | CONTROL | ACCESS DECISION BASIS        | WHO SETS POLICY     | TYPICAL USE CASE</span>
+<span class="cm">-------|---------|------------------------------|---------------------|-------------------------</span>
+<span class="fn">DAC</span>    | Discret.| Object owner's discretion    | Resource owner      | Linux files, Windows ACLs
+<span class="fn">MAC</span>    | Mandatory| Security labels + clearances | Central authority   | Govt/military, SELinux
+<span class="fn">RBAC</span>   | Role    | Assigned roles               | Security team/admin | Enterprise apps, cloud IAM
+<span class="fn">ABAC</span>   | Attribute| Multi-attribute policy       | Policy author       | Cloud IAM, ZT, fine-grained
+<span class="fn">RBAC+C</span> | Rule    | System-defined rules         | Admin               | Firewalls, time-of-day
+<span class="cm"></span>
+<span class="cm">Bell-LaPadula  = Confidentiality focus (no read up / no write down)</span>
+<span class="cm">Biba           = Integrity focus     (no read down / no write up)</span>
+<span class="cm">Clark-Wilson   = Commercial integrity (transactions, SoD)</span>
+<span class="cm">Brewer-Nash    = Conflict of interest (Chinese Wall -- access history based)</span></div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Exam Trigger: MAC vs. DAC</div>
+                <div class="card-desc">MAC question cues: "cannot override," "system-enforced," "classification label," "clearance level," "Bell-LaPadula," "SELinux," "government." DAC question cues: "owner can set," "discretion," "ACL," "NTFS permissions," "user-controlled access." Mandatory means the system enforces regardless of owner wishes. Discretionary means the owner decides.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Exam Trigger: RBAC vs. ABAC</div>
+                <div class="card-desc">RBAC question cues: "assigned to a role," "job function," "role-based," "group membership determines access." ABAC question cues: "attributes," "context-aware," "policy evaluates multiple factors," "time-of-day restriction," "department matching," "device compliance required." ABAC is always context-sensitive; RBAC is static role assignment. Real systems often combine both.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — DATA CLASSIFICATION ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Data Classification &amp; <span class="accent">Labeling</span></div>
+        <div class="slide-subtitle">Data classification enables proportional access control -- the higher the data sensitivity, the stronger the access control. Classification drives the entire security control framework.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Commercial Classification Tiers</div>
+                <div class="card-desc">Common framework: Public (freely shareable -- press releases, product docs), Internal (employees only -- internal memos, procedures), Confidential (restricted employees + NDA partners -- contracts, financial forecasts), Restricted/Highly Confidential (executive team + named individuals -- M&amp;A targets, PII/PHI, IP). Each tier has corresponding handling requirements: storage, transmission, disposal, and access control.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Government Classification</div>
+                <div class="card-desc">EO 13526 (US): Unclassified, Controlled Unclassified Information (CUI), Confidential, Secret, Top Secret, Top Secret/Sensitive Compartmented Information (TS/SCI). NARA CUI registry defines categories and handling requirements. Access to TS/SCI requires both appropriate clearance level AND need-to-know. Compartments (Special Access Programs) require explicit read-in -- clearance level alone insufficient.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Classification Process</div>
+                <div class="card-desc">Data discovery: locate all data (structured: databases; unstructured: file shares, email, cloud storage). Classification: manual (user-applied labels) + automated (content inspection -- PII patterns, financial data patterns, keywords). Labeling: apply visual labels (header/footer on documents) and metadata labels (file property, email sensitivity label). Access control enforcement: labels drive DLP policies, permissions, and encryption requirements.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Microsoft Purview / MIP</div>
+                <div class="card-desc">Microsoft Purview Information Protection (formerly MIP/AIP): sensitivity labels applied in Office apps, automatically via trainable classifiers, or inherited from container (SharePoint site label). Labels drive: visual markings, encryption (rights management), DLP policies, conditional access policies. Label metadata travels with the file -- protection persists even when emailed externally. Integration: Teams, SharePoint, OneDrive, Exchange.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Data Handling Requirements by Tier</div>
+                <div class="card-desc">Public: no restrictions. Internal: no external email without approval. Confidential: encrypt at rest and in transit, require MFA to access, no external sharing without DRM/encrypted file, retain for 7 years. Restricted: encrypt with customer-managed key, access logged and alerted, approved devices only, no cloud sync to personal services, print tracking required, physical destruction required (cross-cut shredder or DoD wipe for digital).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Classification Pitfalls</div>
+                <div class="card-desc">Over-classification: everything marked "confidential" -- access requests overwhelm security team, employees work around controls, classification loses meaning. Under-classification: sensitive data marked "internal" -- insufficient controls, breach occurs without triggering high-severity incident response. Inconsistent classification: different teams classify the same data differently -- DLP and access control cannot be consistently applied. Regular classification review program required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — PRIVILEGED ACCOUNT ATTACKS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Privileged Account <span class="accent">Attack Patterns</span></div>
+        <div class="slide-subtitle">Privileged accounts are the primary target in advanced persistent threat campaigns. Understanding the attack chain informs identity defense priorities.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Privilege Escalation Attack Chain</div>
+                <div class="card-desc">Initial access: phishing, vulnerability, credential theft -- standard user access obtained. Local privilege escalation: kernel exploit, UAC bypass, unquoted service path, DLL hijacking -- local admin obtained. Lateral movement: Pass-the-Hash, Pass-the-Ticket, network shares, WMI, SMB -- spread to more systems. Credential dumping: Mimikatz lsass dump, DPAPI, NTDS.dit extraction. Privilege escalation: domain admin via Kerberoasting, ADCS abuse, DCSync. Persistence: Golden Ticket, new admin accounts, federation backdoor.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DCSync Attack</div>
+                <div class="card-desc">Attacker with DS-Replication-Get-Changes and DS-Replication-Get-Changes-All permissions on the domain can request a simulated domain replication -- extracting all domain credentials including KRBTGT hash and all user NTLM hashes. These permissions are normally held only by Domain Controllers. Legitimate attacker path: escalate to domain admin, then add DCSync rights to a lower-privilege account for persistence. Detection: non-DC account triggering replication events in AD logs (Event 4662 with replication GUIDs).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Lateral Movement Techniques</div>
+                <div class="card-desc">Pass-the-Hash: authenticate using NTLM hash without knowing plaintext password (hash extracted from LSASS memory). Pass-the-Ticket: steal Kerberos TGT or service ticket from memory, replay on another system. Overpass-the-Hash: use NTLM hash to request Kerberos TGT (avoids NTLM restriction policies). Token Impersonation: steal impersonation token from privileged process. Remote services: WMI, PSExec, WinRM, Scheduled Tasks -- all can be used for code execution on remote systems with valid credentials.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Defense Against Privileged Attacks</div>
+                <div class="card-desc">Credential Guard (VBS-isolated LSASS -- blocks Mimikatz from reading credentials from memory). Protected Users group (Kerberos-only, no NTLM delegation, no cached credentials). LAPS (unique local admin passwords -- prevents lateral movement via shared local admin hash). Tiered administration (compromise of Tier 2 cannot escalate to Tier 0). PAM + JIT (no standing domain admin -- no ticket to steal). Network segmentation (limit reachability for lateral movement). EDR with lateral movement detection rules.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC post-incident review. Attacker initial access: spear phishing of Level-2 researcher. Lateral movement: local admin credentials reused across lab workstations (no LAPS). Privilege escalation: service account with Domain Admin found on research server (no PAM oversight). Domain persistence: KRBTGT hash extracted via DCSync, Golden Ticket created. Remediation: KRBTGT rotated twice, all accounts reset, PAM deployed for service accounts, LAPS deployed, Credential Guard enabled.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — OAUTH AND CONSENT ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">OAuth Consent &amp; <span class="accent">App Permissions</span></div>
+        <div class="slide-subtitle">OAuth and OIDC introduce application-level authorization -- attackers exploit the consent mechanism to gain persistent access to user data without credential theft.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Consent Phishing</div>
+                <div class="card-desc">Attacker registers a malicious OAuth app (e.g., "Microsoft Invoice Reader") and sends users a link that triggers the OAuth consent flow. Users see a legitimate-looking OAuth prompt asking for permission to "Read your mail" or "Read your files." User grants consent -- attacker's app now has persistent API access to the user's data without needing their password or bypassing MFA. Access persists until revoked by user or admin. No login credentials stolen.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Microsoft 365 / Entra ID App Control</div>
+                <div class="card-desc">Tenant-wide setting: allow/disallow user consent to third-party apps. Recommended: disable user consent for non-verified publishers; require admin consent for all OAuth app permissions. Admin consent workflow: user requests app, admin reviews permissions, admin grants org-wide consent (approved once for all users). Monitor new OAuth grants via Entra ID audit logs and Microsoft Defender for Cloud Apps (CASB). Alert: new app granted Mail.Read or Files.ReadWrite to multiple users.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Least-Privilege OAuth Scopes</div>
+                <div class="card-desc">Applications should request the minimum required scopes. Read-only scopes for apps that only need to read data. Avoid application permissions (no user context -- access to all users' data) unless absolutely required -- prefer delegated permissions. Sensitive scopes (Mail.ReadWrite, Directory.ReadWrite.All, RoleManagement.ReadWrite.Directory) require admin consent and formal justification. Regular audit: review all apps with admin consent grants in your tenant.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Token Scoping and Revocation</div>
+                <div class="card-desc">OAuth access tokens are scoped to specific permissions and have short lifetimes (typically 1 hour). Refresh tokens are long-lived -- revocation must address both. Tenant-wide revocation (incident response): revoke all refresh tokens for a user (AzureAD PowerShell: Revoke-AzureADUserAllRefreshToken). This forces re-authentication at next access. Monitor for token use from unusual IPs or user agents -- may indicate token theft and off-device replay.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">High-Risk Microsoft Graph API Permissions</div>
+            Mail.ReadWrite (read/send email as user) -- Files.ReadWrite.All (access all files) -- Directory.ReadWrite.All (manage all directory objects) -- RoleManagement.ReadWrite.Directory (manage Entra ID roles -- can grant Global Admin) -- Application.ReadWrite.All (manage all app registrations). Any app requesting these from users warrants admin review and investigation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — ACCOUNT SECURITY HARDENING ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Account Security <span class="accent">Hardening</span></div>
+        <div class="slide-subtitle">A practical hardening checklist for accounts across the enterprise -- implementing these controls closes the most commonly exploited identity weaknesses.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">All Accounts</div>
+                <div class="card-desc">Unique accounts per person (no shared). MFA enforced (phishing-resistant preferred). Password stored as bcrypt/Argon2 with salt. Account lockout after failed attempts (with rate-limiting or progressive delay). Audit log all successful and failed authentication. Disable inactive accounts (90-day inactivity policy). Annual access recertification. Remove from all groups and revoke at termination.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privileged Accounts</div>
+                <div class="card-desc">Separate named account for privileged tasks (admin.username, not daily account). Vaulted in PAM solution (no standing credentials). JIT access with approval workflow. Session recording for all privileged sessions. No email, no browsing from privileged account or PAW. FIDO2 or smart card for MFA. Restricted logon workstations (PAW only). Activity monitored by UEBA. Reviewed and recertified quarterly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Accounts</div>
+                <div class="card-desc">Replace with gMSA or managed identity where possible. If password-based: 30+ char random, stored in vault, rotated on schedule. Minimal permissions (documented and reviewed annually). SPNs registered only if needed (Kerberoasting risk). Pre-authentication enabled. "Sensitive account -- cannot be delegated" flag set. Service account inventory maintained with owner, app, and permissions documented. No interactive login capability (logon rights restricted via GPO).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cloud Accounts</div>
+                <div class="card-desc">No root/owner account for daily use. MFA on root/global admin (hardware key). All human access via federated SSO (no local cloud IAM users for humans). Managed identities for service-to-service. Permission boundaries set. No long-lived access keys (disable, rotate, or replace with roles). CloudTrail/Activity Log enabled in all regions. Alerts on root login, IAM policy changes, cross-account trust changes. Quarterly access review via AWS Access Analyzer or equivalent.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Guest and Contractor Accounts</div>
+                <div class="card-desc">Defined scope at creation: specific applications and resources only. Defined duration: expiration date set -- no indefinite contractor accounts. Conditional access: require managed device or limited access tier. Regular review: monthly or project-milestone. Sponsor-owned: named internal employee responsible for the guest account's ongoing justification. Automatic disable at expiration -- require re-approval to extend. Guest accounts must never have admin rights.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Default and Legacy Accounts</div>
+                <div class="card-desc">Default vendor accounts: renamed or disabled before production deployment. Default password: changed before any network exposure. Guest account (Windows): disabled. IUSR (IIS): review permissions (should be minimal). Test accounts from development: removed before production release. Legacy protocol authentication (Basic Auth, NTLMv1): disabled organization-wide via policy. Legacy applications requiring weak auth: documented exception with compensating controls and remediation plan.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — REGULATORY IDENTITY REQUIREMENTS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Identity Governance <span class="accent">Compliance Requirements</span></div>
+        <div class="slide-subtitle">Compliance frameworks mandate specific identity management controls. Understanding what each requires enables efficient, evidence-ready programs.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SOX (Sarbanes-Oxley)</div>
+                <div class="card-desc">Section 404: management must assess effectiveness of internal controls. Identity controls required: unique user IDs, access reviews for financial system roles, SoD enforcement (no single person controls full transaction cycle), privileged access management for financial systems, audit log retention (7 years), prompt deprovisioning. SOX auditors focus heavily on access reviews and SoD violation remediation evidence. IGA platforms generate this evidence automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIPAA Security Rule</div>
+                <div class="card-desc">164.312(a)(2)(i): Unique user identification. 164.312(a)(2)(ii): Emergency access procedure. 164.312(a)(2)(iii): Automatic logoff (idle timeout). 164.312(a)(2)(iv): Encryption and decryption. 164.312(d): Person or entity authentication (verify before access to ePHI). Addressable specifications: require implementation unless alternative measure documented. Audit controls (164.312(b)): log who accessed ePHI and when. Required annual workforce training.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PCI DSS v4.0</div>
+                <div class="card-desc">Requirement 7: Restrict access to system components and cardholder data by business need-to-know. Requirement 8: Identify users and authenticate access. Specific: unique IDs, MFA for all CDE access, password minimum 12 characters, account lockout after 6 attempts, idle timeout 15 minutes, privileged access reviews quarterly, service account management, no default passwords. Requirement 10: Log and monitor all access to network resources and cardholder data. ASV quarterly external scans + annual penetration test.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST 800-171 / CMMC</div>
+                <div class="card-desc">3.1.1: Limit information system access to authorized users. 3.1.2: Limit information system access to types of transactions authorized users are permitted to execute. 3.1.3: Control the flow of CUI per policy. 3.1.5: Employ the principle of least privilege. 3.1.6: Non-privileged accounts for non-privileged functions. 3.5.2: Authenticate (or verify) identities of processes before allowing access. 3.5.3: MFA for local and network access to privileged and non-privileged accounts. 3.5.5: Employ automated authenticator management tools. 110 total practices -- Level 2 requires all.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Evidence Collection Framework</div>
+            For each compliance requirement: define the control, identify the evidence (access review reports, provisioning tickets, audit logs, SoD exception register, PAM session counts), assign the evidence owner, set the collection frequency, and store in an audit-ready repository. IGA, SIEM, and PAM platforms generate most required evidence automatically if correctly configured.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — DELEGATION AND TRUST ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Delegation, Trust, &amp; <span class="accent">Constrained Access</span></div>
+        <div class="slide-subtitle">Delegating access securely requires limiting scope, duration, and transitivity -- otherwise delegation creates unintended privilege escalation paths.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Kerberos Delegation</div>
+                <div class="card-desc">Unconstrained Delegation: service can impersonate any user to any other service -- any service ticket presented to this server can be cached and reused. Extremely dangerous -- Mimikatz can extract all impersonated tickets from LSASS. Constrained Delegation (KCD): service can only impersonate users to a specific, pre-defined list of services. Resource-Based Constrained Delegation (RBCD): resource (not the service) specifies who can delegate to it. Minimize delegation use. Never deploy unconstrained delegation on internet-facing systems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sudo and Privilege Delegation (Linux)</div>
+                <div class="card-desc">Sudo configuration in /etc/sudoers defines what commands specific users/groups can run as which target user. Best practice: use NOPASSWD sparingly, only for specific commands (not <span class="ic">sudo ALL</span>). Granular: <span class="ic">alice ALL=(root) /usr/bin/systemctl restart apache2</span>. Dangerous: <span class="ic">bob ALL=(ALL) NOPASSWD: ALL</span> -- full root with no password. Log all sudo use (syslog, /var/log/auth.log). Integrate sudo with PAM for MFA on privilege elevation in high-security environments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Capability-Based Security</div>
+                <div class="card-desc">Linux capabilities (CAP_NET_ADMIN, CAP_NET_BIND_SERVICE, CAP_SYS_ADMIN, etc.) allow processes to hold specific privileges without full root. Example: web server needs CAP_NET_BIND_SERVICE (bind to port 80) but not CAP_SYS_ADMIN (general admin). Drop unnecessary capabilities from container images: <span class="ic">--cap-drop ALL --cap-add NET_BIND_SERVICE</span>. Ambient capabilities, inheritable sets, and bounding sets enable fine-grained privilege delegation to processes without setuid binaries.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">API Key Scoping and Rotation</div>
+                <div class="card-desc">API keys are credentials. Each key should be scoped to specific operations (read-only vs. read-write vs. admin), specific IP ranges where applicable, and specific resource paths. Keys should be rotatable without service interruption (application supports multiple valid keys simultaneously during rotation). Rotation schedule: 90 days or on any suspicion of exposure. Store in secrets manager, not code or config files. Monitor for API key exposure in public repositories (GitHub secret scanning).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Cross-Tenant Delegation</div>
+                <div class="card-desc">Granting access to third parties (auditors, managed service providers, vendors) to your environment. AWS: cross-account role with time-limited external-id. Azure: Lighthouse delegation (managed service provider gets delegated access to specific subscriptions with specific roles, visible to customer, revokable). GCP: Workforce Identity Federation for external access. All cross-tenant delegation should be: documented, scoped to minimum required permissions, time-limited, reviewed quarterly, and revocable immediately on contract end.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Confused Deputy Attack</div>
+                <div class="card-desc">A high-privilege service is tricked into using its privileges on behalf of a less-privileged requester without proper authorization check. Classic example: AWS cross-account role without external-id condition -- any AWS customer could trick your service into assuming your role on their behalf. Mitigation: use external-id condition in trust policy for cross-account roles. SSRF + cloud metadata API is a variation -- application server (high-privilege) fetches attacker-specified URL, retrieves instance credentials.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — NON-REPUDIATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Non-Repudiation &amp; <span class="accent">Audit Trail Integrity</span></div>
+        <div class="slide-subtitle">Non-repudiation ensures that actions cannot be denied after the fact -- essential for legal admissibility, accountability, and post-incident investigation.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Non-Repudiation Mechanisms</div>
+                <div class="card-desc">Digital signatures: signer's private key applied to data creates signature -- only signer's public key can verify. Proves the specific key holder created or approved this content. PKI provides the identity binding: certificate ties public key to named individual. Email signing (S/MIME), document signing (PDF), code signing, and transaction signing all implement non-repudiation. Combined with timestamp from trusted timestamping authority for temporal non-repudiation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Audit Log Integrity</div>
+                <div class="card-desc">Logs must be tamper-evident to support non-repudiation. Techniques: write-once (WORM) storage, append-only log files with daily hash chaining, cryptographic log signing (each log entry signed, each batch committed with a Merkle root), centralized log server where endpoint logs are immediately forwarded (attacker on endpoint cannot delete already-forwarded logs), immutable cloud log storage (AWS CloudTrail integrity validation, Azure Monitor archival).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Legal Admissibility</div>
+                <div class="card-desc">For logs to be admitted as evidence: original, unaltered (chain of custody), collected by authorized personnel, documentation of collection method, hash value verified at collection and verification steps. Best Evidence Rule: original document preferred. Authentication: forensic examiner testifies to collection and integrity. Digital signature on logs + timestamp from qualified TSA (RFC 3161) provides strong basis for legal admissibility of access records.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accounting in AAA</div>
+                <div class="card-desc">RADIUS/TACACS+ Accounting provides: who authenticated, to what system, at what time, for how long, what commands were issued (TACACS+), how much data was transferred (RADIUS). Accounting data is the non-repudiation evidence for network access. TACACS+ command accounting: each command recorded with account, timestamp, and system -- provides complete administrator action log for audit or incident investigation. Integrate accounting data into SIEM for long-term retention and correlation.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Blockchain for Audit Logs</div>
+            Distributed ledger approaches (permissioned blockchain / hash-chained append-only logs) provide tamper-evident log storage without central authority. Each log record's hash includes the previous record's hash -- any modification invalidates all subsequent records. Practical implementations: Azure Immutable Blob Storage, AWS S3 Object Lock, HashiCorp Vault audit log integrity features.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — IDENTITY IN DEVOPS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Identity in <span class="accent">DevOps and CI/CD</span></div>
+        <div class="slide-subtitle">DevOps pipelines require identity and access management -- automated processes need credentials, and those credentials are frequently exposed.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">CI/CD Pipeline Identity</div>
+                <div class="card-desc">Build pipelines (GitHub Actions, GitLab CI, Jenkins, CircleCI, Azure DevOps) require credentials to: pull source code, push artifacts to registries, deploy to environments, scan dependencies. Antipattern: long-lived service account keys stored as CI secrets -- if CI system is compromised, all those keys are exposed. Better: OIDC integration (GitHub Actions + AWS, GCP, Azure) -- pipeline gets short-lived JWT, exchanges for cloud credentials via web identity federation. No static keys stored.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Secrets in CI/CD</div>
+                <div class="card-desc">CI/CD secret management: all secrets injected at runtime via secrets manager integration (Vault, AWS Secrets Manager, GitHub Secrets encrypted at rest). Never hardcode in workflow YAML or Dockerfile. Secrets masked in logs automatically. Scope secrets to minimal required permissions. Environment-specific secrets: production secrets only accessible from production deployment jobs with approval gate. Regular rotation with zero-downtime support.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Infrastructure as Code Access</div>
+                <div class="card-desc">Terraform state files contain resource details -- store in encrypted remote backend (S3 + KMS, Azure Blob with RBAC, Terraform Cloud). State access restricted: only pipeline service account and break-glass admin. Terraform plan + apply separation: plan in PR (any team member can see the diff), apply requires approval (manual gate or protected branch rules). Prevent accidental or malicious infrastructure changes via CI/CD gates. Secrets in Terraform state: avoid or use sensitive = true to prevent logging.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Deployment Authorization</div>
+                <div class="card-desc">Separation of duties in CI/CD: developer cannot approve their own code merge (CODEOWNERS + branch protection rules requiring 2 approvals). Developer cannot deploy directly to production (deployment gated behind protected environment with named approvers). Signed commits verify code provenance. SLSA (Supply-chain Levels for Software Artifacts) framework: build provenance attestations proving how artifacts were built. Chain of trust from developer commit to production deployment.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC lab management system deployment pipeline. GitHub Actions workflow uses OIDC to assume an AWS IAM role with permission to deploy to the staging ECS cluster. The production deployment requires a named security reviewer to approve before the pipeline's "deploy-prod" job runs. No static AWS credentials exist in the repository. All Terraform state is stored encrypted in S3 with access restricted to the pipeline IAM role.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — IDENTITY RESILIENCE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Identity Infrastructure <span class="accent">Resilience</span></div>
+        <div class="slide-subtitle">Identity infrastructure is critical -- unavailability of authentication services brings all access to a halt. Resilience planning is as important as security hardening.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Domain Controller Redundancy</div>
+                <div class="card-desc">Minimum two Domain Controllers per site. FSMO role distribution: PDC Emulator and RID Master on separate DCs. At least one DC in each physical location (eliminate WAN dependency for authentication). Read-Only Domain Controllers (RODC) for branch offices -- no writable copy of domain database, cached credentials for branch users only. DC backup: System State backups + bare-metal recovery tested quarterly. Promote replica DC before decommissioning primary.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IdP Availability</div>
+                <div class="card-desc">Cloud IdP (Okta, Azure AD) SLA: Okta 99.99% uptime, Azure AD 99.9%. Maintain cached authentication for endpoints when IdP unreachable (Windows: cached credentials for domain auth when DC unreachable). Local authentication bypass for critical systems: break-glass local accounts on servers for IdP outage scenarios. For ADFS: two ADFS servers + WAP servers minimum, load-balanced. Document IdP failure runbook: who decides to invoke local auth fallback, how is it secured, how is IdP recovery confirmed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Break-Glass Procedures</div>
+                <div class="card-desc">Break-glass accounts: pre-provisioned local or cloud accounts for emergency IdP bypass. Azure Emergency Access accounts: two accounts, no MFA (MFA would be blocked if IdP is down), strong password in physical secure location (safe deposit box), conditional access policies must explicitly exclude these accounts from MFA requirement. Monitor: any use of break-glass triggers PagerDuty alert to CISO. Post-use: rotate password, document usage in incident ticket, review what required break-glass (is there a preventable root cause?).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RADIUS / TACACS+ Redundancy</div>
+                <div class="card-desc">Network device authentication depends on RADIUS/TACACS+ -- loss of AAA server = loss of admin access to all network devices simultaneously. Deploy minimum 2 RADIUS/TACACS+ servers (primary + secondary). Network devices configured with fallback to secondary on primary timeout. Secondary server has full user database sync. Local fallback: each network device has local admin account (LAPS-equivalent) for AAA server failure. Monitor: alert if authentication shifts to secondary server (indicator of primary failure).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Recovery Time Objectives for Identity</div>
+                <div class="card-desc">Identity infrastructure failure classification: Partial DC failure (1 of 3 DCs down) = degraded, no user impact -- RTO not critical. All DCs down for a site = site-wide auth failure -- 1-hour RTO. IdP fully unavailable = all cloud app access blocked -- 15-minute RTO (invoke cached auth + break-glass). Active compromise of IdP = identity breach -- immediate response, RTO secondary to containment. Test DR scenarios annually with tabletop exercises and live recovery drills.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">AD Backup and Recovery</div>
+                <div class="card-desc">System State backup captures: AD database (NTDS.dit), SYSVOL, Registry, Boot files. Authoritative restore: restore specific deleted objects (accidentally deleted OU or user) using AD Recycle Bin (first check) or authoritative NTDSUTIL restore. Non-authoritative restore: recover entire DC from backup -- normal replication will overwrite with current domain data (used for tombstoned DC). Azure AD Connect: if sync is broken or corrupted, know how to roll back or re-run initial sync. Test DC recovery quarterly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — SCENARIO ANALYSIS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Scenario <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Apply access control principles to realistic design, audit, and incident scenarios.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Scenario A: Access Review Findings</div>
+                <div class="card-desc">Annual access review of financial system finds: 14 accounts active for departed employees (3-18 months since departure), 8 employees with Finance AND Accounts Payable roles (SoD violation), 22 accounts with privileged access that have never been used (last login null), 3 service accounts with no documented owner. Prioritize and describe the remediation actions you would take for each finding category, from highest to lowest risk.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Scenario B: Incident -- Unauthorized Admin Account</div>
+                <div class="card-desc">SIEM alert: new account "svc_backup_admin" created and added to Domain Admins at 03:00 AM. No change ticket exists. The account's logon source is a server that hosts a web application. Describe the immediate response steps: What do you do to the account? What do you look for on the source server? What broader scope investigation is needed? What persistent access mechanisms might already be in place?</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Scenario C: RBAC Design</div>
+                <div class="card-desc">New HRIS system deployment. User types: employees (view own records only), managers (view direct reports + submit pay change requests), HR staff (full access to all employees + approve pay changes), HR managers (everything HR staff has + approve policy exceptions), auditors (read-only access to all records + cannot submit any changes). Design the roles and permissions. Identify any SoD requirements. What would trigger a SoD violation?</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scenario D: Service Account Audit</div>
+                <div class="card-desc">Discovery scan finds 47 service accounts in Active Directory. 12 have Domain Admin rights. 8 have "Password never expires" set. 31 have no documented application owner. 6 have SPNs registered. 15 have not logged in for 6+ months. What is your remediation prioritization? What is your process for the accounts with no documented owner? What controls would prevent this situation from recurring?</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Access Control Design Heuristic</div>
+            For any access control design question: 1. What is the minimum access needed? 2. Who is the authoritative source for this identity claim? 3. How is the decision enforced? 4. How is access reviewed and revoked? 5. What is the audit trail? 6. What are the SoD implications?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Work through each question before reviewing the answer reasoning.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Q1 -- Access Model Identification</div>
+                <div class="card-desc">A research analyst can access Project Alpha files because they are a member of the Research group, which has been granted Read permission on the Project-Alpha file share. Six months later, the analyst transfers to Marketing but their Research group membership is never removed. What access model is in use? What principle was violated? What control would have prevented the ongoing access?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Q2 -- MAC vs. DAC</div>
+                <div class="card-desc">A user with Secret clearance attempts to read a document labeled Top Secret. The system denies access. The user attempts to copy a Secret document to a folder shared with colleagues who have Confidential clearance. The system denies this too. What access model enforces these decisions? Which specific model properties (name the rules) prevent each action? Can the document owner override these restrictions?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Q3 -- Privilege Escalation Path</div>
+                <div class="card-desc">An attacker compromises a service account via Kerberoasting. The service account has Domain Admin. The attacker performs a DCSync to extract the KRBTGT hash. Using the KRBTGT hash, the attacker creates a forged ticket. Name each technique used. What controls would have interrupted the attack chain at each step? Which single control, if implemented before the attack, would have had the highest impact?</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Q4 -- PAM Design</div>
+                <div class="card-desc">Your organization has 25 domain administrators all sharing the same "DA-Admin" account (password written on a whiteboard). Describe a practical 3-phase PAM implementation plan: Phase 1 (immediate, low cost), Phase 2 (medium term, some tooling), Phase 3 (mature state). What specific risks does each phase address? What is the one control in Phase 1 that closes the most critical risk immediately?</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Q5 -- Account Lifecycle</div>
+                <div class="card-desc">An employee is terminated involuntarily after a heated argument with management. The employee had domain admin rights (Tier 2), access to the HR system with payroll modify rights, and was the primary contact for the company's main cloud provider account. Describe the account termination steps in order of priority. What makes this scenario higher risk than a standard voluntary resignation? What do you monitor for in the 30 days following termination?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Q6 -- ABAC Policy Design</div>
+                <div class="card-desc">Write an ABAC policy statement in plain English for the following requirement: Research staff can modify experiment records if their department matches the experiment's department, the experiment is not in "archived" status, they are accessing from a managed device, and it is during normal business hours (06:00-20:00). Additionally, a "Lab Manager" role can modify any experiment regardless of department, but only from the facility network segment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; PIS-14 &nbsp;|&nbsp; Module Complete</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Core principles: least privilege (minimum required access), separation of duties (no single person controls full critical process), need-to-know (access only when operational need demonstrated), fail-secure (deny by default on failure), complete mediation (every access checked every time).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Access control models: DAC (owner controls -- ACLs, NTFS), MAC (system-enforced labels -- Bell-LaPadula/Biba, SELinux), RBAC (role-assigned permissions -- scalable enterprise standard), ABAC (attribute + context policies -- fine-grained, cloud-native). Know each model's trigger words for exam.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Bell-LaPadula = confidentiality (no read up, no write down). Biba = integrity (no read down, no write up). Clark-Wilson = commercial integrity + SoD (transactions). Brewer-Nash = conflict of interest (access history-based).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Account lifecycle (JML): provisioning (hire event triggers role assignment), mover (role changes -- remove old roles, add new), deprovisioning (terminate event disables all access immediately). Orphan accounts = most common identity audit finding. Automate with IGA driven by HR events.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Service accounts: high risk -- over-privileged, under-managed, long-lived passwords. Solutions: gMSA (AD auto-manages password), managed identity (cloud platform manages credential), secrets manager (vault for app credentials). Never Domain Admin for service accounts.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">PAM (Privileged Access Management): credential vaulting (no standing plaintext passwords), JIT access (no standing privilege -- time-limited elevation), session recording (tamper-evident video/keylog of all privileged sessions). ZSP (Zero Standing Privileges) is the target state.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Privilege creep: accumulated access from role changes and "temporary" grants that are never removed. Prevented by JML automation and access certification campaigns. SoD violations: detected by IGA during access request and certification. Required by SOX for financial system roles.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">IGA (Identity Governance and Administration) automates the full identity lifecycle, access certification, SoD enforcement, and audit evidence collection. Platforms: SailPoint, Saviynt, One Identity. IGA is the governance layer -- AD and IdP are the enforcement layers.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Non-repudiation requires digital signatures (private key signs, public key verifies) combined with tamper-evident audit logs. TACACS+ command accounting provides non-repudiation for network device administration. Legal admissibility requires chain of custody and hash-verified integrity.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-identity-mgmt', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

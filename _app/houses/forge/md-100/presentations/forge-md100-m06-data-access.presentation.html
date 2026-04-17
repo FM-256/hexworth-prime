@@ -8,1147 +8,1038 @@
     <!-- Progress & Achievements -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configure Data Access and Usage - MD-100 | House of the Forge</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1510 50%, #0a0a0f 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #d4c4b0;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .presentation-header {
-            padding: 18px 40px;
-            background: rgba(10, 10, 15, 0.95);
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .header-left { display: flex; align-items: center; gap: 15px; }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(234, 88, 12, 0.1);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 6px;
-            color: #f97316;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .back-btn:hover {
-            background: rgba(234, 88, 12, 0.2);
-            border-color: rgba(234, 88, 12, 0.5);
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .house-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            color: #a07850;
-            letter-spacing: 0.1em;
-        }
-
-        .progress-indicator { display: flex; align-items: center; gap: 10px; }
-
-        .progress-bar {
-            width: 150px;
-            height: 4px;
-            background: rgba(234, 88, 12, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ea580c, #f97316);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text { font-size: 0.75rem; color: #7a5c40; }
-
-        .slides-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        .slide { display: none; animation: fadeIn 0.5s ease; }
-        .slide.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-title {
-            font-size: 2.4rem;
-            font-weight: 300;
-            color: #f5e8d8;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .slide-subtitle {
-            font-size: 1.05rem;
-            color: #a07850;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-            gap: 22px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover {
-            border-color: rgba(234, 88, 12, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .card-icon { font-size: 2.2rem; margin-bottom: 14px; }
-        .card-title { font-size: 1.15rem; color: #f5e8d8; margin-bottom: 10px; }
-        .card-description { font-size: 0.88rem; color: #a07850; line-height: 1.65; }
-
-        .two-col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 22px;
-            margin-top: 28px;
-        }
-
-        .key-points {
-            background: rgba(20, 14, 8, 0.65);
-            border-left: 3px solid #ea580c;
-            padding: 18px 24px;
-            margin: 24px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 {
-            color: #f97316;
-            margin-bottom: 10px;
-            font-size: 0.85rem;
-            letter-spacing: 0.06em;
-        }
-
-        .key-points ul { list-style: none; }
-
-        .key-points li {
-            padding: 7px 0 7px 24px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.88rem;
-        }
-
-        .key-points li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #ea580c;
-        }
-
-        .exam-tip {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.05));
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 10px;
-            padding: 18px 22px;
-            margin: 22px 0;
-        }
-
-        .exam-tip-label {
-            font-size: 0.78rem;
-            color: #f97316;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            margin-bottom: 8px;
-        }
-
-        .exam-tip p { font-size: 0.9rem; color: #d4c4b0; line-height: 1.6; }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(180, 60, 8, 0.06));
-            border: 1px solid rgba(234, 88, 12, 0.25);
-            border-radius: 12px;
-            padding: 26px;
-            margin: 26px 0;
-        }
-
-        .scenario-title {
-            font-size: 1.05rem;
-            color: #f97316;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .scenario-content { font-size: 0.92rem; color: #d4c4b0; line-height: 1.7; }
-
-        /* Permission level badges */
-        .perm-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 0.87rem;
-        }
-
-        .perm-table th {
-            background: rgba(234, 88, 12, 0.15);
-            padding: 12px 14px;
-            text-align: left;
-            color: #f5e8d8;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
-        }
-
-        .perm-table td {
-            padding: 10px 14px;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.1);
-            color: #a07850;
-        }
-
-        .perm-table tr:hover td { background: rgba(234, 88, 12, 0.05); }
-
-        .perm-yes { color: #4ade80; }
-        .perm-no { color: #6b5b40; }
-
-        .cmd-block {
-            background: rgba(5, 5, 8, 0.8);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin: 14px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.84rem;
-            color: #f97316;
-            line-height: 1.7;
-        }
-
-        .cmd-block span { color: #a07850; }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 14px 18px;
-            margin: 9px 0;
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            color: #d4c4b0;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.92rem;
-        }
-
-        .quiz-option:hover {
-            border-color: rgba(234, 88, 12, 0.5);
-            background: rgba(234, 88, 12, 0.08);
-        }
-
-        .quiz-option.correct { border-color: #4ade80; background: rgba(74, 222, 128, 0.08); color: #4ade80; }
-        .quiz-option.incorrect { border-color: #f87171; background: rgba(248, 113, 113, 0.08); color: #f87171; }
-
-        .feedback {
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            display: none;
-            line-height: 1.6;
-        }
-
-        .feedback.correct { background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80; display: block; }
-        .feedback.incorrect { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); color: #f87171; display: block; }
-
-        .summary-list { list-style: none; margin-top: 20px; }
-
-        .summary-list li {
-            padding: 10px 0 10px 30px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.92rem;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .summary-list li::before { content: '✓'; position: absolute; left: 0; color: #4ade80; font-weight: bold; }
-
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 28px;
-            border-top: 1px solid rgba(234, 88, 12, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 28px;
-            background: rgba(234, 88, 12, 0.12);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 8px;
-            color: #f97316;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-flex; align-items: center;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover { background: rgba(234, 88, 12, 0.22); border-color: rgba(234, 88, 12, 0.5); }
-        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
-            border: none;
-            color: white;
-            font-weight: 500;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn.primary:hover { box-shadow: 0 5px 20px rgba(234, 88, 12, 0.35); transform: translateY(-1px); }
-
-        .slide-dots { display: flex; gap: 8px; }
-
-        .slide-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(234, 88, 12, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
 
-        .slide-dot.active { background: #f97316; transform: scale(1.2); }
-
-        @media (max-width: 768px) {
-            .presentation-header { flex-direction: column; gap: 14px; padding: 14px 18px; }
-            .slide-title { font-size: 1.7rem; }
-            .content-grid, .two-col { grid-template-columns: 1fr; }
-            .perm-table { font-size: 0.76rem; }
-            .slide-nav { flex-direction: column; gap: 18px; }
+        /* ── CODE BLOCK ── */
+        .code-block {
+            background: rgba(5, 5, 8, 0.8); border: 1px solid rgba(201, 168, 58, 0.2);
+            border-radius: 8px; padding: 12px 16px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c9a83a;
         }
+        .code-block .cm { color: #475569; }
+
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        /* ── SVG LAYOUT HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .diagram-pair { display: flex; justify-content: center; gap: 24px; }
+        .diagram-panel { text-align: center; }
+        .diagram-panel-label { font-size: 0.75rem; color: #94a3b8; margin-top: 6px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">← Back to MD-100</a>
-            <div class="house-badge">
-                <span><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Configure Data Access and Usage</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">MD-100 &mdash; Module 6 &nbsp;|&nbsp; Configure Data Access</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Module 6:<br>
+                <span class="accent">Configure Data Access</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                NTFS permissions, share permissions, EFS encryption, folder redirection, and the most-restrictive-wins rule that governs combined access control on Windows clients.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 8</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>MD-100 Exam Weight: 15&ndash;20%</span>
+            <span>NTFS &bull; Share Permissions &bull; EFS &bull; Folder Redirection</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
+<!-- ==================== SLIDE 2 — FILE SYSTEM COMPARISON SVG ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">File System <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">NTFS vs. FAT32 vs. exFAT &mdash; feature capabilities side by side.</div>
 
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Configure Data Access and Usage</h1>
-            <p class="slide-subtitle">MD-100 Module 6 — File systems, permissions, shares, and user file management</p>
+        <!-- SVG: NTFS vs FAT32 vs exFAT comparison chart -->
+        <div class="diagram-center">
+            <svg width="680" height="190" viewBox="0 0 680 190" aria-label="NTFS FAT32 exFAT file system comparison" role="img">
+                <!-- Header row -->
+                <rect x="2" y="2" width="676" height="26" rx="4" fill="rgba(201,168,58,0.1)"/>
+                <text x="120" y="19" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Feature</text>
+                <text x="300" y="19" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">NTFS</text>
+                <text x="460" y="19" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#ef4444">FAT32</text>
+                <text x="610" y="19" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">exFAT</text>
+                <!-- Column separators -->
+                <line x1="220" y1="2" x2="220" y2="188" stroke="#1e293b" stroke-width="1"/>
+                <line x1="380" y1="2" x2="380" y2="188" stroke="#1e293b" stroke-width="1"/>
+                <line x1="540" y1="2" x2="540" y2="188" stroke="#1e293b" stroke-width="1"/>
+                <!-- Row 1: Permissions -->
+                <rect x="2" y="28" width="676" height="24" fill="rgba(255,255,255,0.02)"/>
+                <text x="120" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">ACL Permissions</text>
+                <text x="300" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <text x="460" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <text x="610" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <!-- Row 2: Max file size -->
+                <rect x="2" y="52" width="676" height="24" fill="rgba(255,255,255,0.01)"/>
+                <text x="120" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Max File Size</text>
+                <text x="300" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">16 TB</text>
+                <text x="460" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">4 GB</text>
+                <text x="610" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">16 EB</text>
+                <!-- Row 3: Max volume -->
+                <rect x="2" y="76" width="676" height="24" fill="rgba(255,255,255,0.02)"/>
+                <text x="120" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Max Volume Size</text>
+                <text x="300" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">256 TB</text>
+                <text x="460" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">2 TB</text>
+                <text x="610" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">128 PB</text>
+                <!-- Row 4: Encryption -->
+                <rect x="2" y="100" width="676" height="24" fill="rgba(255,255,255,0.01)"/>
+                <text x="120" y="116" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">EFS Encryption</text>
+                <text x="300" y="116" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <text x="460" y="116" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <text x="610" y="116" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <!-- Row 5: Compression -->
+                <rect x="2" y="124" width="676" height="24" fill="rgba(255,255,255,0.02)"/>
+                <text x="120" y="140" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">NTFS Compression</text>
+                <text x="300" y="140" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <text x="460" y="140" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <text x="610" y="140" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <!-- Row 6: Cross-platform -->
+                <rect x="2" y="148" width="676" height="24" fill="rgba(255,255,255,0.01)"/>
+                <text x="120" y="164" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Cross-Platform R/W</text>
+                <text x="300" y="164" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Windows only natively</text>
+                <text x="460" y="164" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <text x="610" y="164" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <!-- Row 7: Journaling -->
+                <rect x="2" y="172" width="676" height="16" fill="rgba(255,255,255,0.02)"/>
+                <text x="120" y="184" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Journaling (crash recovery)</text>
+                <text x="300" y="184" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">Yes</text>
+                <text x="460" y="184" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <text x="610" y="184" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#ef4444">No</text>
+                <!-- Outer border -->
+                <rect x="2" y="2" width="676" height="186" rx="4" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+            </svg>
+        </div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h2 class="card-title">NTFS Permissions</h2>
-                    <p class="card-description">The cornerstone of Windows file security. Understand permission levels, inheritance, effective permissions, and how to apply and audit access control lists on files and folders.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Shared Folders</h3>
-                    <p class="card-description">Share permissions layer on top of NTFS permissions when resources are accessed over the network. Learn how they interact, how to create shares, and how hidden administrative shares work.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">User File Management</h3>
-                    <p class="card-description">OneDrive, Known Folder Move, Work Folders, and Offline Files — the technologies that keep user data accessible, synchronized, and protected across devices and locations.</p>
+        <div class="box box-gold">
+            <div class="box-label">Exam Rule</div>
+            EFS (Encrypting File System) is an NTFS-only feature. A file cannot be both NTFS-compressed and EFS-encrypted simultaneously. Moving an NTFS encrypted file to FAT32 removes the encryption because FAT32 has no ACL or encryption infrastructure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — NTFS PERMISSIONS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">NTFS <span class="accent">Permissions</span></div>
+        <div class="slide-subtitle">File and folder permissions enforced by the kernel regardless of access method.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Full Control</div>
+                <div class="card-desc">Read, write, execute, delete, change permissions, and take ownership. Supersedes all other permission levels. Grants ability to modify the ACL itself. Assign only to resource owners and administrators.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Modify</div>
+                <div class="card-desc">Read, write, execute, and delete files and subfolders. Cannot change permissions or take ownership. Most common permission for collaborative work folders. Prevents accidental ACL modification by regular users.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Read &amp; Execute</div>
+                <div class="card-desc">View and run files. Cannot modify or delete. Traverse folder permission is implied. Appropriate for application directories where users need to run programs but not modify installation files.</div>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Read</div>
+                <div class="card-desc">View file contents and folder structure. Cannot execute programs or modify files. Appropriate for read-only data shares such as reference documents or templates.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Write</div>
+                <div class="card-desc">Create new files and subfolders, and modify existing files. Cannot read existing contents. Unusual permission combination &mdash; typically paired with Read for a useful access level.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Special / Advanced</div>
+                <div class="card-desc">Granular individual permissions: traverse folder, list folder, read attributes, write attributes, delete subfolders, delete, read permissions, change permissions, take ownership. Access via Advanced button in Security tab.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Inheritance</div>
+            NTFS permissions are inherited from parent folder by default. Explicitly assigned permissions at a lower level take precedence over inherited permissions. To break inheritance: Properties &rarr; Security &rarr; Advanced &rarr; Disable inheritance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SHARE PERMISSIONS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Share <span class="accent">Permissions</span></div>
+        <div class="slide-subtitle">Network-only access control &mdash; three levels, applied at the share entry point.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Read (Share)</div>
+                <div class="card-desc">View file names and attributes, read file contents, run programs. Cannot create, modify, or delete files. Applied at the share boundary &mdash; all network access starts with this check before NTFS permissions are evaluated.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Change (Share)</div>
+                <div class="card-desc">All Read permissions plus: create files and subfolders, change file contents, delete files and subfolders. Roughly equivalent to NTFS Modify in scope but has no effect on local (non-network) access.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Full Control (Share)</div>
+                <div class="card-desc">All Change permissions plus: change permissions (on FAT volumes where share permissions are the only ACL). On NTFS volumes, share Full Control does not grant ability to change NTFS ACLs &mdash; NTFS Full Control is required for that.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="box box-red">
+                <div class="box-label">Share Permissions Only Apply Over the Network</div>
+                If a user logs on locally (Console session, RDP with local access, or physical keyboard), share permissions do NOT apply. Only NTFS permissions control local file access. This is the most important distinction between the two permission types.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Common Best Practice</div>
+                Grant <strong>Everyone: Full Control</strong> at the share level, then apply all granular access control through NTFS permissions. This simplifies administration by keeping all meaningful ACL work in one place (NTFS), while share permissions act only as a coarse gate.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — MOST RESTRICTIVE WINS SVG ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Most Restrictive <span class="accent">Wins Rule</span></div>
+        <div class="slide-subtitle">When share and NTFS permissions combine, the effective permission is always the most restrictive of the two.</div>
+
+        <!-- SVG: Share permissions vs NTFS permissions flow — most restrictive wins -->
+        <div class="diagram-center">
+            <svg width="680" height="170" viewBox="0 0 680 170" aria-label="Share and NTFS permission evaluation flow showing most restrictive wins" role="img">
+                <defs>
+                    <marker id="flowArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                    <marker id="flowArrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#3ab577"/>
+                    </marker>
+                </defs>
+
+                <!-- Network request source -->
+                <rect x="10" y="60" width="90" height="50" rx="6" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1.5"/>
+                <text x="55" y="82" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Network</text>
+                <text x="55" y="96" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Request</text>
+                <line x1="100" y1="85" x2="140" y2="85" stroke="#c9a83a" stroke-width="2" marker-end="url(#flowArr)"/>
+
+                <!-- Share permission check -->
+                <rect x="142" y="50" width="120" height="70" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="202" y="72" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">Share</text>
+                <text x="202" y="85" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Permissions</text>
+                <text x="202" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#0891b2">e.g., Change</text>
+                <text x="202" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#0891b2">(allows Read + Write)</text>
+                <line x1="264" y1="85" x2="304" y2="85" stroke="#c9a83a" stroke-width="2" marker-end="url(#flowArr)"/>
+
+                <!-- Combine / evaluate -->
+                <rect x="306" y="58" width="80" height="54" rx="6" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="346" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a">COMPARE</text>
+                <text x="346" y="93" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Take the</text>
+                <text x="346" y="105" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">most restrictive</text>
+                <line x1="386" y1="85" x2="426" y2="85" stroke="#c9a83a" stroke-width="2" marker-end="url(#flowArr)"/>
+
+                <!-- NTFS permission check -->
+                <rect x="428" y="50" width="120" height="70" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="488" y="72" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">NTFS</text>
+                <text x="488" y="85" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Permissions</text>
+                <text x="488" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#1f8c5a">e.g., Read</text>
+                <text x="488" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#1f8c5a">(allows Read only)</text>
+                <line x1="548" y1="85" x2="588" y2="85" stroke="#3ab577" stroke-width="2" marker-end="url(#flowArrG)"/>
+
+                <!-- Effective permission result -->
+                <rect x="590" y="58" width="84" height="54" rx="6" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="2"/>
+                <text x="632" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Effective:</text>
+                <text x="632" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#86efac">READ</text>
+                <text x="632" y="106" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">(most restrictive)</text>
+
+                <!-- Deny overrides everything annotation -->
+                <rect x="142" y="130" width="532" height="28" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <text x="408" y="149" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">DENY always overrides ALLOW — a Deny entry in either layer blocks access regardless of any Allow at the other layer</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Example Calculation</div>
+                <div class="card-desc">Share permission: <strong>Full Control</strong>. NTFS permission: <strong>Read</strong>. Effective: <strong>Read</strong>. The more restrictive NTFS permission wins.<br><br>Share permission: <strong>Read</strong>. NTFS permission: <strong>Full Control</strong>. Effective: <strong>Read</strong>. The more restrictive share permission wins.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deny is Absolute</div>
+                <div class="card-desc">An explicit Deny entry overrides all Allow entries. If a user is a member of two groups &mdash; one with Allow Read and one with Deny Read &mdash; the Deny takes effect. Deny is evaluated first in every permission check. Use sparingly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — MANAGING NTFS PERMISSIONS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Managing NTFS <span class="accent">Permissions</span></div>
+        <div class="slide-subtitle">GUI and command-line tools for assigning and auditing NTFS ACLs.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">File Explorer (GUI)</div>
+                <div class="card-desc">Right-click file or folder &rarr; Properties &rarr; Security tab. Shows principal (user or group) and their Allow/Deny entries. Click Edit to add or remove entries. Advanced button exposes ownership, inheritance, and auditing settings.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">icacls (Command Line)</div>
+                <div class="card-desc"><strong>icacls C:\Data</strong> &mdash; display permissions. <strong>icacls C:\Data /grant "Domain Users":(OI)(CI)R</strong> &mdash; grant recursive read. <strong>icacls C:\Data /deny UserA:W</strong> &mdash; deny write. <strong>icacls C:\Data /reset</strong> &mdash; reset to inherited. Supports scripting and bulk operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">takeown / whoami</div>
+                <div class="card-desc"><strong>takeown /f C:\file.txt</strong> &mdash; take ownership of a locked file. <strong>whoami /groups</strong> &mdash; show group membership and SIDs. Use when a user cannot access a file they should own, or to diagnose inherited group permission issues.</div>
+            </div>
+        </div>
+
+        <div class="code-block">
+            <span class="cm"># View current ACL</span><br>
+            icacls "C:\Data\Reports"<br><br>
+            <span class="cm"># Grant Marketing group modify on folder and all children (OI=object inherit, CI=container inherit)</span><br>
+            icacls "C:\Data\Reports" /grant "Marketing":(OI)(CI)M<br><br>
+            <span class="cm"># Remove a group from the ACL</span><br>
+            icacls "C:\Data\Reports" /remove "Marketing"<br><br>
+            <span class="cm"># Reset ACL to only inherited permissions</span><br>
+            icacls "C:\Data\Reports" /reset /T
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — CREATING AND MANAGING SHARES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">Creating and Managing <span class="accent">Shares</span></div>
+        <div class="slide-subtitle">Making folders accessible over the network with proper share-level access controls.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Share Methods</div>
+                <div class="card-desc">
+                    <strong>File Explorer:</strong> Right-click folder &rarr; Properties &rarr; Sharing tab &rarr; Advanced Sharing.<br>
+                    <strong>Computer Management:</strong> Shared Folders &rarr; Shares &rarr; New Share.<br>
+                    <strong>Command line:</strong> <code style="color:#c9a83a;">net share Data=C:\Data /grant:Domain Users,Read</code><br>
+                    <strong>PowerShell:</strong> <code style="color:#c9a83a;">New-SmbShare -Name Data -Path C:\Data</code>
                 </div>
             </div>
-
-            <div class="key-points">
-                <h4>MODULE OVERVIEW</h4>
-                <ul>
-                    <li>NTFS permissions and share permissions are high-weight exam topics — understand how they combine</li>
-                    <li>Effective permissions calculation: the most restrictive of NTFS and share permissions applies</li>
-                    <li>OneDrive Known Folder Move is a core enterprise deployment scenario</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Administrative Shares</div>
+                <div class="card-desc">Windows creates hidden administrative shares by default: <strong>C$</strong> (C: drive root), <strong>ADMIN$</strong> (Windows folder), <strong>IPC$</strong> (inter-process communication). Accessible only to members of Administrators. Trailing <strong>$</strong> hides share from browse lists. Cannot be permanently removed without registry change.</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: Windows File Systems -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">Windows File Systems</h2>
-            <p class="slide-subtitle">NTFS features, ReFS overview, and FAT comparison</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">NTFS — New Technology File System</h3>
-                        <p class="card-description" style="margin-bottom: 12px;">The standard Windows file system for all internal drives. Rich feature set that no alternative matches:</p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Access Control Lists (ACLs)</strong> — granular user/group permissions</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">EFS</strong> — Encrypting File System (user-level encryption)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Compression</strong> — transparent file/folder compression</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Disk Quotas</strong> — per-user storage limits</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Volume Shadow Copy</strong> — previous versions snapshots</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Journaling</strong> — transaction log for crash recovery</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Alternate Data Streams</strong> — metadata attached to files</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">ReFS — Resilient File System</h3>
-                        <p class="card-description">Designed for large-scale storage and data integrity. Used with Storage Spaces on Windows 10 Pro for Workstations and Server environments.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Integrity checksums on metadata and data</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Automatic corruption detection and repair</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>No CHKDSK needed — self-healing</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Does NOT support EFS or disk quotas</li>
-                        </ul>
-                    </div>
-                    <div class="content-card" style="margin-top: 18px;">
-                        <h3 class="card-title">FAT32 and exFAT</h3>
-                        <p class="card-description"><strong style="color:#f5e8d8;">FAT32</strong> — Legacy. Maximum 4 GB file size. Used for boot media and legacy compatibility. Cannot store NTFS permissions.</p>
-                        <p class="card-description" style="margin-top: 10px;"><strong style="color:#f5e8d8;">exFAT</strong> — Extended FAT for removable media. No file size limit, no permissions model. Best for USB drives shared between Windows and macOS.</p>
-                    </div>
-                </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">UNC Path</div>
+                <div class="card-desc">Universal Naming Convention: <strong>\\ServerName\ShareName\subfolder\file.txt</strong>. Used in Explorer address bar, net use commands, and GPO scripts. IP addresses also work: <strong>\\192.168.1.10\Data</strong>.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>NTFS is the only file system that supports ACL-based permissions, EFS encryption, compression, and disk quotas. Any question about file-level security on a Windows volume implies NTFS.</p>
+            <div class="card c-gold">
+                <div class="card-label">net use (Map Drive)</div>
+                <div class="card-desc"><strong>net use Z: \\Server\Data /persistent:yes</strong> &mdash; maps a drive letter persistently. <strong>net use Z: /delete</strong> &mdash; disconnects. <strong>net use</strong> alone lists all current connections. Persistent mapping survives reboot for the current user.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: File Access Permissions -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">File Access Permissions</h2>
-            <p class="slide-subtitle">NTFS permission levels, inheritance, effective permissions, and icacls</p>
-
-            <table class="perm-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Permission Level</th>
-                        <th scope="col">Read</th>
-                        <th scope="col">Write</th>
-                        <th scope="col">Execute</th>
-                        <th scope="col">Delete</th>
-                        <th scope="col">Change Perms</th>
-                        <th scope="col">Take Ownership</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Read (R)</strong></td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Read &amp; Execute (RX)</strong></td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Write (W)</strong></td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Modify (M)</strong></td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-no">—</td>
-                        <td class="perm-no">—</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Full Control (F)</strong></td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                        <td class="perm-yes">✓</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="two-col" style="margin-top: 22px;">
-                <div class="key-points" style="margin: 0;">
-                    <h3>INHERITANCE RULES</h3>
-                    <ul>
-                        <li>Child objects inherit permissions from parent by default</li>
-                        <li>Explicit permissions override inherited permissions</li>
-                        <li>Deny always overrides Allow at the same level</li>
-                        <li>Break inheritance to set unique permissions on a subfolder</li>
-                        <li>Effective permissions = union of all Allow groups minus any Deny</li>
-                    </ul>
-                </div>
-                <div>
-                    <div class="content-card" style="margin-top: 0;">
-                        <h3 class="card-title">icacls Command</h3>
-                        <p class="card-description" style="margin-bottom: 10px;">Command-line tool for viewing and modifying NTFS ACLs:</p>
-                        <div class="cmd-block">
-                            <span style="color:#a07850;"># View permissions</span><br>
-                            icacls "C:\Data"<br><br>
-                            <span style="color:#a07850;"># Grant Modify to a user</span><br>
-                            icacls "C:\Data" /grant jsmith:(M)<br><br>
-                            <span style="color:#a07850;"># Deny Write</span><br>
-                            icacls "C:\Data" /deny jsmith:(W)
-                        </div>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">SMB Versions</div>
+                <div class="card-desc">SMB 1.0 is disabled by default on Windows 10/11 (security vulnerability). SMB 2.x and 3.x are used for all modern Windows file sharing. SMB 3.1.1 supports end-to-end encryption. Check via <strong>Get-SmbServerConfiguration</strong>.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>When a user belongs to multiple groups with different NTFS permissions, the effective permission is the cumulative union of all Allow permissions — EXCEPT when any group has an explicit Deny, which overrides Allow. This is the most commonly tested permissions scenario.</p>
+<!-- ==================== SLIDE 8 — EFS ENCRYPTION SVG ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">EFS <span class="accent">Encryption Flow</span></div>
+        <div class="slide-subtitle">Encrypting File System &mdash; per-user transparent encryption for NTFS files.</div>
+
+        <!-- SVG: EFS encryption flow (FEK, user cert, DRF) -->
+        <div class="diagram-center">
+            <svg width="680" height="168" viewBox="0 0 680 168" aria-label="EFS encryption flow showing FEK encrypted by user public key and DRF" role="img">
+                <defs>
+                    <marker id="efsArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                </defs>
+
+                <!-- Step 1: Plaintext file -->
+                <rect x="6" y="30" width="90" height="50" rx="5" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1.5"/>
+                <text x="51" y="52" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Plaintext</text>
+                <text x="51" y="66" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">File</text>
+                <line x1="97" y1="55" x2="130" y2="55" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#efsArr)"/>
+                <text x="113" y="49" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">EFS</text>
+                <text x="113" y="61" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">encrypt</text>
+
+                <!-- Step 2: FEK generated -->
+                <rect x="132" y="16" width="110" height="78" rx="5" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="187" y="36" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">FEK</text>
+                <text x="187" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">File Encryption Key</text>
+                <text x="187" y="64" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">(random symmetric</text>
+                <text x="187" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">AES-256 key)</text>
+                <line x1="242" y1="55" x2="275" y2="55" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#efsArr)"/>
+
+                <!-- Step 3: File ciphertext stored -->
+                <rect x="277" y="30" width="100" height="50" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="327" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Ciphertext</text>
+                <text x="327" y="64" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">in File</text>
+
+                <!-- FEK encrypted with user public key -->
+                <line x1="187" y1="94" x2="187" y2="120" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#efsArr)"/>
+                <rect x="132" y="122" width="110" height="40" rx="5" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="187" y="138" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">FEK encrypted with</text>
+                <text x="187" y="151" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">User's Public Key (cert)</text>
+
+                <!-- DRF: Data Recovery Field -->
+                <line x1="242" y1="142" x2="400" y2="142" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#efsArr)"/>
+                <rect x="402" y="122" width="140" height="40" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="472" y="138" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">DRF: FEK also encrypted</text>
+                <text x="472" y="151" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">with Recovery Agent key</text>
+
+                <!-- Stored in file header annotation -->
+                <rect x="277" y="110" width="100" height="30" rx="4" fill="rgba(6,182,212,0.06)" stroke="#1e293b" stroke-width="1"/>
+                <text x="327" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Encrypted FEK stored</text>
+                <text x="327" y="137" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">in file's $EFS attribute</text>
+
+                <!-- Title annotations -->
+                <text x="560" y="36" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Decryption:</text>
+                <text x="580" y="52" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">1. User's private key</text>
+                <text x="580" y="66" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">   decrypts the FEK</text>
+                <text x="580" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">2. FEK decrypts the file</text>
+                <text x="580" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">3. Transparent to user</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Enable EFS</div>
+                <div class="card-desc">File Properties &rarr; General &rarr; Advanced &rarr; Encrypt contents. Or: <strong>cipher /e /s:C:\ConfidentialFolder</strong>. First encryption creates a self-signed certificate and private key stored in the user profile.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: Effective Permissions — Worked Examples -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">Effective Permissions — Worked Examples</h2>
-            <p class="slide-subtitle">How to calculate effective access when users belong to multiple groups</p>
-
-            <div class="content-card" style="margin-bottom: 18px;">
-                <h3 class="card-title">The Rules (in order of priority)</h3>
-                <p class="card-description" style="margin-bottom: 10px;">Follow these steps every time you calculate effective permissions:</p>
-                <ul style="list-style: none;">
-                    <li style="padding: 6px 0 6px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#f97316;font-weight:700;">1.</span> Gather all Allow permissions from all groups the user belongs to</li>
-                    <li style="padding: 6px 0 6px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#f97316;font-weight:700;">2.</span> Combine them — the user gets the <strong style="color:#f5e8d8;">union</strong> (most permissive combination)</li>
-                    <li style="padding: 6px 0 6px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#f97316;font-weight:700;">3.</span> Apply any Deny entries — Deny <strong style="color:#ef4444;">always overrides</strong> Allow for the specific permission denied</li>
-                    <li style="padding: 6px 0 6px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#f97316;font-weight:700;">4.</span> Explicit permissions override inherited permissions</li>
-                </ul>
+            <div class="card c-red">
+                <div class="card-label">EFS Risks</div>
+                <div class="card-desc">EFS is user-bound. Rebuild the machine without exporting the certificate and the files are permanently unrecoverable. Always export the EFS certificate: <strong>certmgr.msc</strong> &rarr; Personal &rarr; Certificates &rarr; Export with private key.</div>
             </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Recovery Agent</div>
+                <div class="card-desc">Domain administrator is automatically a DRA in AD environments. The FEK is also encrypted with the DRA public key (stored in the file's Data Recovery Field). Allows admins to decrypt EFS files when user private key is lost.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Example 1: Multiple Allow Groups</h3>
-                        <p class="card-description" style="margin-bottom: 10px;"><strong style="color:#f5e8d8;">Alice</strong> is a member of:</p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Analysts</strong> — Allow Read &amp; Execute</li>
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Managers</strong> — Allow Modify</li>
-                        </ul>
-                        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 6px;">
-                            <p style="color:#4ade80; font-size:0.86rem;"><strong>Result: Modify</strong></p>
-                            <p style="color:#a07850; font-size:0.82rem; margin-top: 4px;">Read&amp;Execute + Modify = Modify (the higher permission includes the lower)</p>
-                        </div>
-                    </div>
+<!-- ==================== SLIDE 9 — FOLDER REDIRECTION SVG ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Folder <span class="accent">Redirection</span></div>
+        <div class="slide-subtitle">Transparently move user profile folders to a network share for centralized management.</div>
 
-                    <div class="content-card" style="margin-top: 14px;">
-                        <h3 class="card-title">Example 3: Deny Full Control</h3>
-                        <p class="card-description" style="margin-bottom: 10px;"><strong style="color:#f5e8d8;">Eve</strong> is a member of:</p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">ProjectTeam</strong> — Allow Full Control</li>
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Terminated</strong> — Deny All</li>
-                        </ul>
-                        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px;">
-                            <p style="color:#fca5a5; font-size:0.86rem;"><strong>Result: No Access</strong></p>
-                            <p style="color:#a07850; font-size:0.82rem; margin-top: 4px;">Deny All overrides every Allow permission. Eve is completely blocked.</p>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Example 2: Allow + Deny (Specific)</h3>
-                        <p class="card-description" style="margin-bottom: 10px;"><strong style="color:#f5e8d8;">Bob</strong> is a member of:</p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Sales</strong> — Allow Modify</li>
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Contractors</strong> — Deny Write</li>
-                        </ul>
-                        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 6px;">
-                            <p style="color:#fbbf24; font-size:0.86rem;"><strong>Result: Read &amp; Execute</strong></p>
-                            <p style="color:#a07850; font-size:0.82rem; margin-top: 4px;">Modify includes Write. Deny Write removes Write, Append, and Delete from Modify. What remains: Read + Execute.</p>
-                        </div>
-                    </div>
+        <!-- SVG: Folder Redirection architecture -->
+        <div class="diagram-center">
+            <svg width="680" height="155" viewBox="0 0 680 155" aria-label="Folder redirection architecture from GPO to client to file server" role="img">
+                <defs>
+                    <marker id="frArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                </defs>
 
-                    <div class="content-card" style="margin-top: 14px;">
-                        <h3 class="card-title">Example 4: Inherited vs Explicit</h3>
-                        <p class="card-description" style="margin-bottom: 10px;">Folder <strong style="color:#f5e8d8;">C:\Projects</strong> has inherited Allow Read for Everyone. An admin adds an <strong style="color:#f5e8d8;">explicit</strong> Deny Read for the Interns group on C:\Projects\Confidential.</p>
-                        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px;">
-                            <p style="color:#fca5a5; font-size:0.86rem;"><strong>Result for Interns on Confidential: No Access</strong></p>
-                            <p style="color:#a07850; font-size:0.82rem; margin-top: 4px;">Explicit Deny overrides inherited Allow. Interns still have Read on other folders under C:\Projects.</p>
-                        </div>
-                    </div>
+                <!-- Active Directory / GPO source -->
+                <rect x="6" y="30" width="110" height="70" rx="5" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="61" y="54" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Group Policy</text>
+                <text x="61" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">User Config</text>
+                <text x="61" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">Windows Settings</text>
+                <text x="61" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">Folder Redirect...</text>
+                <line x1="116" y1="65" x2="156" y2="65" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#frArr)"/>
+                <text x="136" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">GPO</text>
+                <text x="136" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">applied</text>
+
+                <!-- Windows 10 Client -->
+                <rect x="158" y="20" width="130" height="90" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="223" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">Windows 10 Client</text>
+                <text x="223" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">C:\Users\Jane\Documents</text>
+                <text x="223" y="72" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">(junction point/symlink)</text>
+                <text x="223" y="86" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">points to</text>
+                <text x="223" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">\\server\Redirected\Jane\</text>
+                <line x1="288" y1="65" x2="328" y2="65" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#frArr)"/>
+                <text x="308" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">network</text>
+                <text x="308" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">I/O</text>
+
+                <!-- File Server -->
+                <rect x="330" y="20" width="130" height="90" rx="5" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="395" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">File Server</text>
+                <text x="395" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">\\server\Redirected\</text>
+                <rect x="340" y="64" width="110" height="36" rx="3" fill="rgba(58,181,119,0.08)" stroke="#1f8c5a" stroke-width="1"/>
+                <text x="395" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Jane\ Documents</text>
+                <text x="395" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Bob\  Desktop</text>
+
+                <!-- Benefits column -->
+                <rect x="484" y="10" width="190" height="138" rx="5" fill="rgba(255,255,255,0.02)" stroke="#1e293b" stroke-width="1"/>
+                <text x="579" y="30" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Benefits</text>
+                <text x="492" y="48" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">+ Data survives PC failure</text>
+                <text x="492" y="63" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">+ Roaming: same data any PC</text>
+                <text x="492" y="78" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">+ Centralized backup</text>
+                <text x="492" y="93" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">+ Storage quotas enforced</text>
+                <text x="492" y="108" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">+ Offline Files caches locally</text>
+                <text x="492" y="123" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">- Requires network for access</text>
+                <text x="492" y="138" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">  (unless Offline Files enabled)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Which Folders Can Be Redirected</div>
+                <div class="card-desc">AppData (Roaming), Desktop, Start Menu, Documents, Pictures, Music, Videos, Favorites, Contacts, Downloads. Configure each folder independently in the GPO under User Configuration &rarr; Windows Settings &rarr; Folder Redirection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Offline Files</div>
+                <div class="card-desc">Caches redirected folder contents locally so users can work without network connectivity. Sync occurs on reconnect. Enable via: Computer Configuration &rarr; Administrative Templates &rarr; Network &rarr; Offline Files. Configured per-machine, not per-user.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Redirection vs. Roaming Profiles</div>
+                <div class="card-desc">Folder Redirection moves specific folders to the server, leaving the rest of the profile local. Roaming Profiles copy the entire user profile to a network share. Best practice: combine both &mdash; redirect key folders, use roaming profiles for settings synchronization.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — EFFECTIVE PERMISSIONS TOOL ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Effective <span class="accent">Permissions Tool</span></div>
+        <div class="slide-subtitle">Calculating what a user can actually do after all permissions are combined.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">GUI Tool: Advanced Security</div>
+                <div class="card-desc">File or folder Properties &rarr; Security tab &rarr; Advanced &rarr; Effective Access tab. Enter a user or group name and click View effective access. Shows the final computed permissions considering group memberships, inheritance, and explicit entries. Does not account for share permissions in the local view.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Permission Calculation Rules</div>
+                <div class="card-desc">
+                    1. Permissions accumulate across all group memberships (union).<br>
+                    2. Explicit permissions override inherited permissions.<br>
+                    3. Deny overrides Allow at the same inheritance level.<br>
+                    4. When combining share and NTFS: take the more restrictive.<br>
+                    5. Creator/Owner gets special inherited permissions.
                 </div>
             </div>
+        </div>
 
-            <div class="exam-tip" style="margin-top: 18px;">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Deny Write does NOT deny all access — it only removes write-related sub-permissions. The user retains Read and Execute from any Allow grants. This is a common exam trick: "Deny Write" is not the same as "No Access."</p>
+        <div class="scenario-strip">
+            User Jane is in both Sales (Read) and Managers (Modify) groups on the Reports folder. NTFS effective: Modify (permissions accumulate). The share grants Sales: Read. Combined effective permission over the network: Read (most restrictive of Modify NTFS and Read share). Locally: Modify. This split is a common exam trap.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Creator/Owner</div>
+                <div class="card-desc">The user who creates a file or folder has Full Control of that object by default (as Creator Owner special identity). This implicit permission is not always visible in the standard ACL view but appears in the Advanced Security settings.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&#8592; Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &#8594;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 5: Shared Folders -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Shared Folders</h2>
-            <p class="slide-subtitle">Creating shares, share vs. NTFS permissions, admin shares, and net share</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Share Permissions vs. NTFS Permissions</h3>
-                        <p class="card-description">When a resource is accessed over the network, both share and NTFS permissions apply. The effective access is the <strong style="color:#f97316;">most restrictive</strong> of the two.</p>
-                        <div style="margin-top: 16px; padding: 14px; background: rgba(5,5,8,0.6); border-radius: 8px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Example:</strong></p>
-                            <p style="color:#a07850; font-size:0.86rem;">Share permission: Full Control</p>
-                            <p style="color:#a07850; font-size:0.86rem;">NTFS permission: Read</p>
-                            <p style="color:#4ade80; font-size:0.86rem; margin-top: 8px;">Effective access over network: <strong>Read</strong></p>
-                            <p style="color:#a07850; font-size:0.86rem; margin-top: 6px;">NTFS always wins when it is the more restrictive. Local access ignores share permissions entirely.</p>
-                        </div>
-                    </div>
-
-                    <div class="content-card" style="margin-top: 18px;">
-                        <h3 class="card-title">Administrative Shares</h3>
-                        <p class="card-description">Hidden shares created automatically by Windows. Accessible only to administrators. The dollar sign suffix hides them from network browsing.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">C$, D$</strong> — root of each local drive</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">ADMIN$</strong> — Windows installation directory</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">IPC$</strong> — inter-process communication pipe</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">PRINT$</strong> — printer driver files</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Creating and Managing Shares</h3>
-                        <p class="card-description" style="margin-bottom: 12px;">Three methods to create a shared folder:</p>
-                        <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 6px;"><strong>1. File Explorer</strong></p>
-                        <p style="color:#a07850; font-size:0.85rem; margin-bottom: 14px;">Right-click folder → Properties → Sharing tab → Advanced Sharing</p>
-                        <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 6px;"><strong>2. Computer Management</strong></p>
-                        <p style="color:#a07850; font-size:0.85rem; margin-bottom: 14px;">compmgmt.msc → Shared Folders → Shares → New Share wizard</p>
-                        <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 6px;"><strong>3. net share command</strong></p>
-                        <div class="cmd-block">
-                            <span style="color:#a07850;"># Create a share</span><br>
-                            net share Data=C:\Data /grant:Everyone,Read<br><br>
-                            <span style="color:#a07850;"># View all shares</span><br>
-                            net share<br><br>
-                            <span style="color:#a07850;"># Remove a share</span><br>
-                            net share Data /delete
-                        </div>
-                    </div>
-                    <div class="content-card" style="margin-top: 18px;">
-                        <h3 class="card-title">Mapping Network Drives</h3>
-                        <p class="card-description">Assign a drive letter to a network share for persistent access. Use Group Policy Preferences to deploy mapped drives to users automatically at logon.</p>
-                        <div class="cmd-block">
-                            net use Z: \\server\Data /persistent:yes
-                        </div>
-                    </div>
-                </div>
+            <div class="card c-gold">
+                <div class="card-label">Take Ownership</div>
+                <div class="card-desc">Administrators can take ownership of any file or folder regardless of ACL settings. Ownership change does not require existing permissions. Command: <strong>takeown /f C:\path /r /d y</strong>. After taking ownership, assign permissions explicitly to restore intended access.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: icacls Command Reference -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">icacls Command Reference</h2>
-            <p class="slide-subtitle">The complete command-line tool for viewing and managing NTFS permissions</p>
-
-            <div class="content-card" style="margin-bottom: 18px;">
-                <h3 class="card-title">Permission Flags</h3>
-                <p class="card-description" style="margin-bottom: 12px;">Each permission is represented by a letter code <strong style="color:#f97316;">in parentheses</strong>. The parentheses are required syntax.</p>
-                <table class="comparison-table">
-                    <thead><tr><th scope="col">Flag</th><th scope="col">Permission</th><th scope="col">What It Allows</th></tr></thead>
-                    <tbody>
-                        <tr><td><strong style="color:#f97316;">(R)</strong></td><td>Read</td><td>View file contents, attributes, permissions</td></tr>
-                        <tr><td><strong style="color:#f97316;">(W)</strong></td><td>Write</td><td>Create files, write data, write attributes</td></tr>
-                        <tr><td><strong style="color:#f97316;">(RX)</strong></td><td>Read &amp; Execute</td><td>Read + run executables and scripts</td></tr>
-                        <tr><td><strong style="color:#f97316;">(M)</strong></td><td>Modify</td><td>Read + Write + Execute + Delete files</td></tr>
-                        <tr><td><strong style="color:#f97316;">(F)</strong></td><td>Full Control</td><td>All permissions + change perms + take ownership</td></tr>
-                    </tbody>
-                </table>
+            <div class="card c-red">
+                <div class="card-label">Access-Based Enumeration</div>
+                <div class="card-desc">ABE hides files and folders from users who do not have at least Read permission. Enabled per-share on Windows Server. Prevents users from seeing the names of files they cannot access. Configure via PowerShell: <strong>Set-SmbShare -Name Data -FolderEnumerationMode AccessBased</strong>.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Action Switches</h3>
-                        <div class="cmd-block">
-                            <span style="color:#a07850;"># View current permissions</span><br>
-                            icacls "C:\Projects"<br><br>
-                            <span style="color:#a07850;"># Grant Modify to a user</span><br>
-                            icacls "C:\Projects" /grant jsmith:(M)<br><br>
-                            <span style="color:#a07850;"># Grant Read&amp;Execute to a group</span><br>
-                            icacls "C:\Projects" /grant "Sales Team":(RX)<br><br>
-                            <span style="color:#a07850;"># Explicitly deny Full Control</span><br>
-                            icacls "C:\Projects" /deny contractors:(F)<br><br>
-                            <span style="color:#a07850;"># Remove ALL permissions for a user</span><br>
-                            icacls "C:\Projects" /remove jsmith
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Advanced Operations</h3>
-                        <div class="cmd-block">
-                            <span style="color:#a07850;"># Reset permissions to inherited defaults</span><br>
-                            icacls "C:\Projects" /reset<br><br>
-                            <span style="color:#a07850;"># Apply recursively to all files and subfolders</span><br>
-                            icacls "C:\Projects" /grant jsmith:(M) /T<br><br>
-                            <span style="color:#a07850;"># Grant with inheritance (OI=object, CI=container)</span><br>
-                            icacls "C:\Data" /grant jsmith:(OI)(CI)(M)<br><br>
-                            <span style="color:#a07850;"># Save permissions to a file (backup)</span><br>
-                            icacls "C:\Projects" /save perms.txt /T<br><br>
-                            <span style="color:#a07850;"># Restore permissions from backup</span><br>
-                            icacls "C:\Projects" /restore perms.txt
-                        </div>
-                    </div>
+<!-- ==================== SLIDE 11 — USER ACCOUNT CONTROL ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">User Account <span class="accent">Control (UAC)</span></div>
+        <div class="slide-subtitle">Principle of least privilege enforcement for Windows interactive sessions.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What UAC Does</div>
+                <div class="card-desc">Splits administrator accounts into a filtered standard token (used for normal operations) and a full administrator token (used only when elevated). Standard users receive a credential prompt. Admins receive a consent prompt. Reduces the impact of malware running under an admin account.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">UAC Levels</div>
+                <div class="card-desc"><strong>Always notify:</strong> Prompts for all changes including Windows Settings. <strong>Default:</strong> Prompt only when apps try to make changes; dim desktop. <strong>Notify for app changes only (no dim):</strong> Same as default but no secure desktop. <strong>Never notify:</strong> UAC effectively disabled. Only appropriate for isolated test environments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Run As Administrator</div>
+                <div class="card-desc">Right-click an executable &rarr; Run as administrator. Or: <strong>runas /user:Administrator cmd.exe</strong> from command line. Elevated processes run with the full admin token. Required for Disk Management, registry changes, system32 file modifications, and service installation.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">UAC Virtualization</div>
+            Legacy 32-bit applications that write to protected locations (Program Files, Windows, HKLM registry) are redirected transparently to per-user virtual stores. This prevents application failures while maintaining system integrity. 64-bit applications do not receive virtualization &mdash; they must be rewritten to write to user-accessible locations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — NTFS COMPRESSION AND ENCRYPTION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">NTFS Compression <span class="accent">vs. EFS</span></div>
+        <div class="slide-subtitle">Two NTFS attributes that cannot coexist on the same file.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">NTFS Compression</div>
+                <div class="card-desc">Per-file or per-folder attribute. Windows compresses files transparently on write, decompresses on read. Performance impact on high-speed SSDs. File names appear blue in Explorer when compression is enabled. Command: <strong>compact /c /s C:\OldData</strong>. Cannot be combined with EFS on the same file.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">EFS Encryption</div>
+                <div class="card-desc">Per-file or per-folder attribute. Files appear green in Explorer when EFS is enabled. Requires a user certificate. Available on Windows 10 Pro, Enterprise, and Education &mdash; not on Home editions. Key stored in user profile; must be backed up before profile migration.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">cipher Command</div>
+                <div class="card-desc">
+                    <strong>cipher /e C:\file.txt</strong> &mdash; encrypt a file.<br>
+                    <strong>cipher /d C:\file.txt</strong> &mdash; decrypt a file.<br>
+                    <strong>cipher /s:C:\folder</strong> &mdash; encrypt folder recursively.<br>
+                    <strong>cipher /w:C:\</strong> &mdash; wipe free space (overwrites deleted file data).
                 </div>
             </div>
-
-            <div class="key-points" style="margin-top: 18px;">
-                <h4>COMMON MISTAKES</h4>
-                <ul>
-                    <li><strong>/grant</strong> adds a permission — does not replace existing entries</li>
-                    <li><strong>/remove</strong> takes only the username — no permission flag needed (removes all entries for that user)</li>
-                    <li>Permission codes MUST be in parentheses: <strong style="color:#f97316;">(M)</strong> not just M</li>
-                    <li>Use quotes around paths and group names with spaces</li>
-                    <li><strong>/deny</strong> creates an explicit Deny ACE — use carefully, it overrides all Allow permissions</li>
-                </ul>
+            <div class="card c-gold">
+                <div class="card-label">Mutually Exclusive</div>
+                <div class="card-desc">Enabling EFS on a compressed file automatically removes compression. Enabling compression on an EFS-encrypted file removes encryption. This is an NTFS design constraint &mdash; both attributes live in the same file metadata field and cannot coexist.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&#8592; Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &#8594;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Share + NTFS Combined Access -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Share + NTFS Combined Access</h2>
-            <p class="slide-subtitle">How share and NTFS permissions interact for network vs. local access</p>
-
-            <div class="content-card" style="margin-bottom: 18px;">
-                <h3 class="card-title">The Two Rules You Must Know</h3>
-                <div class="two-col" style="margin-top: 12px;">
-                    <div style="padding: 14px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;">
-                        <p style="color:#60a5fa; font-size:0.9rem; font-weight:600; margin-bottom: 6px;">Network Access (\\server\share)</p>
-                        <p style="color:#a07850; font-size:0.86rem;">Effective = <strong style="color:#f5e8d8;">most restrictive</strong> of Share AND NTFS permissions</p>
-                    </div>
-                    <div style="padding: 14px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px;">
-                        <p style="color:#4ade80; font-size:0.9rem; font-weight:600; margin-bottom: 6px;">Local Access (C:\folder)</p>
-                        <p style="color:#a07850; font-size:0.86rem;">Effective = <strong style="color:#f5e8d8;">NTFS only</strong> — share permissions do not apply</p>
-                    </div>
-                </div>
+            <div class="card c-red">
+                <div class="card-label">Not Available on Home</div>
+                <div class="card-desc">EFS requires Windows 10/11 Pro, Enterprise, or Education. Windows Home users cannot encrypt files with EFS. The Advanced button in file properties is present but the encryption checkbox is greyed out. BitLocker is the full-disk alternative for all editions with TPM.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="content-card" style="margin-bottom: 18px;">
-                <h3 class="card-title">Worked Examples</h3>
-                <table class="comparison-table">
-                    <thead>
-                        <tr><th scope="col">User</th><th scope="col">Share Permission</th><th scope="col">NTFS Permission</th><th scope="col">Network Access</th><th scope="col">Local Access</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Alice</strong></td>
-                            <td>Full Control</td>
-                            <td>Read</td>
-                            <td style="color:#fbbf24;"><strong>Read</strong></td>
-                            <td style="color:#4ade80;"><strong>Read</strong></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Bob</strong></td>
-                            <td>Read</td>
-                            <td>Full Control</td>
-                            <td style="color:#fbbf24;"><strong>Read</strong></td>
-                            <td style="color:#4ade80;"><strong>Full Control</strong></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Carol</strong></td>
-                            <td>Full Control</td>
-                            <td>Modify</td>
-                            <td style="color:#fbbf24;"><strong>Modify</strong></td>
-                            <td style="color:#4ade80;"><strong>Modify</strong></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Eve</strong></td>
-                            <td>Full Control</td>
-                            <td>Deny All</td>
-                            <td style="color:#ef4444;"><strong>No Access</strong></td>
-                            <td style="color:#ef4444;"><strong>No Access</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p style="color:#a07850; font-size:0.82rem; margin-top: 10px;">Notice: Bob has Full Control NTFS but only Read on the share. Over the network, the share restricts him to Read. Locally, he has full access. Eve's NTFS Deny blocks her everywhere — even Full Control on the share cannot override an NTFS Deny.</p>
+<!-- ==================== SLIDE 13 — AUDITING AND EVENT LOGS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Auditing File <span class="accent">Access</span></div>
+        <div class="slide-subtitle">Track who accesses what files using NTFS auditing and Security Event Log.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Step 1: Enable Audit Policy</div>
+                <div class="card-desc">Local Security Policy or GPO &rarr; Security Settings &rarr; Local Policies &rarr; Audit Policy &rarr; Audit object access: Success, Failure. Without this policy enabled, no file access events are written to the Security log regardless of SACL configuration.</div>
             </div>
-
-            <div class="content-card">
-                <h3 class="card-title">Best Practice: Share Everyone=Full Control, NTFS Granular</h3>
-                <p class="card-description" style="margin-bottom: 12px;">The industry standard approach to avoid troubleshooting two layers of restrictions:</p>
-                <div class="two-col">
-                    <div>
-                        <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Share Permissions</strong></p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Everyone: <strong style="color:#f5e8d8;">Full Control</strong></li>
-                        </ul>
-                        <p style="color:#6b5040; font-size:0.82rem; margin-top: 8px;">This removes the share layer from the equation entirely.</p>
-                    </div>
-                    <div>
-                        <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>NTFS Permissions (granular)</strong></p>
-                        <ul style="list-style: none;">
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>ProjectReaders: Read &amp; Execute</li>
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>ProjectEditors: Modify</li>
-                            <li style="padding: 4px 0 4px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>ProjectAdmins: Full Control</li>
-                        </ul>
-                        <p style="color:#6b5040; font-size:0.82rem; margin-top: 8px;">All access control is enforced at the NTFS level — one place to manage.</p>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 2: Configure SACL</div>
+                <div class="card-desc">File Properties &rarr; Security &rarr; Advanced &rarr; Auditing tab &rarr; Add an entry. Select users or groups to audit, which permissions to track (Read, Write, Delete), and whether to log Success, Failure, or both. SACL = System Access Control List.</div>
             </div>
-
-            <div class="exam-tip" style="margin-top: 18px;">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>If asked which permission set to configure for a shared folder, the correct answer is almost always: set Share to Everyone=Full Control and use NTFS for all granular access. This is the Microsoft recommended best practice and eliminates the "which is more restrictive" calculation entirely.</p>
+            <div class="card c-green">
+                <div class="card-label">Step 3: Review Event Log</div>
+                <div class="card-desc">Event Viewer &rarr; Windows Logs &rarr; Security. Filter by Event ID <strong>4663</strong> (file access attempt) and <strong>4660</strong> (object deleted). Each entry shows: username, object name, process name, access requested, and success/failure.</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&#8592; Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &#8594;</button>
-            </nav>
-        </section>
+        <div class="scenario-strip">
+            Legal compliance requirement: log all delete operations on the Contracts share. Solution: (1) Enable "Audit object access: Success and Failure" via GPO. (2) Add an auditing entry on \\Server\Contracts for Everyone &rarr; Delete. (3) Collect Security event log with SIEM or forward to a central log server. Event ID 4660 fires on each delete.
+        </div>
+    </div>
+</section>
 
-        <!-- Slide 9: Managing User Files -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Managing User Files</h2>
-            <p class="slide-subtitle">OneDrive, Known Folder Move, Work Folders, and Offline Files</p>
+<!-- ==================== SLIDE 14 — BIOMETRICS AND WINDOWS HELLO ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Windows Hello and <span class="accent">Biometric Access</span></div>
+        <div class="slide-subtitle">PIN, fingerprint, and facial recognition as local authentication factors.</div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">OneDrive Sync</h3>
-                    <p class="card-description">Synchronizes files between the local device and cloud storage. Files On-Demand shows cloud files without downloading — they appear in Explorer but are only fetched when opened. Always Available files are fully cached locally.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Known Folder Move (KFM)</h3>
-                    <p class="card-description">Redirects Desktop, Documents, and Pictures folders into OneDrive automatically. Deployed via Group Policy or Intune. Ensures user data is backed up to cloud without user action. Critical for endpoint protection in Microsoft 365 environments.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Work Folders</h3>
-                    <p class="card-description">On-premises alternative to OneDrive for Business. Syncs a defined server folder to user devices. Does not require a cloud subscription. Accessible on domain and non-domain joined devices. Set up via Work Folders server role.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Offline Files</h3>
-                    <p class="card-description">Caches network shared folders locally so users can work without network connectivity. Configured via Sync Center. Changes sync back to the server when reconnected. Ideal for mobile workers who use mapped drives.</p>
-                </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Windows Hello PIN</div>
+                <div class="card-desc">Not the same as a password. PIN is tied to the specific device and backed by TPM. If the device is lost, the PIN has no value elsewhere. Stored as a hash in the TPM, never transmitted over the network. Required for Windows Hello biometric setup.</div>
             </div>
-
-            <div class="key-points">
-                <h4>FOLDER REDIRECTION vs. OFFLINE FILES</h4>
-                <ul>
-                    <li><strong>Folder Redirection</strong> — moves user profile folders (Documents, Desktop) to a network location. Managed via Group Policy.</li>
-                    <li><strong>Offline Files</strong> — caches those redirected folders locally so the user can work disconnected.</li>
-                    <li>These two technologies are typically used together in traditional domain environments.</li>
-                    <li>In modern deployments, KFM + OneDrive replaces both for cloud-joined devices.</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Fingerprint / Face Recognition</div>
+                <div class="card-desc">Requires compatible hardware (fingerprint reader, IR camera). Biometric data stored locally in encrypted form; never sent to Microsoft or cloud. Setup via Settings &rarr; Accounts &rarr; Sign-in options. Uses asymmetric cryptography via TPM for the actual authentication handshake.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: File Access Best Practices -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">File Access Best Practices</h2>
-            <p class="slide-subtitle">Least privilege, permission auditing, EFS, and access-based enumeration</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Principle of Least Privilege</h3>
-                    <p class="card-description">Grant users only the minimum permissions they need to perform their job. Never grant Full Control unless the user needs to change permissions or take ownership. Assign permissions to groups, not individuals — manage group membership, not per-user ACLs.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Permission Auditing</h3>
-                    <p class="card-description">Enable object access auditing via Group Policy (Security Settings → Advanced Audit Policy). Configure audit entries on the folder's security tab to log successful and failed access attempts. View results in Event Viewer → Security log (Event ID 4663 = object access).</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">EFS — Encrypting File System</h3>
-                    <p class="card-description">NTFS-level user encryption. Files are encrypted with a user certificate — only that user (and designated recovery agents) can open them. Transparent to the user once enabled. Right-click → Properties → Advanced → Encrypt contents. Does not protect against logged-in user attacks.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Access-Based Enumeration (ABE)</h3>
-                    <p class="card-description">When enabled on a shared folder, users only see files and subfolders they have permission to access. Prevents information leakage — a user cannot see the names of files or folders they cannot open. Enable in Share properties → Advanced Sharing → Caching or via Computer Management.</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">FIDO2 / Security Keys</div>
+                <div class="card-desc">Hardware security keys (YubiKey, etc.) supported for Windows Hello for Business and Azure AD-joined devices. Phishing-resistant: the key signs a challenge from the specific domain it was registered for &mdash; no credential reuse across domains.</div>
             </div>
+        </div>
 
-            <div class="scenario-box">
-                <div class="scenario-title">Real-World Scenario</div>
-                <div class="scenario-content">
-                    <p>A department shares a server folder. HR staff should not know which other folders exist on the same share (e.g., Payroll, Executives). The correct solution is to enable <strong>Access-Based Enumeration</strong> on the shared folder combined with strict NTFS permissions. HR will see only the folders their accounts have at least Read permission on — the rest are invisible.</p>
+        <div class="box box-gold">
+            <div class="box-label">MD-100 Exam Context</div>
+            Know that Windows Hello PIN is TPM-bound and device-local. Distinguish it from a Microsoft Account password. Know that biometric data does not leave the device. Questions may present scenarios where a user reports their fingerprint no longer works after a Windows reinstall &mdash; the answer is that biometric data must be re-enrolled because the TPM binding is reset.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — DYNAMIC ACCESS CONTROL ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">Dynamic Access <span class="accent">Control (DAC)</span></div>
+        <div class="slide-subtitle">Claim-based access control beyond standard user and group membership.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What is DAC</div>
+                <div class="card-desc">Extends NTFS permissions with conditional expressions based on user claims (department, clearance level) and file classification properties (sensitivity label, project code). Policies defined centrally in Active Directory and pushed via GPO. Requires Windows Server 2012+ domain and Windows 8+ clients.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Central Access Policies</div>
+                <div class="card-desc">Defined in AD DS &rarr; Dynamic Access Control &rarr; Central Access Policies. Published via GPO. Allows a single policy like "Finance files can only be accessed by Finance department employees" to apply to all classified files without manually updating individual ACLs.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">File Classification Infrastructure</div>
+                <div class="card-desc">Automatically tags files based on content (e.g., files containing credit card numbers tagged "Confidential"). Tags stored as NTFS extended attributes. DAC policies can then restrict access based on these tags rather than requiring manual security labeling.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MD-100 vs. Server Admin Scope</div>
+                <div class="card-desc">DAC is primarily a server-side and enterprise feature. MD-100 expects basic awareness &mdash; know that DAC provides claim-based conditional access, requires AD, and operates on top of standard NTFS/share permissions. Deep configuration is in the MD-101 (Enterprise) scope.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Resource Properties</div>
+                <div class="card-desc">File server administrators apply Resource Properties to files and folders (e.g., Confidentiality = High, Department = Finance). These properties flow into DAC rule evaluation. Combined with user claims, they enable fine-grained policy that traditional ACLs cannot express.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — TROUBLESHOOTING ACCESS ISSUES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Troubleshooting <span class="accent">Access Issues</span></div>
+        <div class="slide-subtitle">Common permission and access failures with diagnostic steps.</div>
+
+        <table class="slide-table">
+            <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Resolution</th></tr></thead>
+            <tbody>
+                <tr><td>"Access Denied" on NTFS file (local)</td><td>ACL missing Allow for user or group</td><td>Check Security tab &rarr; Advanced &rarr; Effective Access; add Allow entry</td></tr>
+                <tr><td>"Access Denied" over network but works locally</td><td>Share permission more restrictive than NTFS</td><td>Check share permissions via Computer Management &rarr; Shared Folders</td></tr>
+                <tr><td>User can list folder but cannot open files</td><td>Traverse Folder allowed, Read not granted</td><td>Add explicit Read permission for the user or their group</td></tr>
+                <tr><td>EFS files show as unreadable after PC rebuild</td><td>EFS certificate not exported before rebuild</td><td>Restore certificate from backup; if unavailable, use DRA recovery agent</td></tr>
+                <tr><td>User cannot access redirected folder offline</td><td>Offline Files not enabled or cache not synced</td><td>Enable Offline Files via GPO; ensure initial sync while connected</td></tr>
+                <tr><td>Inherited Deny blocking admin access</td><td>Parent container has Deny for group admin is in</td><td>Take ownership &rarr; remove Deny; or check group membership and re-ACL</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Diagnostic Sequence</div>
+            (1) Confirm user identity with <strong>whoami /groups</strong>. (2) Check effective NTFS permissions with Advanced Security &rarr; Effective Access. (3) Check share permissions if over network. (4) Check for explicit Deny entries. (5) Confirm inheritance chain has no conflict. Resolve in that order before escalating.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — PRACTICAL SCENARIOS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Exam <span class="accent">Scenarios</span></div>
+        <div class="slide-subtitle">Six data access situations tested on MD-100.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">A user has NTFS Modify on a folder. The share permission is Read. What is the effective permission over the network? &mdash; <strong>Read. Most restrictive wins. Share Read beats NTFS Modify when accessing over the network.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">A user is in Group A (Allow Read) and Group B (Deny Write) on a file. Can they read the file? &mdash; <strong>Yes. Deny Write only blocks writing. Allow Read is cumulative across groups. They can read but not write.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">A user's EFS-encrypted files are inaccessible after a fresh Windows install on the same machine. Why? &mdash; <strong>The EFS certificate (private key) was not exported before reinstall. The FEK is now unrecoverable without the DRA or the original certificate backup.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">Folder redirection is configured via GPO but the Documents folder still points to C:\Users\Bob. What is the first thing to check? &mdash; <strong>Whether the GPO is actually applying to the user (run gpresult /r). Verify the OU contains the user and the GPO link is enabled.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">A user can read files in a shared folder but cannot create new files despite having NTFS Write. What is the cause? &mdash; <strong>The share permission is Read, not Change or Full Control. Share Read prevents file creation even when NTFS Write is granted.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">An admin tries to access C:\Users\Jane\Documents but gets "Access Denied." How should they proceed? &mdash; <strong>Use takeown to take ownership of the folder, then assign Full Control to the Administrators group via icacls or File Explorer.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Module 6 data access terms by category.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Permissions</div>
+                <div class="card-desc">
+                    <strong>NTFS Permissions</strong> &mdash; local + network, kernel enforced, ACL-based<br>
+                    <strong>Share Permissions</strong> &mdash; network only, three levels<br>
+                    <strong>Most Restrictive Wins</strong> &mdash; combined NTFS + share rule<br>
+                    <strong>Effective Permissions</strong> &mdash; computed result of all applicable ACEs<br>
+                    <strong>Deny</strong> &mdash; overrides Allow at same inheritance level<br>
+                    <strong>ACL / ACE / SACL</strong> &mdash; Access Control List / Entry / System ACL
                 </div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Knowledge Check -->
-        <section class="slide" data-slide="10">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Apply what you know — two scenario-based questions</p>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title">Scenario 1</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">A user is a member of two groups. The Sales group has NTFS Modify permission on the Reports folder. The Contractors group has an NTFS Deny Write permission on the same folder. What is the user's effective NTFS permission?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">A) Modify — the highest permission wins</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">B) Read &amp; Execute — Write is denied, leaving only Read and Execute</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1', 'q1')">C) Read and Execute only — Deny Write removes write, append, and delete from Modify</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">D) No access — any Deny overrides all Allow permissions completely</button>
-                    <div class="feedback" id="feedback-quiz1"></div>
+            <div class="card c-cyan">
+                <div class="card-label">Encryption &amp; Access</div>
+                <div class="card-desc">
+                    <strong>EFS</strong> &mdash; per-file encryption using user certificate + FEK<br>
+                    <strong>FEK</strong> &mdash; File Encryption Key (AES symmetric)<br>
+                    <strong>DRA</strong> &mdash; Data Recovery Agent (domain admin fallback)<br>
+                    <strong>cipher</strong> &mdash; CLI tool for EFS management<br>
+                    <strong>UAC</strong> &mdash; User Account Control, least privilege enforcement<br>
+                    <strong>Windows Hello</strong> &mdash; TPM-bound biometric authentication
                 </div>
             </div>
-
-            <div class="scenario-box" id="quiz2" style="margin-top: 24px;">
-                <div class="scenario-title">Scenario 2</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">A network share has Share Permission set to Everyone: Read. The underlying NTFS permissions grant the user Full Control. The user connects over the network and tries to create a new file. What happens?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">A) The user can create the file — Full Control NTFS permission takes precedence</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2', 'q2')">B) The user cannot create the file — Share permission (Read) is the limiting factor</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">C) The user can create the file if they are a local administrator</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">D) Share permissions only apply to non-domain users</button>
-                    <div class="feedback" id="feedback-quiz2"></div>
+            <div class="card c-green">
+                <div class="card-label">Shares &amp; Redirection</div>
+                <div class="card-desc">
+                    <strong>UNC Path</strong> &mdash; \\server\share\path<br>
+                    <strong>Administrative Shares</strong> &mdash; C$, ADMIN$, IPC$ (hidden)<br>
+                    <strong>Folder Redirection</strong> &mdash; GPO-based profile folder to server<br>
+                    <strong>Offline Files</strong> &mdash; local cache of redirected folders<br>
+                    <strong>ABE</strong> &mdash; Access-Based Enumeration (hide inaccessible files)<br>
+                    <strong>icacls</strong> &mdash; CLI for reading and modifying NTFS ACLs
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19 &mdash; Module Complete</div>
+        <div class="slide-title">Module 6 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways for the MD-100 data access domain.</div>
 
-        <!-- Slide 8: Summary -->
-        <section class="slide" data-slide="11">
-            <h2 class="slide-title">Module 6 Summary</h2>
-            <p class="slide-subtitle">Configure Data Access and Usage — key takeaways</p>
+        <div class="summary-facts">
+            <div class="fact-row"><div class="fact-num">1</div><div class="fact-text"><strong>NTFS permissions</strong> apply locally and over the network. Share permissions apply only over the network. When combined, the most restrictive of the two is the effective permission.</div></div>
+            <div class="fact-row"><div class="fact-num">2</div><div class="fact-text"><strong>Deny overrides Allow</strong> at the same level. An explicit Deny blocks access regardless of any Allow entries in the same ACL or in group memberships.</div></div>
+            <div class="fact-row"><div class="fact-num">3</div><div class="fact-text"><strong>EFS</strong> is NTFS-only, user-bound, and requires a certificate backup. Files cannot be both compressed and EFS-encrypted. The private key must be exported before migrating or rebuilding the OS.</div></div>
+            <div class="fact-row"><div class="fact-num">4</div><div class="fact-text"><strong>Folder Redirection</strong> via GPO moves profile folders to a file server. Combined with Offline Files, users can work offline. Best practice: grant Everyone Full Control at the share, control all access via NTFS.</div></div>
+            <div class="fact-row"><div class="fact-num">5</div><div class="fact-text"><strong>Administrative shares</strong> (C$, ADMIN$) are auto-created by Windows, hidden, and admin-only. They cannot be permanently removed without a registry modification.</div></div>
+            <div class="fact-row"><div class="fact-num">6</div><div class="fact-text"><strong>icacls</strong> is the primary CLI tool for NTFS ACL management. Use <strong>takeown</strong> to take ownership of locked files before modifying their ACLs.</div></div>
+            <div class="fact-row"><div class="fact-num">7</div><div class="fact-text"><strong>UAC</strong> splits admin tokens for least-privilege enforcement. Standard users are prompted for credentials; admins receive consent prompts. Never disable UAC in production.</div></div>
+            <div class="fact-row"><div class="fact-num">8</div><div class="fact-text"><strong>Effective Access</strong> tab in Advanced Security shows computed permissions for a specific user. Always use this tool to diagnose permission problems before making changes.</div></div>
+        </div>
+    </div>
+</section>
 
-            <ul class="summary-list">
-                <li>NTFS is the only Windows file system supporting ACLs, EFS, compression, quotas, and Volume Shadow Copy</li>
-                <li>NTFS permission levels in order: Read → Read &amp; Execute → Write → Modify → Full Control</li>
-                <li>Deny permissions override Allow at the same level; explicit permissions override inherited permissions</li>
-                <li>Effective permissions are the union of all group Allow permissions minus any Deny</li>
-                <li>Deny Write removes write-related sub-permissions but does not block all access — Read and Execute remain</li>
-                <li>icacls uses flags in parentheses: (R)=Read, (W)=Write, (RX)=Read&amp;Execute, (M)=Modify, (F)=Full Control</li>
-                <li>icacls /grant adds permissions, /deny creates explicit deny ACE, /remove removes all entries for a user</li>
-                <li>Over the network, effective access is the most restrictive of Share and NTFS permissions combined</li>
-                <li>Best practice: Share Everyone=Full Control, use NTFS for all granular access control</li>
-                <li>Local access ignores share permissions entirely — only NTFS applies</li>
-                <li>Administrative shares (C$, ADMIN$, IPC$) are hidden, auto-created, and admin-only</li>
-                <li>Known Folder Move redirects Desktop, Documents, and Pictures to OneDrive — essential for cloud-first environments</li>
-                <li>Folder Redirection + Offline Files is the traditional domain equivalent of KFM + OneDrive</li>
-                <li>Access-Based Enumeration prevents users from seeing file and folder names they cannot access</li>
-            </ul>
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../index.html" class="nav-btn back-btn" aria-label="Back to MD-100 hub">Back to MD-100</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark module complete">Mark Complete</button>
+</nav>
 
-            <div class="exam-tip" style="margin-top: 28px;">
-                <div class="exam-tip-label">EXAM FOCUS AREAS</div>
-                <p>Share vs. NTFS permissions interaction is tested heavily. Know the rule: most restrictive wins when accessed over the network; NTFS only when accessed locally. Also know that Deny overrides Allow but only at the same level — inherited Allow is overridden by explicit Deny.</p>
-            </div>
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 19;
+    let current = 1;
 
-            <div class="scenario-box" style="text-align: center; margin-top: 24px;">
-                <div class="scenario-title" style="justify-content: center;">Module Complete</div>
-                <div class="scenario-content">
-                    <p>You have covered all data access and file permissions topics for the MD-100 exam. Mark this module complete to track your progress.</p>
-                </div>
-            </div>
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module ✓</button>
-            </nav>
-        </section>
+        prev.classList.remove('active');
 
-    </main>
-
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 11;
-
-        function buildDots() {
-            document.querySelectorAll('.slide-dots').forEach(function(container) {
-                container.innerHTML = '';
-                for (var i = 1; i <= totalSlides; i++) {
-                    var dot = document.createElement('span');
-                    dot.className = 'slide-dot' + (i === currentSlide ? ' active' : '');
-                    dot.setAttribute('onclick', 'goToSlide(' + i + ')');
-                    container.appendChild(dot);
-                }
-            });
-        }
-
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = 'Slide ' + currentSlide + ' of ' + totalSlides;
-
-            document.querySelectorAll('.slide-dots').forEach(function(container) {
-                container.querySelectorAll('.slide-dot').forEach(function(dot, index) {
-                    dot.classList.toggle('active', index + 1 === currentSlide);
-                });
-            });
-
-            document.querySelectorAll('.slide').forEach(function(slide, index) {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
-
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function checkAnswer(button, isCorrect, quizId, qKey) {
-            var feedbackEl = document.getElementById('feedback-' + quizId);
-            var options = button.parentElement.querySelectorAll('.quiz-option');
-
-            options.forEach(function(opt) { opt.style.pointerEvents = 'none'; });
-
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Correct. Deny Write removes the Write, Append, and Delete sub-permissions from Modify — leaving Read and Execute as the effective permission. A Deny of a specific permission does not remove all access, only the denied permission and its dependents.';
-                } else {
-                    feedbackEl.textContent = 'Correct. When accessing a resource over the network, the effective permission is the most restrictive combination of share and NTFS permissions. Share: Read and NTFS: Full Control results in Read access. The share permission is the bottleneck here.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Incorrect. Deny does not remove all access — it only denies the specific permission listed. Deny Write removes write-related capabilities but leaves Read and Execute from the Modify grant intact.';
-                } else {
-                    feedbackEl.textContent = 'Incorrect. The most restrictive of share and NTFS permissions applies over the network. The share permission (Read) is more restrictive than Full Control, so Read is the effective permission regardless of NTFS or administrator status.';
-                }
-                options.forEach(function(opt) {
-                    if (opt.getAttribute('onclick').includes('true')) { opt.classList.add('correct'); }
-                });
-            }
-        }
-
-        function completeModule() {
-            ModuleProgress.complete('forge', 'forge-md100-m06', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
+        /* SVG animation restart: clone and replace each SVG in the incoming slide
+           so that all <animate> elements restart from the beginning on slide entry. */
+        next.querySelectorAll('svg').forEach(function(svg) {
+            const clone = svg.cloneNode(true);
+            svg.parentNode.replaceChild(clone, svg);
         });
 
-        buildDots();
-        updateProgress();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../components/PresentationA11y.js"></script>
+        next.classList.add('active');
+        current = n;
+
+        /* Progress bar */
+        document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100) + '%';
+
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
+
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to MD-100 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-md100-m06', {
+            returnUrl: '../index.html'
+        });
+    }
+</script>
 </body>
 </html>

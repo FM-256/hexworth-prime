@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response and Recovery // BSL-4 // PIS-20</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --accent:         #3b82f6;
+            --accent-dim:     rgba(59, 130, 246, 0.12);
+            --accent-border:  rgba(59, 130, 246, 0.30);
+            --bg-dark:        #060810;
+            --bg-card:        #0a1018;
+            --bg-surface:     #0d1520;
+            --text-primary:   #dde8f8;
+            --text-secondary: #7ca4cc;
+            --text-muted:     #4a6480;
+            --border-subtle:  rgba(255, 255, 255, 0.06);
+            --breach-bg:      rgba(239, 68, 68, 0.06);
+            --breach-border:  rgba(239, 68, 68, 0.28);
+            --breach-text:    #fca5a5;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+        .ne-header { position: sticky; top: 0; z-index: 100; background: rgba(6, 8, 16, 0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+        .ne-course-label { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .ne-back-btn { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; transition: opacity 0.2s; }
+        .ne-back-btn:hover { opacity: 0.75; }
+        .ne-back-btn img { width: 14px; height: 14px; opacity: 0.7; }
+
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+        .ne-module-header { margin-bottom: 36px; }
+        .ne-badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .ne-badge { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 3px 9px; }
+        .obj-badge { font-size: 0.68rem; letter-spacing: 1.5px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 4px; padding: 3px 9px; }
+        .ne-module-title { font-size: 1.85rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; margin-bottom: 16px; }
+        .ne-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+        .ne-meta-item { font-size: 0.78rem; color: var(--text-muted); }
+        .ne-meta-item strong { color: var(--text-secondary); }
+
+        .ne-callout { background: var(--accent-dim); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--text-secondary); line-height: 1.65; font-style: italic; }
+        .ne-callout strong { color: var(--accent); font-style: normal; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+
+        .ne-breach { background: var(--breach-bg); border: 1px solid var(--breach-border); border-radius: 6px; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--breach-text); line-height: 1.65; }
+        .ne-breach strong { display: block; margin-bottom: 6px; font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase; color: #f87171; }
+
+        .ne-section { margin-bottom: 40px; }
+        .ne-section-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); position: relative; }
+        .ne-section-title::before { content: ''; position: absolute; bottom: -1px; left: 0; width: 40px; height: 2px; background: var(--accent); }
+
+        .ne-term { color: var(--accent); font-weight: 600; }
+        .ne-section p { font-size: 0.90rem; color: var(--text-secondary); margin-bottom: 14px; }
+
+        /* ── IR Timeline visual strip ── */
+        .ir-timeline { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 24px; }
+        .ir-phase { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--accent-border); border-radius: 6px; padding: 8px 14px; font-size: 0.80rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+        .phase-num { font-size: 0.68rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+
+        .ne-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0; }
+        .ne-table th { background: var(--bg-surface); color: var(--text-secondary); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        .ne-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: top; line-height: 1.6; }
+        .ne-table tr:last-child td { border-bottom: none; }
+        .ne-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .ne-takeaways { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 22px 26px; margin: 32px 0; }
+        .ne-takeaways-title { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
+        .ne-takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .ne-takeaways li { font-size: 0.87rem; color: var(--text-secondary); padding-left: 16px; position: relative; line-height: 1.6; }
+        .ne-takeaways li::before { content: '--'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+        .ne-quiz { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px 32px; margin-top: 36px; }
+        .ne-quiz-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-quiz-header img { width: 24px; height: 24px; opacity: 0.8; flex-shrink: 0; margin-top: 3px; }
+        .ne-quiz-header h3 { font-size: 1.0rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .ne-quiz-header p { font-size: 0.80rem; color: var(--text-muted); }
+
+        .ne-question { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-question:last-of-type { border-bottom: none; }
+        .ne-q-num { font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); margin-bottom: 8px; }
+        .ne-q-text { font-size: 0.92rem; color: var(--text-primary); line-height: 1.65; margin-bottom: 14px; }
+        .ne-options { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .ne-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .ne-option:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+        .ne-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: var(--accent); }
+        .ne-option label { font-size: 0.87rem; color: var(--text-secondary); cursor: pointer; line-height: 1.5; }
+
+        .ne-quiz-submit { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+        #quizSubmitBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 10px 28px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        #quizSubmitBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #quizSubmitBtn:disabled { opacity: 0.35; cursor: default; }
+        #quizStatusMsg { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+        .ne-quiz-result { display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 24px 28px; margin-top: 20px; text-align: center; }
+        .ne-quiz-result.pass { display: block; border-color: rgba(16, 185, 129, 0.30); background: rgba(16, 185, 129, 0.05); }
+        .ne-quiz-result.fail { display: block; border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); }
+        .result-score { font-size: 2.4rem; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 6px; }
+        .ne-quiz-result.pass .result-score { color: #34d399; }
+        .ne-quiz-result.fail .result-score { color: #f87171; }
+        .result-label { font-size: 0.78rem; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; }
+        .ne-quiz-result.pass .result-label { color: #6ee7b7; }
+        .ne-quiz-result.fail .result-label { color: #fca5a5; }
+        .result-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+
+        .retry-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.40); color: #f87171; font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 22px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        .ne-complete { text-align: center; padding: 32px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 14px 44px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        #completeBtn.is-done { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .complete-note { margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-20: Incident Response and Recovery</h1>
+
+    <header class="ne-header">
+        <span class="ne-course-label">PIS // Principles of Information Security</span>
+        <a href="index.html" class="ne-back-btn">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <div class="ne-content">
+
+        <!-- Module header -->
+        <div class="ne-module-header">
+            <div class="ne-badge-row">
+                <span class="ne-badge">PIS-20 &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; BSL-4</span>
+                <span class="obj-badge">SY0-701: 4.3, 4.4</span>
+            </div>
+            <h2 class="ne-module-title">Incident Response and Recovery</h2>
+            <div class="ne-meta">
+                <span class="ne-meta-item"><strong>Duration:</strong> 35 min</span>
+                <span class="ne-meta-item"><strong>Clearance:</strong> BSL-4</span>
+                <span class="ne-meta-item"><strong>Quiz:</strong> 5 questions, 80% to pass</span>
+            </div>
+        </div>
+
+        <!-- Lore callout -->
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            "When containment fails. What happens next. Every containment protocol assumes eventual breach -- not because the walls are weak, but because the threat landscape never stops evolving. Incident response is the answer to the question: when a specimen escapes, what do we do in the next 30 seconds, the next 30 minutes, and the next 30 days? The answer must exist before the breach, or it does not exist at all."
+        </div>
+
+        <!-- Section 1: IR Lifecycle -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">01 / 04 -- Incident Response Lifecycle: The Six Phases</h3>
+            <p>SY0-701 Objective 4.3 requires knowledge of the IR lifecycle phases as defined by NIST SP 800-61. The exam presents scenarios and asks which phase is being executed or which action belongs in a specific phase.</p>
+
+            <!-- Visual IR phase strip -->
+            <div class="ir-timeline" role="list" aria-label="IR lifecycle phases">
+                <div class="ir-phase" role="listitem"><span class="phase-num">01</span>Preparation</div>
+                <div class="ir-phase" role="listitem"><span class="phase-num">02</span>Detection &amp; Analysis</div>
+                <div class="ir-phase" role="listitem"><span class="phase-num">03</span>Containment</div>
+                <div class="ir-phase" role="listitem"><span class="phase-num">04</span>Eradication</div>
+                <div class="ir-phase" role="listitem"><span class="phase-num">05</span>Recovery</div>
+                <div class="ir-phase" role="listitem"><span class="phase-num">06</span>Lessons Learned</div>
+            </div>
+
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>What Happens</th>
+                        <th>Exam-Testable Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Preparation</td>
+                        <td>Building response capability before incidents occur. Policies, playbooks, tools, training, communication trees.</td>
+                        <td>Incident response plan (IRP), communication plan, CSIRT team formation, tabletop exercises, legal retainer, forensic toolkit maintenance.</td>
+                    </tr>
+                    <tr>
+                        <td>Detection and Analysis</td>
+                        <td>Identifying that an incident has occurred (or is occurring), determining its scope and impact, and categorizing its severity.</td>
+                        <td>SIEM alert triage, log analysis, threat hunting, incident classification (P1 through P4), establishing incident timeline, identifying affected systems.</td>
+                    </tr>
+                    <tr>
+                        <td>Containment</td>
+                        <td>Stopping the spread of the incident without destroying evidence. Short-term containment isolates immediately; long-term containment stabilizes for continued operations.</td>
+                        <td>Network isolation (VLAN segregation, firewall rule), system quarantine, disabling compromised accounts, blocking C2 IP ranges. Evidence is preserved before remediation begins.</td>
+                    </tr>
+                    <tr>
+                        <td>Eradication</td>
+                        <td>Removing the threat from affected systems: malware removal, closing exploited vulnerabilities, patching, credential reset.</td>
+                        <td>Malware removal and re-imaging, applying patches that were exploited, rotating compromised credentials, reviewing for persistence mechanisms (scheduled tasks, registry entries, backdoors).</td>
+                    </tr>
+                    <tr>
+                        <td>Recovery</td>
+                        <td>Restoring affected systems to production with confidence that the threat is eliminated and monitoring is enhanced.</td>
+                        <td>System restoration from verified backups, validation testing, enhanced monitoring (honeypots, increased SIEM sensitivity), gradual return to normal operations with close observation.</td>
+                    </tr>
+                    <tr>
+                        <td>Lessons Learned</td>
+                        <td>Post-incident review to understand root cause, evaluate response effectiveness, and improve processes.</td>
+                        <td>After-action report (AAR), root cause analysis (RCA), timeline reconstruction, identifying detection and response gaps, updating playbooks, training updates, metrics (MTTD, MTTR).</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's containment breach protocol is a 47-page playbook updated quarterly. Every staff member with BSL-3 or higher clearance completes a tabletop exercise against the protocol twice per year. The Incident Response Lead maintains a pre-positioned evidence kit in each lab sector. The most recent after-action report identified three detection gaps that were closed before the quarter ended.
+            </div>
+        </section>
+
+        <!-- Section 2: Digital Forensics -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">02 / 04 -- Digital Forensics: Evidence Preservation and Chain of Custody</h3>
+            <p>SY0-701 Objective 4.4 tests forensic principles: how evidence is collected, preserved, and maintained to ensure it is admissible and reliable. Forensic errors during an incident can destroy evidence and eliminate legal options.</p>
+            <p><span class="ne-term">Order of volatility</span> defines the sequence in which evidence should be collected, from most volatile (disappears when power is lost) to least volatile (survives indefinitely). Collecting from most to least volatile preserves the most data.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Evidence Type</th>
+                        <th>Volatility Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1 (First)</td>
+                        <td>CPU registers and cache</td>
+                        <td>Lost immediately when process ends or power off.</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>RAM (memory contents)</td>
+                        <td>Lost on power off. Contains running processes, decrypted data, network connections, passwords in memory.</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Network state (active connections, ARP cache)</td>
+                        <td>Changes continuously. ARP entries expire within minutes. Active connections terminate quickly.</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>Running processes and open files</td>
+                        <td>Process list changes as malware may have persistence that keeps it running but can be terminated.</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>Disk contents (storage)</td>
+                        <td>Survives power off but can be overwritten. Forensic image must be created before any analysis to preserve the original state.</td>
+                    </tr>
+                    <tr>
+                        <td>6 (Last)</td>
+                        <td>Remote logs, archived data, physical media</td>
+                        <td>Most durable. Logs may be overwritten based on rotation policy, but typically survive for extended periods.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><span class="ne-term">Chain of custody</span> is the documented, unbroken record of who had possession of evidence, when they had it, and what was done with it. Every transfer of evidence must be logged. Breaks in chain of custody can render evidence inadmissible in legal proceedings. A forensic image (bit-for-bit copy verified by hash) is made before any analysis so the original is never touched.</p>
+            <div class="ne-breach">
+                <strong>Forensic Failure Pattern</strong>
+                An incident responder finds malware on a server and immediately runs a removal tool to clean the system. The malware is gone -- but so is the evidence. The attacker's tools, persistence mechanisms, and C2 configuration are all destroyed. Containment must happen before eradication, and forensic imaging must happen before any remediation changes the system state. The order matters. Every time.
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                When a specimen containment anomaly is detected, the affected lab server is immediately network-isolated. Before any remediation: RAM is imaged using approved forensic tools, network connections are documented, running processes are captured, and a forensic disk image is taken with the hash recorded on the evidence form. The original system is sealed in a tamper-evident bag with a chain of custody tag. Analysis happens on the copy only.
+            </div>
+        </section>
+
+        <!-- Section 3: Disaster Recovery -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">03 / 04 -- Disaster Recovery: Hot, Warm, and Cold Sites</h3>
+            <p><span class="ne-term">Disaster recovery (DR)</span> is the set of policies, tools, and procedures to enable the continuation or quick resumption of vital technology infrastructure and systems following a disaster. SY0-701 Objective 4.4 tests recovery site types and their trade-offs.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Site Type</th>
+                        <th>Readiness</th>
+                        <th>RTO</th>
+                        <th>Cost</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Hot site</td>
+                        <td>Fully operational, real-time</td>
+                        <td>Minutes to hours</td>
+                        <td>Highest</td>
+                        <td>Mirrors primary infrastructure with live data replication. Can assume operations almost immediately. Used for critical systems with very short RTO requirements.</td>
+                    </tr>
+                    <tr>
+                        <td>Warm site</td>
+                        <td>Partially configured, near-current data</td>
+                        <td>Hours to days</td>
+                        <td>Moderate</td>
+                        <td>Hardware and connectivity in place. Software installed. Data restored from recent backup (not real-time replication). Requires some setup time before operations resume.</td>
+                    </tr>
+                    <tr>
+                        <td>Cold site</td>
+                        <td>Empty facility, no equipment pre-staged</td>
+                        <td>Days to weeks</td>
+                        <td>Lowest</td>
+                        <td>Physical space, power, and connectivity only. Equipment must be procured and installed. Acceptable only for non-critical systems with generous RTO requirements.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><span class="ne-term">Business continuity planning (BCP)</span> is broader than DR. DR focuses on IT systems. BCP addresses continuity of the entire business operation including people, processes, communications, and facilities. DR is a component of BCP.</p>
+            <p><span class="ne-term">Tabletop exercises</span> are structured, discussion-based exercises where team members walk through a simulated scenario to test the IR plan without deploying actual systems. They identify gaps in playbooks and communication without the cost or disruption of a full-scale drill.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's primary data systems replicate to a hot site at the secondary containment campus 40 kilometers away. The replication lag is under 60 seconds, satisfying the 15-minute RPO for the specimen catalog. The secondary campus can assume full operations within 90 minutes, meeting the 2-hour RTO. Cold site arrangements exist for administrative systems where a week-long RTO is acceptable.
+            </div>
+        </section>
+
+        <!-- Section 4: IR Exam Scenarios -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">04 / 04 -- IR Exam Scenarios and Common Question Patterns</h3>
+            <p>SY0-701 presents IR scenarios and asks which phase is occurring or which action is appropriate. These are the patterns that appear most frequently.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Correct Phase / Answer</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Security team creates incident response playbooks and conducts tabletop exercises</td>
+                        <td>Preparation</td>
+                        <td>All activities before an incident occurs are preparation phase.</td>
+                    </tr>
+                    <tr>
+                        <td>SIEM alerts on unusual outbound traffic. Team reviews logs and determines a host is communicating with a known C2 server.</td>
+                        <td>Detection and Analysis</td>
+                        <td>Identifying and scoping an incident in progress.</td>
+                    </tr>
+                    <tr>
+                        <td>A compromised host is disconnected from the network while the IR team begins forensic imaging.</td>
+                        <td>Containment</td>
+                        <td>Limiting spread while preserving evidence. Forensic image must be taken before eradication begins.</td>
+                    </tr>
+                    <tr>
+                        <td>The malware is removed from all affected systems and the exploited vulnerability is patched.</td>
+                        <td>Eradication</td>
+                        <td>Removing the threat root cause after containment is complete.</td>
+                    </tr>
+                    <tr>
+                        <td>Systems are restored from verified backup and placed under enhanced monitoring for two weeks.</td>
+                        <td>Recovery</td>
+                        <td>Returning to production with elevated observation to confirm the threat is fully resolved.</td>
+                    </tr>
+                    <tr>
+                        <td>Team meets to review the incident timeline and documents that initial detection was delayed because SIEM rules were not tuned for this attack pattern.</td>
+                        <td>Lessons Learned</td>
+                        <td>Post-incident review identifying gaps. Result is updated playbooks and SIEM tuning.</td>
+                    </tr>
+                    <tr>
+                        <td>Investigator needs to collect evidence from a running server. What should be collected first?</td>
+                        <td>RAM (memory)</td>
+                        <td>Order of volatility: RAM is collected before disk because it is lost on power off and contains live execution data.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                Every containment breach at the facility follows the same documented protocol regardless of severity. The protocol exists for Level 1 anomalies (minor sensor deviation) and Level 5 outbreaks (full specimen escape) -- the scale differs, the process does not. Consistency across drills is what makes response automatic under pressure. The protocol is the training. The training is the response.
+            </div>
+        </section>
+
+        <!-- Key Takeaways -->
+        <div class="ne-takeaways">
+            <div class="ne-takeaways-title">Key Takeaways</div>
+            <ul>
+                <li>IR phases (NIST SP 800-61): Preparation, Detection and Analysis, Containment, Eradication, Recovery, Lessons Learned -- in that order.</li>
+                <li>Containment stops the spread. Eradication removes the threat. Evidence must be collected and preserved before eradication changes the system.</li>
+                <li>Order of volatility: CPU registers, RAM, network state, running processes, disk, remote logs. Collect from most to least volatile.</li>
+                <li>Chain of custody is the unbroken documented record of who possessed evidence and when. A break in chain of custody can make evidence inadmissible.</li>
+                <li>Hot site = real-time replication, minutes to hours RTO. Warm site = near-current data, hours to days RTO. Cold site = empty space, days to weeks RTO.</li>
+                <li>BCP is broader than DR -- BCP covers people, process, and facility. DR is an IT-focused component of BCP.</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <img src="../../../assets/images/icons/icon-alert.webp" alt="">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- answers graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <!-- Q1 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 1 of 5</div>
+                    <p class="ne-q-text">An incident responder arrives at a compromised workstation that is still powered on and connected to the network. The responder must collect evidence before taking any remediation actions. According to the order of volatility, which evidence should be collected FIRST?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">Hard drive forensic image</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">RAM contents (memory dump)</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">Backup tapes from the previous night</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Event logs from the SIEM</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q2 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 2 of 5</div>
+                    <p class="ne-q-text">After a breach is confirmed, the security team disconnects the affected server from the network and blocks its IP at the firewall to prevent the malware from communicating with external servers. The malware has not been removed yet. Which IR phase is this?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">Eradication</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">Recovery</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">Containment</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">Detection and Analysis</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q3 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 3 of 5</div>
+                    <p class="ne-q-text">An organization needs a disaster recovery site that can be operational within 2 hours of a failure. The site must have hardware, software, and near-current data already in place. Which type of recovery site BEST meets this requirement?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">Cold site</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">Warm site</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">Hot site</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">Tabletop site</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q4 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 4 of 5</div>
+                    <p class="ne-q-text">After an incident is resolved, the security team conducts a meeting to review what happened, evaluate the effectiveness of the response, and identify changes needed in the playbook. Which IR phase does this represent?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">Preparation</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">Eradication</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">Recovery</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">Lessons Learned</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q5 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 5 of 5</div>
+                    <p class="ne-q-text">A forensic analyst creates a bit-for-bit copy of a seized hard drive and records the MD5 hash of both the original and the copy. The hash values match. The original drive is sealed in a tamper-evident bag with a signed tag documenting each person who handles it. Which forensic concept does the signed tag PRIMARILY support?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">Order of volatility</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">Chain of custody</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">Non-repudiation</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">Data integrity verification</label></li>
+                    </ul>
+                </div>
+
+                <div class="ne-quiz-submit">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <!-- Result panel -->
+            <div class="ne-quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+        <!-- Completion area -->
+        <div class="ne-complete">
+            <button id="completeBtn" disabled>Pass the quiz to complete</button>
+            <p class="complete-note" id="completeNote">Complete the quiz with 80% or higher to mark this module complete.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Module constants ── */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-20';
+        const QUIZ_ID      = 'pis-20-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) {
+                    answerMap[String(i)] = selections[i];
+                }
+            }
+
+            var score = 0, percentage = 0, passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-20] Server grading failed:', e.message);
+            }
+
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.disabled = true;
+            });
+
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'ne-quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Containment breach protocol confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+
+            if (passed) {
+                markComplete(score);
+            } else {
+                document.getElementById('retryBtn').style.display = 'inline-block';
+            }
+
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.checked = false;
+                r.disabled = false;
+            });
+
+            document.getElementById('quizResult').className = 'ne-quiz-result';
+
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+            document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+        }
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+                document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Attacks | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Network Attacks | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-06 &nbsp;|&nbsp; Week 2 of 8 &nbsp;|&nbsp; SY0-701: 2.4, 4.1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Network<br>
+                <span class="accent">Attacks</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                DoS/DDoS &nbsp;&bull;&nbsp; MITM &nbsp;&bull;&nbsp; ARP Spoofing &nbsp;&bull;&nbsp; DNS Poisoning &nbsp;&bull;&nbsp; Replay &nbsp;&bull;&nbsp; Session Hijacking &nbsp;&bull;&nbsp; Amplification
+            </div>
+        </div>
+        <div class="scenario-strip">
+            External Communication Blackout. The facility's secure data relay has gone silent. No packets are reaching the command center. Simultaneously, internal sensor logs show a foreign MAC address responding to all ARP requests on the research wing subnet. The network itself has become the weapon.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-06</span>
+            <span>Week 2 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- NETWORK ATTACK TAXONOMY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Network Attack <span class="accent">Taxonomy</span></div>
+        <div class="slide-subtitle">Network attacks target the infrastructure that carries data, not the applications running on it. Different layer, different defenses.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Availability Attacks</div>
+                <div class="card-desc">Deny legitimate users access to resources by exhausting bandwidth, connection tables, CPU, or memory. DoS and DDoS are the primary classes. No data theft or manipulation -- the goal is to make the service unreachable. Financial damage from downtime is the weapon.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Interception Attacks</div>
+                <div class="card-desc">Position the attacker in the path of network traffic to eavesdrop, capture credentials, or modify data in transit. Man-in-the-middle, ARP spoofing, and DNS poisoning all establish a covert interception position. The victim believes they are communicating directly with the intended endpoint.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Replay and Injection Attacks</div>
+                <div class="card-desc">Captured network traffic is replayed or forged to impersonate legitimate parties. Session hijacking uses captured tokens. Replay attacks reuse valid authentication exchanges. These attacks exploit the trust relationship between endpoints established by prior legitimate communication.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">OSI Layer Context</div>
+            ARP attacks: Layer 2 (Data Link). IP spoofing: Layer 3 (Network). TCP session hijacking: Layer 4 (Transport). DNS attacks: Layer 7 (Application), but affect all layers above them. Understanding which layer is targeted determines which controls can mitigate the attack and at which point in the network stack those controls must be deployed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- DOS OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Denial of Service <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">A DoS attack makes a resource unavailable to its intended users. A single source distinguishes DoS from DDoS.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Volumetric Attacks</div>
+                <div class="card-desc">Flood the target's bandwidth or connection capacity with traffic. ICMP flood, UDP flood, SYN flood. The target becomes unreachable because its upstream link is saturated or its connection state table is exhausted. The attacker's goal is not to crash the server but to consume the resource that serves legitimate traffic.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Protocol Exploitation</div>
+                <div class="card-desc">Abuse a specific protocol's behavior to cause disproportionate resource consumption. Ping of Death sends oversized ICMP packets that crash the target on reassembly. Smurf attack sends ICMP echo requests to a broadcast address with the victim's spoofed source IP -- every host replies to the victim. Teardrop: overlapping IP fragment offsets crash the reassembly engine.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Application Layer (Layer 7) DoS</div>
+                <div class="card-desc">Exploit expensive server-side operations with minimal bandwidth. HTTP Slowloris opens many connections and sends headers slowly, holding connections open and exhausting the web server's thread pool. Slow POST sends POST data one byte at a time. Hash collision attacks cause worst-case CPU in web framework request parsers. Hard to distinguish from legitimate slow clients.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SYN FLOOD MECHANICS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">SYN Flood <span class="accent">Mechanics</span></div>
+        <div class="slide-subtitle">The SYN flood exploits the TCP three-way handshake by sending SYN packets without completing the connection.</div>
+
+        <div class="code-block"><span class="cm">-- TCP Three-Way Handshake (normal)</span>
+<span class="kw">Client</span>  --SYN--->              <span class="fn">Server</span>  (allocates state, waits)
+<span class="kw">Client</span>  <---SYN-ACK--          <span class="fn">Server</span>
+<span class="kw">Client</span>  --ACK--->              <span class="fn">Server</span>  (connection established)
+
+<span class="cm">-- SYN Flood (attack)</span>
+<span class="er">Attacker --SYN (spoofed src)--&gt;  Server  (allocates state, waits)</span>
+<span class="er">Server   --SYN-ACK-----------&gt;  [spoofed IP -- no one there]</span>
+<span class="er">                                 Server waits for ACK (timeout ~75s)</span>
+<span class="er">Repeat 10,000x: connection table is full, legitimate SYNs dropped</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">SYN Cookies</div>
+                <div class="card-desc">The server encodes the connection state into a cryptographic value in the SYN-ACK's sequence number instead of allocating a state table entry. State is only allocated when the client's ACK arrives carrying the correct cookie value. Half-open connections consume no server memory. Enabled by default on modern Linux kernels.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Rate Limiting and Firewall Rules</div>
+                <div class="card-desc">Limit SYN packets per source IP per second. Block traffic from known spoofed source ranges (BCP 38 -- ingress filtering). Stateful firewalls that track connection state can detect and drop packets outside of valid session flow. Rate limiting at the upstream ISP level is more effective than at the target because bandwidth is consumed before reaching the target.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Upstream ISP Mitigation</div>
+                <div class="card-desc">The most effective SYN flood mitigation happens before traffic reaches the target's network. ISPs and CDN providers implement traffic scrubbing -- directing traffic through DDoS mitigation infrastructure that filters attack traffic before forwarding legitimate traffic. Requires upstream provider cooperation or a managed DDoS protection service.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DDOS OVERVIEW ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Distributed Denial of Service <span class="accent">(DDoS)</span></div>
+        <div class="slide-subtitle">Coordinated attack from thousands to millions of sources. Volumetric attacks measured in Tbps are not theoretical -- they have occurred.</div>
+
+        <div class="scenario-strip">
+            The facility's external communications relay is receiving 840 Gbps of UDP traffic from 183,000 distinct source IP addresses across 47 countries. The upstream ISP's 10 Gbps link is saturated. The facility has been effectively isolated from the outside network. This is a botnet-coordinated volumetric DDoS -- the scale exceeds any single organization's capacity to absorb.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Botnets as DDoS Infrastructure</div>
+                <div class="card-desc">Thousands of compromised hosts (IoT devices, servers, desktop computers) are coordinated by a command-and-control server. When directed, all bots simultaneously flood the target. The distributed nature makes IP-based blocking ineffective -- the attacker has more sources than the target can block. Mirai botnet demonstrated that IoT devices make reliable DDoS nodes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Amplification DDoS</div>
+                <div class="card-desc">The attacker sends small requests to reflectors with the victim's spoofed source IP. Reflectors send large responses to the victim. DNS amplification: 64-byte ANY query gets a 3,000-byte response (47x amplification). NTP monlist: 234x amplification. Memcached UDP: up to 50,000x amplification. The attacker needs minimal bandwidth to generate massive attack traffic.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">DDoS Mitigation Services</div>
+                <div class="card-desc">Anycast diffusion (Cloudflare, Akamai) distributes attack traffic across global edge nodes -- no single point absorbs the full volume. Traffic scrubbing centers filter malicious packets before forwarding clean traffic. BGP blackhole routing discards all traffic to the attacked IP (availability sacrificed to protect the rest of the infrastructure).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Rate Limiting and CAPTCHAs</div>
+                <div class="card-desc">Application-layer DDoS can be partially mitigated by rate limiting per IP, connection limits, CAPTCHA challenges for new connections, and behavioral analysis that distinguishes automated from human traffic. Effective against scripted attacks; ineffective against large botnets where the attack rate per IP stays below detection thresholds.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- MAN IN THE MIDDLE OVERVIEW ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Man-in-the-Middle <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The attacker secretly relays and potentially modifies communications between two parties who believe they are communicating directly.</div>
+
+        <div class="scenario-strip">
+            Researcher R-88 connects to the facility portal. Unbeknownst to R-88, all traffic is passing through a compromised network switch. The attacker in the middle decrypts the TLS session (via a spoofed certificate accepted by the researcher's browser), reads all transmitted data, re-encrypts it with the real portal's certificate, and forwards it. R-88 sees a normal session. The attacker reads every keystroke.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Passive MITM (Eavesdropping)</div>
+                <div class="card-desc">The attacker captures traffic without modifying it. The communication proceeds normally; neither party is aware of the interception. Packet capture on a shared network segment, compromised router with traffic mirroring, or tapping physical media. Targets unencrypted protocols (HTTP, FTP, Telnet, SMTP without TLS) to capture credentials and data in plaintext.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Active MITM (Manipulation)</div>
+                <div class="card-desc">The attacker intercepts and modifies data in transit. Injecting malicious content into HTTP responses, altering financial transaction amounts, modifying email content, stripping encryption downgrades (SSL stripping). Active MITM requires the attacker to be in the traffic path and to handle the relay in real time -- more complex but more damaging than passive eavesdropping.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">How Attackers Get In the Path</div>
+                <div class="card-desc">ARP spoofing (poisons Layer 2 to redirect traffic through attacker). DNS poisoning (redirects hostname resolution to attacker-controlled IP). Rogue Wi-Fi access point (victim connects to attacker's network directly). BGP hijacking (at ISP scale, redirects entire network prefixes). Compromised router or switch (insider threat or remote exploit). Each establishes a different interception point.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ARP SPOOFING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">ARP Spoofing <span class="accent">(ARP Poisoning)</span></div>
+        <div class="slide-subtitle">The attacker sends forged ARP replies to poison the ARP cache of victims, redirecting Layer 2 traffic through the attacker's machine.</div>
+
+        <div class="code-block"><span class="cm">-- Normal ARP resolution</span>
+<span class="kw">Host A</span>  broadcasts: "Who has 10.0.0.1? Tell 10.0.0.5"
+<span class="fn">Gateway</span> replies:   "10.0.0.1 is at AA:BB:CC:DD:EE:FF"
+<span class="kw">Host A</span>  caches:    10.0.0.1 --&gt; AA:BB:CC:DD:EE:FF
+
+<span class="cm">-- ARP Spoofing attack (attacker MAC: 11:22:33:44:55:66)</span>
+<span class="er">Attacker sends unsolicited ARP reply to Host A:</span>
+<span class="er">"10.0.0.1 is at 11:22:33:44:55:66"  (attacker's MAC)</span>
+<span class="er">Attacker sends unsolicited ARP reply to Gateway:</span>
+<span class="er">"10.0.0.5 is at 11:22:33:44:55:66"  (attacker's MAC)</span>
+<span class="cm">-- All traffic between Host A and Gateway now flows through attacker</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Dynamic ARP Inspection (DAI)</div>
+                <div class="card-desc">Managed switches validate ARP packets against a DHCP snooping binding table. Only ARP replies matching known IP-to-MAC mappings are forwarded. Gratuitous ARP replies from untrusted ports are dropped. DAI is a Layer 2 switch feature -- it requires managed switches and must be configured per VLAN. Eliminates ARP spoofing from the local segment.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Static ARP Entries</div>
+                <div class="card-desc">Manually configure static ARP entries for critical hosts (gateways, DNS servers, domain controllers). Static entries cannot be overwritten by spoofed ARP replies. Practical only for a small number of high-value hosts -- maintaining static entries for an entire network is operationally impractical. Supplement with DAI, not a replacement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DNS POISONING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">DNS Poisoning <span class="accent">(Cache Poisoning)</span></div>
+        <div class="slide-subtitle">The attacker corrupts a DNS resolver's cache to map legitimate hostnames to attacker-controlled IP addresses.</div>
+
+        <div class="scenario-strip">
+            A researcher queries portal.cdc-facility.int. The internal DNS resolver has been poisoned -- it returns 203.0.113.50, the attacker's server. The researcher's browser connects to the attacker's server, which presents a cloned portal login page. Credentials submitted. The attacker captures them and redirects the researcher to the real portal. The researcher notices nothing unusual.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Kaminsky Attack Mechanics</div>
+                <div class="card-desc">The attacker sends a flood of DNS queries to a resolver for a subdomain it does not cache (e.g., random.target.com). Simultaneously, the attacker sends forged DNS responses claiming authority over target.com, each with a different Transaction ID. When the attacker guesses the correct Transaction ID before the legitimate response arrives, the poison entry is accepted into the cache.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DNSSEC</div>
+                <div class="card-desc">DNS Security Extensions cryptographically sign DNS records using public-key cryptography. Resolvers verify the signature before accepting a record. A forged response cannot produce a valid signature. DNSSEC breaks the Kaminsky attack entirely for signed zones. Adoption is incomplete -- many zones remain unsigned, leaving them vulnerable.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">DNS over HTTPS (DoH) and DNS over TLS (DoT)</div>
+                <div class="card-desc">Encrypt DNS queries in transit, preventing eavesdropping and in-path modification of DNS responses. DoH uses port 443 (indistinguishable from HTTPS traffic). DoT uses port 853. Neither prevents cache poisoning at the resolver itself -- they protect the query-to-resolver channel but not the resolver's cache integrity (DNSSEC does that).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DNS Hijacking vs. Cache Poisoning</div>
+                <div class="card-desc">Cache poisoning: attacker corrupts the resolver's cache by winning a race. DNS hijacking: attacker compromises the authoritative DNS server or the domain registrar account, changing the legitimate record at the source. Hijacking produces a different record at every resolver worldwide. Both result in victims connecting to attacker-controlled addresses, but the attack vectors are completely different.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SSL STRIPPING ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">SSL Stripping and <span class="accent">TLS Downgrade</span></div>
+        <div class="slide-subtitle">The MITM attacker intercepts the initial HTTP request and prevents the upgrade to HTTPS, keeping the victim on an unencrypted channel.</div>
+
+        <div class="code-block"><span class="cm">-- Normal HTTPS upgrade flow (no MITM)</span>
+<span class="kw">Browser</span>  --HTTP GET http://portal.example.com/-->  <span class="fn">Server</span>
+<span class="fn">Server</span>   --301 Redirect to https://... ----------->  <span class="kw">Browser</span>
+<span class="kw">Browser</span>  --HTTPS GET https://... ----------------->  <span class="fn">Server</span>
+
+<span class="cm">-- SSL Stripping (attacker in path)</span>
+<span class="kw">Browser</span>  --HTTP GET -->  <span class="er">Attacker</span>  --HTTPS GET -->  <span class="fn">Server</span>
+<span class="fn">Server</span>   --HTTPS resp->  <span class="er">Attacker</span>  --HTTP resp -->  <span class="kw">Browser</span>
+<span class="cm">-- Browser sees HTTP; all data transmitted in plaintext to attacker</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">HTTP Strict Transport Security (HSTS)</div>
+                <div class="card-desc">Server sends: Strict-Transport-Security: max-age=31536000; includeSubDomains. The browser remembers this for the specified duration and refuses to connect via HTTP for that domain. Even if the attacker attempts SSL stripping, the browser will not send the initial HTTP request -- it upgrades internally. Requires the user to have visited the site at least once over HTTPS first (HSTS preloading solves this).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">HSTS Preloading</div>
+                <div class="card-desc">Domains submitted to the HSTS preload list are hardcoded into Chrome, Firefox, Safari, and Edge as HTTPS-only. The first-visit vulnerability is eliminated -- even a brand new browser will refuse HTTP connections to preloaded domains. Submission requires HSTS with max-age of at least one year and includeSubDomains directive. Changes are permanent and difficult to reverse.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TLS Downgrade Attacks</div>
+                <div class="card-desc">Some servers support legacy TLS versions (1.0, 1.1) and weak cipher suites for compatibility. A MITM attacker manipulates the TLS handshake to force use of a weak cipher (POODLE, BEAST, DROWN). The attacker then exploits the weak cipher to decrypt traffic. Mitigation: disable TLS 1.0/1.1, disable export-grade ciphers, use TLS 1.2+ with strong cipher suites only.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- REPLAY ATTACKS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Replay <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">The attacker captures a valid authentication or authorization exchange and retransmits it to impersonate the legitimate party.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Authentication Replay</div>
+                <div class="card-desc">A valid authentication token, session cookie, or Kerberos ticket is captured from network traffic. The attacker retransmits it to the same server. If the server accepts the replayed credential without checking its freshness or binding, the attacker gains authenticated access without knowing the underlying password. Pass-the-hash and pass-the-ticket are Windows-specific replay variants.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transaction Replay</div>
+                <div class="card-desc">A valid financial transaction, API call, or command is captured and retransmitted. If the server processes it again, the attacker can duplicate a transfer, re-execute a command, or replay a vote. Must be defended independently of channel encryption -- TLS protects the data in transit, but a captured and replayed TLS-protected message is still dangerous after session capture.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Nonces (Number Used Once)</div>
+                <div class="card-desc">A unique random value included in the authentication exchange. The server remembers recently used nonces and rejects any replay of a message with a previously seen nonce. Nonces expire after a short window. Challenge-response protocols (like Kerberos ticket granting) use nonces to prevent replay. TLS session IDs and sequence numbers provide similar protection at the transport layer.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Timestamps and Short Validity Windows</div>
+                <div class="card-desc">Authentication tokens include a timestamp. The server rejects tokens older than a defined window (commonly 5 minutes). Kerberos enforces this -- clock skew of more than 5 minutes between client and KDC causes authentication failure. NTP synchronization is not optional in Kerberos environments; clock drift enables replay attacks by extending the valid window.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SESSION HIJACKING AT NETWORK LAYER ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Network-Layer <span class="accent">Session Hijacking</span></div>
+        <div class="slide-subtitle">TCP sessions are identified by a four-tuple. An attacker who can predict or capture the sequence number can inject packets into an existing session.</div>
+
+        <div class="code-block"><span class="cm">-- TCP Session Identified By:</span>
+<span class="kw">Source IP</span>:<span class="fn">Port</span>  &lt;--&gt;  <span class="kw">Destination IP</span>:<span class="fn">Port</span>  +  <span class="nb">Sequence Number</span>
+
+<span class="cm">-- Session Hijacking: attacker forges a packet with correct seq#</span>
+<span class="er">Attacker crafts: src=Client_IP:Port, dst=Server_IP:Port</span>
+<span class="er">                 seq=next_expected_seq_num (guessed or sniffed)</span>
+<span class="er">Server accepts packet as if from Client -- injects arbitrary data</span>
+
+<span class="cm">-- BGP Hijacking: route prefix announced by attacker</span>
+<span class="er">Attacker AS announces 10.0.0.0/8 more specifically than legitimate AS</span>
+<span class="er">Routers prefer more-specific route -- traffic redirected to attacker</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">TCP Sequence Prediction</div>
+                <div class="card-desc">Early TCP implementations used predictable sequence numbers (sequential or time-based). Modern OSes use cryptographically random initial sequence numbers. Sequence prediction against modern systems requires packet capture (MITM) to observe the current sequence state. Encrypted sessions (TLS) prevent sequence injection because the payload would fail decryption even with a valid sequence number.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">BGP Hijacking</div>
+                <div class="card-desc">An autonomous system announces a more-specific prefix for IP address space it does not legitimately own. Other routers, following longest-prefix-match, route traffic to the announcing AS instead of the legitimate one. The attacker becomes a MITM at internet scale. BGPSec and route origin authorization (ROA) via RPKI provide cryptographic verification of route announcements.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Defense: Encryption at All Layers</div>
+                <div class="card-desc">TLS over TCP makes session hijacking at the transport layer ineffective -- injected plaintext packets fail MAC verification and are discarded. IPsec in tunnel mode encrypts and authenticates all IP traffic, preventing IP-layer hijacking. End-to-end encryption eliminates the value of network-layer session capture regardless of how the interception was established.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- AMPLIFICATION ATTACKS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Amplification <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">The attacker exploits services that return large responses to small requests, using IP spoofing to direct the amplified traffic at the victim.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">DNS Amplification</div>
+                <div class="card-desc">Send a DNS ANY query (64 bytes) to an open resolver with the victim's spoofed source IP. The resolver returns a full response (up to 3,000 bytes) to the victim -- a 47x amplification factor. With 10,000 queries per second and 47x amplification, 10 Mbps of attacker bandwidth generates 470 Mbps of attack traffic against the victim. Open resolvers are the attack infrastructure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NTP Amplification (Monlist)</div>
+                <div class="card-desc">NTP monlist command returns the last 600 hosts that queried the NTP server. A 46-byte request gets a response of up to 480 bytes -- 556-byte UDP packets repeated across multiple responses. Amplification factor up to 206x. The monlist command has been disabled in modern NTP implementations (ntpd 4.2.7p26+). Legacy devices remain vulnerable.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Memcached Amplification</div>
+                <div class="card-desc">Memcached exposed on UDP port 11211 responds to a 15-byte request with responses up to 1 MB. Amplification factor exceeds 50,000x in worst cases. Cloudflare documented an 1.3 Tbps attack using Memcached amplification in 2018. Defense: never expose Memcached on UDP externally. Firewall UDP/11211 at the network perimeter. Disable UDP support in Memcached configuration.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense Against Amplification</div>
+                <div class="card-desc">BCP 38 (ingress filtering): ISPs filter packets with source IPs that cannot legitimately originate from that network. Eliminates IP spoofing, which is the prerequisite for all amplification attacks. Disable services that provide large responses to unauthenticated UDP requests (restrict DNS recursion to authorized clients, disable NTP monlist, block Memcached UDP from internet). Reducing reflector availability is as important as protecting victims.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- IP SPOOFING ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">IP Spoofing and <span class="accent">Source Forgery</span></div>
+        <div class="slide-subtitle">Forging the source IP address in IP packets to impersonate other hosts, evade filtering, or redirect responses.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What IP Spoofing Enables</div>
+                <div class="card-desc">Reflection and amplification attacks (responses go to victim). Bypassing IP-based access controls. Disguising attack origin in logs (though traffic returns to real attacker IP, not spoofed). Session injection when combined with sequence prediction. Land attack: source and destination set to same IP, crashing some TCP stacks. IP spoofing is a prerequisite for most volumetric DDoS techniques.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BCP 38 -- Network Ingress Filtering</div>
+                <div class="card-desc">ISPs and network operators implement ingress filtering: discard packets arriving from a customer interface with a source address not belonging to that customer's allocated range. If every ISP implemented BCP 38, IP spoofing from customer networks would be impossible. Adoption is voluntary -- significant portions of the internet still do not implement BCP 38, which is why spoofed-source DDoS remains viable.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">uRPF -- Unicast Reverse Path Forwarding</div>
+                <div class="card-desc">The router checks whether the source IP of an incoming packet would be reachable via the interface it arrived on. If the routing table says traffic to that source would exit a different interface, the packet is dropped as likely spoofed. Loose mode checks if the source is reachable via any interface. Strict mode (preferred) checks the exact interface. Deployed at network edges to prevent spoofing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- WIRELESS NETWORK ATTACKS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Wireless <span class="accent">Network Attacks</span></div>
+        <div class="slide-subtitle">Wi-Fi's broadcast medium and authentication protocols create unique attack surfaces not present on wired networks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Evil Twin / Rogue AP</div>
+                <div class="card-desc">The attacker creates a Wi-Fi access point with the same SSID as a legitimate network. Clients that auto-connect to known SSIDs connect to the attacker's AP instead. All traffic from connected clients passes through the attacker, enabling credential capture, SSL stripping, and injection. Particularly effective in public spaces where users expect open Wi-Fi.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Deauthentication Attacks</div>
+                <div class="card-desc">IEEE 802.11 management frames (including deauthentication) are unauthenticated in legacy protocols. An attacker sends spoofed deauthentication frames, forcing clients off a legitimate AP. Used to capture WPA2 4-way handshake for offline cracking (disconnect client, they reconnect, attacker captures handshake). 802.11w (Management Frame Protection) authenticates management frames, preventing deauth forgery.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">WPA2 Cracking</div>
+                <div class="card-desc">The 4-way handshake captures enough information to attempt offline dictionary attack against the Pre-Shared Key. PMKID attack allows handshake capture without waiting for a client to connect. Short or dictionary-based passwords are crackable. Defense: use WPA3 (SAE replaces PSK, provides forward secrecy and eliminates offline dictionary attack), or use strong random PSKs of 20+ characters.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">WPS Vulnerabilities</div>
+                <div class="card-desc">Wi-Fi Protected Setup PIN authentication has a design flaw: the 8-digit PIN is validated in two 4-digit halves, reducing the search space from 100,000,000 to 11,000 combinations. Pixie Dust attack uses WPS vulnerability to recover PIN in seconds on vulnerable chipsets. Disable WPS on all access points -- it serves no security purpose and provides a trivial bypass of WPA2 encryption.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- ON-PATH ATTACKS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">On-Path Attacks and <span class="accent">Protocol Interception</span></div>
+        <div class="slide-subtitle">Modern terminology for MITM. "On-path" more precisely describes the positional requirement -- the attacker must be in the communication path.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">HTTPS Interception (Corporate Proxies)</div>
+                <div class="card-desc">Enterprise security appliances perform TLS inspection (decryption, inspection, re-encryption) to scan HTTPS traffic for malware and DLP violations. This is a deliberate on-path attack by the organization against its own employees' traffic. It requires installing a trusted root certificate on all endpoints. Employees connecting from personal devices or without the corporate cert see certificate warnings.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certificate Pinning Bypass</div>
+                <div class="card-desc">Mobile applications often pin the server's certificate or public key to prevent MITM inspection. A proxy attempting to intercept traffic will present a different certificate that does not match the pin -- the app refuses the connection. Certificate pinning is a defense against MITM for specific high-value applications (banking, VPN clients) at the cost of deployment flexibility.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">MITM Defense: Certificate Validation</div>
+                <div class="card-desc">TLS certificate validation prevents MITM by verifying: the certificate is issued by a trusted CA, the hostname matches the certificate's CN or SAN, the certificate is not expired, and it has not been revoked (OCSP/CRL). Attackers performing MITM must present a certificate the victim's browser trusts. Certificate Transparency logs make fraudulent CA-signed certificates discoverable within hours.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">SY0-701 Terminology Note</div>
+            CompTIA SY0-701 uses "on-path attack" as the current preferred term for man-in-the-middle. Both terms appear on the exam. On-path is accurate -- the attacker must be positioned in the actual communication path. A MITM attack performed remotely (without physical or logical positioning in the path) is not possible by definition.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- RECONNAISSANCE AND SCANNING ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Network <span class="accent">Reconnaissance</span></div>
+        <div class="slide-subtitle">Before attacking, adversaries map the target network. Reconnaissance is often the phase that generates the most detectable traffic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Active Scanning</div>
+                <div class="card-desc">The attacker sends packets to discover live hosts, open ports, and running services. Port scanning (nmap) with techniques: SYN scan (half-open, less logged), TCP connect (full handshake), UDP scan (slower, unreliable), XMAS scan (all flags set, response indicates closed). Service fingerprinting identifies software versions. OS fingerprinting analyzes TCP/IP stack behavior.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Passive Reconnaissance</div>
+                <div class="card-desc">Gather information without sending packets to the target. WHOIS lookups, DNS zone transfers (if misconfigured), Google dorking, LinkedIn employee enumeration, Shodan for internet-exposed services, Certificate Transparency for subdomain discovery, GitHub for leaked credentials and infrastructure details. Passive recon generates no logs on the target's systems.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Detecting Reconnaissance</div>
+                <div class="card-desc">Port scans generate characteristic log patterns: large numbers of connection attempts to many ports from one source in a short window. IDS/IPS rules detect scan signatures. Honeypots (systems with no legitimate traffic) detect any contact as scanning activity. Darknet monitoring (unused IP space) flags packet arrivals from external sources. Threat intelligence feeds identify known scanner IP ranges.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reducing Attack Surface</div>
+                <div class="card-desc">Every open port is a reconnaissance target. Every exposed service is a potential attack vector. Firewall rules that block unused ports prevent discovery via scanning. Removing or disabling unnecessary services eliminates the service from the attack surface entirely. Network segmentation limits which hosts a compromised machine can scan. Reduce exposure before hardening what remains.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- PACKET CAPTURE AND ANALYSIS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Packet Capture <span class="accent">and Sniffing</span></div>
+        <div class="slide-subtitle">Capturing network traffic in transit. In a MITM position or on a shared medium, all traffic is visible to the attacker.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Promiscuous Mode</div>
+                <div class="card-desc">Normally, a network interface only processes packets addressed to it. In promiscuous mode, it captures all packets visible on the segment. On a hub network, all traffic on the segment is visible. On switched networks, only traffic for the local port is normally visible -- ARP spoofing or port mirroring is required to capture other hosts' traffic. Wireshark operates in promiscuous mode by default.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Sniffing Captures</div>
+                <div class="card-desc">Unencrypted HTTP traffic: full URLs, form data, cookies, session tokens. Unencrypted FTP: username and password in plaintext. Unencrypted SMTP: email content and credentials. DNS queries (even when the DNS response is encrypted, queries to recursive resolvers may not be). Internal protocols that assume network trust (SNMP v1/v2, legacy database protocols). Eliminate plaintext protocols entirely.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Network Forensics</div>
+                <div class="card-desc">Packet capture is also a defensive tool. Full packet capture (PCAP) provides the forensic record needed to reconstruct an attack after the fact. Network detection and response (NDR) tools analyze traffic patterns for anomalies. Intrusion detection systems generate alerts when traffic matches known attack signatures. The same visibility that helps attackers also helps defenders -- who has it matters.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- VLAN HOPPING ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">VLAN Hopping and <span class="accent">Layer 2 Attacks</span></div>
+        <div class="slide-subtitle">VLANs provide logical network segmentation. Misconfigured switch features allow attackers to cross VLAN boundaries they should not be able to cross.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Switch Spoofing</div>
+                <div class="card-desc">Dynamic Trunking Protocol (DTP) allows switches to automatically negotiate trunk links. An attacker connecting to an access port sends DTP frames to negotiate a trunk. If the switch accepts, the attacker's port becomes a trunk -- it receives traffic from all VLANs. Defense: disable DTP on all access ports (switchport nonegotiate), configure all non-trunk ports as access ports explicitly.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Double Tagging</div>
+                <div class="card-desc">802.1Q VLAN tags can be nested. An attacker on VLAN 10 sends a frame with an outer tag of VLAN 10 (their native VLAN) and an inner tag of VLAN 99 (target VLAN). The ingress switch strips the outer tag; the egress switch forwards based on the inner tag, delivering the frame to VLAN 99. One-directional attack -- responses cannot return. Effective for sending forged packets cross-VLAN.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense: Native VLAN Hardening</div>
+                <div class="card-desc">The double-tagging attack requires the attacker to be on the native VLAN of a trunk port. Set the native VLAN to an unused, dedicated VLAN ID that no hosts are assigned to. Tag the native VLAN explicitly (no untagged traffic on trunks). Disable unused switch ports and place them in a quarantine VLAN. Implement 802.1X port authentication so unauthorized devices cannot connect.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MAC Flooding</div>
+                <div class="card-desc">A switch's CAM (Content Addressable Memory) table maps MAC addresses to ports. If the table fills, the switch falls back to hub behavior -- flooding frames to all ports. The attacker sends frames with thousands of random source MACs, filling the CAM table, then sniffs all traffic. Defense: configure port security to limit the number of MACs per port; alert and shut down port on violation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- IPSEC AND VPN ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">IPsec and <span class="accent">VPN Security</span></div>
+        <div class="slide-subtitle">Encrypted tunnels that protect data in transit from interception and modification. The primary defense against network-layer MITM.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IPsec Modes</div>
+                <div class="card-desc">Transport mode: encrypts only the payload; original IP header is preserved. Used for host-to-host encryption within a network. Tunnel mode: encrypts the entire original IP packet and wraps it in a new IP header. Used for site-to-site VPN and remote access VPN. Tunnel mode hides internal addressing from external observers; transport mode does not.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AH vs. ESP</div>
+                <div class="card-desc">Authentication Header (AH): provides integrity and authentication for the entire IP packet including the header, but no encryption. Broken by NAT (NAT modifies IP header, invalidating AH's signature). Encapsulating Security Payload (ESP): provides confidentiality (encryption), integrity, and authentication for the payload. ESP is preferred in almost all deployments. AH is rarely used.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IKE and Key Exchange</div>
+                <div class="card-desc">Internet Key Exchange (IKE) negotiates the IPsec security association (SA). IKEv1: two phases, multiple modes, more complexity and vulnerabilities. IKEv2: streamlined, built-in EAP support, mobility extensions (MOBIKE). IKEv2 is preferred. Both versions use Diffie-Hellman for key agreement -- PFS is available by using ephemeral DH groups (re-keying generates new keys not derived from the long-term key).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">VPN Split Tunneling Risks</div>
+                <div class="card-desc">Split tunneling routes only corporate-destined traffic through the VPN; all other traffic (including attacker traffic) goes directly to the internet. A compromised endpoint with split tunneling enabled is simultaneously on the corporate network and the internet, potentially bridging the two. Full-tunnel VPN forces all traffic through corporate security controls but degrades performance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- NETWORK DETECTION AND RESPONSE ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Network Detection <span class="accent">and Response (NDR)</span></div>
+        <div class="slide-subtitle">Continuous monitoring of network traffic to detect attack patterns, lateral movement, and anomalous behavior.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">IDS vs. IPS</div>
+                <div class="card-desc">Intrusion Detection System: monitors and alerts, does not block. Intrusion Prevention System: monitors, alerts, and actively blocks matching traffic. IPS is inline -- all traffic passes through it. IDS is out-of-band -- it receives a copy of traffic. IPS can block attacks but adds latency and risk of false-positive blocking. IDS provides visibility without risk of disrupting legitimate traffic.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Signature vs. Anomaly Detection</div>
+                <div class="card-desc">Signature-based: matches traffic against known attack patterns. Zero-day attacks produce no signature matches. Anomaly-based: establishes a baseline of normal behavior, alerts on deviations. Catches novel attacks but generates more false positives. Behavioral analysis combines both: signature matching catches known attacks, anomaly detection flags unusual patterns for investigation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Network Traffic Analysis (NTA)</div>
+                <div class="card-desc">Analyzes network flow data (NetFlow, IPFIX, sFlow) rather than full packet captures. Flow data is much smaller than PCAP -- enables long-term retention. NTA tools detect: lateral movement (unusual internal traffic patterns), C2 beaconing (periodic outbound connections to fixed intervals), data exfiltration (abnormally large outbound transfers), port scanning (high connection counts to many destinations).</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">TAP vs. SPAN Port</div>
+            Network TAP (Test Access Point): physical device that copies all traffic on a link to a monitoring port. Passive, cannot be disabled by software, does not consume switch resources. SPAN (Switched Port Analyzer): software-configured port mirroring on a switch. Can be disabled or disrupted, limited bandwidth for high-speed links. TAP is preferred for production monitoring; SPAN is common in lab environments.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- FIREWALL ARCHITECTURE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Firewall <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Firewalls are the primary network segmentation and traffic control mechanism. Architecture determines what threats each type can stop.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Packet Filter (Stateless)</div>
+                <div class="card-desc">Evaluates each packet independently based on source IP, destination IP, source port, destination port, and protocol. No state tracking -- a rule to allow established TCP connections requires explicit rules for return traffic. Simple, fast, but cannot detect protocol abuse or attacks that span multiple packets. Appropriate for basic edge filtering.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stateful Inspection</div>
+                <div class="card-desc">Maintains a connection state table. Tracks TCP handshake state, UDP conversation state, and ICMP exchanges. Allows return traffic for established connections automatically. Detects out-of-sequence packets and protocol state violations. The standard for enterprise firewalls. Cannot inspect encrypted traffic or application-layer content.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Next-Generation Firewall (NGFW)</div>
+                <div class="card-desc">Adds application identification (layer 7), user identity awareness, TLS inspection, integrated IPS, URL filtering, and threat intelligence integration to stateful inspection. Can enforce policies based on the application (block Dropbox regardless of port) or user (allow CEO to access financial data). The current enterprise standard for perimeter and segmentation firewalls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DMZ Architecture</div>
+                <div class="card-desc">A demilitarized zone places publicly accessible servers (web, email, DNS) in a network segment separated from both the internet and the internal network by firewalls. External traffic reaches the DMZ but not the internal network. Internal traffic can reach the DMZ to query services. Even if a DMZ server is compromised, the attacker cannot directly reach internal hosts without traversing another firewall.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- NETWORK SEGMENTATION ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Network <span class="accent">Segmentation</span></div>
+        <div class="slide-subtitle">Dividing a network into isolated segments limits the blast radius of any single compromise. The network equivalent of compartmentalization.</div>
+
+        <div class="scenario-strip">
+            An attacker compromises a workstation in the research wing. On a flat network, they immediately have access to the specimen database, the SCADA controllers, the HR file server, and every other device. On a segmented network, the compromised workstation can only reach the research VLAN's authorized resources. Every cross-segment move requires traversing a firewall and generates a log entry.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">VLAN Segmentation</div>
+                <div class="card-desc">VLANs create separate Layer 2 broadcast domains on the same physical switch infrastructure. Traffic between VLANs must pass through a Layer 3 device (router or firewall), where policies are enforced. VLANs alone are not security -- they must be paired with inter-VLAN routing controls. VLAN hopping attacks (switch spoofing, double tagging) must be mitigated through switch hardening.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Microsegmentation</div>
+                <div class="card-desc">Applies granular access controls at the workload level, not just the network segment level. Software-defined networking enforces east-west traffic policies between individual servers or containers within the same network segment. A web server cannot directly reach a database server even if they are in the same VLAN unless an explicit policy allows it. Zero Trust network architecture relies on microsegmentation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Air Gap</div>
+                <div class="card-desc">Physical isolation -- no network connection to any other network. The most secure segmentation for ultra-high-sensitivity environments. Data transfer only via physical media (USB drives, which themselves must be controlled and scanned). Stuxnet demonstrated that air-gapped networks are breachable via physical media. An air gap is only as strong as the physical security controlling media introduction.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ZERO TRUST NETWORK ACCESS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Zero Trust <span class="accent">Network Access</span></div>
+        <div class="slide-subtitle">Eliminate implicit trust from network location. Every access request is verified regardless of whether it originates from inside or outside the perimeter.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Perimeter Trust Fails</div>
+                <div class="card-desc">The perimeter model grants broad trust to traffic that has crossed the outer firewall. One compromised host inside the perimeter moves freely. Cloud and remote work eliminated a well-defined perimeter. VPN tunnels extend the perimeter to every remote endpoint. Insider threats operate inside the perimeter by definition. The perimeter has effectively ceased to exist as a meaningful trust boundary.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Zero Trust Principles (NIST SP 800-207)</div>
+                <div class="card-desc">All resources treated as if externally accessed. Access granted per-session based on dynamic policy. Continuous verification: identity, device health, network location. Least-privilege access: minimum necessary for the specific task. Assume breach: monitor all traffic including internal. No implicit trust from network location -- being "inside" grants nothing. All sessions authenticated and authorized individually.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Software-Defined Perimeter (SDP)</div>
+                <div class="card-desc">Infrastructure is invisible until authenticated. The user proves identity before any network path is established -- they cannot even probe the service. The SDP controller evaluates identity and device posture, then provisions an encrypted tunnel only to the specific resources authorized for that session. Compare to VPN: a VPN grants broad network access; SDP grants access only to authorized applications.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ZTNA Implementation Components</div>
+                <div class="card-desc">Identity provider (IdP) with MFA for user verification. Device trust assessment (MDM enrollment, EDR health, patch status). Policy enforcement point between the user and the resource. Continuous session monitoring with re-verification triggers on anomalies. All access logged with full context. Microsegmentation prevents lateral movement even after access is granted to one resource.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- BGP AND ROUTING SECURITY ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">BGP and <span class="accent">Routing Security</span></div>
+        <div class="slide-subtitle">BGP was designed for trust among ISPs -- it has no built-in authentication, making route hijacking possible at internet scale.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">BGP Route Hijacking</div>
+                <div class="card-desc">An AS announces a prefix it does not legitimately own. Other routers accept it because BGP has no cryptographic verification. Traffic destined for the hijacked prefix is redirected to the attacking AS. High-profile incidents: Pakistan Telecom hijacked YouTube's IP space (2008), a Russian ISP briefly routed traffic for major financial institutions (2019). The impact is global and immediate.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RPKI -- Resource Public Key Infrastructure</div>
+                <div class="card-desc">Cryptographically binds IP prefixes to authorized AS numbers using Route Origin Authorizations (ROAs). Routers validate BGP announcements against the RPKI cache -- announcements not matching an ROA are marked invalid and dropped (route origin validation). RPKI does not prevent path manipulation but prevents origin hijacking. Major ISPs implement RPKI; adoption is growing but incomplete.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">BGPSec</div>
+                <div class="card-desc">Cryptographic signatures on BGP AS path attributes to prevent path manipulation (not just origin hijacking). Each AS in the path signs its portion of the route announcement. Validates that the stated AS path reflects actual routing. Operationally challenging due to key management at internet scale. Less widely deployed than RPKI but provides stronger guarantees for the full path.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- NETWORK SECURITY PROTOCOLS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Network Security <span class="accent">Protocols</span></div>
+        <div class="slide-subtitle">Protocols designed to provide authentication, encryption, and integrity at the network layer. SY0-701 tests protocol selection for specific scenarios.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">802.1X Port Authentication</div>
+                <div class="card-desc">Network Access Control at the switch port level. A device connecting to a switch port must authenticate (via RADIUS/EAP) before the port is activated. Prevents rogue devices from connecting to the network by plugging into an open port. Three parties: supplicant (client), authenticator (switch), authentication server (RADIUS). Essential for zero-trust network access at the wired layer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SNMPv3</div>
+                <div class="card-desc">SNMP v1 and v2c use community strings (effectively plaintext passwords) for authentication. SNMPv3 adds authentication (MD5 or SHA) and privacy (DES or AES encryption). Never use SNMPv1/v2c for network management -- community strings are routinely captured from traffic and provide full read (and sometimes write) access to device configurations. SNMPv3 with AES privacy and SHA authentication is the minimum standard.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SSH vs. Telnet</div>
+                <div class="card-desc">Telnet transmits all data including credentials in plaintext. Any network observer between client and server captures the credentials. SSH encrypts the entire session, provides host key verification (prevents MITM on connection), and supports key-based authentication (eliminates password brute-forcing). Telnet should never appear in any production environment. SSH v2 only -- SSH v1 has known cryptographic weaknesses.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">HTTPS vs. HTTP</div>
+                <div class="card-desc">HTTP transmits all data in plaintext -- credentials, session cookies, form data. HTTPS wraps HTTP in TLS, providing encryption, integrity, and server authentication. Any web application that handles authentication, personal data, or session cookies must use HTTPS for all pages. Mixed content (HTTPS page loading HTTP resources) exposes those resources to interception and can be used to inject malicious scripts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- EMAIL SECURITY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Email Security <span class="accent">Protocols</span></div>
+        <div class="slide-subtitle">Email was designed without authentication -- SPF, DKIM, and DMARC retrofit sender verification to prevent spoofing and phishing.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SPF -- Sender Policy Framework</div>
+                <div class="card-desc">A DNS TXT record listing which mail servers are authorized to send email for a domain. Receiving servers check whether the sending server's IP is listed in the SPF record. An email from hr@company.com originating from an unlisted IP fails SPF. SPF only checks the envelope sender (MAIL FROM), not the From: header visible to the user. Does not prevent header spoofing alone.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DKIM -- DomainKeys Identified Mail</div>
+                <div class="card-desc">The sending mail server signs the email headers and body with its private key. A DKIM signature is added as a header. The receiving server retrieves the public key from DNS and verifies the signature. DKIM proves the email was not modified in transit and was sent by a server with the domain's private key. Does not prevent spoofing of the visible From: header alone.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DMARC -- Domain-based Message Auth</div>
+                <div class="card-desc">DMARC ties SPF and DKIM together and specifies what to do when they fail: none (monitor only), quarantine (spam folder), or reject (discard). Requires alignment: the From: header domain must match the SPF or DKIM signing domain. DMARC reports (aggregate and forensic) give domain owners visibility into email spoofing attempts. DMARC p=reject is the only configuration that stops spoofed phishing email from reaching inboxes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- NETWORK ATTACK CHAIN ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Network Attack <span class="accent">Chain Example</span></div>
+        <div class="slide-subtitle">Real intrusions chain network-layer attacks. Trace the attack path and identify the defensive break point at each step.</div>
+
+        <div class="box box-red" style="margin-bottom:4px;">
+            <div class="box-label">Full Attack Chain</div>
+            Passive DNS enumeration discovers mail.facility.int and db.facility.int subdomains via Certificate Transparency. Port scan finds SMTP open on mail server. Discovered SMTP version has CVE. Exploit gains shell. Server used for ARP spoofing on internal research VLAN. Credentials captured from HTTP traffic to internal portal (not HTTPS). Credentials used to authenticate to db.facility.int over Telnet. Full database access obtained.
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Subdomain discovery via CT logs: broken control. Add subdomains to Certificate Transparency monitoring. Subdomain enumeration is information disclosure -- limit what is publicly resolvable.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Unpatched SMTP: broken control. Vulnerability management with patching SLAs. Externally accessible services are highest priority. The SMTP server should not exist on a public-facing address without a WAF or MTA relay in front of it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">ARP spoofing succeeds: broken control. DAI was not configured on the research VLAN switches. Enable Dynamic ARP Inspection on all managed switches in sensitive VLANs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">HTTP credentials captured: broken control. HTTPS with HSTS was not enforced on the internal portal. All credential-handling applications must use TLS regardless of whether they are internal.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Telnet to database: broken control. SSH only, with key-based authentication. Telnet in a production environment is an automatic critical finding in any security assessment.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- THREAT INTELLIGENCE AND FEEDS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Threat Intelligence <span class="accent">and Feeds</span></div>
+        <div class="slide-subtitle">Network defenses improve when augmented with external intelligence about current attack infrastructure, TTPs, and indicators of compromise.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Indicators of Compromise (IOC)</div>
+                <div class="card-desc">Observable artifacts that indicate a system may be compromised: IP addresses of known C2 servers, malicious domain names, file hashes of known malware, registry keys created by specific malware, unusual outbound port usage. IOCs are integrated into firewalls, IDS/IPS, and SIEM to automate detection. IOCs expire -- known attacker infrastructure changes. Freshness matters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Threat Intelligence Feeds</div>
+                <div class="card-desc">Commercial (CrowdStrike Falcon Intelligence, Recorded Future) and open-source (AlienVault OTX, Abuse.ch, Spamhaus) feeds provide continuously updated IOCs and threat actor TTPs. STIX (Structured Threat Information Expression) and TAXII (Trusted Automated Exchange of Intelligence Information) are open standards for sharing threat intelligence between organizations and platforms.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IOC vs. TTP</div>
+                <div class="card-desc">IOCs are specific artifacts (IP, domain, hash) that are easy to detect but easy for attackers to change -- rotate C2 infrastructure, recompile malware with a new hash. TTPs (Tactics, Techniques, and Procedures) describe how attackers behave -- harder to detect, but also harder for attackers to change. MITRE ATT&CK catalogs TTPs. Detecting TTPs is more durable than detecting IOCs.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">MITRE ATT&CK Framework</div>
+                <div class="card-desc">A knowledge base of adversary tactics and techniques based on real-world observations. Organized by tactics (the why: Initial Access, Lateral Movement, Exfiltration) and techniques (the how: Spearphishing, ARP Cache Poisoning, DNS Hijacking). Used for threat modeling, detection coverage gap analysis, and red team planning. SY0-701 references ATT&CK in attack taxonomy questions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- NETWORK HARDENING CHECKLIST ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Network Hardening <span class="accent">Checklist</span></div>
+        <div class="slide-subtitle">Operational controls that reduce the attack surface against network-layer attacks. Most require switch and router configuration changes.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Enable Dynamic ARP Inspection (DAI) on all VLANs with untrusted hosts. Mark uplinks to other switches and routers as trusted. Eliminates ARP spoofing from the segment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Enable DHCP Snooping on all access VLANs. Creates the binding table used by DAI and also prevents rogue DHCP servers from redirecting client traffic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Disable DTP on all access ports (switchport nonegotiate). Set all non-trunk ports as access ports explicitly. Prevents switch spoofing and VLAN hopping via trunk negotiation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Configure port security with maximum MAC addresses per port. Prevents MAC flooding attacks that cause switches to behave as hubs. Violation action: shutdown or restrict with logging.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Set native VLAN to unused VLAN ID on all trunks. Explicitly tag native VLAN traffic. Prevents double-tagging attacks that allow cross-VLAN frame injection.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Implement 802.1X on all wired access ports. Prevents unauthorized devices from connecting to the network by plugging into switch ports. Pair with RADIUS and device certificates for strongest authentication.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Replace SNMPv1/v2c with SNMPv3 (AuthPriv mode: SHA authentication, AES encryption). Restrict SNMP access to management network only. Removes a commonly abused credential leak vector.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- CLOUD NETWORK SECURITY ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Cloud Network <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Cloud environments shift the network security model -- physical switches are replaced by virtual networking constructs, but the attack categories remain the same.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Security Groups and NACLs</div>
+                <div class="card-desc">AWS Security Groups are stateful instance-level firewalls. NACLs are stateless subnet-level access control lists. Security Groups are permissive by default for outbound, restrictive for inbound. NACLs require explicit allow rules for both inbound and outbound (stateless). Both are used together: NACLs for subnet-level controls, Security Groups for instance-level. Misconfigured Security Groups allowing 0.0.0.0/0 are a common finding.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">VPC Flow Logs</div>
+                <div class="card-desc">AWS VPC Flow Logs capture metadata about accepted and rejected traffic at the ENI level: source IP, destination IP, port, protocol, bytes, action. Equivalent to NetFlow for on-premises networks. Used for network anomaly detection, forensic investigation, and compliance logging. Does not capture packet content -- only flow metadata. Enable on all VPCs in production environments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cloud DDoS Protection</div>
+                <div class="card-desc">AWS Shield Standard (free): automatic protection against common volumetric DDoS for all AWS customers. Shield Advanced: additional detection, WAF integration, 24/7 DRT (DDoS Response Team) access, cost protection during an attack. Cloudflare Magic Transit and Azure DDoS Protection Network provide similar tiered services. Cloud DDoS protection absorbs attacks at the provider's global scale before traffic reaches the customer's resources.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Private Subnet Design</div>
+                <div class="card-desc">Databases, application servers, and internal services should reside in private subnets with no direct route to the internet. Access occurs via bastion hosts (for SSH), VPN, or AWS Systems Manager Session Manager. Internet-facing load balancers and NAT gateways sit in public subnets. This architecture limits DDoS exposure and removes attack surface for internet-originating threats against backend systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- CDC SCENARIO: NETWORK BREACH ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">CDC Scenario: <span class="accent">Communications Compromise</span></div>
+        <div class="slide-subtitle">Apply the network attack taxonomy to a facility scenario. Identify each attack, the failed control, and the correct response.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">All traffic on the research VLAN is flowing through an unauthorized host. ARP cache on all hosts shows the attacker's MAC for the gateway. Attack type and immediate remediation? <strong>(ARP spoofing. Enable DAI. Flush poisoned ARP caches on all affected hosts. Isolate attacker's port.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">External communications are completely saturated. Traffic analysis shows 180,000 source IPs sending UDP fragments at maximum rate. The attack traffic volume is 620 Gbps. What type of attack and what is the effective mitigation? <strong>(Volumetric DDoS, amplification variant. Upstream scrubbing center / ISP blackhole routing. The target cannot self-mitigate at this volume.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">DNS queries for facility.int are returning attacker-controlled IPs. The internal resolver's cache has been poisoned. What control would have prevented this and what provides cryptographic verification of DNS responses? <strong>(DNSSEC for cryptographic verification. Source port randomization and Transaction ID randomization prevent Kaminsky attack. Authoritative DNSSEC signing makes cached poison detectable.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A researcher uses the portal over HTTP. Session token captured. Attacker now impersonates the researcher. What protocol control prevents initial token capture? <strong>(HTTPS with HSTS. The session cookie should also have Secure flag to prevent transmission over HTTP.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- NETWORK ATTACK COMPARISON ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Network Attack <span class="accent">Comparison Matrix</span></div>
+        <div class="slide-subtitle">Cross-reference attack type, OSI layer, CIA pillar affected, and primary defense. Used for exam scenario identification.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text"><strong>SYN Flood:</strong> Layer 4. CIA: Availability. Defense: SYN cookies, upstream rate limiting, stateful firewall connection limits.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text"><strong>ARP Spoofing:</strong> Layer 2. CIA: Confidentiality (interception), Integrity (modification). Defense: Dynamic ARP Inspection, static ARP entries.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text"><strong>DNS Poisoning:</strong> Layer 7 (affects all). CIA: Integrity (wrong mapping), Confidentiality (redirects traffic). Defense: DNSSEC, query randomization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">D</span>
+                <span class="fact-text"><strong>SSL Stripping:</strong> Layer 7. CIA: Confidentiality (exposes encrypted data as plaintext). Defense: HSTS, HSTS preloading.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">E</span>
+                <span class="fact-text"><strong>Replay Attack:</strong> Any layer. CIA: Integrity (replayed actions are unauthorized), Availability (session exhaustion). Defense: nonces, timestamps, short validity windows.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">F</span>
+                <span class="fact-text"><strong>Amplification DDoS:</strong> Layer 3/4. CIA: Availability. Defense: BCP 38 ingress filtering, restrict amplifiable services, upstream scrubbing.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">G</span>
+                <span class="fact-text"><strong>Session Hijacking:</strong> Layer 4/7. CIA: Confidentiality (session access), Integrity (forged actions). Defense: TLS, HttpOnly/Secure cookies, token binding.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SY0-701 SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Exam-style scenarios require attack identification, CIA mapping, and defense selection. Practice both recognition and justification.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A web server becomes unreachable after receiving 95,000 incomplete TCP connection attempts per second from a single IP. Which attack, and which OS-level mitigation resolves the connection table exhaustion? <strong>(SYN flood; SYN cookies eliminate state allocation for incomplete handshakes)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A finance application uses HTTP. Credentials are captured by an attacker with access to a network tap between the client and server. Which two protocol controls would have prevented credential exposure? <strong>(HTTPS with TLS 1.2+; HSTS to prevent HTTP downgrade of subsequent requests)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">An attacker sends an NTP monlist request with the victim's IP as the source to 1,000 NTP servers. Which attack class, and what single universal control at the ISP level would eliminate this technique? <strong>(NTP amplification DDoS; BCP 38 ingress filtering prevents spoofed source IP packets from leaving customer networks)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An employee on the corporate Wi-Fi notices their traffic certificate changes when they access their bank. The issuer is "Corporate Security Appliance." What is occurring? <strong>(TLS inspection / SSL interception by the corporate HTTPS proxy. This is the organization performing a deliberate on-path attack against its own employees' traffic for inspection purposes.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A valid authentication token is captured from a packet capture. The attacker submits it two hours later and gains access. Which protocol control prevents reuse of expired tokens? <strong>(Short-lived tokens with timestamp validation; nonces; Kerberos ticket lifetime enforcement with clock synchronization via NTP)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next module. Exercises 3 and 4 require written analysis.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Use Wireshark to capture traffic on a test network. Identify at least two protocols transmitting credentials or session tokens in plaintext. Document the protocol, the data exposed, and the encrypted alternative that should replace it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Using a network scanning tool (nmap) against an authorized test target, perform a SYN scan and a UDP scan. Compare the results. Explain why the UDP scan takes longer and produces more uncertain results. Document which services should be firewalled at the network perimeter.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A company's DNS resolver has been poisoned -- users are being redirected to a fake login page for their primary business application. Write the incident response plan covering: immediate containment steps, investigation to determine scope, eradication steps, and long-term prevention measures including specific protocol controls.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Design the network architecture for a new research facility with three segments: external DMZ, research network, and administrative network. Specify: VLAN IDs and purposes, inter-VLAN routing controls, switch hardening configuration, wireless security controls, and monitoring placement. Justify each decision against the threats in this module.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Analyze whether your home or lab network is vulnerable to ARP spoofing, DNS cache poisoning, and SSL stripping. For each: identify whether the vulnerability exists, explain how you tested it, and describe the control that would remediate it in a production environment.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Network attacks exploit the infrastructure that carries communication. Every attack targets a protocol's implicit trust assumptions. The defenses add explicit verification at each layer.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            Network security is fundamentally about removing implicit trust from communication paths. ARP assumed trusted neighbors; DAI adds explicit verification. BGP assumed trustworthy peers; RPKI adds cryptographic authorization. HTTP assumed network confidentiality; TLS adds encryption. Each defense adds what the original protocol designers omitted.
+        </div>
+
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">DoS exhausts one resource (bandwidth, connections, CPU). DDoS uses distributed sources to overwhelm defenses. Mitigation must occur upstream -- the target cannot absorb Tbps-scale attacks alone.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">SYN flood exploits TCP handshake state allocation. SYN cookies eliminate state allocation until ACK is received, breaking the attack.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">ARP spoofing poisons Layer 2 caches to redirect traffic through the attacker. Defense: Dynamic ARP Inspection with DHCP snooping binding tables.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">DNS poisoning corrupts resolver caches to redirect domain lookups. DNSSEC provides cryptographic verification of records. DoH/DoT protect query transport but not cache integrity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">SSL stripping intercepts the initial HTTP request and prevents HTTPS upgrade. HSTS and HSTS preloading force the browser to upgrade internally before any request is sent.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Replay attacks retransmit valid authentication exchanges. Defense: nonces (number used once), timestamps, and short validity windows.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Amplification DDoS uses IP spoofing to direct amplified responses at the victim. BCP 38 ingress filtering eliminates the spoofed source prerequisite and is the single most effective defense.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">VLAN hopping via switch spoofing is prevented by disabling DTP and explicitly configuring access ports. Double tagging is prevented by setting native VLAN to unused ID and tagging all native traffic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">IPsec ESP provides encryption and integrity for network-layer traffic. IKEv2 is preferred over IKEv1. Tunnel mode protects internal addressing. PFS uses ephemeral DH keys.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">MITRE ATT&CK catalogs adversary TTPs. IOCs (IP, domain, hash) are easy to detect but easy to change. TTPs are harder to detect but more durable intelligence for detection engineering.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w2-network-attacks', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Actors &amp; Attack Surfaces | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Threat Actors &amp; Attack Surfaces | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-03 &nbsp;|&nbsp; Week 1 of 8 &nbsp;|&nbsp; SY0-701: 2.1, 2.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Threat Actors &amp;<br>
+                <span class="accent">Attack Surfaces</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Nation-State &nbsp;&bull;&nbsp; Hacktivist &nbsp;&bull;&nbsp; Insider &nbsp;&bull;&nbsp; Criminal &nbsp;&bull;&nbsp; APT &nbsp;&bull;&nbsp; Supply Chain
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Gamma. Intelligence recovered from Sector 7 indicates multiple parties are targeting the facility's specimen database simultaneously. One appears to be a well-funded nation-state. Another is a former research employee. A third is a criminal syndicate seeking to sell containment breach data. The defense posture for each is different -- because the threat actor profile determines the attack method, the dwell time, and the objective.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-03</span>
+            <span>Week 1 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY THREAT ACTOR PROFILING MATTERS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Why <span class="accent">Threat Actor Profiling</span> Matters</div>
+        <div class="slide-subtitle">Defenses that work against script kiddies are insufficient against nation-state actors. The threat shapes the defense.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Motivation Drives Method</div>
+                <div class="card-desc">A financially motivated criminal ransomware operator will deploy commodity tooling quickly and demand payment. A nation-state actor will spend months mapping your network before executing. A hacktivist will focus on public defacement or data leaks to generate news coverage. The same organization faces all three simultaneously, requiring layered defenses tailored to each profile.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Capability Determines Sophistication</div>
+                <div class="card-desc">Low-capability actors reuse publicly available exploit code. High-capability actors develop zero-day exploits, compromised supply chain implants, and custom firmware-level backdoors. Calibrating your threat model to the realistic capability of your most likely adversary prevents both over-investment (hardening against nation-states when you face script kiddies) and under-investment.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Opportunity Is Always Present</div>
+                <div class="card-desc">Automated scanning tools continuously probe every internet-connected IP. Every organization, regardless of industry or size, is constantly probed. The question is never whether you are being scanned -- it is whether your controls stop exploitation when the scan finds something interesting. Threat actors do not manually select targets; automation finds the vulnerable ones.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The Threat Actor Assessment Framework</div>
+            For each actor category, assess: Motivation (why they attack), Capability (what tools and skills they have), Intent (what specific outcome they seek), and Opportunity (how they gain access). These four dimensions shape the controls you prioritize.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- NATION-STATE ACTORS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title"><span class="accent">Nation-State</span> Threat Actors</div>
+        <div class="slide-subtitle">Government-sponsored or affiliated attackers with state-level funding, zero-day access, and strategic long-term objectives.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Characteristics</div>
+                <div class="card-desc">Virtually unlimited resources and time. Access to zero-day exploits bought on black markets or developed in-house. Teams of specialists covering every attack phase. Long dwell times measured in months or years -- the goal is persistent access for intelligence gathering, not rapid exploitation and exit. Operations are often classified and may not be publicly attributed for years.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Primary Objectives</div>
+                <div class="card-desc">Espionage: stealing intellectual property, weapons designs, negotiating positions, and personnel records. Sabotage: disrupting critical infrastructure (power grids, water systems, financial systems). Pre-positioning: establishing persistent access in target networks for future activation. Influence operations: compromising media and political systems to shape public opinion.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Known Examples</div>
+                <div class="card-desc">Operation Aurora (2009): Chinese actors targeted Google and 34 other companies, stealing source code and Google account credentials of intelligence targets. SolarWinds (2020): Russian SVR embedded code in SolarWinds Orion software updates, compromising 18,000 organizations including US government agencies. Stuxnet: US/Israeli-developed worm that physically destroyed Iranian centrifuges.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense Posture</div>
+                <div class="card-desc">Defense against nation-states requires intelligence-led security. Join ISACs (Information Sharing and Analysis Centers) for sector-specific threat intel. Implement network segmentation to limit lateral movement. Deploy behavioral analytics to detect anomalous access patterns. Apply zero trust architecture -- assume breach and verify every access request regardless of source network.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- HACKTIVISTS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">Hacktivists</span></div>
+        <div class="slide-subtitle">Ideologically motivated attackers who use hacking as a form of political protest or activism.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Motivation and Targets</div>
+                <div class="card-desc">Hacktivists attack organizations whose policies or actions they oppose. Targets include governments, corporations perceived as engaging in unethical practices, media organizations, and financial institutions that support causes they oppose. Anonymous, LulzSec, and similar groups have targeted major corporations, intelligence agencies, and governments for ideological reasons.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Preferred Methods</div>
+                <div class="card-desc">Website defacement to replace content with political messaging. DDoS attacks to disrupt service and generate media attention. Data exfiltration and public leak ("doxing") of internal documents, employee information, or customer data. SQL injection against web applications to access backend databases. Methods prioritize impact and visibility over stealth -- being noticed is part of the objective.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Capability Range</div>
+                <div class="card-desc">Hacktivist capability varies widely. Casual participants use DDoS tools that require minimal technical skill (LOIC - Low Orbit Ion Cannon). Core group members may have sophisticated skills. Groups occasionally recruit or contract with more skilled actors for specific operations. They generally do not have access to zero-days, but skilled members exploit known vulnerabilities effectively.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Defense Posture</div>
+                <div class="card-desc">DDoS mitigation services (Cloudflare, Akamai). Web Application Firewalls for injection attacks. Strong web application security testing before deployment. Monitoring for website defacement (file integrity monitoring on web server content). Reputational risk management -- having a public security contact reduces the likelihood that a researcher-turned-activist escalates to an attack before attempting disclosure.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- INSIDER THREATS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title"><span class="accent">Insider Threats</span></div>
+        <div class="slide-subtitle">The most difficult threat to detect because insiders already have legitimate access, credentials, and knowledge of internal systems.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Malicious Insider</div>
+                <div class="card-desc">A current or former employee who deliberately causes harm. Motivations include financial gain (selling data), revenge (disgruntled after termination or disciplinary action), espionage (recruited by a foreign government or competitor), and ideology (whistleblowing at the extreme end). Edward Snowden, Robert Hanssen, and Aldrich Ames are historical examples with catastrophic impact.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Negligent Insider</div>
+                <div class="card-desc">A well-meaning employee who causes a breach through carelessness. Sending an email with PII to the wrong recipient. Clicking a phishing link. Leaving a laptop on a train. Connecting a personal USB drive to a work computer. Negligent insiders cause the majority of data breach incidents. They are addressed through administrative controls (training, policy) and technical controls (DLP, MFA).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Compromised Insider</div>
+                <div class="card-desc">An employee whose credentials or device has been taken over by an external attacker. The attacker operates with the employee's legitimate access rights and behavioral patterns, making detection extremely difficult. Phishing and credential theft are the primary compromise vectors. This is why behavioral analytics and MFA are both essential -- credentials alone are not proof of legitimate use.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            SHIELD-7 scenario: A senior researcher with Tier 4 clearance accesses the specimen archive at 3:00 AM on a Sunday -- a time they have never accessed before. Is this the researcher working late on a grant deadline, or an attacker using their stolen credentials? UEBA flags the anomaly; human review is required.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- INSIDER THREAT INDICATORS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Insider Threat <span class="accent">Indicators</span></div>
+        <div class="slide-subtitle">Behavioral and technical signals that may indicate insider threat activity. No single indicator is conclusive -- patterns matter.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Technical Indicators</div>
+                <div class="card-desc">Large data transfers to external sites or USB devices outside normal business hours. Access to systems or data outside the employee's normal work scope. Downloading or printing large volumes of sensitive documents shortly before resignation. Installing unauthorized software. Accessing the network from unusual locations or during unusual hours. All of these are detectable through technical monitoring.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Behavioral Indicators</div>
+                <div class="card-desc">Expressed dissatisfaction with management, pay, or the organization's direction. Recent disciplinary action, demotion, or passed-over promotion. Unexplained financial changes (new car, expensive travel) that suggest external income. Asking coworkers about systems they do not normally use. Arriving early or staying late without apparent work reason. Excessive interest in classified areas outside their clearance scope.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Detection Controls</div>
+                <div class="card-desc">User and Entity Behavior Analytics (UEBA) establishes a behavioral baseline for each user and alerts on statistically anomalous deviations. DLP tools monitor outbound data flows for sensitive content. Privileged access monitoring captures all administrator and privileged user actions. Endpoint monitoring records file access patterns and USB device connections. Periodic access reviews catch accumulated excess permissions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mitigation Controls</div>
+                <div class="card-desc">Separation of duties limits any one person's ability to cause harm alone. Least privilege limits the data accessible even if a user turns malicious. Termination procedures must immediately revoke all access -- physical and logical -- upon termination notification. Offboarding checklists verify account disabling, device return, and remote access revocation. Failed offboarding is one of the most common post-breach findings.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ORGANIZED CRIMINAL GROUPS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Organized <span class="accent">Criminal Groups</span></div>
+        <div class="slide-subtitle">Financially motivated threat actors operating as structured criminal enterprises. The primary source of ransomware and financial fraud attacks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Business Model</div>
+                <div class="card-desc">Modern cybercriminal groups operate like businesses: leadership, technical staff, recruiters, money mules, and customer service for ransomware victims. Ransomware-as-a-Service (RaaS) platforms allow less skilled affiliates to deploy established ransomware in exchange for a percentage of ransom payments. The developer never directly attacks victims -- affiliates do, using the developer's infrastructure.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Primary Attack Objectives</div>
+                <div class="card-desc">Ransomware deployment for extortion payments (average enterprise ransom demand: $4.5M in 2024). Financial account takeover and fraudulent wire transfers (Business Email Compromise). Credential theft and resale on dark web markets. Credit card data theft and fraud. Corporate espionage on behalf of paying clients. Cryptomining using compromised infrastructure. Every attack type is ultimately financial.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Capability Level</div>
+                <div class="card-desc">Mid-to-high capability. Top groups (LockBit, Cl0p, ALPHV/BlackCat) develop custom tooling, conduct weeks-long reconnaissance, move laterally through enterprise networks with practiced skill, and exfiltrate data before encrypting it (double extortion). They buy initial access from specialized access brokers, focusing their effort on post-compromise activity rather than initial intrusion.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Geographic Safe Harbors</div>
+                <div class="card-desc">Many cybercriminal groups operate from jurisdictions with no extradition treaty with Western nations and where local law enforcement does not prioritize cybercrime prosecution. This creates an enforcement gap. International law enforcement operations (Europol, FBI partnerships) do occasionally arrest and extradite members, but the threat actor ecosystem rapidly reconstitutes after disruption.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SCRIPT KIDDIES AND UNSKILLED ACTORS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Script Kiddies and <span class="accent">Unskilled Actors</span></div>
+        <div class="slide-subtitle">Low-capability, low-sophistication actors who represent the majority of the attack volume -- but not the majority of the risk.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Defines a Script Kiddie</div>
+                <div class="card-desc">Uses publicly available exploit tools and scripts without understanding how they work. Cannot develop original exploits or adapt attacks when defenses block their initial tool. Relies on unpatched known vulnerabilities (CVEs) and default credentials. Motivation is often social validation, curiosity, or minor financial gain from easily monetized attacks. Represents the vast majority of attack volume by count.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why They Still Matter</div>
+                <div class="card-desc">Volume. Automated tools running on thousands of compromised machines probe every internet-connected IP continuously. If your systems have unpatched CVEs or default credentials, a script kiddie's automated tool will find and exploit them without any human judgment. Basic hygiene -- patching, removing defaults, disabling unnecessary services -- stops the majority of threat actors you will encounter.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Effective Defenses</div>
+                <div class="card-desc">Patch known vulnerabilities (eliminates the exploit code the script kiddie uses). Change all default credentials (eliminates credential-stuffing attacks using vendor defaults). Disable unnecessary services and close unused ports (eliminates the attack surface automated tools scan for). MFA (blocks credential stuffing even if passwords are obtained from breached databases). Basic hygiene defeats the majority of attack volume.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The 80/20 Rule in Threat Defense</div>
+            Basic security hygiene -- patching, removing defaults, MFA, least privilege -- blocks approximately 80% of attacks by volume. The remaining 20% (APTs, insider threats, zero-days) require more sophisticated defenses. Organizations that skip hygiene to implement advanced defenses are eliminating the wrong risks first.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- ADVANCED PERSISTENT THREATS (APT) ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Advanced Persistent <span class="accent">Threats (APT)</span></div>
+        <div class="slide-subtitle">A category of threat actor defined by sophistication, access to resources, and the goal of long-term persistent access. Often nation-state affiliated.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The "Advanced" Component</div>
+                <div class="card-desc">Uses zero-day exploits or custom-developed malware that evades signature-based detection. Employs living-off-the-land (LOTL) techniques -- using legitimate system tools (PowerShell, WMI, certutil) to avoid triggering antivirus. Maintains multiple persistence mechanisms so that removing one does not eliminate access. Adapts tactics in real time when defenses are strengthened.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">The "Persistent" Component</div>
+                <div class="card-desc">APTs measure dwell time in months, not hours. The 2020 SolarWinds attack had an average dwell time of approximately 200 days before detection. During this time, the adversary maps the network, identifies valuable assets, establishes multiple backdoors, and positions for the final objective. Persistence is the defining characteristic that separates APTs from smash-and-grab criminal attacks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">APT Attack Lifecycle</div>
+                <div class="card-desc">Reconnaissance (OSINT, social engineering, scanning). Initial compromise (spear phishing, supply chain, zero-day). Establish foothold (install persistent backdoor). Escalate privileges (exploit local vulnerabilities, credential harvesting). Internal reconnaissance (map network, identify valuable targets). Move laterally (pivot to target systems using stolen credentials). Complete mission (exfiltrate data, enable sabotage, pre-position).</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">MITRE ATT&amp;CK Framework</div>
+            MITRE ATT&amp;CK catalogs APT tactics, techniques, and procedures (TTPs) organized by attack phase. Each technique has a unique ID (T1566 = Phishing, T1078 = Valid Accounts). Defenders use ATT&amp;CK to identify which techniques their defenses cover and which have gaps. Threat intelligence teams map observed attacks to ATT&amp;CK techniques to understand adversary behavior patterns.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- APT NAMED GROUPS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">APT Named <span class="accent">Groups</span></div>
+        <div class="slide-subtitle">Major APT groups are named and tracked by threat intelligence vendors. Understanding their origins and targets informs threat prioritization.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">APT28 (Fancy Bear) -- Russia GRU</div>
+                <div class="card-desc">Russian military intelligence. Responsible for the 2016 DNC hack and email dump, attacks on the World Anti-Doping Agency, and operations targeting NATO member defense ministries. Specializes in credential phishing, spear phishing, and exploiting web application vulnerabilities. Primary targets: government, defense, aerospace, energy, and media organizations.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">APT41 -- China MSS</div>
+                <div class="card-desc">Chinese Ministry of State Security-affiliated group known for dual espionage and criminal activity. Targets healthcare, telecommunications, technology, and defense sectors for IP theft. Also conducts financially motivated cybercrime alongside government-directed espionage -- a unique dual mandate. Supply chain attacks have been a documented tactic.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Lazarus Group -- North Korea RGB</div>
+                <div class="card-desc">North Korean Reconnaissance General Bureau. Unique in that financial theft directly funds the North Korean government's weapons programs. Responsible for the $81M Bangladesh Bank heist via SWIFT fraud, the Sony Pictures hack, WannaCry ransomware attribution, and multiple cryptocurrency exchange heists. Blends espionage, sabotage, and financial crime under direct state direction.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">APT33 -- Iran IRGC</div>
+                <div class="card-desc">Iranian Islamic Revolutionary Guard Corps-affiliated group. Targets aerospace and energy sectors. Known for destructive malware (Shamoon destroyed 35,000 Saudi Aramco workstations in 2012). Focuses on Middle Eastern targets but has broader reach. Wiper malware (destroying data rather than encrypting for ransom) is a hallmark of Iranian APT operations -- the objective is disruption, not financial gain.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SUPPLY CHAIN ATTACKS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title"><span class="accent">Supply Chain</span> Attacks</div>
+        <div class="slide-subtitle">Compromising a target by attacking a trusted third-party supplier, partner, or software vendor -- bypassing the target's direct defenses entirely.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why Supply Chain Attacks Work</div>
+                <div class="card-desc">Organizations explicitly trust their software vendors. Software updates are signed by the vendor and automatically deployed. When an attacker compromises the vendor's build pipeline and inserts malicious code, the target deploys it without question because it arrives via a trusted, authenticated channel. The attack bypasses all perimeter and endpoint defenses because the malware arrives as a legitimate update.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SolarWinds Orion (2020)</div>
+                <div class="card-desc">Russian APT29 (Cozy Bear) compromised SolarWinds' build environment and inserted a backdoor (SUNBURST) into the Orion software update. 18,000 organizations deployed the malicious update. Roughly 100 were then actively exploited. The attackers had access to US Treasury, State Department, Homeland Security, and intelligence agencies for months before detection by FireEye (who noticed while investigating their own breach).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">XZ Utils (2024)</div>
+                <div class="card-desc">A two-year social engineering campaign in which a threat actor spent years building trust as an open-source maintainer for the XZ compression library, ultimately inserting a backdoor into version 5.6.0 that would have allowed SSH authentication bypass on Linux systems. Detected before widespread distribution only because a Microsoft engineer noticed anomalous SSH performance. A near-catastrophic supply chain attack.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mitigations</div>
+                <div class="card-desc">Software Bill of Materials (SBOM): maintain a complete inventory of all software components and their versions. Vendor security assessments before procurement. Network segmentation that limits what compromised software can reach even after deployment. Behavioral monitoring to detect anomalous activity by legitimate software. Zero trust architecture assumes that even trusted software may be compromised.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- THREAT INTELLIGENCE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title"><span class="accent">Threat Intelligence</span></div>
+        <div class="slide-subtitle">Evidence-based knowledge about adversaries that enables proactive, targeted defensive action rather than reactive, generic hardening.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Types of Threat Intelligence</div>
+                <div class="card-desc">Strategic: high-level analysis of adversary intentions and capabilities for executive decision-making. Operational: information about specific planned attacks, campaigns, or actor activities. Tactical: technical indicators of compromise (IOCs) -- IP addresses, domains, file hashes, malware signatures. Technical: raw data (vulnerability disclosures, YARA rules, STIX/TAXII feeds). Organizations use all four levels.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Indicators of Compromise (IOCs)</div>
+                <div class="card-desc">Artifacts that suggest a system has been compromised. IP addresses associated with known C2 servers. Domain names used in phishing campaigns. File hashes of known malware samples. Registry keys created by specific malware families. Unusual outbound network traffic patterns. IOCs are shared between organizations through ISAC feeds, MISP platforms, and commercial threat intelligence subscriptions to enable collective defense.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tactics, Techniques, and Procedures (TTPs)</div>
+                <div class="card-desc">TTPs describe how adversaries operate -- not just what tools they use, but how they use them. TTPs are harder to change than IOCs: an attacker can create a new domain in minutes, but changing their fundamental attack methodology takes months. Defenders who detect and block TTPs are more resilient than those who only block IOCs. MITRE ATT&amp;CK is the authoritative TTP catalog.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Intelligence Lifecycle</div>
+            Planning (what do we need to know?). Collection (gather raw data from feeds, OSINT, dark web monitoring). Processing (normalize and structure raw data). Analysis (contextualize data into actionable intelligence). Dissemination (share with relevant stakeholders). Feedback (assess what was useful, adjust collection focus). The cycle repeats continuously -- intelligence is never finished.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- ATTACK SURFACE CONCEPT ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">The <span class="accent">Attack Surface</span></div>
+        <div class="slide-subtitle">The sum of all entry points an attacker could use to gain unauthorized access. Reducing attack surface is the most direct risk reduction available.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Network Attack Surface</div>
+                <div class="card-desc">Every open port on every internet-facing system. Every externally accessible web application. Every VPN endpoint. Every cloud storage bucket. Every API endpoint. Organizations frequently have more external-facing assets than security teams know exist. Attack Surface Management (ASM) tools continuously scan for and inventory external-facing assets, including shadow IT and forgotten services.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Software Attack Surface</div>
+                <div class="card-desc">Every installed application that can receive input from an attacker. Every third-party library dependency. Every browser plugin on user workstations. Every device driver. The software attack surface grows with every installed component. SBOM (Software Bill of Materials) and vulnerability management programs track this surface. Removing unused software directly reduces it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Human Attack Surface</div>
+                <div class="card-desc">Every employee, contractor, and vendor who can be socially engineered. Every email inbox that receives external messages. Every person who posts details about their work on social media that an attacker can use for pretexting. Every human with system access is a potential compromise vector. Security awareness training reduces the human attack surface -- it cannot eliminate it.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            SHIELD-7 attack surface audit: 47 internet-facing services (18 unknown to the security team), 312 vendor accounts with VPN access, 94 employee LinkedIn profiles disclosing internal project names and technologies, and 3 forgotten test APIs with no authentication. The adversary maps all of this before selecting an entry point.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- OPEN SOURCE INTELLIGENCE (OSINT) ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Open Source <span class="accent">Intelligence (OSINT)</span></div>
+        <div class="slide-subtitle">Publicly available information that attackers use to map your organization before any active exploitation begins.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Attackers Gather</div>
+                <div class="card-desc">Employee names and job titles (LinkedIn). Email address formats (Hunter.io, Clearbit). Technology stack disclosures (job postings mentioning specific software, Shodan device banners, BuiltWith web technology profiling). Network ranges (WHOIS, ARIN, ASN lookups). SSL certificate transparency logs (reveal subdomains). GitHub repositories (code that may contain hardcoded credentials or internal documentation).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tools Attackers Use</div>
+                <div class="card-desc">Shodan: search engine for internet-connected devices showing banners, software versions, and configuration data. Maltego: visual link analysis of organizational relationships. theHarvester: automated collection of email addresses, domains, and employee names. LinkedIn for employee enumeration. Google dorks (advanced search operators) for finding exposed configuration files, login portals, and documents. All of this is publicly accessible, requires no hacking.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Operational Security (OPSEC)</div>
+                <div class="card-desc">The discipline of protecting information that could be valuable to adversaries. Limit details in job postings. Train employees on professional social media hygiene. Do not publicly disclose internal technology details. Use privacy services to remove personal information from data broker sites. Monitor your own organization's external footprint with the same tools attackers would use -- know what they can see.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Credential Breach Databases</div>
+                <div class="card-desc">Attackers use services like Have I Been Pwned to check which corporate email addresses appear in public breach dumps. They cross-reference with LinkedIn to confirm employment and then attempt credential stuffing -- using the breached password against your VPN, Office 365, and corporate applications. Users who reuse passwords across personal and corporate accounts create this exposure. MFA and password uniqueness requirements are the defenses.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- THREAT MODELING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title"><span class="accent">Threat Modeling</span></div>
+        <div class="slide-subtitle">A structured process for identifying, categorizing, and prioritizing threats to a specific system or organization.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">STRIDE Model</div>
+                <div class="card-desc">Microsoft's threat categorization: Spoofing (impersonating another identity), Tampering (unauthorized data modification), Repudiation (denying an action was taken), Information Disclosure (unauthorized data exposure), Denial of Service (disrupting availability), Elevation of Privilege (gaining unauthorized access level). Each STRIDE category maps directly to a security property and control type.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PASTA Model</div>
+                <div class="card-desc">Process for Attack Simulation and Threat Analysis. Seven stages: Define Objectives, Define Technical Scope, Application Decomposition, Threat Analysis, Vulnerability and Weakness Analysis, Attack Modeling, Risk and Impact Analysis. PASTA produces a risk-prioritized threat model with business context that STRIDE alone does not provide. Used in enterprise application security programs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Diamond Model of Intrusion Analysis</div>
+                <div class="card-desc">Four vertices: Adversary, Capability, Infrastructure, Victim. Every intrusion event can be expressed as an adversary using a capability over infrastructure against a victim. The model enables analysts to pivot -- given a known capability, identify other victims using the same infrastructure. Used by incident responders and threat intelligence analysts to attribute attacks and predict next targets.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cyber Kill Chain</div>
+                <div class="card-desc">Lockheed Martin's framework: Reconnaissance, Weaponization, Delivery, Exploitation, Installation, Command and Control, Actions on Objectives. Defenders can disrupt the chain at any stage -- earlier is better. Disrupting at Reconnaissance (detecting OSINT activity) is ideal. Disrupting at Command and Control (blocking C2 traffic) is still effective. Disrupting only at Actions on Objectives means the attacker has already won most of the battle.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- THE CYBER KILL CHAIN IN DEPTH ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Cyber Kill Chain <span class="accent">In Depth</span></div>
+        <div class="slide-subtitle">Understanding the attack lifecycle allows defenders to identify intervention points before the adversary reaches their objective.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Reconnaissance:</strong> Attacker gathers information via OSINT, scanning, and social engineering. Defense: monitor your own external footprint, detect port scanning, OPSEC training.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Weaponization:</strong> Attacker creates exploit payload (malicious document, exploit code). Happens off-network -- no visibility for defender. Defense: keep systems patched to reduce exploitable vulnerabilities.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Delivery:</strong> Payload sent to target via email (phishing), USB drop, watering hole, or supply chain. Defense: email filtering, web proxies, user training, USB port control.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Exploitation:</strong> Payload executes and exploits a vulnerability. Defense: patching, application sandboxing, EDR behavior monitoring.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Installation:</strong> Attacker installs persistent backdoor or RAT. Defense: application whitelisting, FIM, EDR detection of suspicious process creation.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Command and Control (C2):</strong> Malware connects to attacker-controlled server for instructions. Defense: DNS filtering, egress filtering, behavioral network monitoring to detect beaconing.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Actions on Objectives:</strong> Attacker achieves goal -- data exfiltration, ransomware deployment, sabotage. Defense at this stage: DLP, endpoint monitoring, backup and recovery.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- NATION-STATE INDICATORS AND ATTRIBUTION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Nation-State <span class="accent">Indicators and Attribution</span></div>
+        <div class="slide-subtitle">Attributing an attack to a specific nation-state requires technical and contextual evidence. Attribution is never certain -- it is probabilistic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Technical Attribution Indicators</div>
+                <div class="card-desc">Malware code reuse across known campaigns. Compilation timestamps suggesting working hours in a specific time zone. Error messages and code comments in a specific language. Infrastructure overlap with previously attributed campaigns. Use of specific techniques cataloged in threat intelligence as characteristic of a known group. TTP matches to existing ATT&amp;CK profiles for named threat actors.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Attribution Is Difficult</div>
+                <div class="card-desc">False flag operations deliberately use tools and techniques associated with other nations (Russia's Olympic Destroyer used North Korean code artifacts). Sophisticated actors use compromised third-country infrastructure to route attacks. Contractor groups operating on behalf of governments maintain plausible deniability. Attribution uncertainty is weaponized by nation-states to avoid diplomatic consequences for their operations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Public vs. Private Attribution</div>
+                <div class="card-desc">Governments attribute attacks publicly when it serves diplomatic or deterrence goals. Private sector firms (Mandiant, CrowdStrike, Microsoft) publish attribution based on their threat research. Public attributions always lag private intelligence by months or years -- the government may have known for 18 months before indicting. Published indictments (DOJ attributions) are the most formally sourced but least timely attribution mechanism.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Attribution Dilemma for Defenders</div>
+                <div class="card-desc">Attribution tells you who attacked you, but your defense posture must be based on the TTPs observed, not the attributed actor. The same network isolation that stops APT28 also stops an unattributed actor using identical techniques. Focus defense resources on TTP coverage, not actor identity. Attribution matters for law enforcement and geopolitics -- for defenders, the TTPs are what drive countermeasures.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- VULNERABILITY VS. THREAT VS. RISK ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Vulnerability, Threat, <span class="accent">and Risk</span></div>
+        <div class="slide-subtitle">Three terms that are frequently confused and frequently tested. Understanding the relationship between them is foundational.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness in a system, process, or control that could be exploited. Unpatched CVE-2024-1234 on a web server. An employee who opens phishing emails. A server room with an unlocked door. A vulnerability exists regardless of whether a threat actor knows about it or chooses to exploit it. Vulnerability management identifies, prioritizes, and remediates vulnerabilities.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Any potential cause of an unwanted incident. A threat is not a vulnerability -- it is an actor or event that could exploit one. Nation-state actors, criminal groups, disgruntled employees, hardware failure, natural disasters, and software defects are all threats. A vulnerability with no applicable threat has no risk. A threat with no exploitable vulnerability also has no risk. Both are required for risk to exist.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Risk</div>
+                <div class="card-desc">The probability that a threat will exploit a vulnerability, combined with the impact if it does. Risk = Threat x Vulnerability x Asset Value (qualitatively). An unpatched server with no internet access and no sensitive data has low risk despite the vulnerability. The same unpatched vulnerability on an internet-facing server handling customer PII has high risk. Context drives risk classification.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The Classic Formula</div>
+            Risk = Threat x Vulnerability x Impact. Reduce any one of the three components and risk decreases. Remove the vulnerability (patch). Remove the asset value (do not store the data). Reduce the threat (intelligence-led blocking). Organizations typically focus on vulnerability reduction because it is the most directly controllable component.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- HACKTIVIST CASE STUDIES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Hacktivist <span class="accent">Case Studies</span></div>
+        <div class="slide-subtitle">Real operations illustrate hacktivist methods and their impact on organizations and geopolitics.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Operation Payback (2010)</div>
+                <div class="card-desc">Anonymous coordinated DDoS attacks against PayPal, Visa, and Mastercard in retaliation for cutting off donations to WikiLeaks. Thousands of volunteers used LOIC (Low Orbit Ion Cannon) to generate traffic. Service disruptions lasted hours. Demonstrated that coordinated voluntary DDoS without sophisticated infrastructure could impact major financial companies. Several participants were subsequently arrested and convicted.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Anonymous vs. HBGary Federal (2011)</div>
+                <div class="card-desc">HBGary Federal CEO threatened to expose Anonymous members to the FBI. Anonymous responded by compromising HBGary's email servers (SQL injection on the website CMS, credential reuse), accessing 60,000 emails, defacing the website, and publishing the emails publicly. Exposed embarrassing plans to discredit journalists and create fake personas. The CEO resigned. Illustrates reputational damage from targeted hacktivist data leaks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Killnet and Ukraine Conflict (2022-Present)</div>
+                <div class="card-desc">Pro-Russian hacktivist group Killnet conducted DDoS campaigns against government and critical infrastructure websites in NATO member states in retaliation for support of Ukraine. Targeted healthcare systems, airports, financial institutions, and government websites. Primarily low-sophistication DDoS, rarely causing sustained disruption. Illustrates how hacktivist activity aligns with and amplifies nation-state conflict without direct state attribution.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Sudan and Telecom Targeting (2023)</div>
+                <div class="card-desc">Anonymous Sudan claimed DDoS attacks against major internet platforms (Cloudflare, Microsoft, Telegram) while presenting as ideological hacktivists. Later assessed by researchers as likely a criminal/nation-state-proxied operation using hacktivist branding as cover. This illustrates a critical challenge: hacktivist branding may disguise state-affiliated operations, complicating attribution and appropriate response.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- INSIDER THREAT CASE STUDIES ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Insider Threat <span class="accent">Case Studies</span></div>
+        <div class="slide-subtitle">Historical cases demonstrate the range of insider threat impact and the controls that failed or succeeded.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Edward Snowden (2013)</div>
+                <div class="card-desc">NSA contractor with privileged system administrator access exfiltrated an estimated 1.5 million classified documents. Used legitimate credentials to access systems outside his authorized scope. Exploited inadequate least privilege controls and absence of anomaly detection for privileged users. A subsequent NSA review identified 12 specific technical and administrative controls whose absence enabled the breach.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Tesla Insider (2023)</div>
+                <div class="card-desc">Two former Tesla employees provided personal data of 75,757 current and former employees to German newspaper Handelsblatt. The data included names, addresses, SSNs, and employment details. Investigation revealed no technical controls were in place to prevent employees with legitimate access to HR systems from exfiltrating data to personal devices or external services. Led to GDPR violation investigations across multiple European jurisdictions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SolarWinds Insider Element</div>
+                <div class="card-desc">Post-breach analysis identified that SolarWinds employees had published credentials to public GitHub repositories -- a form of negligent insider behavior. While not the primary attack vector, these credential disclosures increased the organization's attack surface. Negligent insider behavior contributing to major breaches is consistently underreported because it is less sensational than external attacker stories, but equally damaging in practice.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Succeeded in Detection</div>
+                <div class="card-desc">The Capital One 2019 breach (former AWS employee who exploited a misconfigured WAF) was detected because the attacker posted about it on social media -- an accidental external detection, not internal controls. Most insider breach detections occur months or years after the fact during unrelated investigations. UEBA and DLP tools that exist but are not reviewed regularly provide false assurance without genuine detection capability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CRIMINAL GROUP CASE STUDIES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Criminal Group <span class="accent">Case Studies</span></div>
+        <div class="slide-subtitle">Major criminal operations illustrate how organized cybercrime groups operate at scale.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">LockBit Ransomware Group</div>
+                <div class="card-desc">Most prolific ransomware group 2022-2024. Operated a RaaS platform with hundreds of affiliates. Attacked healthcare systems, law firms, government agencies, and critical infrastructure across 120 countries. Average ransom demand: $2-4M for enterprise targets. Double extortion: encrypt data AND threaten to publish exfiltrated data. Disrupted by Operation Cronos (Europol/FBI) in February 2024; leadership subsequently reactivated operations, demonstrating the resilience of decentralized criminal ecosystems.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Cl0p Supply Chain Campaign (2023)</div>
+                <div class="card-desc">Exploited a zero-day in MOVEit Transfer (CVE-2023-34362) to compromise hundreds of organizations that used the file transfer software. Stolen data included data from US government agencies, airlines, banks, and healthcare providers. Exfiltrated data from 2,500+ organizations in weeks. No ransomware deployed -- pure data theft and extortion. Illustrates how a single zero-day in widely used enterprise software becomes a mass exploitation event.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">FIN7 (Carbanak Group)</div>
+                <div class="card-desc">Sophisticated criminal organization targeting financial institutions and point-of-sale systems. Responsible for $1B+ in losses from banking systems globally. Developed custom malware (CARBANAK), used long-term intrusions with months of dwell time (resembling APT, but purely criminal). Multiple senior members arrested across multiple countries including Ukraine and the US. Demonstrates the technical sophistication achievable by purely financially motivated criminal groups.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scattered Spider (2023)</div>
+                <div class="card-desc">Young English-speaking group (primarily US and UK) that used social engineering to compromise MGM Resorts and Caesars Entertainment. Called IT help desks impersonating employees, bypassed MFA through SIM swapping, and deployed ALPHV ransomware. MGM suffered estimated $100M in losses. Demonstrated that technical sophistication is not required when human factors are exploitable -- social engineering defeated enterprise security at two major corporations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- ATTACK VECTOR TAXONOMY ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Attack <span class="accent">Vector Taxonomy</span></div>
+        <div class="slide-subtitle">The path an attacker uses to gain initial access. SY0-701 tests specific attack vector categories and their mitigations.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Direct Access</div>
+                <div class="card-desc">Physical access to the target system or network. USB drop attacks (leaving infected drives in parking lots). Connecting to an open network port in an unlocked office. Shoulder surfing. Tailgating into a secured facility. Direct access bypasses all network controls -- an attacker with physical access can bypass BitLocker on unpatched systems, install hardware keyloggers, or connect directly to internal network infrastructure.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Wireless</div>
+                <div class="card-desc">Attacking systems via wireless networks. Evil twin attacks (rogue access point with same SSID as legitimate corporate Wi-Fi). WPA2 PMKID offline cracking. Deauthentication attacks to capture handshakes. Attacking poorly secured IoT devices on the same network segment as corporate systems. Organizations must segment IoT, guest, and corporate wireless networks to limit pivot opportunities from wireless compromise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Email</div>
+                <div class="card-desc">The dominant initial access vector. Phishing (mass email), spear phishing (targeted), whaling (targeting executives). Malicious attachments (malicious macros in Office documents, weaponized PDFs). Malicious links to credential-harvesting sites or malware downloads. Business Email Compromise uses compromised or spoofed executive accounts to authorize fraudulent wire transfers. Email filtering, DMARC/DKIM/SPF, and user training are the primary mitigations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Remote Services</div>
+                <div class="card-desc">Exploiting internet-facing remote access services. RDP (Remote Desktop Protocol) brute force or exploitation of CVEs (BlueKeep, DejaBlue). VPN vulnerabilities. Externally accessible database ports. SSH with password authentication. Misconfigured cloud storage. Every internet-facing service is a potential initial access vector. Attack Surface Management continuously inventories these services and maps them to known vulnerabilities.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- THREAT ACTOR MOTIVATIONS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Threat Actor <span class="accent">Motivations</span></div>
+        <div class="slide-subtitle">Motivation determines what the attacker wants. Understanding the objective shapes both defensive prioritization and incident response.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Financial Gain</div>
+                <div class="card-desc">The most common motivation. Ransomware, bank fraud, credit card theft, and corporate extortion are all financially motivated. Criminal groups optimize for ROI -- they target organizations likely to pay, with data valuable enough to monetize. Financial motivation means they are deterred by high attack cost and low expected return. Security investment that increases attacker cost directly reduces target appeal.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Espionage</div>
+                <div class="card-desc">Stealing information for competitive, military, or intelligence advantage. Nation-states target defense contractors, research institutions, and government agencies. Corporate espionage (competitor intelligence gathering) uses similar methods. The attacker wants to access data silently -- they do not want their presence detected. This drives long dwell times, anti-forensic techniques, and careful avoidance of noisy actions.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Disruption or Destruction</div>
+                <div class="card-desc">Causing operational harm rather than stealing data. Nation-state sabotage operations (Stuxnet, NotPetya). Hacktivist DDoS campaigns. Criminal wiper malware used as leverage. Insider sabotage by terminated employees. Disruption-motivated attacks often move faster than espionage operations -- they do not need sustained access, making their behavioral profiles different and potentially more detectable.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Ideology and Recognition</div>
+                <div class="card-desc">Hacktivists attack to make a statement. Script kiddies attack for social validation and "street credibility" in online communities. Some researchers and security hobbyists probe systems to prove capability or demonstrate vulnerabilities. These motivations make the attacker's behavior less predictable -- ideology-driven actors may attack even when the cost-benefit analysis makes no financial sense.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- INSIDER THREAT PROGRAM ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Insider Threat <span class="accent">Program Design</span></div>
+        <div class="slide-subtitle">A formal insider threat program integrates HR, legal, IT, and security teams to detect and respond to insider risk.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Program Foundation</div>
+                <div class="card-desc">Executive sponsorship and legal authority. Cross-functional team: security operations, HR, legal, IT, and management. Clear policy on employee monitoring (jurisdiction-specific legal requirements). Defined escalation and response procedures. Documented data retention for investigation. Most insider threat programs fail not because of technical limitations but because of organizational resistance -- HR and legal must be invested stakeholders, not obstacles.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Detection Capabilities</div>
+                <div class="card-desc">UEBA for behavioral baseline monitoring. DLP to detect data exfiltration. Privileged access monitoring for administrator activity. Email monitoring for policy violations. Physical access log review. The technical stack must be paired with analysts who review alerts -- automated detection without human review produces alert fatigue and unreviewed findings. Triage criteria must be defined and followed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">High-Risk Windows</div>
+                <div class="card-desc">Pre-resignation: employees who have decided to leave but have not yet given notice exhibit unique behavioral patterns. Increased data access, increased printing, sending files to personal email. Post-disciplinary action: employees who received negative performance reviews or disciplinary actions show elevated insider threat risk for 30-90 days. Monitoring must be heightened during these windows without creating hostile work environments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Termination Procedures</div>
+                <div class="card-desc">Termination is a high-risk moment requiring immediate access revocation. Procedure: HR notifies security operations before the employee is informed of termination. All logical access (AD accounts, VPN, cloud services, email) disabled simultaneously. Physical access (badges, keycards) revoked. Company devices collected immediately. Remote wipe for BYOD devices with corporate data. Failure to complete any step leaves an active threat with a grievance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- NATION-STATE DEFENSE STRATEGY ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Nation-State <span class="accent">Defense Strategy</span></div>
+        <div class="slide-subtitle">Defending against nation-state actors requires a different model than defending against criminal actors. Persistence and stealth demand behavioral defenses.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Assume Breach</div>
+                <div class="card-desc">Nation-states have resources to defeat any single preventive control. Zero trust architecture assumes that the perimeter has already been compromised and verifies every access request regardless of source. This mindset drives micro-segmentation, just-in-time access, and continuous authentication -- replacing the implicit trust that perimeter-based models grant to anything that gets inside the firewall.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hunt for Dwell</div>
+                <div class="card-desc">Nation-state actors' long dwell time is also their vulnerability -- they must maintain access for months, leaving artifacts over time. Threat hunting proactively searches for indicators of compromise that automated detection missed. Hunt teams look for living-off-the-land binaries, unusual scheduled tasks, anomalous authentication patterns, and lateral movement indicators. Hunting requires time, skill, and access to comprehensive telemetry.</span></div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ISACs and Government Partnership</div>
+                <div class="card-desc">Information Sharing and Analysis Centers (ISACs) provide sector-specific threat intelligence sharing. FS-ISAC (financial), H-ISAC (healthcare), E-ISAC (energy). CISA (Cybersecurity and Infrastructure Security Agency) shares classified threat indicators with critical infrastructure operators. The FBI Cyber Division and NSA/CISA joint advisories provide attribution and TTP disclosures. Organizations facing nation-state threats must leverage government partnerships -- private intelligence alone is insufficient.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Network Segmentation and Need to Know</div>
+                <div class="card-desc">If an APT gains initial access to a marketing workstation, they should not be able to reach the intellectual property repositories, production OT networks, or sensitive research systems. Segmentation limits lateral movement -- each boundary the attacker must cross creates an additional detection and containment opportunity. Data classification and access controls ensure that even a fully compromised account cannot reach everything.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- SUPPLY CHAIN DEFENSE ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Supply Chain <span class="accent">Defense</span></div>
+        <div class="slide-subtitle">Traditional security controls cannot stop a supply chain attack -- the threat arrives through a trusted, authenticated channel. Defense requires a different model.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Vendor Risk Management</div>
+                <div class="card-desc">Security questionnaires and third-party assessments evaluate vendor security posture before procurement. Contract requirements mandate security standards, breach notification timelines, and audit rights. Tiered vendor classification (Tier 1: access to production systems; Tier 2: access to internal networks; Tier 3: no system access) enables proportional scrutiny. But questionnaires do not prevent sophisticated attacks -- they establish baseline accountability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Software Integrity Verification</div>
+                <div class="card-desc">Cryptographic signatures on software packages verify that a package has not been modified since signing. Hash verification of downloaded executables against vendor-published values. SLSA (Supply-chain Levels for Software Artifacts) framework provides a maturity model for build integrity. Reproducible builds allow independent verification that published source code produces the distributed binary. These controls make tampering detectable rather than invisible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SBOM and Dependency Management</div>
+                <div class="card-desc">Software Bill of Materials documents every component in a software product. When a supply chain vulnerability is discovered (Log4Shell, XZ Utils), an SBOM allows instant identification of all affected systems. Without an SBOM, organizations must manually search for the vulnerable component across all applications -- a process taking weeks or months during which exploitation risk is unaddressed. Executive Order 14028 mandated SBOMs for federal software purchases.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Zero Trust for Software Updates</div>
+                <div class="card-desc">Even signed software updates from trusted vendors should be deployed to isolated staging environments before production. Monitor update behavior in staging: does this update make network connections it should not? Does it access registry keys unrelated to its function? Does it install additional components? Behavioral analysis of updates before production deployment is the last-line defense against supply chain-delivered malware that successfully passes signature verification.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- THREAT HUNTING ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title"><span class="accent">Threat Hunting</span></div>
+        <div class="slide-subtitle">Proactive search for threats that have evaded automated detection. The adversary is assumed to be present; hunting finds evidence of their activity.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Hypothesis-Driven Hunting</div>
+                <div class="card-desc">The hunter starts with a specific hypothesis based on threat intelligence: "Nation-state group X uses living-off-the-land techniques via PowerShell. I will search for PowerShell processes spawned by Office applications, which is a known delivery technique." The hypothesis narrows the search to high-signal areas rather than exploring all telemetry randomly. Hypothesis quality determines hunt efficiency.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IOC-Based Hunting</div>
+                <div class="card-desc">Search historical telemetry for known indicators of compromise from threat intelligence feeds. "Have any systems on our network communicated with these C2 IP addresses in the past 90 days?" IOC hunting retrospectively identifies past compromises that automated tools did not alert on at the time. The limitation: IOCs become stale -- attackers change infrastructure faster than IOC feeds update.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Behavioral Hunting</div>
+                <div class="card-desc">Search for anomalous patterns consistent with adversary behavior, independent of specific IOCs. Lateral movement signatures: a service account authenticating from workstations it has never touched. Unusual scheduled task creation. PowerShell commands encoded in base64. Large outbound data transfers at unusual hours. Behavioral hunting detects novel techniques that have no existing IOC because they have never been publicly documented.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Hunting Output</div>
+            Every hunt produces one of three outcomes: (1) No evidence of compromise -- increase confidence in current detections. (2) Evidence of compromise -- escalate to incident response. (3) Gaps in detection coverage identified -- add new detection rules to the SIEM. All three outcomes improve the security program. A hunt that finds nothing has still validated defenses or improved them.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- DARKWEB AND CRIMINAL INFRASTRUCTURE ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Darkweb and <span class="accent">Criminal Infrastructure</span></div>
+        <div class="slide-subtitle">The underground economy that supports cybercriminal operations. Understanding the ecosystem informs threat intelligence and risk assessment.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Initial Access Brokers (IABs)</div>
+                <div class="card-desc">Specialists who gain initial access to organizations and sell that access to other criminal groups. An IAB might sell "persistent RDP access to a US healthcare company" on a darkweb marketplace for $5,000-$50,000 depending on industry and system access level. Ransomware groups buy this access and deploy payloads without having to conduct the initial compromise themselves. Specialization in the cybercrime ecosystem mirrors legitimate business outsourcing.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Credential Marketplaces</div>
+                <div class="card-desc">Stolen credentials from data breaches are aggregated and sold on darkweb marketplaces (Genesis Market before its seizure). Buyers can purchase full browser sessions including cookies, allowing account takeover without needing the password. "Logs" from infostealer malware (RedLine, Raccoon) contain saved passwords, session cookies, and autofill data. Monitoring for your organization's credentials in these markets is a core threat intelligence function.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ransomware-as-a-Service (RaaS)</div>
+                <div class="card-desc">A commercial model where ransomware developers provide tooling, infrastructure (negotiation portals, C2 servers, leak sites), and support to affiliates in exchange for 20-30% of ransom payments. Affiliates handle the actual intrusion and deployment. This model separates development from operations, making it harder to disrupt -- taking down one affiliate does not affect the RaaS platform, and taking down the platform does not eliminate skilled affiliates who use other tools.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cybercrime Forums</div>
+                <div class="card-desc">XSS, Exploit.in, BreachForums, and similar forums are where criminal groups recruit, share tools, post stolen data, and advertise services. Law enforcement infiltrates these forums -- forum moderators have been arrested and forums have been seized. Open source intelligence monitoring of these forums provides early warning of new attack techniques, newly discovered zero-days for sale, and data breach announcements that may affect your organization.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- ATTRIBUTE-BASED THREAT CLASSIFICATION ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Classifying Threats by <span class="accent">Attributes</span></div>
+        <div class="slide-subtitle">SY0-701 expects you to classify threat actors across multiple dimensions. Each dimension drives a different defensive priority.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Internal vs. External:</strong> Internal threats originate from people with existing authorized access. External threats start outside the perimeter. Controls for each category are fundamentally different.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Intentional vs. Unintentional:</strong> Malicious insiders act deliberately. Negligent insiders cause harm through carelessness. Both require detection but different corrective responses.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Sponsored vs. Independent:</strong> Nation-state actors have government backing and resources. Independent actors (criminal groups, hacktivists) operate without state resources but may still be highly capable.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Structured vs. Unstructured:</strong> Organized groups with defined roles and leadership (APT groups, RaaS operators) versus opportunistic individuals using commodity tools (script kiddies).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Persistent vs. Hit-and-Run:</strong> APTs maintain long-term access for months. Criminal ransomware operators compromise, deploy, and exit within days. The dwell time difference drives the detection timeline and investigation scope.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Targeted vs. Opportunistic:</strong> Targeted attackers select you specifically based on intelligence value or vulnerability. Opportunistic attackers exploit whoever automated tools find vulnerable first. Targeted attacks require reputation management alongside technical hardening.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- THREAT ACTOR COMPARISON TABLE ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Threat Actor <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">A reference summary of the key differentiators between threat actor categories for exam review.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Nation-State:</strong> Motivation = espionage/sabotage. Capability = very high (zero-days, custom tools). Dwell time = months to years. Target selection = strategic, intelligence-driven.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Criminal Groups:</strong> Motivation = financial. Capability = mid-high. Dwell time = days to weeks. Target selection = organizations likely to pay or with monetizable data.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Hacktivists:</strong> Motivation = ideology/political. Capability = low-mid. Dwell time = short (DDoS, defacement). Target selection = organizations opposing their cause.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Insider (Malicious):</strong> Motivation = financial/revenge/espionage. Capability = varies widely (leverages legitimate access). Dwell time = ongoing until detected or departed.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Insider (Negligent):</strong> Motivation = none (error). Capability = N/A. Frequency = very high. Primary control = training, DLP, and process hardening.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Script Kiddies:</strong> Motivation = curiosity/recognition. Capability = low. Dwell time = minimal. Target selection = opportunistic (automated scanning finds them).</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>APT:</strong> Capability = very high. Defining feature = long-term persistent access with low noise profile. Detection requires behavioral analytics, not just signature matching.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- VULNERABILITY DISCLOSURE AND ZERO-DAYS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Vulnerability Disclosure <span class="accent">and Zero-Days</span></div>
+        <div class="slide-subtitle">The economics of vulnerability discovery and disclosure directly affect how organizations must respond to emerging threats.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Responsible Disclosure</div>
+                <div class="card-desc">A security researcher who discovers a vulnerability reports it privately to the vendor, gives the vendor time to develop a patch (typically 90 days), and then publishes the vulnerability details. Google Project Zero standardized the 90-day timeline. This process balances the public's right to know about risks with the vendor's need for time to fix the issue before attackers exploit it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Zero-Day Markets</div>
+                <div class="card-desc">An unpatched vulnerability with no public knowledge is called a zero-day. Zero-days are sold in legal markets (Zerodium buys iOS full-chain remote jailbreaks for up to $2.5M) and illegal markets. Nation-states and criminal groups purchase zero-days. A zero-day for a widely used enterprise product can enable mass compromise. Organizations cannot patch a zero-day -- they must rely on behavioral defenses until a patch is available.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">N-Day Exploits</div>
+                <div class="card-desc">After a vulnerability is publicly disclosed (day N), exploit code typically appears within days to weeks. Organizations that do not patch immediately face N-day exploitation -- the vulnerability is no longer zero-day, but it is still exploitable. The window between CVE publication and patch deployment is the period of maximum risk. Patch velocity (speed of deployment) is a measurable security metric.</span></div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Bug Bounty Programs</div>
+                <div class="card-desc">Organizations pay security researchers to discover and responsibly disclose vulnerabilities before attackers find them. Payments range from a few hundred dollars (small programs) to $1M+ for critical vulnerabilities in major platforms. Bug bounty programs redirect researchers from selling to black markets toward responsible disclosure. HackerOne and Bugcrowd host managed programs. VDP (Vulnerability Disclosure Policy) without payment is a minimum baseline.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Identify the threat actor category, motivation, and appropriate defense for each scenario.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">An organization's website is defaced with political messages two days after it announces a partnership with a controversial government. <strong>(Hacktivist -- ideological motivation. Defense: WAF, web integrity monitoring, DDoS mitigation.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">A SIEM alert shows a finance employee downloaded 80GB of files from the network share on the Friday before their Monday resignation effective date. <strong>(Malicious insider -- financial/data theft motivation. Defense: DLP, UEBA, immediate access review, termination procedure.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">A defense contractor's network contains a backdoor that communicates via encrypted HTTP to a .ru domain. Malware analysis shows custom-developed code with no public signature matches. Dwell time estimated at 8 months. <strong>(Nation-state APT -- espionage motivation. Defense: threat hunting, network segmentation, zero trust, government ISAC partnership.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">An IT administrator accidentally emails a spreadsheet containing 5,000 employee SSNs to the wrong distribution list. <strong>(Negligent insider -- no malicious intent. Defense: DLP, email classification enforcement, data handling training.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">All files on 60 servers are encrypted simultaneously. A ransom note demands $3M in Bitcoin within 72 hours. Data was exfiltrated prior to encryption according to a public leak site post. <strong>(Criminal group / RaaS affiliate -- financial motivation, double extortion. Defense: offline backups, segmentation, MFA, email filtering.)</strong></span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- THREAT ACTOR AND SHIELD-7 ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SHIELD-7 <span class="accent">Threat Assessment</span></div>
+        <div class="slide-subtitle">Applying threat actor profiling to the facility's security posture. Every actor category requires a tailored defensive response.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Nation-State Risk</div>
+                <div class="card-desc">SHIELD-7's research data on novel biological specimens has direct military and intelligence value to foreign states. Nation-state actors will have long dwell times and use advanced evasion. Mitigations: network segmentation isolating research data, government facility security clearance requirements, CI (Counterintelligence) program integration, behavioral monitoring of all researcher workstations, and regular threat hunting by cleared personnel.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Insider Threat Risk</div>
+                <div class="card-desc">Research staff with deep institutional knowledge and legitimate access to classified specimen data represent the highest probability threat. A disgruntled researcher or a researcher who is being coerced or recruited by a foreign intelligence service is the facility's most dangerous threat actor. Mitigations: two-person integrity for specimen archive access, mandatory UEBA monitoring of all Tier 3+ personnel, and periodic CI screening.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Criminal and Hacktivist Risk</div>
+                <div class="card-desc">Animal rights and environmental activist groups with ideological opposition to biological research represent a hacktivist threat vector targeting public-facing infrastructure and internal documentation. Criminal groups may target employee personal data or financial systems rather than research data -- their target is monetizable, not classified. Mitigations: DDoS protection, web application hardening, standard data breach controls for HR and financial systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before moving to the next module. Written analysis required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">A healthcare company that stores patient genetic sequencing data wants to conduct a threat actor prioritization exercise. Rank the five threat actor categories by likelihood and by impact. Justify each ranking in one sentence.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Using the Cyber Kill Chain, identify at what stage each of these controls intervenes: email filtering, EDR behavioral detection, DNS sinkholing for C2 domains, offline backups, SIEM anomaly alerting, MFA. Explain why multiple kill chain positions are more valuable than a single strong control.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">An organization's CISO argues they do not need to worry about nation-state actors because "we are too small to be targeted." Write a three-paragraph rebuttal addressing supply chain attack vectors, opportunistic compromise for infrastructure use, and the CISO's implicit assumption about threat actor targeting criteria.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Design an insider threat detection program for a 500-person technology company. Define the monitoring capabilities, the escalation procedure when an indicator is detected, the legal constraints that must be addressed before monitoring is deployed, and how the program avoids creating a hostile work environment.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">The MITRE ATT&amp;CK framework is described as a TTP knowledge base. Explain the difference between TTPs and IOCs, why defenders who only block IOCs are at a structural disadvantage against sophisticated actors, and give three examples of TTPs that would be difficult for a criminal group to change even if their IOCs were detected and blocked.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Threat actor profiling determines defense prioritization. Motivation, capability, and persistence shape both the attack and the appropriate response.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            Not all attackers are equal, and defending against all of them equally is resource inefficiency. Profile your most likely threat actors based on your industry and assets. Calibrate your controls to their capability level. Maintain basic hygiene to defeat low-capability actors. Layer behavioral defenses to detect high-capability actors who defeat your perimeter.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Nation-state actors: unlimited resources, zero-days, long dwell time, espionage or sabotage objectives. Detection requires behavioral analytics -- signatures miss them.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">APTs are defined by persistence (months-long dwell) and advanced capabilities. The SolarWinds dwell was approximately 200 days before detection.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Supply chain attacks bypass target defenses by compromising a trusted supplier. SBOMs and behavioral monitoring of updates are key mitigations.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Insider threats are the hardest to detect because the actor already has legitimate access. UEBA and DLP are the primary technical detective controls.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Ransomware-as-a-Service separates developers from affiliates. Taking down one group does not eliminate the ecosystem -- specialization makes it resilient to disruption.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">The Cyber Kill Chain has seven stages. Disrupting at any stage limits attacker success. Earlier disruption is always preferred.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">TTPs are harder to change than IOCs. Defenders who detect TTPs are more resilient against novel tools and infrastructure than those who only block IOCs.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Risk = Threat x Vulnerability x Impact. Reducing any component reduces risk. Removing the vulnerability (patching) is the most reliable approach.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Basic hygiene (patching, removing defaults, MFA) defeats script kiddies and the majority of attack volume. Advanced defenses are layered on top, not in place of, the basics.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w1-threats', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

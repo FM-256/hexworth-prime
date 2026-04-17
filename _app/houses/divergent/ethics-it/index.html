@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethics in Information Technology // CIS4253</title>
+
+    <style>
+        /* ── CSS Custom Properties: Divergent / Warehouse palette ── */
+        :root {
+            --div-primary:       #ff00ff;
+            --div-secondary:     #cc00cc;
+            --div-accent:        #ff44ff;
+            --div-cyan:          #00ffff;
+            --div-cyan-dim:      rgba(0, 255, 255, 0.6);
+            --div-glow:          rgba(255, 0, 255, 0.25);
+            --div-bg:            rgba(255, 0, 255, 0.04);
+            --div-border:        rgba(255, 0, 255, 0.20);
+            --div-dark:          #3d003d;
+            --div-darker:        #1a001a;
+            /* Amber/gold for activity cards */
+            --amber:             #fbbf24;
+            --amber-dim:         rgba(251, 191, 36, 0.7);
+            --amber-bg:          rgba(251, 191, 36, 0.06);
+            --amber-border:      rgba(251, 191, 36, 0.30);
+            --amber-hover-bg:    rgba(251, 191, 36, 0.11);
+            /* Neutral backgrounds: near-black with magenta tint */
+            --bg-main:           #0d0810;
+            --bg-deep:           #0a060d;
+            --bg-card:           #120b14;
+            --bg-card-hover:     #1a0f1e;
+            --text-primary:      #ede0f0;
+            --text-secondary:    #9a82a0;
+            --text-muted:        #5a4460;
+            --border-color:      rgba(255, 0, 255, 0.10);
+            --border-hover:      rgba(255, 0, 255, 0.32);
+            --success:           #00ff9d;
+            --shadow-md:         0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:         0 10px 20px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:       0 0 32px rgba(255, 0, 255, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Divergent house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--div-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--div-accent);
+            border-color: var(--border-hover);
+            background: rgba(255, 0, 255, 0.09);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            filter: hue-rotate(270deg) saturate(2);
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--div-darker) 0%, #200020 50%, var(--div-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--div-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /*
+         * Hazard stripe background: diagonal repeating stripes with a magenta tint.
+         * Gives the warehouse "caution tape" feel without CSS images.
+         */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 18px,
+                rgba(255, 0, 255, 0.025) 18px,
+                rgba(255, 0, 255, 0.025) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Subtle horizontal scan-line overlay */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(255, 0, 255, 0.018) 3px,
+                rgba(255, 0, 255, 0.018) 4px
+            );
+            pointer-events: none;
+        }
+
+        /* Course number pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(255, 0, 255, 0.14);
+            border: 1px solid rgba(255, 0, 255, 0.38);
+            color: var(--div-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--div-cyan);
+            opacity: 0.82;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 26px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(255, 0, 255, 0.07);
+            border: 1px solid rgba(255, 0, 255, 0.20);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--div-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--div-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(255, 0, 255, 0.07);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--div-dark), var(--div-secondary), var(--div-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(255, 0, 255, 0.38);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Week Cards (collapsible accordion) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Week 0 is the orientation refresher: slightly dimmed to signal non-graded status */
+        .week-card.week-zero {
+            border-color: rgba(255, 0, 255, 0.07);
+            opacity: 0.85;
+        }
+
+        .week-card.week-zero:hover {
+            opacity: 1;
+            border-color: rgba(255, 0, 255, 0.22);
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(255, 0, 255, 0.03);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Week number badge */
+        .week-num {
+            background: linear-gradient(135deg, var(--div-dark), var(--div-secondary));
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-num.week-zero-num {
+            background: linear-gradient(135deg, #2a102a, #3d1a3d);
+            color: var(--text-secondary);
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--div-accent);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--div-secondary);
+            background: rgba(255, 0, 255, 0.08);
+            border: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(255, 0, 255, 0.03);
+            border: 1px solid rgba(255, 0, 255, 0.09);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when week is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 4200px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(255, 0, 255, 0.06);
+        }
+
+        /* ── Per-week progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(255, 0, 255, 0.05);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--div-dark), var(--div-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Week Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.04), rgba(255, 0, 255, 0.01));
+            border: 1px solid rgba(255, 0, 255, 0.14);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--div-primary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── Subsection labels inside a week ── */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(90, 68, 96, 0.20);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Magenta bar for module sections, amber bar for activity sections */
+        .subsection-label.label-module::before        { background: var(--div-secondary); }
+        .subsection-label.label-activity::before      { background: var(--amber); }
+        .subsection-label.label-presentation::before  { background: #60a5fa; }
+        .subsection-label.label-assessment::before    { background: #fbbf24; }
+        .subsection-label.label-exam::before          { background: #f97316; }
+
+        /* ── Content type badges (Slides / Quiz / Midterm / Final) ── */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        .badge-exam {
+            background: rgba(249, 115, 22, 0.12);
+            color: #fb923c;
+            border: 1px solid rgba(249, 115, 22, 0.30);
+        }
+
+        /* Exam card: orange border accent to stand out */
+        .exam-card {
+            border-color: rgba(249, 115, 22, 0.35) !important;
+            background: rgba(249, 115, 22, 0.04) !important;
+        }
+
+        .exam-card:hover {
+            border-color: rgba(249, 115, 22, 0.60) !important;
+            background: rgba(249, 115, 22, 0.09) !important;
+        }
+
+        /* ── Content link cards (modules) ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(255, 0, 255, 0.02);
+            border: 1px solid rgba(255, 0, 255, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(255, 0, 255, 0.06);
+            border-color: rgba(255, 0, 255, 0.20);
+            transform: translateX(3px);
+        }
+
+        /* Module card completed state */
+        .content-card.is-complete {
+            border-color: rgba(255, 0, 255, 0.28);
+            background: rgba(255, 0, 255, 0.04);
+        }
+
+        /* Module ID badge: left side */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--div-secondary);
+            background: rgba(255, 0, 255, 0.08);
+            border: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Module icon */
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.72;
+            filter: hue-rotate(270deg) saturate(2.5) brightness(1.2);
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Green checkmark: hidden until is-complete class is applied */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(90deg) saturate(3);
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Activity cards: amber/gold accent, no pulse (placeholder) ── */
+        .activity-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--amber-bg);
+            border: 1px solid var(--amber-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .activity-card:hover {
+            background: var(--amber-hover-bg);
+            border-color: rgba(251, 191, 36, 0.52);
+            transform: translateX(3px);
+        }
+
+        .activity-card.is-complete {
+            border-color: rgba(0, 255, 157, 0.28);
+            background: rgba(0, 255, 157, 0.04);
+        }
+
+        /* Activity ID badge: amber text */
+        .activity-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--amber);
+            background: rgba(251, 191, 36, 0.10);
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .activity-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.78;
+            /* Rotate to amber/gold range */
+            filter: hue-rotate(30deg) saturate(2) brightness(1.1);
+        }
+
+        /* Right-side badge group: ACTIVITY type + Coming Soon */
+        .activity-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        /* "ACTIVITY" badge */
+        .activity-type-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--amber);
+            background: rgba(251, 191, 36, 0.10);
+            border: 1px solid rgba(251, 191, 36, 0.24);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+
+        /* "Coming Soon" secondary indicator */
+        .coming-soon-badge {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        /* Checkmark for completed activity cards */
+        .activity-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(90deg) saturate(3);
+        }
+
+        .activity-card.is-complete .activity-check {
+            opacity: 1;
+        }
+
+        /* ── Course objectives block (bottom) ── */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 26px;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--div-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Magenta dot bullet */
+        .objectives-list li::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--div-primary);
+            flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(255, 0, 255, 0.55);
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Locked week state ── */
+        .week-card.locked {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .week-card.locked .week-header {
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .lock-msg {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 6px 22px;
+            font-style: italic;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .activity-meta { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Ethics in Information Technology, CIS4253 Course Hub, Divergent House</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar: course label + single exit point ── -->
+        <div class="top-bar">
+            <span class="course-label">CIS4253 // The Warehouse</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Divergent Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CIS4253</span>
+            <h2>Ethics in Information Technology</h2>
+            <p class="subtitle">The houses teach you how. The Warehouse teaches you why.</p>
+
+            <!-- Course stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">5</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">18</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">10</div>
+                    <div class="label">Activities</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">Governance</div>
+                    <div class="label">Domain</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <!-- JS fills this from ModuleProgress after DOM is ready -->
+        <div class="progress-section">
+            <h3>Warehouse Status: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Learning Path ── -->
+        <div class="section-heading">Decision Path</div>
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 0: Warehouse Orientation (Refresher)
+        ════════════════════════════════════════════ -->
+        <div class="week-card week-zero" id="wk0">
+            <div class="week-header" onclick="toggleWeek('wk0')">
+                <div class="week-header-left">
+                    <div class="week-num week-zero-num">0</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Warehouse Orientation</div>
+                        <div class="week-sub">ORIENTATION // REFRESHER</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Refresher</span>
+                            <span class="item-count-tag">3 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 0 Progress</span>
+                            <span id="wk0-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk0-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">ORIENTATION // REFRESHER</div>
+                        <div class="week-overview-desc">
+                            Welcome to The Warehouse. There are no rules on the wall. You'll have to figure out why that matters.
+                        </div>
+                    </div>
+
+                    <!-- Refresher modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Refresher Modules</div>
+                        <div class="content-grid">
+
+                            <a href="eth-r1.html" class="content-card" data-module="eth-r1">
+                                <img src="../../../assets/images/icons/icon-scales.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-R1</span>
+                                <div class="card-info">
+                                    <div class="card-title">What Is Ethics</div>
+                                    <div class="card-sub">Morals vs ethics vs law. Why the distinction matters in technology.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-r2.html" class="content-card" data-module="eth-r2">
+                                <img src="../../../assets/images/icons/icon-compass.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-R2</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Ethical Decision Framework</div>
+                                    <div class="card-sub">Utilitarian, deontological, virtue ethics, fairness.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-r3.html" class="content-card" data-module="eth-r3">
+                                <img src="../../../assets/images/icons/icon-warning.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-R3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Why Technology Needs Ethics</div>
+                                    <div class="card-sub">Historical cases where tech outpaced ethics.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk0 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 1: Foundation (Ch. 1-3)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Foundation: Ethics, Professionalism, Cybersecurity</div>
+                        <div class="week-sub">WEEK 1 // CHAPTERS 1-3</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 1</span>
+                            <span class="obj-tag">Obj 2</span>
+                            <span class="obj-tag">Obj 3</span>
+                            <span class="item-count-tag">4 modules + 3 activities</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 1 // CHAPTERS 1-3</div>
+                        <div class="week-overview-desc">
+                            Before you can decide what's right, you need to understand what's at stake.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="eth-01.html" class="content-card" data-module="eth-01">
+                                <img src="../../../assets/images/icons/icon-scales.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-01</span>
+                                <div class="card-info">
+                                    <div class="card-title">Overview of Ethics</div>
+                                    <div class="card-sub">Ch. 1 — Ethics definition, business ethics, CSR, VW emissions case.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-02.html" class="content-card" data-module="eth-02">
+                                <img src="../../../assets/images/icons/icon-idcard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-02</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethics for IT Professionals</div>
+                                    <div class="card-sub">Ch. 2 — Professional vs worker, codes of ethics, compliance, FCPA.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-03.html" class="content-card" data-module="eth-03">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-03</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cyberattacks and Cybersecurity Ethics</div>
+                                    <div class="card-sub">Ch. 3 — Ethical trade-offs in security, reasonable assurance, Sony hack case.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-04.html" class="content-card" data-module="eth-04">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-04</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Checkpoint</div>
+                                    <div class="card-sub">Ch. 1-3 — Quiz (10 questions) and case study analysis.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Activities -->
+                    <div class="subsection">
+                        <div class="subsection-label label-activity">Activities</div>
+                        <div class="content-grid">
+
+                            <a href="labs/eth-l01-vw-emissions/index.html" class="activity-card" data-module="eth-l01">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L01</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Defeat Device</div>
+                                    <div class="card-sub">VW emissions scandal. Whistleblowing, corporate fraud, and ethical duty.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l02-sony-breach/index.html" class="activity-card" data-module="eth-l02">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L02</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Sony Breach</div>
+                                    <div class="card-sub">Case Room investigation with evidence analysis and framework collision.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l03-snowden-files/index.html" class="activity-card" data-module="eth-l03">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L03</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Snowden Files</div>
+                                    <div class="card-sub">Case Room investigation with evidence analysis and framework collision.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/eth-w1-ethics-overview.presentation.html"
+                               class="content-card" data-module="eth-w1-ethics-overview">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethics Overview</div>
+                                    <div class="card-sub">Ethics definition, business ethics, CSR, moral frameworks</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w1-it-professionals.presentation.html"
+                               class="content-card" data-module="eth-w1-it-professionals">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethics for IT Professionals</div>
+                                    <div class="card-sub">Professional obligations, codes of ethics, compliance</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w1-cybersecurity-ethics.presentation.html"
+                               class="content-card" data-module="eth-w1-cybersecurity-ethics">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cybersecurity Ethics</div>
+                                    <div class="card-sub">Security trade-offs, reasonable assurance, incident ethics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/eth-w1.quiz.html"
+                               class="content-card" data-module="eth-w1-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Quiz</div>
+                                    <div class="card-sub">Ethics overview, IT professionals, cybersecurity ethics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk1 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 2: Rights (Ch. 4-6)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Rights: Privacy, Expression, Property</div>
+                        <div class="week-sub">WEEK 2 // CHAPTERS 4-6</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 4</span>
+                            <span class="obj-tag">Obj 5</span>
+                            <span class="obj-tag">Obj 6</span>
+                            <span class="item-count-tag">4 modules + 3 activities</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 2 // CHAPTERS 4-6</div>
+                        <div class="week-overview-desc">
+                            Your code runs on someone else's data, someone else's network, someone else's ideas. Who owns what?
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="eth-05.html" class="content-card" data-module="eth-05">
+                                <img src="../../../assets/images/icons/icon-eye.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-05</span>
+                                <div class="card-info">
+                                    <div class="card-title">Privacy</div>
+                                    <div class="card-sub">Ch. 4 — Fourth Amendment, HIPAA, COPPA, FERPA, surveillance, ECPA, PATRIOT Act.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-06.html" class="content-card" data-module="eth-06">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-06</span>
+                                <div class="card-info">
+                                    <div class="card-title">Freedom of Expression</div>
+                                    <div class="card-sub">Ch. 5 — First Amendment, CDA Section 230, defamation, DMCA takedowns.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-07.html" class="content-card" data-module="eth-07">
+                                <img src="../../../assets/images/icons/icon-crown.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-07</span>
+                                <div class="card-info">
+                                    <div class="card-title">Intellectual Property</div>
+                                    <div class="card-sub">Ch. 6 — Copyright, patents, trade secrets, open source, WIPO.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-08.html" class="content-card" data-module="eth-08">
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-08</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Checkpoint + Midterm</div>
+                                    <div class="card-sub">Ch. 4-6 — Midterm exam (15% of grade) and case analysis.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Activities -->
+                    <div class="subsection">
+                        <div class="subsection-label label-activity">Activities</div>
+                        <div class="content-grid">
+
+                            <a href="labs/eth-l04-ip-war/index.html" class="activity-card" data-module="eth-l04">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L04</span>
+                                <div class="card-info">
+                                    <div class="card-title">The IP War</div>
+                                    <div class="card-sub">Privacy dilemma scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l05-autonomous-decision/index.html" class="activity-card" data-module="eth-l05">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L05</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Autonomous Decision</div>
+                                    <div class="card-sub">IP and copyright scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l06-the-algorithm/index.html" class="activity-card" data-module="eth-l06">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L06</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Algorithm</div>
+                                    <div class="card-sub">Case Room investigation with evidence analysis and framework collision.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/eth-w2-privacy.presentation.html"
+                               class="content-card" data-module="eth-w2-privacy">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Privacy</div>
+                                    <div class="card-sub">Fourth Amendment, HIPAA, COPPA, FERPA, surveillance</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w2-freedom-expression.presentation.html"
+                               class="content-card" data-module="eth-w2-freedom-expression">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Freedom of Expression</div>
+                                    <div class="card-sub">First Amendment, CDA Section 230, defamation, DMCA</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w2-intellectual-property.presentation.html"
+                               class="content-card" data-module="eth-w2-intellectual-property">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Intellectual Property</div>
+                                    <div class="card-sub">Copyright, patents, trade secrets, open source, WIPO</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/eth-w2.quiz.html"
+                               class="content-card" data-module="eth-w2-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Quiz</div>
+                                    <div class="card-sub">Privacy, freedom of expression, intellectual property</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Midterm Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Midterm Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/eth-midterm.exam.html"
+                               class="content-card exam-card" data-module="eth-midterm">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">MIDTERM</span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">Covers Weeks 1 and 2: Ch. 1-6</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Midterm</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk2 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 3: Impact (Ch. 7-8)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Impact: Software Quality and Society</div>
+                        <div class="week-sub">WEEK 3 // CHAPTERS 7-8</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 7</span>
+                            <span class="obj-tag">Obj 8</span>
+                            <span class="item-count-tag">3 modules + 2 activities</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 5</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 3 // CHAPTERS 7-8</div>
+                        <div class="week-overview-desc">
+                            You shipped the code. It worked. Someone got hurt. Whose fault is it?
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="eth-09.html" class="content-card" data-module="eth-09">
+                                <img src="../../../assets/images/icons/icon-code.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-09</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethical Decisions in Software Development</div>
+                                    <div class="card-sub">Ch. 7 — Safety-critical systems, product liability, self-driving cars case.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-10.html" class="content-card" data-module="eth-10">
+                                <img src="../../../assets/images/icons/icon-robot.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-10</span>
+                                <div class="card-info">
+                                    <div class="card-title">IT Impact on Society</div>
+                                    <div class="card-sub">Ch. 8 — AI/ML workforce impact, digital divide, IBM Watson case.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-11.html" class="content-card" data-module="eth-11">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-11</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Checkpoint</div>
+                                    <div class="card-sub">Ch. 7-8 — Quiz and case study analysis.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Activities -->
+                    <div class="subsection">
+                        <div class="subsection-label label-activity">Activities</div>
+                        <div class="content-grid">
+
+                            <a href="labs/eth-l07-the-platform/index.html" class="activity-card" data-module="eth-l07">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L07</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Platform</div>
+                                    <div class="card-sub">Software quality and liability scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l08-the-whistleblower/index.html" class="activity-card" data-module="eth-l08">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L08</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Whistleblower</div>
+                                    <div class="card-sub">AI ethics scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/eth-w3-software-ethics.presentation.html"
+                               class="content-card" data-module="eth-w3-software-ethics">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Software Ethics</div>
+                                    <div class="card-sub">Safety-critical systems, product liability, ethical design</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w3-it-impact.presentation.html"
+                               class="content-card" data-module="eth-w3-it-impact">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">IT Impact on Society</div>
+                                    <div class="card-sub">AI/ML workforce impact, digital divide, productivity</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/eth-w3.quiz.html"
+                               class="content-card" data-module="eth-w3-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Quiz</div>
+                                    <div class="card-sub">Software ethics, IT impact on society</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk3 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 4: Society (Ch. 9-10)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Society: Social Media, Organizations, Governance</div>
+                        <div class="week-sub">WEEK 4 // CHAPTERS 9-10</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 9</span>
+                            <span class="obj-tag">Obj 10</span>
+                            <span class="obj-tag">Obj 11</span>
+                            <span class="item-count-tag">4 modules + 2 activities</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 6</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 4 // CHAPTERS 9-10</div>
+                        <div class="week-overview-desc">
+                            The algorithm doesn't have ethics. The person who wrote it does.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="eth-12.html" class="content-card" data-module="eth-12">
+                                <img src="../../../assets/images/icons/icon-globe.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-12</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Media Ethics</div>
+                                    <div class="card-sub">Ch. 9 — CDA Section 230, fake news, data harvesting, hiring practices.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-13.html" class="content-card" data-module="eth-13">
+                                <img src="../../../assets/images/icons/icon-building.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-13</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethics of IT Organizations</div>
+                                    <div class="card-sub">Ch. 10 — Contingent workers, H-1B visas, outsourcing, gig economy, e-waste.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-14.html" class="content-card" data-module="eth-14">
+                                <img src="../../../assets/images/icons/icon-scroll.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-14</span>
+                                <div class="card-info">
+                                    <div class="card-title">Codes of Ethics: ACM, IEEE, PMI, AITP</div>
+                                    <div class="card-sub">Appendices — Comparative analysis. Requirements, conflicts, and application.</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="eth-15.html" class="content-card" data-module="eth-15">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ETH-15</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Assessment</div>
+                                    <div class="card-sub">Ch. 1-10 — Comprehensive final exam (15% of grade).</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Activities -->
+                    <div class="subsection">
+                        <div class="subsection-label label-activity">Activities</div>
+                        <div class="content-grid">
+
+                            <a href="labs/eth-l09-the-gig/index.html" class="activity-card" data-module="eth-l09">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L09</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Gig</div>
+                                    <div class="card-sub">Social media and privacy scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/eth-l10-the-code/index.html" class="activity-card" data-module="eth-l10">
+                                <img src="../../../assets/images/icons/icon-speech.webp"
+                                     alt="" class="activity-icon" aria-hidden="true">
+                                <span class="activity-id-badge">ETH-L10</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Code</div>
+                                    <div class="card-sub">Organizational ethics and whistleblowing scenario.</div>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-type-badge">ACTIVITY</span>
+                                    <span class="coming-soon-badge" style="background:rgba(255,0,255,0.15);color:#ff00ff;border-color:rgba(255,0,255,0.3);">CASE ROOM</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="activity-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/eth-w4-social-media.presentation.html"
+                               class="content-card" data-module="eth-w4-social-media">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Media Ethics</div>
+                                    <div class="card-sub">CDA Section 230, fake news, data harvesting, platform accountability</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w4-it-organizations.presentation.html"
+                               class="content-card" data-module="eth-w4-it-organizations">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ethics of IT Organizations</div>
+                                    <div class="card-sub">Contingent workers, H-1B, outsourcing, gig economy, e-waste</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/eth-w4-codes-of-ethics.presentation.html"
+                               class="content-card" data-module="eth-w4-codes-of-ethics">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Codes of Ethics: ACM, IEEE, PMI, AITP</div>
+                                    <div class="card-sub">Comparative analysis, requirements, conflicts, application</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Final Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Final Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/eth-final.exam.html"
+                               class="content-card exam-card" data-module="eth-final">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">FINAL</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">Comprehensive: Ch. 1-10, all objectives</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Final</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk4 -->
+
+
+        <!-- ── Course Objectives Block ── -->
+        <div class="course-info-block">
+            <h3>Course Objectives</h3>
+            <ul class="objectives-list">
+                <li>Define ethics and distinguish it from morals and law within technology contexts</li>
+                <li>Distinguish IT professionals from other workers and identify their ethical obligations to employers, clients, and society</li>
+                <li>Analyze cybersecurity trade-offs: safeguarding data, reasonable assurance, and incident response ethics</li>
+                <li>Explain the right to privacy and apply relevant legal protections including HIPAA, FERPA, and the Fourth Amendment</li>
+                <li>Evaluate freedom of expression issues in IT including CDA Section 230, defamation, and DMCA</li>
+                <li>Identify intellectual property rights: copyright, patents, trade secrets, and open-source licensing</li>
+                <li>Apply ethical frameworks to software development quality, safety-critical systems, and product liability</li>
+                <li>Assess the impact of IT on productivity, workforce displacement, healthcare, and the digital divide</li>
+                <li>Analyze ethical issues in social networking: data harvesting, fake news, and platform accountability</li>
+                <li>Evaluate organizational ethics in IT: contingent workers, outsourcing, whistle-blowing, and green computing</li>
+                <li>Compare and apply professional codes of ethics from ACM, IEEE, PMI, and AITP</li>
+            </ul>
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            Divergent // The Warehouse // Ethics in Information Technology // CIS4253
+            <div class="footer-sub">The houses teach you how. The Warehouse teaches you why.</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a week card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ─────────────────────────────────────────
+        // Supports links like index.html#wk2 to jump directly to that week.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#wk[0-4]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card && !card.classList.contains('locked')) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ──────────────────────────────────────────────
+        // Runs after DOM is ready so all [data-module] elements exist.
+        // Uses ModuleProgress.isCompleted('divergent', moduleId) to check state.
+        // Highlights completed cards, fills per-week bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module/activity IDs, grouped by week card ID.
+            // Totals: 3 + 11 + 12 + 8 + 11 = 45 items (includes presentations, quizzes, exams).
+            var weeks = {
+                wk0: [
+                    'eth-r1',
+                    'eth-r2',
+                    'eth-r3'
+                ],
+                wk1: [
+                    'eth-01',
+                    'eth-02',
+                    'eth-03',
+                    'eth-04',
+                    'eth-l01',
+                    'eth-l02',
+                    'eth-l03',
+                    'eth-w1-ethics-overview',
+                    'eth-w1-it-professionals',
+                    'eth-w1-cybersecurity-ethics',
+                    'eth-w1-quiz'
+                ],
+                wk2: [
+                    'eth-05',
+                    'eth-06',
+                    'eth-07',
+                    'eth-08',
+                    'eth-l04',
+                    'eth-l05',
+                    'eth-l06',
+                    'eth-w2-privacy',
+                    'eth-w2-freedom-expression',
+                    'eth-w2-intellectual-property',
+                    'eth-w2-quiz',
+                    'eth-midterm'
+                ],
+                wk3: [
+                    'eth-09',
+                    'eth-10',
+                    'eth-11',
+                    'eth-l07',
+                    'eth-l08',
+                    'eth-w3-software-ethics',
+                    'eth-w3-it-impact',
+                    'eth-w3-quiz'
+                ],
+                wk4: [
+                    'eth-12',
+                    'eth-13',
+                    'eth-14',
+                    'eth-15',
+                    'eth-l09',
+                    'eth-l10',
+                    'eth-w4-social-media',
+                    'eth-w4-it-organizations',
+                    'eth-w4-codes-of-ethics',
+                    'eth-final'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each week: check completions, mark cards, update bars
+            Object.keys(weeks).forEach(function (weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('divergent', moduleId)) {
+                        completed++;
+
+                        // Highlight the card via data-module attribute lookup
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-week progress bar and text counter
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/TrailHunter.js"></script>
+
+    <!-- Leonardo da Vinci Bot (Divergent House advisor) -->
+    <!-- TODO: Add data-bot-id once Leonardo bot is created in Aminos -->
+
+</body>
+</html>

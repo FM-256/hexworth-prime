@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication and Access Control // BSL-4 // PIS-17</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── CSS custom properties: Shield House blue palette ── */
+        :root {
+            --accent:         #3b82f6;
+            --accent-dim:     rgba(59, 130, 246, 0.12);
+            --accent-border:  rgba(59, 130, 246, 0.30);
+            --bg-dark:        #060810;
+            --bg-card:        #0a1018;
+            --bg-surface:     #0d1520;
+            --text-primary:   #dde8f8;
+            --text-secondary: #7ca4cc;
+            --text-muted:     #4a6480;
+            --border-subtle:  rgba(255, 255, 255, 0.06);
+            --breach-bg:      rgba(239, 68, 68, 0.06);
+            --breach-border:  rgba(239, 68, 68, 0.28);
+            --breach-text:    #fca5a5;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+        /* ── Sticky header ── */
+        .ne-header { position: sticky; top: 0; z-index: 100; background: rgba(6, 8, 16, 0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+        .ne-header-left { display: flex; align-items: center; gap: 12px; }
+        .ne-course-label { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .ne-back-btn { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; transition: opacity 0.2s; }
+        .ne-back-btn:hover { opacity: 0.75; }
+        .ne-back-btn img { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* ── Content wrapper ── */
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+        /* ── Module header / hero ── */
+        .ne-module-header { margin-bottom: 36px; }
+        .ne-badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .ne-badge { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 3px 9px; }
+        .obj-badge { font-size: 0.68rem; letter-spacing: 1.5px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 4px; padding: 3px 9px; }
+        .ne-module-title { font-size: 1.85rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; margin-bottom: 16px; }
+        .ne-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+        .ne-meta-item { font-size: 0.78rem; color: var(--text-muted); }
+        .ne-meta-item strong { color: var(--text-secondary); }
+
+        /* ── Callout (lore / facility context) ── */
+        .ne-callout { background: var(--accent-dim); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--text-secondary); line-height: 1.65; font-style: italic; }
+        .ne-callout strong { color: var(--accent); font-style: normal; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+
+        /* ── Breach / exam trap box ── */
+        .ne-breach { background: var(--breach-bg); border: 1px solid var(--breach-border); border-radius: 6px; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--breach-text); line-height: 1.65; }
+        .ne-breach strong { display: block; margin-bottom: 6px; font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase; color: #f87171; }
+
+        /* ── Section ── */
+        .ne-section { margin-bottom: 40px; }
+        .ne-section-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); position: relative; }
+        .ne-section-title::before { content: ''; position: absolute; bottom: -1px; left: 0; width: 40px; height: 2px; background: var(--accent); }
+
+        /* ── Inline term highlight ── */
+        .ne-term { color: var(--accent); font-weight: 600; }
+
+        /* ── Body paragraph spacing ── */
+        .ne-section p { font-size: 0.90rem; color: var(--text-secondary); margin-bottom: 14px; }
+
+        /* ── Table ── */
+        .ne-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0; }
+        .ne-table th { background: var(--bg-surface); color: var(--text-secondary); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        .ne-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: top; line-height: 1.6; }
+        .ne-table tr:last-child td { border-bottom: none; }
+        .ne-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* ── Takeaways ── */
+        .ne-takeaways { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 22px 26px; margin: 32px 0; }
+        .ne-takeaways-title { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
+        .ne-takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .ne-takeaways li { font-size: 0.87rem; color: var(--text-secondary); padding-left: 16px; position: relative; line-height: 1.6; }
+        .ne-takeaways li::before { content: '--'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+        /* ── Quiz section ── */
+        .ne-quiz { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px 32px; margin-top: 36px; }
+        .ne-quiz-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-quiz-header img { width: 24px; height: 24px; opacity: 0.8; flex-shrink: 0; margin-top: 3px; }
+        .ne-quiz-header h3 { font-size: 1.0rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .ne-quiz-header p { font-size: 0.80rem; color: var(--text-muted); }
+
+        /* ── Question blocks ── */
+        .ne-question { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-question:last-of-type { border-bottom: none; }
+        .ne-q-num { font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); margin-bottom: 8px; }
+        .ne-q-text { font-size: 0.92rem; color: var(--text-primary); line-height: 1.65; margin-bottom: 14px; }
+        .ne-options { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .ne-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .ne-option:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+        .ne-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: var(--accent); }
+        .ne-option label { font-size: 0.87rem; color: var(--text-secondary); cursor: pointer; line-height: 1.5; }
+
+        /* ── Submit row ── */
+        .ne-quiz-submit { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+        #quizSubmitBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 10px 28px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        #quizSubmitBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #quizSubmitBtn:disabled { opacity: 0.35; cursor: default; }
+        #quizStatusMsg { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+        /* ── Result panel ── */
+        .ne-quiz-result { display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 24px 28px; margin-top: 20px; text-align: center; }
+        .ne-quiz-result.pass { display: block; border-color: rgba(16, 185, 129, 0.30); background: rgba(16, 185, 129, 0.05); }
+        .ne-quiz-result.fail { display: block; border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); }
+        .result-score { font-size: 2.4rem; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 6px; }
+        .ne-quiz-result.pass .result-score { color: #34d399; }
+        .ne-quiz-result.fail .result-score { color: #f87171; }
+        .result-label { font-size: 0.78rem; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; }
+        .ne-quiz-result.pass .result-label { color: #6ee7b7; }
+        .ne-quiz-result.fail .result-label { color: #fca5a5; }
+        .result-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+
+        /* ── Retry button ── */
+        .retry-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.40); color: #f87171; font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 22px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        /* ── Completion area ── */
+        .ne-complete { text-align: center; padding: 32px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 14px 44px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        #completeBtn.is-done { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .complete-note { margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-17: Authentication and Access Control</h1>
+
+    <!-- Sticky navigation header -->
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-course-label">PIS // Principles of Information Security</span>
+        </div>
+        <a href="index.html" class="ne-back-btn">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <div class="ne-content">
+
+        <!-- Module header -->
+        <div class="ne-module-header">
+            <div class="ne-badge-row">
+                <span class="ne-badge">PIS-17 &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; BSL-4</span>
+                <span class="obj-badge">SY0-701: 5.3, 5.4</span>
+            </div>
+            <h2 class="ne-module-title">Authentication and Access Control</h2>
+            <div class="ne-meta">
+                <span class="ne-meta-item"><strong>Duration:</strong> 35 min</span>
+                <span class="ne-meta-item"><strong>Clearance:</strong> BSL-4</span>
+                <span class="ne-meta-item"><strong>Quiz:</strong> 5 questions, 80% to pass</span>
+            </div>
+        </div>
+
+        <!-- Lore callout -->
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            "Who gets through the gate and how you prove they should. BSL-4 requires two-person integrity -- no single individual can authorize their own access to maximum containment. Every entry is logged, timestamped, and cross-referenced against the clearance registry. The gate does not open on the basis of familiarity. It opens on the basis of verified, multi-factor proof."
+        </div>
+
+        <!-- Section 1: Authentication Factors -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">01 / 04 -- Authentication Factors: Know, Have, Are, Somewhere</h3>
+            <p>Authentication is the process of verifying that a claimed identity is genuine. SY0-701 Objective 5.4 requires you to categorize authentication factors and understand when each is appropriate. Four factor categories appear on the exam.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Factor Type</th>
+                        <th>What It Is</th>
+                        <th>Examples</th>
+                        <th>Weakness</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Something you know</td>
+                        <td>Knowledge-based secret</td>
+                        <td>Password, PIN, security question answer, passphrase</td>
+                        <td>Can be guessed, phished, or stolen. Does not prove physical presence.</td>
+                    </tr>
+                    <tr>
+                        <td>Something you have</td>
+                        <td>Physical possession</td>
+                        <td>Smart card, hardware token (RSA SecurID), FIDO2 key, mobile authenticator app (TOTP)</td>
+                        <td>Can be lost or stolen. Requires carrying the device. OTP tokens can be intercepted in real-time phishing attacks.</td>
+                    </tr>
+                    <tr>
+                        <td>Something you are</td>
+                        <td>Biometric characteristic</td>
+                        <td>Fingerprint, retinal scan, facial recognition, voice pattern, palm vein</td>
+                        <td>Cannot be changed if compromised. False acceptance and rejection errors exist. Privacy concerns around biometric data storage.</td>
+                    </tr>
+                    <tr>
+                        <td>Somewhere you are</td>
+                        <td>Location context</td>
+                        <td>GPS geolocation, IP address geolocation, facility proximity (badge reader + GPS), network segment</td>
+                        <td>Location can be spoofed via VPN or GPS manipulation. Reduces usability for remote workers.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><span class="ne-term">Multi-Factor Authentication (MFA)</span> combines two or more factors from different categories. A password plus a TOTP code combines "something you know" and "something you have." Two passwords do not constitute MFA -- they are both the same category. The exam frequently tests this distinction.</p>
+            <p><span class="ne-term">Two-Person Integrity (TPI)</span> is a procedural control requiring two authorized individuals to be present for high-risk actions. It is not an authentication factor -- it is an operational policy that ensures no single person can unilaterally execute sensitive operations.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                BSL-4 gate entry requires a valid clearance badge (something you have), retinal scan (something you are), and a second authorized operator physically present (two-person integrity). The gate controller logs all three verifications with a hardware timestamp.
+            </div>
+        </section>
+
+        <!-- Section 2: Federation and SSO Protocols -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">02 / 04 -- SSO, SAML, OAuth 2.0, and OpenID Connect</h3>
+            <p><span class="ne-term">Single Sign-On (SSO)</span> allows a user to authenticate once and gain access to multiple systems without re-authenticating for each. The central identity provider (IdP) issues tokens or assertions that relying parties accept. SY0-701 Objective 5.4 tests the protocols that implement SSO in enterprise and web environments.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Type</th>
+                        <th>Use Case</th>
+                        <th>Key Exam Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SAML 2.0</td>
+                        <td>XML-based federation</td>
+                        <td>Enterprise SSO between organizations. A user logs into their company IdP and accesses a partner's SaaS application without a second login.</td>
+                        <td>Uses XML assertions. Three roles: Identity Provider (IdP), Service Provider (SP), and user (principal). Assertion passes proof of authentication from IdP to SP. Primarily browser-based.</td>
+                    </tr>
+                    <tr>
+                        <td>OAuth 2.0</td>
+                        <td>Authorization framework</td>
+                        <td>Delegated authorization -- "Sign in with Google" granting a third-party app access to your Google contacts without sharing your password.</td>
+                        <td>OAuth 2.0 is authorization, not authentication. It grants access tokens that represent permission scopes. Four grant types: Authorization Code (most secure), Implicit (deprecated), Client Credentials, Resource Owner Password.</td>
+                    </tr>
+                    <tr>
+                        <td>OpenID Connect (OIDC)</td>
+                        <td>Authentication layer on OAuth 2.0</td>
+                        <td>Web and mobile authentication. Adds an ID token (JWT) to OAuth 2.0 to confirm who the user is, not just what they can access.</td>
+                        <td>OIDC = OAuth 2.0 + identity. The ID token contains claims about the authenticated user. The exam distinguishes OAuth (authorization) from OIDC (authentication + authorization).</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-breach">
+                <strong>Exam Trap: OAuth vs OIDC</strong>
+                OAuth 2.0 alone does not authenticate users -- it authorizes access. OpenID Connect is the layer that adds authentication. If a question asks about verifying a user's identity in a web application, the answer is OIDC, not bare OAuth 2.0.
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                Field team workstations authenticate to the facility's SAML IdP. Once authenticated, the IdP issues SAML assertions to the specimen database portal, the incident reporting system, and the secure file vault without requiring separate logins. OAuth 2.0 tokens authorize the mobile lab app to request specific data scopes from the API gateway.
+            </div>
+        </section>
+
+        <!-- Section 3: Directory Services and Authentication Protocols -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">03 / 04 -- LDAP, Kerberos, RADIUS, and TACACS+</h3>
+            <p>Enterprise authentication relies on backend protocols for directory lookups, ticket-based authentication, and network access control. SY0-701 Objective 5.4 tests these protocols in network and enterprise scenarios.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Port</th>
+                        <th>Function</th>
+                        <th>Exam Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>LDAP</td>
+                        <td>389 (plain), 636 (LDAPS)</td>
+                        <td>Lightweight Directory Access Protocol. Queries and modifies directory services (Active Directory, OpenLDAP). Used to look up user accounts, groups, and attributes.</td>
+                        <td>LDAP queries directory data. LDAPS encrypts the LDAP session with TLS. LDAP is a directory query protocol, not an authentication protocol itself, though it is used as the backend for authentication lookups.</td>
+                    </tr>
+                    <tr>
+                        <td>Kerberos</td>
+                        <td>88</td>
+                        <td>Ticket-based authentication protocol used in Windows Active Directory domains. Uses a Key Distribution Center (KDC) with Authentication Server (AS) and Ticket-Granting Server (TGS).</td>
+                        <td>Kerberos flow: (1) user requests Ticket-Granting Ticket (TGT) from AS; (2) TGT presented to TGS to obtain service ticket; (3) service ticket presented to resource. Mutual authentication -- both client and server verify each other. Vulnerable to Pass-the-Ticket and Golden Ticket attacks.</td>
+                    </tr>
+                    <tr>
+                        <td>RADIUS</td>
+                        <td>1812 (auth), 1813 (accounting)</td>
+                        <td>Remote Authentication Dial-In User Service. Centralizes AAA for network access. Used for Wi-Fi 802.1X authentication, VPN, and dial-up.</td>
+                        <td>Encrypts only the password in the Access-Request packet. Uses UDP. Combines authentication and authorization in one server response.</td>
+                    </tr>
+                    <tr>
+                        <td>TACACS+</td>
+                        <td>49</td>
+                        <td>Terminal Access Controller Access-Control System Plus. Cisco proprietary. Centralizes AAA for network device administration (routers, switches, firewalls).</td>
+                        <td>Encrypts the entire payload (not just the password). Uses TCP. Separates authentication, authorization, and accounting into independent functions. Preferred for device management; RADIUS preferred for network access.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Key comparison: <span class="ne-term">RADIUS</span> encrypts only the password and uses UDP. <span class="ne-term">TACACS+</span> encrypts the entire payload and uses TCP. TACACS+ is the answer when the scenario involves network device management with granular command authorization.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's network infrastructure uses TACACS+ for all router and switch administrative access. RADIUS handles Wi-Fi authentication via 802.1X EAP in visitor access zones. The Active Directory domain controller runs Kerberos for internal workstation authentication.
+            </div>
+        </section>
+
+        <!-- Section 4: Biometrics -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">04 / 04 -- Biometrics: FRR, FAR, and CER</h3>
+            <p>Biometric authentication systems produce errors in two directions. SY0-701 Objective 5.4 requires understanding biometric performance metrics and their relationship to security versus usability trade-offs.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Full Name</th>
+                        <th>What It Measures</th>
+                        <th>Effect of Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>FRR</td>
+                        <td>False Rejection Rate</td>
+                        <td>How often a legitimate user is incorrectly denied. Also called Type I error or false negative.</td>
+                        <td>High FRR = poor usability. Legitimate users are frequently rejected. The system is too strict.</td>
+                    </tr>
+                    <tr>
+                        <td>FAR</td>
+                        <td>False Acceptance Rate</td>
+                        <td>How often an unauthorized user is incorrectly accepted. Also called Type II error or false positive.</td>
+                        <td>High FAR = poor security. Impostors are frequently granted access. The system is too permissive.</td>
+                    </tr>
+                    <tr>
+                        <td>CER</td>
+                        <td>Crossover Error Rate</td>
+                        <td>The point at which FRR equals FAR. Also called Equal Error Rate (EER).</td>
+                        <td>Lower CER = better overall biometric system. CER is the standard metric for comparing biometric systems objectively. A system with CER of 1% outperforms one with CER of 5%.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>When sensitivity is increased (the system becomes more strict), FRR increases and FAR decreases. When sensitivity is decreased, FAR increases and FRR decreases. Security-critical environments accept high FRR to minimize FAR.</p>
+            <div class="ne-breach">
+                <strong>Exam Scenario Pattern</strong>
+                A hospital implements fingerprint scanners for medication dispensing. Staff complain the scanner frequently rejects them. The administrator adjusts the sensitivity threshold. This decreases the FRR but increases the FAR. The CER does not change -- the system's inherent capability is unchanged; only the operating point shifted.
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The BSL-4 retinal scanners are configured with the lowest possible FAR -- no impostor acceptance is tolerable. The FRR runs at approximately 8%, meaning roughly 1 in 12 legitimate entries requires a second scan. CER is reviewed quarterly and calibration is mandatory if CER exceeds 2%.
+            </div>
+        </section>
+
+        <!-- Key Takeaways -->
+        <div class="ne-takeaways">
+            <div class="ne-takeaways-title">Key Takeaways</div>
+            <ul>
+                <li>MFA requires factors from two or more different categories -- two passwords is not MFA.</li>
+                <li>SAML 2.0 passes XML assertions between IdP and SP for enterprise SSO.</li>
+                <li>OAuth 2.0 is authorization (access tokens); OIDC adds authentication (ID tokens with user identity claims).</li>
+                <li>TACACS+ encrypts the entire payload and uses TCP; RADIUS encrypts only the password and uses UDP.</li>
+                <li>TACACS+ is the choice for network device management with command-level authorization.</li>
+                <li>High FAR means impostors get in (security risk). High FRR means legitimate users are blocked (usability risk). Lower CER = better system.</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <img src="../../../assets/images/icons/icon-lock.webp" alt="">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- answers graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <!-- Q1 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 1 of 5</div>
+                    <p class="ne-q-text">A user logs in with a password and then receives a one-time code on their smartphone. Both are required to access the system. Which authentication factor combination is this?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">Two instances of something you know</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">Something you know and something you have</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">Something you have and something you are</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Something you are and somewhere you are</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q2 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 2 of 5</div>
+                    <p class="ne-q-text">An organization wants to allow employees to use their corporate credentials to log into a third-party SaaS application without creating a separate account. The solution must pass XML-based authentication assertions between the identity provider and the service provider. Which protocol is BEST suited?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">OAuth 2.0</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">OpenID Connect</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">SAML 2.0</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">Kerberos</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q3 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 3 of 5</div>
+                    <p class="ne-q-text">A network administrator needs to manage Cisco routers from a central AAA server. The solution must encrypt the entire authentication payload and support granular command-level authorization. Which protocol should be used?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">RADIUS</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">LDAP</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">TACACS+</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">Kerberos</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q4 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 4 of 5</div>
+                    <p class="ne-q-text">A biometric fingerprint scanner is configured for high security. Legitimate employees frequently complain they are rejected and must scan multiple times. The FAR is very low. Which metric is HIGH as a result of this configuration?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">CER (Crossover Error Rate)</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">FAR (False Acceptance Rate)</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">FRR (False Rejection Rate)</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">EER (Equal Error Rate)</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q5 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 5 of 5</div>
+                    <p class="ne-q-text">In a Kerberos authentication environment, a user requests access to a file server. After the initial authentication, which component issues the service ticket that the user presents to the file server?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">Authentication Server (AS)</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">Ticket-Granting Server (TGS)</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">LDAP directory</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">RADIUS server</label></li>
+                    </ul>
+                </div>
+
+                <div class="ne-quiz-submit">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <!-- Result panel -->
+            <div class="ne-quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+        <!-- Completion area -->
+        <div class="ne-complete">
+            <button id="completeBtn" disabled>Pass the quiz to complete</button>
+            <p class="complete-note" id="completeNote">Complete the quiz with 80% or higher to mark this module complete.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Module constants ── */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-17';
+        const QUIZ_ID      = 'pis-17-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        /* Track selections and enable submit */
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        /* Submit and grade via server */
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) {
+                    answerMap[String(i)] = selections[i];
+                }
+            }
+
+            var score = 0, percentage = 0, passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-17] Server grading failed:', e.message);
+            }
+
+            /* Lock all radio inputs after submission */
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.disabled = true;
+            });
+
+            /* Show result panel */
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'ne-quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'BSL-4 authentication protocols confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+
+            if (passed) {
+                markComplete(score);
+            } else {
+                document.getElementById('retryBtn').style.display = 'inline-block';
+            }
+
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        /* Reset quiz for retry */
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.checked = false;
+                r.disabled = false;
+            });
+
+            document.getElementById('quizResult').className = 'ne-quiz-result';
+
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        /* Record completion and update button state */
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+            document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+        }
+
+        /* Restore completed state on page load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+                document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+            }
+        })();
+    </script>
+</body>
+</html>

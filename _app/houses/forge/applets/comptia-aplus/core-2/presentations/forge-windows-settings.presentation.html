@@ -4,1408 +4,1038 @@
     <meta charset="UTF-8">
     <!-- Access Control -->
     <script src="../../../../../../components/AccessGuard.js"></script>
-    <script>
-        AccessGuard.require('sorted');
-    </script>
+    <script>AccessGuard.require('sorted');</script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Windows Settings App - House of the Forge</title>
+    <title>Windows Settings App | A+ Core 2</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0d0d12 0%, #1a1520 50%, #0d0d12 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #c4b5d4;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        /* Header */
-        .presentation-header {
-            padding: 20px 40px;
-            background: rgba(10, 10, 15, 0.9);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 6px;
-            color: #a78bfa;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: rgba(139, 92, 246, 0.2);
-            border-color: rgba(139, 92, 246, 0.5);
-        }
-
-        .house-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            color: #8b7a9e;
-            letter-spacing: 0.1em;
-        }
-
-        .house-badge-icon {
-            font-size: 1.2rem;
-        }
-
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .progress-bar {
-            width: 150px;
-            height: 4px;
-            background: rgba(139, 92, 246, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            font-size: 0.75rem;
-            color: #6b5b7e;
-        }
-
-        /* Slide Container */
-        .slides-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
+        /* ── SLIDE SYSTEM ── */
         .slide {
-            display: none;
-            animation: fadeIn 0.5s ease;
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
         }
-
         .slide.active {
-            display: block;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        /* Slide Styles */
-        .slide-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-            text-align: center;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .slide-subtitle {
-            font-size: 1.1rem;
-            color: #8b7a9e;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover {
-            border-color: rgba(139, 92, 246, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .card-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-        }
-
-        .card-description {
-            font-size: 0.9rem;
-            color: #8b7a9e;
-            line-height: 1.6;
-        }
-
-        /* Settings Category Cards */
-        .settings-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .settings-card:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.15);
-        }
-
-        .settings-card.system { border-top: 3px solid #60a5fa; }
-        .settings-card.devices { border-top: 3px solid #34d399; }
-        .settings-card.network { border-top: 3px solid #f59e0b; }
-        .settings-card.personalization { border-top: 3px solid #ec4899; }
-
-        .settings-name {
-            font-size: 1.3rem;
-            color: #e8d5f5;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .settings-description {
-            font-size: 0.9rem;
-            color: #8b7a9e;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        .settings-features {
-            text-align: left;
-            font-size: 0.85rem;
-            color: #8b7a9e;
-            list-style: none;
-        }
-
-        .settings-features li {
-            margin: 6px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .settings-features li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #8b5cf6;
-        }
-
-        /* Comparison Table */
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
-            font-size: 0.9rem;
-        }
-
-        .comparison-table th {
-            background: rgba(139, 92, 246, 0.15);
-            padding: 15px;
-            text-align: left;
-            color: #e8d5f5;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-        }
-
-        .comparison-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-            color: #a89aba;
-        }
-
-        .comparison-table tr:hover td {
-            background: rgba(139, 92, 246, 0.05);
-        }
-
-        .feature-yes { color: #34d399; }
-        .feature-no { color: #6b5b7e; }
-        .feature-limited { color: #f59e0b; }
-
-        /* Interactive Elements */
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            padding: 30px;
-            margin: 30px 0;
-        }
-
-        .scenario-title {
-            font-size: 1.1rem;
-            color: #a78bfa;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .scenario-content {
-            font-size: 0.95rem;
-            color: #c4b5d4;
-            line-height: 1.7;
-        }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 15px 20px;
-            margin: 10px 0;
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            color: #c4b5d4;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        .quiz-option:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            background: rgba(139, 92, 246, 0.1);
-        }
-
-        .quiz-option.correct {
-            border-color: #34d399;
-            background: rgba(52, 211, 153, 0.1);
-        }
-
-        .quiz-option.incorrect {
-            border-color: #f87171;
-            background: rgba(248, 113, 113, 0.1);
-        }
-
-        .feedback {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        .feedback.correct {
-            background: rgba(52, 211, 153, 0.1);
-            border: 1px solid rgba(52, 211, 153, 0.3);
-            color: #34d399;
-            display: block;
-        }
-
-        .feedback.incorrect {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-            color: #f87171;
-            display: block;
-        }
-
-        /* Key Points */
-        .key-points {
-            background: rgba(20, 15, 30, 0.6);
-            border-left: 3px solid #a78bfa;
-            padding: 20px 25px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 {
-            color: #a78bfa;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
-            letter-spacing: 0.05em;
-        }
-
-        .key-points ul {
-            list-style: none;
-        }
-
-        .key-points li {
-            padding: 8px 0;
-            padding-left: 25px;
-            position: relative;
-            color: #c4b5d4;
-            font-size: 0.9rem;
-        }
-
-        .key-points li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #8b5cf6;
-        }
-
-        /* Navigation */
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(139, 92, 246, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 30px;
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 8px;
-            color: #a78bfa;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-block;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-blue  { border-left-color: #60a5fa; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover {
-            background: rgba(139, 92, 246, 0.25);
-            border-color: rgba(139, 92, 246, 0.5);
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            border: none;
-            color: white;
-        }
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
 
-        .nav-btn.primary:hover {
-            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.3);
-        }
+        /* ── LAYOUT HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
 
-        .slide-dots {
-            display: flex;
-            gap: 8px;
-        }
-
-        .slide-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(139, 92, 246, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .slide-dot.active {
-            background: #a78bfa;
-            transform: scale(1.2);
-        }
-
-        /* Path Visual */
-        .path-visual {
-            background: rgba(20, 15, 30, 0.4);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: #a78bfa;
-        }
-
-        .path-visual strong {
-            color: #e8d5f5;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .presentation-header {
-                flex-direction: column;
-                gap: 15px;
-                padding: 15px 20px;
-            }
-
-            .slide-title {
-                font-size: 1.8rem;
-            }
-
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .comparison-table {
-                font-size: 0.8rem;
-            }
-
-            .slide-nav {
-                flex-direction: column;
-                gap: 20px;
-            }
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .layout-split { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">← Back</a>
-            <div class="house-badge">
-                <span class="house-badge-icon"><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Windows Settings App</h1>
+
+<!-- Gold progress bar -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 2 &mdash; 220-1102 &nbsp;|&nbsp; Domain 1.3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Windows<br>
+                <span class="accent">Settings App</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                Microsoft's modern configuration interface for Windows 10 and 11. Covers key domains tested on the CompTIA A+ 220-1102 exam.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 10</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>Domain 1.3</span>
+            <span>Settings &bull; Control Panel Migration &bull; ms-settings URIs</span>
+            <span>Exam 220-1102</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Windows Settings App</h1>
-            <p class="slide-subtitle">Your central hub for modern Windows configuration</p>
+<!-- ==================== SLIDE 2 — WHAT IS SETTINGS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">What Is the <span class="accent">Settings App?</span></div>
+        <div class="slide-subtitle">The modern, touch-friendly control interface introduced in Windows 8 and fully realized in Windows 10/11.</div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h2 class="card-title">What Is It?</h2>
-                    <p class="card-description">The Windows Settings app (introduced in Windows 8, refined in Windows 10/11) is Microsoft's modern replacement for Control Panel. It provides a touch-friendly, simplified interface for configuring Windows.</p>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Origin</div>
+                <div class="card-desc">Introduced in Windows 8 as PC Settings. Windows 10 unified it under Settings (Win + I). Windows 11 redesigned the layout with left-side navigation and a cleaner look. It is the intended long-term replacement for Control Panel.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Methods</div>
+                <div class="card-desc">Win + I (fastest). Start Menu gear icon. Action Center quick link. Right-click Start button. Run dialog: ms-settings: launches directly. Each category also has its own URI scheme.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why It Matters (Exam)</div>
+                <div class="card-desc">A+ 220-1102 Domain 1.3 explicitly tests Windows Settings. Expect scenario questions about where a tech navigates to solve a specific problem. Know both Settings and Control Panel paths.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Fact</div>
+            Settings app is the primary interface for consumer-facing configuration. Control Panel still exists for legacy and administrative tasks. Many options exist in both, but Settings is tested first.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — SETTINGS vs CONTROL PANEL SVG ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">Settings vs. <span class="accent">Control Panel</span></div>
+        <div class="slide-subtitle">Migration is gradual. Some features exist in both; others only in one.</div>
+
+        <!-- SVG: two panels with migration arrows and overlap zone -->
+        <div class="diagram-center">
+            <svg width="820" height="240" viewBox="0 0 820 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Settings vs Control Panel comparison">
+
+                <!-- Control Panel panel (left) -->
+                <rect x="10" y="20" width="230" height="200" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="125" y="46" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#c9a83a">CONTROL PANEL</text>
+                <text x="125" y="60" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Legacy interface</text>
+
+                <!-- CP items -->
+                <rect x="26" y="70" width="198" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="1"/>
+                <text x="35" y="83" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Device Manager</text>
+                <rect x="26" y="93" width="198" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="1"/>
+                <text x="35" y="106" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Programs and Features</text>
+                <rect x="26" y="116" width="198" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="1"/>
+                <text x="35" y="129" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Administrative Tools</text>
+                <rect x="26" y="139" width="198" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="1"/>
+                <text x="35" y="152" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Credential Manager</text>
+                <rect x="26" y="162" width="198" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="1"/>
+                <text x="35" y="175" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Internet Options</text>
+
+                <!-- Overlap zone (center) -->
+                <rect x="265" y="20" width="290" height="200" rx="10" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4"/>
+                <text x="410" y="46" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#06b6d4">AVAILABLE IN BOTH</text>
+                <text x="410" y="60" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">Dual access paths</text>
+
+                <!-- Shared items -->
+                <rect x="282" y="70" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="83" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Network &amp; Internet / Network and Sharing Center</text>
+                <rect x="282" y="93" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="106" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Display Settings / Screen Resolution</text>
+                <rect x="282" y="116" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="129" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Sound / Audio Devices</text>
+                <rect x="282" y="139" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="152" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">User Accounts</text>
+                <rect x="282" y="162" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="175" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Windows Update / Windows Update</text>
+                <rect x="282" y="185" width="256" height="18" rx="3" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="291" y="198" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Power Options / Battery</text>
+
+                <!-- Settings panel (right) -->
+                <rect x="580" y="20" width="230" height="200" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="695" y="46" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#3ab577">SETTINGS APP</text>
+                <text x="695" y="60" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Modern interface</text>
+
+                <!-- Settings-only items -->
+                <rect x="596" y="70" width="198" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="605" y="83" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Focus Assist</text>
+                <rect x="596" y="93" width="198" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="605" y="106" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Night Light</text>
+                <rect x="596" y="116" width="198" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="605" y="129" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Storage Sense</text>
+                <rect x="596" y="139" width="198" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="605" y="152" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">Snap Layouts (Win 11)</text>
+                <rect x="596" y="162" width="198" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="605" y="175" font-family="'Segoe UI', sans-serif" font-size="9.5" fill="#94a3b8">App permissions (camera, mic)</text>
+
+                <!-- Migration arrows CP -> Settings -->
+                <defs>
+                    <marker id="arrowG" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#3ab577" opacity="0.7"/>
+                    </marker>
+                </defs>
+                <!-- Animated arrow: CP to Settings overlap for "Programs" -->
+                <line x1="240" y1="102" x2="262" y2="102" stroke="#3ab577" stroke-width="1.5" marker-end="url(#arrowG)" opacity="0.6"/>
+                <line x1="240" y1="125" x2="262" y2="125" stroke="#3ab577" stroke-width="1.5" marker-end="url(#arrowG)" opacity="0.6"/>
+                <line x1="240" y1="148" x2="262" y2="148" stroke="#3ab577" stroke-width="1.5" marker-end="url(#arrowG)" opacity="0.6"/>
+
+                <!-- Label bottom -->
+                <text x="125" y="232" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">Legacy / Admin tasks</text>
+                <text x="410" y="232" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">Shared paths</text>
+                <text x="695" y="232" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">Modern / new features</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SYSTEM SETTINGS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">System <span class="accent">Settings</span></div>
+        <div class="slide-subtitle">Display, Sound, Notifications, Power, Storage, and About.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Display</div>
+                <div class="card-desc">Resolution, refresh rate, scale (DPI), night light, HDR, multi-monitor arrangement. Key path: Settings &rarr; System &rarr; Display. ms-settings:display</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sound</div>
+                <div class="card-desc">Input/output device selection, volume mixer, spatial audio, app volumes. Old path was Control Panel &rarr; Sound; now Settings &rarr; System &rarr; Sound. ms-settings:sound</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Notifications</div>
+                <div class="card-desc">Per-app notification banners and action center behavior. Focus Assist (Win 10) / Do Not Disturb (Win 11) blocks interruptions. ms-settings:notifications</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Power &amp; Battery</div>
+                <div class="card-desc">Power plan selection, screen/sleep timeout, battery saver threshold. Full power plan editing still requires Control Panel. ms-settings:powersleep</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Storage</div>
+                <div class="card-desc">Storage Sense auto-cleanup, drive usage breakdown, temp file removal. Replaces manual Disk Cleanup for most scenarios. ms-settings:storagesense</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">About</div>
+                <div class="card-desc">Device name, Windows edition, RAM, processor, build version. Replaces System Properties summary. Rename PC is here. ms-settings:about</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — DEVICES / BLUETOOTH ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Devices &amp; <span class="accent">Bluetooth</span></div>
+        <div class="slide-subtitle">Peripheral management in Settings replaces parts of Device Manager for common tasks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Bluetooth &amp; Other Devices (Win 10)</div>
+                <div class="card-desc">Pair Bluetooth mice, keyboards, headsets, and phones. Add printers and scanners. View connected USB devices. Note: driver issues and conflicts still require Device Manager (devmgmt.msc). ms-settings:bluetooth</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Printers &amp; Scanners</div>
+                <div class="card-desc">Add printer wizard, remove devices, set default printer. "Let Windows manage my default printer" option can override manual default selections — know this for help-desk scenarios. ms-settings:printers</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mouse, Keyboard, Touchpad</div>
+                <div class="card-desc">Pointer speed, button swap (left-handed), scroll direction, touchpad gestures. Advanced options still link to Control Panel's Mouse applet for DPI curves and pointer trails.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AutoPlay</div>
+                <div class="card-desc">Controls what happens when removable media is inserted: ask each time, open folder, run program. Security note: AutoPlay malware attacks rely on this feature being enabled with unsafe defaults.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Scenario</div>
+            A user reports a Bluetooth device won't pair. First step: Settings &rarr; Bluetooth &mdash; confirm Bluetooth is on, device is in pairing mode. If device shows but fails to connect, check Device Manager for driver errors.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — NETWORK & INTERNET ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Network <span class="accent">&amp; Internet</span></div>
+        <div class="slide-subtitle">Connection status, adapter settings, proxy, VPN, and mobile hotspot.</div>
+
+        <!-- SVG: Network settings chain — adapter > IP config > DNS > proxy > internet -->
+        <div class="diagram-center">
+            <svg width="760" height="72" viewBox="0 0 760 72" aria-label="Network settings chain: physical adapter to IP configuration to DNS to proxy to internet" role="img">
+                <defs>
+                    <marker id="ns-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#334155"/></marker>
+                </defs>
+                <!-- Chain boxes -->
+                <rect x="5"   y="15" width="105" height="38" rx="5" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="57"  y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4">NIC / Adapter</text>
+                <text x="57"  y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">ncpa.cpl / Settings</text>
+
+                <rect x="130" y="15" width="115" height="38" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="187" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a">IP Config</text>
+                <text x="187" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">DHCP or Static IP</text>
+
+                <rect x="265" y="15" width="115" height="38" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="322" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577">DNS Servers</text>
+                <text x="322" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Resolve hostnames</text>
+
+                <rect x="400" y="15" width="115" height="38" rx="5" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="457" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#a78bfa">Default Gateway</text>
+                <text x="457" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Route to internet</text>
+
+                <rect x="535" y="15" width="105" height="38" rx="5" fill="rgba(251,146,60,0.12)" stroke="#fb923c" stroke-width="1.5"/>
+                <text x="587" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#fb923c">Proxy</text>
+                <text x="587" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Optional: corp filter</text>
+
+                <rect x="660" y="15" width="95" height="38" rx="5" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="707" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#60a5fa">Internet</text>
+                <text x="707" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Destination</text>
+
+                <!-- Arrows -->
+                <line x1="110" y1="34" x2="128" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#ns-arr)"/>
+                <line x1="245" y1="34" x2="263" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#ns-arr)"/>
+                <line x1="380" y1="34" x2="398" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#ns-arr)"/>
+                <line x1="515" y1="34" x2="533" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#ns-arr)"/>
+                <line x1="640" y1="34" x2="658" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#ns-arr)"/>
+                <!-- Animated packet -->
+                <circle r="4" fill="#c9a83a" opacity="0.9">
+                    <animateMotion dur="4s" repeatCount="indefinite" path="M 57,34 L 187,34 L 322,34 L 457,34 L 587,34 L 707,34"/>
+                </circle>
+                <!-- Troubleshoot hint -->
+                <text x="380" y="66" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#334155">Break at any step = no internet. ipconfig shows IP + gateway. nslookup tests DNS.</text>
+            </svg>
+        </div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Status</div>
+                    <div class="card-desc">Shows active connection, data usage by app, network troubleshooter. Quick path to adapter properties and Network and Sharing Center (legacy).</div>
                 </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Why It Matters</h3>
-                    <p class="card-description">As Microsoft gradually moves away from Control Panel, understanding Settings is critical for IT professionals. Most user-facing configurations now happen here first.</p>
+                <div class="card c-cyan">
+                    <div class="card-label">Wi-Fi</div>
+                    <div class="card-desc">Manage known networks, toggle Wi-Fi on/off, view hardware properties (MAC address). Connect to hidden SSID. ms-settings:network-wifi</div>
                 </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">What You'll Learn</h3>
-                    <p class="card-description">How to navigate the Settings app efficiently, configure critical system settings, and understand when to use Settings vs. Control Panel for optimal administration.</p>
+                <div class="card c-green">
+                    <div class="card-label">Ethernet</div>
+                    <div class="card-desc">View connection status, IP assignment (DHCP vs static is still configured through adapter properties). Metered connection toggle.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label">Proxy &amp; VPN</div>
+                    <div class="card-desc">Configure manual or automatic proxy. Add VPN connection (PPTP, L2TP/IPsec, SSTP, IKEv2). ms-settings:network-proxy, ms-settings:network-vpn</div>
                 </div>
             </div>
-
-            <div class="key-points">
-                <h4>KEY TAKEAWAY</h4>
-                <ul>
-                    <li>Settings app is the <strong>future</strong> - Control Panel is legacy</li>
-                    <li>Optimized for touch but works great with keyboard/mouse</li>
-                    <li>Most common tasks can be completed without Control Panel</li>
-                </ul>
-            </div>
-
-            <div class="path-visual">
-                <strong>Quick Access:</strong> Win + I &nbsp;|&nbsp; Start Menu → Settings <img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> &nbsp;|&nbsp; ms-settings:
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-cyan">
+                    <div class="box-label">Mobile Hotspot</div>
+                    Settings &rarr; Network &amp; Internet &rarr; Mobile Hotspot. Share cellular or Wi-Fi over Wi-Fi or Bluetooth. Set SSID and password here. Data usage tracked per connected device.
                 </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: System Settings -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">System Settings</h2>
-            <p class="slide-subtitle">Display, Sound, Notifications, and Power management</p>
-
-            <div class="content-grid">
-                <div class="settings-card system">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Display</h3>
-                    <p class="settings-description">Configure monitors, resolution, scaling, and screen orientation</p>
-                    <ul class="settings-features">
-                        <li>Multiple monitor arrangement</li>
-                        <li>Resolution and refresh rate</li>
-                        <li>Scale and layout (DPI)</li>
-                        <li>Night light (blue light filter)</li>
-                        <li>HDR settings (Windows 11)</li>
-                    </ul>
+                <div class="box box-gold">
+                    <div class="box-label">Exam Tip</div>
+                    IP address changes and advanced TCP/IP settings (DNS servers, default gateway) still require navigating to Adapter Properties via the legacy path: ncpa.cpl or Settings &rarr; Network &rarr; adapter options.
                 </div>
-
-                <div class="settings-card system">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Sound</h3>
-                    <p class="settings-description">Audio devices, volume mixing, and spatial sound configuration</p>
-                    <ul class="settings-features">
-                        <li>Input/output device selection</li>
-                        <li>Volume mixer and app volumes</li>
-                        <li>Spatial sound (Windows Sonic)</li>
-                        <li>Audio troubleshooting</li>
-                        <li>Communication device settings</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card system">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-bell.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Notifications</h3>
-                    <p class="settings-description">Control action center and notification behavior</p>
-                    <ul class="settings-features">
-                        <li>Do Not Disturb settings</li>
-                        <li>Per-app notification control</li>
-                        <li>Focus Assist configuration</li>
-                        <li>Notification priority rules</li>
-                        <li>Banner vs. Action Center</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card system">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-battery.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Power & Battery</h3>
-                    <p class="settings-description">Power plans, sleep settings, and battery optimization</p>
-                    <ul class="settings-features">
-                        <li>Power mode (Best performance/Balanced)</li>
-                        <li>Screen and sleep timers</li>
-                        <li>Battery usage by app</li>
-                        <li>Battery saver settings</li>
-                        <li>Power button behavior</li>
-                    </ul>
+                <div class="scenario-strip">
+                    Ticket: "User cannot reach internet after laptop woke from sleep." Check Settings &rarr; Network Status. If adapter shows disconnected, toggle Wi-Fi off and back on. If status shows connected but no internet, run the troubleshooter first.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>PRO TIP</h4>
-                <ul>
-                    <li>Use <strong>Win + K</strong> for quick Cast/Connect to wireless displays</li>
-                    <li>Night light reduces eye strain - schedule it automatically</li>
-                    <li>Focus Assist is critical for presentation mode</li>
-                </ul>
+<!-- ==================== SLIDE 7 — PERSONALIZATION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title"><span class="accent">Personalization</span></div>
+        <div class="slide-subtitle">Background, colors, lock screen, taskbar, Start menu, and themes.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Background &amp; Lock Screen</div>
+                <div class="card-desc">Wallpaper (solid, picture, slideshow), lock screen image or spotlight. Lock screen app status allows up to 7 apps to show brief info (battery, email count). ms-settings:personalization-background</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: Devices Settings -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">Devices Settings</h2>
-            <p class="slide-subtitle">Bluetooth, Printers, Mouse, and connected hardware</p>
-
-            <div class="content-grid">
-                <div class="settings-card devices">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Bluetooth & Devices</h3>
-                    <p class="settings-description">Pair and manage wireless devices</p>
-                    <ul class="settings-features">
-                        <li>Pair Bluetooth devices</li>
-                        <li>Swift Pair (auto-pairing)</li>
-                        <li>Device connection status</li>
-                        <li>Remove old pairings</li>
-                        <li>Troubleshoot connections</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card devices">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-printer.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Printers & Scanners</h3>
-                    <p class="settings-description">Add, configure, and manage printing devices</p>
-                    <ul class="settings-features">
-                        <li>Add network/USB printers</li>
-                        <li>Set default printer</li>
-                        <li>Printer preferences</li>
-                        <li>Print queue management</li>
-                        <li>Scanning settings</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card devices">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-mouse.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Mouse & Touchpad</h3>
-                    <p class="settings-description">Customize pointer behavior and gestures</p>
-                    <ul class="settings-features">
-                        <li>Primary mouse button (left/right)</li>
-                        <li>Scroll speed and direction</li>
-                        <li>Touchpad gestures</li>
-                        <li>Additional mouse buttons</li>
-                        <li>Pointer speed and precision</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card devices">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-keyboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Typing</h3>
-                    <p class="settings-description">Keyboard settings and autocorrect</p>
-                    <ul class="settings-features">
-                        <li>Touch keyboard settings</li>
-                        <li>Hardware keyboard layouts</li>
-                        <li>Text suggestions</li>
-                        <li>Autocorrect settings</li>
-                        <li>Typing insights</li>
-                    </ul>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Colors &amp; Themes</div>
+                <div class="card-desc">Light/dark mode (system and per-app), accent color, transparency effects. Full themes bundle wallpaper, colors, sounds, cursor. Windows 11 adds round corners as a system-level design choice.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Common Task: Pairing Bluetooth Headphones</div>
-                <div class="scenario-content">
-                    <ol style="margin: 10px 0 0 20px; color: #a89aba; line-height: 1.8;">
-                        <li>Open Settings → Bluetooth & devices</li>
-                        <li>Toggle Bluetooth ON (if off)</li>
-                        <li>Put headphones in pairing mode</li>
-                        <li>Click "Add device" → Bluetooth</li>
-                        <li>Select your headphones from the list</li>
-                        <li>Wait for "Connected" status</li>
-                    </ol>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Taskbar</div>
+                <div class="card-desc">Pin apps, move taskbar (Win 10 only — Win 11 locks to bottom), combine buttons, show/hide system tray icons. Notification area icon visibility. ms-settings:taskbar</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: Network & Internet -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">Network & Internet Settings</h2>
-            <p class="slide-subtitle">Wi-Fi, Ethernet, VPN, and connectivity management</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Wi-Fi</h3>
-                    <p class="card-description">
-                        <strong>Manage wireless connections:</strong><br>
-                        • View available networks<br>
-                        • Connect/disconnect<br>
-                        • Forget saved networks<br>
-                        • Wi-Fi properties (password, security)<br>
-                        • Metered connection settings
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Ethernet</h3>
-                    <p class="card-description">
-                        <strong>Wired network configuration:</strong><br>
-                        • Connection status<br>
-                        • IP address information<br>
-                        • DNS settings<br>
-                        • Network adapter properties<br>
-                        • Data usage monitoring
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">VPN</h3>
-                    <p class="card-description">
-                        <strong>Virtual Private Networks:</strong><br>
-                        • Add VPN connections<br>
-                        • Configure connection details<br>
-                        • Connect/disconnect quickly<br>
-                        • VPN over metered networks<br>
-                        • Advanced VPN options
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-satellite.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Airplane Mode & Mobile</h3>
-                    <p class="card-description">
-                        <strong>Quick wireless control:</strong><br>
-                        • Toggle all wireless radios<br>
-                        • Individual radio control<br>
-                        • Mobile hotspot setup<br>
-                        • Cellular data settings<br>
-                        • Data usage limits
-                    </p>
-                </div>
+            <div class="card c-gold">
+                <div class="card-label">Start Menu</div>
+                <div class="card-desc">Number of recent items, show app list, show recently opened files, folder shortcuts on Start. Windows 11 layouts: Default, More Pins, More Recommendations. ms-settings:personalization-start</div>
             </div>
-
-            <div class="key-points">
-                <h4>EXAM TIP</h4>
-                <ul>
-                    <li><strong>Metered connections</strong> limit Windows Update downloads</li>
-                    <li>Advanced adapter settings still require <strong>Network Connections</strong> (ncpa.cpl)</li>
-                    <li>Network troubleshooter is built into Settings (highly effective)</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Fonts</div>
+                <div class="card-desc">Browse and install fonts (drag font file into Settings or Microsoft Store). Replaces old Control Panel &rarr; Fonts folder for most installs. ms-settings:fonts</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 5: Personalization -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Personalization Settings</h2>
-            <p class="slide-subtitle">Background, Colors, Themes, and visual customization</p>
-
-            <div class="content-grid">
-                <div class="settings-card personalization">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-palette.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Background</h3>
-                    <p class="settings-description">Desktop wallpaper and slideshow settings</p>
-                    <ul class="settings-features">
-                        <li>Picture, Solid color, or Slideshow</li>
-                        <li>Browse for custom images</li>
-                        <li>Fit, Fill, Stretch, Tile, Center</li>
-                        <li>Slideshow timing and shuffle</li>
-                        <li>Choose fit for each monitor</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card personalization">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Colors</h3>
-                    <p class="settings-description">Accent colors and dark/light mode</p>
-                    <ul class="settings-features">
-                        <li>Choose accent color</li>
-                        <li>Automatic color from wallpaper</li>
-                        <li>Dark mode, Light mode, Custom</li>
-                        <li>Transparency effects</li>
-                        <li>Show accent on Start, taskbar, title bars</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card personalization">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-picture.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Themes</h3>
-                    <p class="settings-description">Pre-configured visual packages</p>
-                    <ul class="settings-features">
-                        <li>Apply built-in themes</li>
-                        <li>Download themes from Store</li>
-                        <li>Save custom themes</li>
-                        <li>Themes include colors, sounds, cursor</li>
-                        <li>High contrast themes</li>
-                    </ul>
-                </div>
-
-                <div class="settings-card personalization">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Lock Screen</h3>
-                    <p class="settings-description">Configure lock screen appearance</p>
-                    <ul class="settings-features">
-                        <li>Background image or slideshow</li>
-                        <li>Windows spotlight (rotating images)</li>
-                        <li>App status on lock screen</li>
-                        <li>Lock screen timeout</li>
-                        <li>Screen saver settings</li>
-                    </ul>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Device Usage (Win 11)</div>
+                <div class="card-desc">New in Win 11: tag device use case (gaming, creativity, business) to get tailored Microsoft Store recommendations. Does not change OS behavior.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Enterprise Consideration</div>
-                <div class="scenario-content">
-                    <p>While personalization seems trivial, it impacts productivity:</p>
-                    <p style="margin: 15px 0;"><strong>Dark Mode:</strong> Reduces eye strain in low-light environments. Many developers and security professionals prefer it for extended work sessions.</p>
-                    <p><strong>Lock Screen:</strong> Can display company branding or important notices. Group Policy can enforce specific configurations.</p>
+<!-- ==================== SLIDE 8 — APPS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Apps <span class="accent">Settings</span></div>
+        <div class="slide-subtitle">Apps &amp; Features, Default Apps, Startup apps, and optional features.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Apps &amp; Features</div>
+                <div class="card-desc">List of installed applications with size, install date, and uninstall/modify options. Replaces Control Panel &rarr; Programs and Features for modern apps. Win32 apps also appear here. Sort by name, size, or date. ms-settings:appsfeatures</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Default Apps</div>
+                <div class="card-desc">Set default browser, email client, music player, photo viewer, and video player. In Windows 11, defaults are set per file extension or protocol, not per app category. ms-settings:defaultapps</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Startup Apps</div>
+                <div class="card-desc">Toggle which apps launch at sign-in. Shows impact estimate (low, medium, high). Replaces msconfig Startup tab (which just redirects here in Win 10/11). ms-settings:startupapps</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Optional Features</div>
+                <div class="card-desc">Add/remove Windows features like Telnet Client, RSAT tools, OpenSSH Client/Server, Windows Subsystem for Linux. Replaces Control Panel &rarr; Turn Windows Features on or off for many items. ms-settings:optionalfeatures</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">A+ Scenario</div>
+            Technician needs to enable the OpenSSH client for remote management. Path: Settings &rarr; Apps &rarr; Optional Features &rarr; Add a feature &rarr; OpenSSH Client. Alternatively: DISM or PowerShell for scripted deployments.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — ACCOUNTS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title"><span class="accent">Accounts</span> Settings</div>
+        <div class="slide-subtitle">Microsoft Account, local account, sign-in options, family, and work access.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Your Info</div>
+                <div class="card-desc">Switch between Microsoft Account and local account. Microsoft Account syncs settings, OneDrive, and Store purchases. Local account has no sync — often preferred in enterprise deployments. ms-settings:yourinfo</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sign-In Options</div>
+                <div class="card-desc">Configure Windows Hello PIN, fingerprint, face recognition, security key, and password. Dynamic Lock uses Bluetooth device proximity to auto-lock. Picture password (Win 10 only). ms-settings:signinoptions</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Email &amp; Accounts</div>
+                <div class="card-desc">Add work, school, or Microsoft accounts used by Mail, Calendar, and other apps. Separate from browser sign-in. ms-settings:emailandaccounts</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Access Work or School</div>
+                <div class="card-desc">Join Azure AD, Entra ID, or enroll in MDM (Intune). View connected organization policies. Disconnect domain or MDM enrollment here. ms-settings:workplace</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Family &amp; Other Users</div>
+                <div class="card-desc">Add family accounts with parental controls, add local or Microsoft accounts for other users. Assign Administrator or Standard User. ms-settings:otherusers</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Sync Your Settings</div>
+                <div class="card-desc">Roaming settings include theme, passwords, language, and accessibility. Requires Microsoft Account. Enterprise devices can disable sync via Group Policy. ms-settings:sync</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — TIME & LANGUAGE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Time <span class="accent">&amp; Language</span></div>
+        <div class="slide-subtitle">Date/time, region, language packs, and speech input.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Date &amp; Time</div>
+                <div class="card-desc">Toggle automatic time (NTP) vs manual. Time zone selection. Sync with time server (w32tm /resync from command line is the advanced option). Incorrect time breaks certificate validation and Kerberos authentication. ms-settings:dateandtime</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Region</div>
+                <div class="card-desc">Country/region sets default currency, measurement units, and date/time display format. Change additional date/time formats still links to the legacy Region applet (intl.cpl). ms-settings:regionformatting</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Language</div>
+                <div class="card-desc">Add display language packs, set input language for keyboard layout. Separate from speech language. Changing display language may require sign-out. ms-settings:regionlanguage</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Speech</div>
+                <div class="card-desc">Cortana and dictation speech language, microphone setup for speech recognition. Online speech recognition sends audio to Microsoft servers — relevant for privacy policy discussions. ms-settings:speech</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Gotcha</div>
+            Time sync failures break Windows Hello, Active Directory login, and HTTPS certificate checks. If a user cannot authenticate after a long power-off, check Date &amp; Time first. Enable "Set time automatically" and sync.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — GAMING ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title"><span class="accent">Gaming</span> Settings</div>
+        <div class="slide-subtitle">Game Bar, captures, Xbox networking, and Game Mode.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Xbox Game Bar</div>
+                <div class="card-desc">Win + G opens the overlay. Provides FPS counter, CPU/GPU/RAM monitor, audio mixer, social panel, screenshots, and screen recording. Can be disabled if causing performance issues. ms-settings:gaming-gamebar</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Captures</div>
+                <div class="card-desc">Default save location for screenshots and clips (default: Videos/Captures). Max clip length, audio quality, and background recording (DVR) settings. Background recording has measurable performance impact.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Game Mode</div>
+                <div class="card-desc">Prioritizes CPU/GPU resources for the foreground game process. Reduces background Windows Update and driver installations during gaming. Enabled by default in Win 10/11. ms-settings:gaming-gamemode</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Xbox Networking</div>
+                <div class="card-desc">Tests NAT type and connectivity to Xbox Live services. Not relevant for non-gaming workstations but may appear on Home system support calls. Shows open/moderate/strict NAT classification.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">A+ Note</div>
+            Game Mode and Game Bar are tested in the context of performance troubleshooting. If a user reports unexpectedly high CPU usage while working, check if Game Mode is active and Game Bar overlay is running background recording.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — ACCESSIBILITY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title"><span class="accent">Accessibility</span> / Ease of Access</div>
+        <div class="slide-subtitle">Visual, hearing, and interaction accommodations for all users.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Vision</div>
+                <div class="card-desc">Text size, display scaling, cursor thickness, Magnifier (Win + Plus), High Contrast mode, Color filters for color blindness. Narrator screen reader (Win + Ctrl + Enter). ms-settings:easeofaccess-vision</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hearing</div>
+                <div class="card-desc">Mono audio (merges stereo channels for single-ear users), visual alerts instead of sounds, closed captions style and color. Flash alerts for system sounds. ms-settings:easeofaccess-audio</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Interaction</div>
+                <div class="card-desc">Sticky Keys (Shift 5 times), Filter Keys (ignore brief keystrokes), Toggle Keys (beep on Caps/Num/Scroll Lock), On-Screen Keyboard (osk.exe), Eye Control, Voice Control, Speech Recognition.</div>
+            </div>
+        </div>
+
+        <table class="slide-table" style="margin-top:4px;">
+            <thead><tr><th>Feature</th><th>Shortcut</th><th>What It Does</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Sticky Keys</strong></td><td>Shift x5</td><td>Press modifier keys one at a time instead of simultaneously</td></tr>
+                <tr><td><strong>Magnifier</strong></td><td>Win + Plus</td><td>Zooms in on any screen area</td></tr>
+                <tr><td><strong>Narrator</strong></td><td>Win+Ctrl+Enter</td><td>Screen reader that reads aloud UI elements and text</td></tr>
+                <tr><td><strong>On-Screen Keyboard</strong></td><td>osk.exe</td><td>Virtual keyboard for mouse or touch input</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — PRIVACY & SECURITY ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Privacy <span class="accent">&amp; Security</span></div>
+        <div class="slide-subtitle">App permissions, diagnostics, activity history, and Windows Security link.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">App Permissions</div>
+                <div class="card-desc">Per-permission toggles: Camera, Microphone, Location, Contacts, Calendar, Call History, Email, Tasks, Messaging, Radios (Bluetooth), Other devices, Background apps, App diagnostics, Automatic file downloads. Each has global toggle and per-app exceptions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Security</div>
+                <div class="card-desc">Links to Windows Security center (separate app): Virus &amp; threat protection, Firewall, App &amp; browser control, Device security, Device performance &amp; health, Family options. Not configurable within Settings directly. ms-settings:windowsdefender</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Diagnostics &amp; Feedback</div>
+                <div class="card-desc">Required diagnostic data (Basic) vs Optional (Full). Tailored experiences toggle. Feedback frequency. Delete diagnostic data. Relevant for corporate compliance and data privacy policy discussions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Activity History</div>
+                <div class="card-desc">Timeline and activity stored locally and optionally synced to Microsoft cloud. Clear activity history here. Disable to prevent tracking of open apps and documents. ms-settings:privacy-activityhistory</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — WINDOWS UPDATE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Update</span></div>
+        <div class="slide-subtitle">Update delivery, active hours, pause, and advanced options.</div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Check for Updates</div>
+                    <div class="card-desc">Manually triggers contact with Windows Update servers. Windows 10/11 Home: updates are mandatory and cannot be permanently blocked. Pro/Enterprise: deferral options available.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">Active Hours</div>
+                    <div class="card-desc">Define the window when Windows will NOT restart for updates (up to 18 hours). Outside that window restarts are permitted. Prevents unexpected reboots during business hours.</div>
+                </div>
+                <div class="card c-green">
+                    <div class="card-label">Pause Updates</div>
+                    <div class="card-desc">Temporarily defer updates for 1-5 weeks (Pro/Enterprise). Home gets 1-week pause in Win 11. Used for short-term stability before major deployments.</div>
                 </div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Delivery Optimization</div>
+                    <div class="card-desc">Peer-to-peer update sharing: download from/share with PCs on LAN or internet. Reduces bandwidth on metered links. Can be disabled for strict networks. Configured under Advanced Options.</div>
                 </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Apps Settings -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Apps Settings</h2>
-            <p class="slide-subtitle">Default apps, Startup programs, and application management</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Installed Apps</h3>
-                    <p class="card-description">View, uninstall, and manage all installed applications. Shows both traditional desktop apps and modern Store apps in one unified list. Includes app size, install date, and quick uninstall.</p>
+                <div class="box box-cyan">
+                    <div class="box-label">Update Types</div>
+                    Quality Updates (monthly "Patch Tuesday") address security and reliability. Feature Updates (semi-annual for Win 10, annual for Win 11) add new features and change the OS version. Driver updates can be separately deferred.
                 </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Default Apps</h3>
-                    <p class="card-description">Set which apps open for email, web browsing, photos, videos, music, maps, and file types. Critical for user experience. Choose defaults by file type or protocol (http, mailto, etc.).</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Startup Apps</h3>
-                    <p class="card-description">Control which programs launch at login. Shows impact rating (High, Medium, Low) to identify performance hogs. Enable/disable without editing registry or startup folder.</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Optional Features</h3>
-                    <p class="card-description">Add or remove Windows components like Hyper-V, Windows Subsystem for Linux (WSL), OpenSSH, and legacy features. Replaces "Turn Windows features on or off" dialog.</p>
+                <div class="box box-red">
+                    <div class="box-label">Exam Flag</div>
+                    Update history and uninstall options are under Advanced Options &rarr; View Update History. To remove a problematic update: View History &rarr; Uninstall Updates. Roll-back OS versions use Recovery settings, not Update.
                 </div>
             </div>
+        </div>
 
-            <div class="key-points">
-                <h4>STARTUP OPTIMIZATION</h4>
-                <ul>
-                    <li>Too many startup apps = slow boot times</li>
-                    <li>Check startup impact (High = disable unless critical)</li>
-                    <li>Task Manager also shows startup apps (Ctrl+Shift+Esc → Startup)</li>
-                    <li>Some apps re-enable themselves on update - check periodically</li>
-                </ul>
-            </div>
+        <!-- SVG: Windows Update process flow — check, download, install, restart -->
+        <div class="diagram-center">
+            <svg width="740" height="70" viewBox="0 0 740 70" aria-label="Windows Update process flow: check for updates, download, install, schedule restart, complete" role="img">
+                <defs>
+                    <marker id="wu-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#334155"/></marker>
+                    <marker id="wu-arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#3ab577"/></marker>
+                </defs>
+                <rect x="5"   y="15" width="110" height="38" rx="5" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1.5"/>
+                <text x="60"  y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#64748b">Check for</text>
+                <text x="60"  y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Updates</text>
 
-            <div class="path-visual">
-                <strong>Quick Jump:</strong> ms-settings:defaultapps &nbsp;|&nbsp; ms-settings:startupapps
-            </div>
+                <rect x="135" y="15" width="110" height="38" rx="5" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="190" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4">Download</text>
+                <text x="190" y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4">Patches</text>
+                <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+                <rect x="265" y="15" width="110" height="38" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="320" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a">Prepare /</text>
+                <text x="320" y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Stage</text>
 
-        <!-- Slide 7: Accounts Settings -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Accounts Settings</h2>
-            <p class="slide-subtitle">Your info, Email accounts, Sign-in options, and access</p>
+                <rect x="395" y="15" width="110" height="38" rx="5" fill="rgba(251,146,60,0.12)" stroke="#fb923c" stroke-width="1.5"/>
+                <text x="450" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#fb923c">Schedule</text>
+                <text x="450" y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#fb923c">Restart</text>
 
-            <div class="content-grid">
-                <div class="settings-card">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Your Info</h3>
-                    <p class="settings-description">Manage account picture and profile information</p>
-                    <ul class="settings-features">
-                        <li>Change account picture</li>
-                        <li>View Microsoft account details</li>
-                        <li>Switch to Microsoft account</li>
-                        <li>Account verification status</li>
-                        <li>Link to online account settings</li>
-                    </ul>
-                </div>
+                <rect x="525" y="15" width="100" height="38" rx="5" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="575" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">Apply on</text>
+                <text x="575" y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Reboot</text>
 
-                <div class="settings-card">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Sign-in Options</h3>
-                    <p class="settings-description">Configure authentication methods</p>
-                    <ul class="settings-features">
-                        <li>Windows Hello (face, fingerprint, PIN)</li>
-                        <li>Password requirements</li>
-                        <li>Security keys (FIDO2)</li>
-                        <li>Dynamic lock (auto-lock with Bluetooth)</li>
-                        <li>Require sign-in on wake</li>
-                    </ul>
-                </div>
+                <rect x="645" y="15" width="90" height="38" rx="5" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="2"/>
+                <text x="690" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577">Up-to-date</text>
+                <text x="690" y="45" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Complete</text>
 
-                <div class="settings-card">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Email & Accounts</h3>
-                    <p class="settings-description">Add work, school, and personal email accounts</p>
-                    <ul class="settings-features">
-                        <li>Add Microsoft account</li>
-                        <li>Work or school accounts (Azure AD)</li>
-                        <li>Email accounts for apps</li>
-                        <li>Sync settings across devices</li>
-                        <li>Account-specific app access</li>
-                    </ul>
-                </div>
+                <!-- Arrows -->
+                <line x1="115" y1="34" x2="133" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#wu-arr)"/>
+                <line x1="245" y1="34" x2="263" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#wu-arr)"/>
+                <line x1="375" y1="34" x2="393" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#wu-arr)"/>
+                <line x1="505" y1="34" x2="523" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#wu-arr)"/>
+                <line x1="625" y1="34" x2="643" y2="34" stroke="#334155" stroke-width="1.5" marker-end="url(#wu-arr-g)"/>
+                <!-- Animated update token -->
+                <circle r="4" fill="#c9a83a" opacity="0.9">
+                    <animateMotion dur="5s" repeatCount="indefinite" path="M 60,34 L 190,34 L 320,34 L 450,34 L 575,34 L 690,34"/>
+                </circle>
+            </svg>
+        </div>
+    </div>
+</section>
 
-                <div class="settings-card">
-                    <h3 class="settings-name"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">‍<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Family & Other Users</h3>
-                    <p class="settings-description">Manage user accounts on this PC</p>
-                    <ul class="settings-features">
-                        <li>Add family members</li>
-                        <li>Add other users (local/Microsoft)</li>
-                        <li>Set up kiosk mode (assigned access)</li>
-                        <li>Parental controls</li>
-                        <li>Change account type (Admin/Standard)</li>
-                    </ul>
-                </div>
-            </div>
+<!-- ==================== SLIDE 15 — ms-settings URI QUICK REFERENCE ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">ms-settings: <span class="accent">URI Quick Reference</span></div>
+        <div class="slide-subtitle">Run dialog or browser address bar — jump directly to any Settings page.</div>
 
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Security Best Practice: Windows Hello</div>
-                <div class="scenario-content">
-                    <p><strong>Windows Hello</strong> provides passwordless authentication using biometrics or PIN. It's more secure than passwords because:</p>
-                    <ul style="margin: 15px 0 0 20px; color: #a89aba;">
-                        <li>Biometric data never leaves the device</li>
-                        <li>PIN is device-specific (useless if stolen)</li>
-                        <li>Resistant to phishing attacks</li>
-                        <li>Faster than typing passwords</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #34d399;"><strong>Recommendation:</strong> Enable Windows Hello whenever hardware supports it (IR camera or fingerprint reader).</p>
-                </div>
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Privacy & Security -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Privacy & Security Settings</h2>
-            <p class="slide-subtitle">Control data collection, permissions, and Windows Security</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Security</h3>
-                    <p class="card-description">
-                        <strong>Central security dashboard:</strong><br>
-                        • Virus & threat protection<br>
-                        • Firewall & network protection<br>
-                        • App & browser control (SmartScreen)<br>
-                        • Device security (TPM, Secure Boot)<br>
-                        • Family options
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">App Permissions</h3>
-                    <p class="card-description">
-                        <strong>Control what apps can access:</strong><br>
-                        • Location<br>
-                        • Camera and microphone<br>
-                        • Contacts, calendar, email<br>
-                        • File system access<br>
-                        • Background apps
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Diagnostics & Feedback</h3>
-                    <p class="card-description">
-                        <strong>Telemetry control:</strong><br>
-                        • Required vs. Optional diagnostic data<br>
-                        • Delete diagnostic data<br>
-                        • Tailored experiences<br>
-                        • Feedback frequency<br>
-                        • View diagnostic data
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Activity History</h3>
-                    <p class="card-description">
-                        <strong>Timeline and cloud sync:</strong><br>
-                        • Store activity history<br>
-                        • Sync across devices<br>
-                        • Clear activity history<br>
-                        • Manage cloud activity<br>
-                        • Filter by account
-                    </p>
-                </div>
-            </div>
-
-            <div class="key-points">
-                <h4>PRIVACY CONFIGURATION</h4>
-                <ul>
-                    <li><strong>Camera/Mic permissions:</strong> Review regularly - deny unused apps</li>
-                    <li><strong>Location:</strong> Only enable for apps that truly need it</li>
-                    <li><strong>Background apps:</strong> Disable to save battery and data</li>
-                    <li><strong>Diagnostic data:</strong> "Required" is minimum for Windows 10 Pro+</li>
-                </ul>
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 9: Windows Update & Knowledge Check -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">Windows Update Settings</h2>
-            <p class="slide-subtitle">Update management and feature update control</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Check for Updates</h3>
-                    <p class="card-description">Manually check for updates, view update history, and install pending updates. Shows quality updates (monthly security) and feature updates (semi-annual).</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Active Hours</h3>
-                    <p class="card-description">Define when Windows should NOT restart for updates. Prevents interruptions during work hours. Can be set manually or learned automatically from usage patterns.</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Pause Updates</h3>
-                    <p class="card-description">Temporarily pause updates for up to 35 days (Home: 7 days). Useful when stability is critical. Updates resume automatically after pause period.</p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Advanced Options</h3>
-                    <p class="card-description">Delivery Optimization (P2P updates), update notifications, driver updates, optional updates (drivers, feature updates), and Windows Insider Program enrollment.</p>
-                </div>
-            </div>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Quick Check</div>
-                <div class="scenario-content">
-                    <p>A user wants to prevent Windows from restarting during their work hours (8 AM - 5 PM). Which Settings option should they configure?</p>
-
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">A) Pause Updates for 35 days</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1')">B) Set Active Hours to 8:00 AM - 5:00 PM</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">C) Disable Windows Update service</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">D) Set metered connection for their network</button>
-
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 10: Settings vs Control Panel -->
-        <section class="slide" data-slide="10">
-            <h2 class="slide-title">Settings vs. Control Panel</h2>
-            <p class="slide-subtitle">Understanding when to use each interface</p>
-
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Aspect</th>
-                        <th scope="col">Settings App</th>
-                        <th scope="col">Control Panel</th>
-                    </tr>
-                </thead>
+        <div class="card-grid-2">
+            <table class="slide-table">
+                <thead><tr><th>URI</th><th>Destination</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><strong>Introduction</strong></td>
-                        <td class="feature-yes">Windows 8+ (Modern)</td>
-                        <td class="feature-limited">Windows 95+ (Legacy)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Interface</strong></td>
-                        <td class="feature-yes">Touch-optimized, clean</td>
-                        <td class="feature-no">Mouse-only, dense</td>
-                    </tr>
-                    <tr>
-                        <td><strong>User-Friendly</strong></td>
-                        <td class="feature-yes">Simplified, guided</td>
-                        <td class="feature-limited">Technical, overwhelming</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Search Function</strong></td>
-                        <td class="feature-yes">Integrated, fast</td>
-                        <td class="feature-limited">Basic/none</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Advanced Options</strong></td>
-                        <td class="feature-limited">Some settings limited</td>
-                        <td class="feature-yes">Full granular control</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Network Adapter Config</strong></td>
-                        <td class="feature-no">Basic only</td>
-                        <td class="feature-yes">Full control (ncpa.cpl)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Device Manager</strong></td>
-                        <td class="feature-no">Not available</td>
-                        <td class="feature-yes">Full access</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Power Plans</strong></td>
-                        <td class="feature-limited">Simplified</td>
-                        <td class="feature-yes">Advanced plans</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Future Support</strong></td>
-                        <td class="feature-yes">Active development</td>
-                        <td class="feature-no">Maintenance only</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Keyboard Shortcut</strong></td>
-                        <td class="feature-yes">Win + I</td>
-                        <td class="feature-limited">None (Win + R → control)</td>
-                    </tr>
+                    <tr><td><strong>ms-settings:</strong></td><td>Settings home</td></tr>
+                    <tr><td><strong>ms-settings:display</strong></td><td>Display settings</td></tr>
+                    <tr><td><strong>ms-settings:sound</strong></td><td>Sound settings</td></tr>
+                    <tr><td><strong>ms-settings:network-wifi</strong></td><td>Wi-Fi</td></tr>
+                    <tr><td><strong>ms-settings:network-vpn</strong></td><td>VPN</td></tr>
+                    <tr><td><strong>ms-settings:bluetooth</strong></td><td>Bluetooth</td></tr>
+                    <tr><td><strong>ms-settings:printers</strong></td><td>Printers &amp; Scanners</td></tr>
+                    <tr><td><strong>ms-settings:powersleep</strong></td><td>Power &amp; Sleep</td></tr>
                 </tbody>
             </table>
+            <table class="slide-table">
+                <thead><tr><th>URI</th><th>Destination</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>ms-settings:storagesense</strong></td><td>Storage Sense</td></tr>
+                    <tr><td><strong>ms-settings:appsfeatures</strong></td><td>Apps &amp; Features</td></tr>
+                    <tr><td><strong>ms-settings:defaultapps</strong></td><td>Default Apps</td></tr>
+                    <tr><td><strong>ms-settings:startupapps</strong></td><td>Startup Apps</td></tr>
+                    <tr><td><strong>ms-settings:windowsupdate</strong></td><td>Windows Update</td></tr>
+                    <tr><td><strong>ms-settings:windowsdefender</strong></td><td>Windows Security</td></tr>
+                    <tr><td><strong>ms-settings:signinoptions</strong></td><td>Sign-in Options</td></tr>
+                    <tr><td><strong>ms-settings:about</strong></td><td>About / Device Info</td></tr>
+                </tbody>
+            </table>
+        </div>
 
-            <div class="scenario-box" id="quiz2">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario Challenge</div>
-                <div class="scenario-content">
-                    <p>You need to configure a static IP address with custom DNS servers and disable IPv6 on a network adapter. Where should you go?</p>
+        <div class="box box-gold">
+            <div class="box-label">How to Use</div>
+            Win + R, type the URI, press Enter. Also works in browser address bars and scripts. Useful for technician runbooks: a single URI gets a user to the right settings page without navigating menus.
+        </div>
+    </div>
+</section>
 
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">A) Settings → Network & Internet → Ethernet → Properties</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2')">B) Control Panel → Network Connections (ncpa.cpl) → Adapter Properties</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">C) Settings → System → About → Advanced system settings</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">D) Command Prompt → netsh interface commands</button>
+<!-- ==================== SLIDE 16 — WIN 10 vs WIN 11 SETTINGS DIFFERENCES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Win 10 vs. Win 11 <span class="accent">Settings Differences</span></div>
+        <div class="slide-subtitle">Same categories, different layout and some renamed sections.</div>
 
-                    <div class="feedback" id="feedback-quiz2"></div>
+        <table class="slide-table">
+            <thead><tr><th>Area</th><th>Windows 10</th><th>Windows 11</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Navigation</strong></td><td>Left sidebar, flat list</td><td>Left panel with icons, grouped sub-pages</td></tr>
+                <tr><td><strong>Bluetooth &amp; Devices</strong></td><td>Devices category</td><td>Bluetooth &amp; Devices (renamed, restructured)</td></tr>
+                <tr><td><strong>Taskbar</strong></td><td>Can be moved to any edge</td><td>Locked to bottom; centered Start button default</td></tr>
+                <tr><td><strong>Accessibility</strong></td><td>Called "Ease of Access"</td><td>Called "Accessibility"</td></tr>
+                <tr><td><strong>Focus Assist</strong></td><td>Focus Assist</td><td>Do Not Disturb (same function, renamed)</td></tr>
+                <tr><td><strong>Default Apps</strong></td><td>Set by app category</td><td>Set per file extension / protocol</td></tr>
+                <tr><td><strong>Storage</strong></td><td>Storage Sense &amp; drives</td><td>Adds Cleanup Recommendations section</td></tr>
+                <tr><td><strong>System &rarr; About</strong></td><td>Rename PC in Advanced System</td><td>Rename PC directly on About page</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Approach</div>
+            The A+ 220-1102 exam covers both Windows 10 and Windows 11. If a question names a setting that is in both, the path is identical. If it specifies Win 11, expect the Accessibility label and per-extension Default Apps behavior.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — RECOVERY SETTINGS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Recovery <span class="accent">Settings</span></div>
+        <div class="slide-subtitle">Reset this PC, Advanced Startup, and OS version rollback.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Reset This PC</div>
+                <div class="card-desc">Two options: Keep my files (reinstalls Windows, removes apps and settings but keeps user files) or Remove everything (full wipe, suitable before resale). Cloud download vs Local reinstall — cloud fetches fresh Windows image.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Advanced Startup</div>
+                <div class="card-desc">Restart into the Windows Recovery Environment (WinRE). Provides access to Startup Repair, System Restore, Command Prompt, Uninstall Updates, System Image Recovery, and UEFI firmware settings. Path: Settings &rarr; System &rarr; Recovery &rarr; Advanced Startup &rarr; Restart now.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Go Back (Rollback)</div>
+                <div class="card-desc">Reverts a Windows feature update to the previous version. Available for 10 days after a feature update by default. After 10 days, previous Windows files are deleted. Configured under Recovery. Not available after manual deletion of Windows.old.</div>
+            </div>
+        </div>
+
+        <!-- SVG: Recovery options decision tree — match symptom to correct recovery tool -->
+        <div class="diagram-center">
+            <svg width="720" height="145" viewBox="0 0 720 145" aria-label="Recovery options decision tree: Windows boots leads to Reset/Rollback, Windows wont boot leads to WinRE or boot USB" role="img">
+                <defs>
+                    <marker id="rc-arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#3ab577"/></marker>
+                    <marker id="rc-arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#ef4444"/></marker>
+                    <marker id="rc-arr-n" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#475569"/></marker>
+                </defs>
+                <!-- START: Recovery needed -->
+                <rect x="265" y="5" width="190" height="32" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="360" y="26" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Recovery Needed</text>
+                <line x1="360" y1="37" x2="360" y2="55" stroke="#475569" stroke-width="1.5"/>
+                <!-- Diamond: Windows boots? -->
+                <polygon points="360,55 450,78 360,101 270,78" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="360" y="73" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#60a5fa">Windows</text>
+                <text x="360" y="87" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#60a5fa">boots?</text>
+                <!-- YES branch -->
+                <text x="468" y="75" font-family="Segoe UI,sans-serif" font-size="8" font-weight="700" fill="#3ab577">YES</text>
+                <line x1="450" y1="78" x2="495" y2="78" stroke="#3ab577" stroke-width="1.5" marker-end="url(#rc-arr-g)"/>
+                <!-- Two options right -->
+                <rect x="497" y="55" width="155" height="24" rx="4" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="574" y="71" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577">Settings: Reset / Rollback</text>
+                <line x1="574" y1="79" x2="574" y2="97" stroke="#3ab577" stroke-width="1"/>
+                <rect x="497" y="97" width="155" height="24" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="574" y="113" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Adv. Startup → WinRE</text>
+                <!-- NO branch -->
+                <text x="230" y="75" font-family="Segoe UI,sans-serif" font-size="8" font-weight="700" fill="#ef4444">NO</text>
+                <line x1="270" y1="78" x2="225" y2="78" stroke="#ef4444" stroke-width="1.5" marker-end="url(#rc-arr-r)"/>
+                <!-- Two options left -->
+                <rect x="62" y="55" width="160" height="24" rx="4" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="142" y="71" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">Shift+Restart → WinRE</text>
+                <line x1="142" y1="79" x2="142" y2="97" stroke="#ef4444" stroke-width="1"/>
+                <rect x="62" y="97" width="160" height="24" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="142" y="113" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Boot USB → Repair PC</text>
+                <!-- WinRE options -->
+                <line x1="142" y1="121" x2="142" y2="135" stroke="#475569" stroke-width="1"/>
+                <text x="142" y="143" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Startup Repair / Cmd / Sys Restore</text>
+                <!-- Animated decision token -->
+                <circle r="4" fill="#c9a83a" opacity="0.85">
+                    <animateMotion dur="4s" repeatCount="indefinite" path="M 360,20 L 360,78 L 574,78"/>
+                </circle>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Technician Workflow</div>
+            For a system that won't boot into Windows, hold Shift while clicking Restart to enter WinRE, or boot from Windows USB and use Repair Computer. Do not confuse Recovery Settings (in-OS path) with WinRE (pre-boot environment).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — SEARCH & TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Search <span class="accent">&amp; Troubleshooters</span></div>
+        <div class="slide-subtitle">Settings search bar and built-in diagnostic tools.</div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Settings Search Bar</div>
+                    <div class="card-desc">The fastest way to find any setting by keyword. Type "proxy," "VPN," "startup," or any term and Settings filters results in real-time across all categories. Exam tip: if you do not know the exact path, a ticket keyword search will locate it.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">Troubleshooters</div>
+                    <div class="card-desc">Settings &rarr; System &rarr; Troubleshoot &rarr; Other troubleshooters. Automated diagnostic scripts for: Internet Connections, Audio, Printer, Windows Update, Bluetooth, Camera, Keyboard, Battery, and more. Each runs a scan and attempts auto-fix. ms-settings:troubleshoot</div>
                 </div>
             </div>
-
-            <div class="key-points">
-                <h3>DECISION FRAMEWORK</h3>
-                <ul>
-                    <li><strong>Use Settings for:</strong> Common tasks, user-facing configs, modern features</li>
-                    <li><strong>Use Control Panel for:</strong> Advanced networking, Device Manager, legacy system settings</li>
-                    <li><strong>Trend:</strong> Microsoft is gradually moving everything to Settings</li>
-                    <li><strong>Reality:</strong> You'll need both for the foreseeable future</li>
-                </ul>
-            </div>
-
-            <div class="scenario-box" style="text-align: center;">
-                <div class="scenario-title" style="justify-content: center;"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Module Complete!</div>
-                <div class="scenario-content">
-                    <p>You now understand the Windows Settings app and can confidently navigate both Settings and Control Panel.</p>
-                    <p style="margin-top: 15px;"><strong>Key Takeaway:</strong> Settings is the present and future. Control Panel is still necessary for advanced tasks, but learn Settings first.</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <table class="slide-table">
+                    <thead><tr><th>Troubleshooter</th><th>Fixes</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Internet Connections</strong></td><td>DNS, adapter, IP config issues</td></tr>
+                        <tr><td><strong>Playing Audio</strong></td><td>Driver, default device, volume</td></tr>
+                        <tr><td><strong>Printer</strong></td><td>Spooler, driver, connectivity</td></tr>
+                        <tr><td><strong>Windows Update</strong></td><td>WU service, cache corruption</td></tr>
+                        <tr><td><strong>Bluetooth</strong></td><td>Pairing, service state</td></tr>
+                        <tr><td><strong>Camera</strong></td><td>Permissions, driver status</td></tr>
+                    </tbody>
+                </table>
+                <div class="box box-gold">
+                    <div class="box-label">When to Use</div>
+                    Run the relevant troubleshooter before escalating. It documents what was checked. Even if it does not fix the issue, the report identifies which services failed, narrowing the diagnosis.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module ✓</button>
-            </nav>
-        </section>
-    </main>
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19 &mdash; Summary</div>
+        <div class="slide-title">Windows Settings <span class="accent">Key Takeaways</span></div>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 10;
+        <div class="summary-facts">
+            <div class="fact-row"><div class="fact-num">01</div><div class="fact-text"><strong>Win + I</strong> opens Settings from anywhere. ms-settings: URIs jump directly to a page from Run or scripts.</div></div>
+            <div class="fact-row"><div class="fact-num">02</div><div class="fact-text"><strong>Settings vs. Control Panel:</strong> Settings is the modern path. CP is legacy. Shared features exist in both; admin tools only in CP.</div></div>
+            <div class="fact-row"><div class="fact-num">03</div><div class="fact-text"><strong>Startup apps</strong> are in Settings &rarr; Apps. msconfig Startup tab redirects here on Win 10/11.</div></div>
+            <div class="fact-row"><div class="fact-num">04</div><div class="fact-text"><strong>Default Apps</strong> in Windows 11 are set per-extension, not per category &mdash; a common exam gotcha.</div></div>
+            <div class="fact-row"><div class="fact-num">05</div><div class="fact-text"><strong>Recovery:</strong> Reset keeps or removes files. Go Back reverts a feature update within 10 days. Advanced Startup enters WinRE.</div></div>
+            <div class="fact-row"><div class="fact-num">06</div><div class="fact-text"><strong>Time sync failures</strong> break Kerberos and HTTPS certificate validation. Always check Date &amp; Time first for auth issues.</div></div>
+            <div class="fact-row"><div class="fact-num">07</div><div class="fact-text"><strong>App permissions</strong> (camera, microphone, location) are global toggles + per-app in Privacy &amp; Security.</div></div>
+            <div class="fact-row"><div class="fact-num">08</div><div class="fact-text"><strong>Windows 11 renames:</strong> Ease of Access &rarr; Accessibility, Focus Assist &rarr; Do Not Disturb. Same function, different label.</div></div>
+        </div>
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = `Slide ${currentSlide} of ${totalSlides}`;
+        <div class="box box-gold" style="margin-top:8px;">
+            <div class="box-label">Exam Domain Coverage</div>
+            This presentation covers CompTIA A+ 220-1102 Domain 1.3 (Microsoft Windows OS) with emphasis on the Settings application, configuration paths, and technician troubleshooting workflows.
+        </div>
+    </div>
+</section>
 
-            // Update dots
-            document.querySelectorAll('.slide-dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../index.html" class="nav-btn back-btn" aria-label="Back to Core 2 hub">Back to Core 2</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark module complete">Mark Complete</button>
+</nav>
 
-            // Update slides
-            document.querySelectorAll('.slide').forEach((slide, index) => {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 19;
+    let current = 1;
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+        /* Progress bar: proportional fill */
+        document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100) + '%';
 
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
 
-        function checkAnswer(button, isCorrect, quizId) {
-            const feedbackEl = document.getElementById('feedback-' + quizId);
-            const options = button.parentElement.querySelectorAll('.quiz-option');
+        /* Button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
 
-            // Disable all options
-            options.forEach(opt => {
-                opt.style.pointerEvents = 'none';
-            });
+        /* Mark Complete visible only on last slide */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
 
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✓ Correct! Active Hours is specifically designed to prevent update-related restarts during work hours. Windows will still download updates but won\'t force a restart during the defined period.';
-                } else {
-                    feedbackEl.textContent = '✓ Correct! While Settings provides basic network configuration, advanced tasks like static IP with custom DNS and disabling specific protocols require the full adapter properties in Control Panel (ncpa.cpl).';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✗ Not quite. Pausing updates delays them entirely (not ideal). Disabling the service breaks Windows. Metered connection limits downloads but doesn\'t control restart timing.';
-                } else {
-                    feedbackEl.textContent = '✗ Not quite. Settings → Ethernet → Properties offers basic options but lacks the granular control needed for custom DNS servers and protocol management. Command Prompt works but is unnecessarily complex.';
-                }
-
-                // Highlight correct answer
-                options.forEach(opt => {
-                    if ((opt.textContent.includes('Active Hours') && quizId === 'quiz1') ||
-                        (opt.textContent.includes('Control Panel') && quizId === 'quiz2')) {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
-
-        function completeModule() {
-            // Use ModuleProgress for unified completion handling
-            ModuleProgress.complete('forge', 'forge-windows-settings', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
+        /* Restart SVG animations on the incoming slide */
+        next.querySelectorAll('animate, animateMotion, animateTransform').forEach(function(el) {
+            el.beginElement();
         });
+    }
 
-        // Initialize
-        updateProgress();
-    </script>
-<script src="../../../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../../../components/PresentationA11y.js"></script>
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to Core 2 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-windows-settings', {
+            returnUrl: '../index.html'
+        });
+    }
+</script>
 </body>
 </html>

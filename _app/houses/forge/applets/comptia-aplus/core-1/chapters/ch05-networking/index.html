@@ -2,819 +2,643 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Access Control -->
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 5: Networking Fundamentals - A+ Core 1</title>
+    <title>Chapter 5: Networking Fundamentals | A+ Core 1</title>
     <style>
-        :root {
-            --forge-primary: #ea580c;
-            --forge-secondary: #f97316;
-            --forge-accent: #fdba74;
-            --forge-dark: #7c2d12;
-            --forge-darker: #431407;
-            --forge-light: #fff7ed;
-            --text-primary: #292524;
-            --text-secondary: #57534e;
-            --bg-main: #fafaf9;
-            --bg-card: #ffffff;
-            --border-color: #e7e5e4;
-            --success: #16a34a;
-            --warning: #eab308;
-            --danger: #dc2626;
-            --info: #0ea5e9;
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
-            color: var(--text-primary);
-            line-height: 1.7;
-            min-height: 100vh;
-            padding: 20px;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .container { max-width: 1000px; margin: 0 auto; }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--forge-primary);
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-weight: 500;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
         }
-        .back-link:hover { text-decoration: underline; }
-
-        .header {
-            text-align: center;
-            padding: 40px 30px;
-            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 16px;
-            color: white;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow-lg);
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
-        .header h1 { font-size: 2rem; margin-bottom: 10px; }
-        .header .chapter-num {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: inline-block;
-            margin-bottom: 15px;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-        .header .objectives {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-        .obj-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85rem;
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            background: var(--bg-card);
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-md);
-        }
-        .nav-tab {
-            padding: 10px 20px;
-            background: var(--bg-main);
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            color: var(--text-primary);
-        }
-        .nav-tab:hover { background: var(--forge-accent); }
-        .nav-tab.active { background: var(--forge-primary); color: white; }
-
-        .content-section { display: none; animation: fadeIn 0.3s ease; }
-        .content-section.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .section-card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-md);
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-        .section-card h2 {
-            color: var(--forge-dark);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.4rem;
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
         }
-        .section-card h3 {
-            color: var(--forge-primary);
-            margin: 20px 0 10px;
-            font-size: 1.1rem;
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
         }
-        .section-card p { margin-bottom: 15px; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
 
-        .info-box {
-            background: var(--forge-light);
-            border-left: 4px solid var(--forge-primary);
-            padding: 15px;
-            border-radius: 0 8px 8px 0;
-            margin: 15px 0;
-        }
-        .info-box.exam-tip { background: #fef3c7; border-left-color: var(--warning); }
-        .info-box.key-point { background: #dcfce7; border-left-color: var(--success); }
-        .info-box.warning { background: #fee2e2; border-left-color: var(--danger); }
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
 
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            font-size: 0.95rem;
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
         }
-        .data-table th, .data-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .data-table th {
-            background: var(--forge-primary);
-            color: white;
-            font-weight: 600;
-        }
-        .data-table tr:hover { background: var(--forge-light); }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
 
-        .feature-list { list-style: none; margin: 15px 0; }
-        .feature-list li { padding: 8px 0 8px 30px; position: relative; }
-        .feature-list li::before {
-            content: ">";
-            position: absolute;
-            left: 0;
-            color: var(--forge-primary);
-            font-weight: bold;
-        }
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
 
-        /* OSI Layer Visual */
-        .osi-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin: 20px 0;
-        }
-        .osi-layer {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-        }
-        .osi-layer .layer-num {
-            width: 30px;
-            height: 30px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-weight: bold;
-        }
-        .osi-layer .layer-info { flex-grow: 1; }
-        .osi-layer .layer-example {
-            background: rgba(255,255,255,0.2);
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-        }
-        .layer-7 { background: #dc2626; }
-        .layer-6 { background: #ea580c; }
-        .layer-5 { background: #eab308; }
-        .layer-4 { background: #16a34a; }
-        .layer-3 { background: #0ea5e9; }
-        .layer-2 { background: #8b5cf6; }
-        .layer-1 { background: #64748b; }
-
-        /* Mnemonic Box */
-        .mnemonic-box {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 2px solid var(--warning);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .mnemonic-box h4 { color: #92400e; margin-bottom: 10px; }
-        .mnemonic-text {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #78350f;
-            letter-spacing: 1px;
-        }
-        .mnemonic-text span { color: var(--forge-primary); }
-        .mnemonic-meaning {
-            margin-top: 10px;
-            font-size: 0.95rem;
-            color: #92400e;
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        /* Game Styles */
-        .game-container {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-md);
-        }
-        .game-title { color: var(--forge-dark); margin-bottom: 15px; font-size: 1.3rem; }
-        .game-instructions {
-            background: var(--forge-light);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        /* Sequencer Game */
-        .sequencer-container { display: flex; flex-direction: column; gap: 8px; }
-        .sequence-item {
-            background: white;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            cursor: grab;
-            transition: all 0.2s;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
-        .sequence-item:hover { border-color: var(--forge-primary); box-shadow: var(--shadow-md); }
-        .sequence-item.dragging { opacity: 0.5; cursor: grabbing; }
-        .sequence-item.correct { background: #dcfce7; border-color: var(--success); }
-        .sequence-item.incorrect { background: #fee2e2; border-color: var(--danger); }
-        .sequence-num {
-            width: 28px;
-            height: 28px;
-            background: var(--forge-primary);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 0.9rem;
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        /* ── OSI LAYER STACK ── */
+        .osi-stack { display: flex; flex-direction: column; gap: 4px; }
+        .osi-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 7px 12px; border-radius: 6px;
+        }
+        .osi-num {
+            font-size: 0.75rem; font-weight: 700; color: #fff;
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
-        .sequence-content { flex-grow: 1; }
-        .sequence-content strong { color: var(--forge-dark); }
+        .osi-name { font-size: 0.88rem; font-weight: 700; color: #f1f5f9; min-width: 120px; }
+        .osi-desc { font-size: 0.8rem; color: #94a3b8; flex: 1; }
+        .osi-example { font-size: 0.75rem; color: #64748b; font-style: italic; }
+        .l7  { background: rgba(220, 38, 38, 0.12); }
+        .l6  { background: rgba(234, 88, 12, 0.12); }
+        .l5  { background: rgba(234, 179, 8, 0.12); }
+        .l4  { background: rgba(22, 163, 74, 0.12); }
+        .l3  { background: rgba(14, 165, 233, 0.12); }
+        .l2  { background: rgba(139, 92, 246, 0.12); }
+        .l1  { background: rgba(100, 116, 139, 0.12); }
 
-        .game-btn {
-            padding: 10px 25px;
-            background: var(--forge-primary);
-            color: white;
-            border: none;
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+
+        /* ── SVG DIAGRAMS ── */
+        .svg-diagram {
+            width: 100%; max-height: 160px;
+            display: block; overflow: visible;
             border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            margin: 10px 5px 0 0;
-            transition: background 0.2s;
-        }
-        .game-btn:hover { background: var(--forge-dark); }
-
-        .game-result {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: 500;
-            display: none;
-        }
-        .game-result.show { display: block; }
-        .game-result.success { background: #dcfce7; color: var(--success); }
-        .game-result.error { background: #fee2e2; color: var(--danger); }
-
-        /* Cable Matcher */
-        .matcher-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
-        }
-        .matcher-column h4 { margin-bottom: 10px; color: var(--forge-dark); }
-        .matcher-item {
-            background: white;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .matcher-item:hover { border-color: var(--forge-primary); }
-        .matcher-item.selected { background: var(--forge-accent); border-color: var(--forge-primary); }
-        .matcher-item.matched { background: #dcfce7; border-color: var(--success); cursor: default; }
-        .matcher-item.wrong { background: #fee2e2; border-color: var(--danger); animation: shake 0.3s; }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        /* Quiz Styles */
-        .quiz-question {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: var(--shadow-md);
-        }
-        .quiz-question h4 {
-            color: var(--forge-dark);
-            margin-bottom: 15px;
-            display: flex;
-            gap: 10px;
-        }
-        .q-number {
-            background: var(--forge-primary);
-            color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            flex-shrink: 0;
-        }
-        .quiz-options { list-style: none; }
-        .quiz-options li {
-            padding: 12px 15px;
-            margin: 8px 0;
-            background: var(--bg-main);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        .quiz-options li:hover { background: var(--forge-light); border-color: var(--forge-accent); }
-        .quiz-options li.selected { background: var(--forge-accent); border-color: var(--forge-primary); }
-        .quiz-options li.correct { background: #dcfce7; border-color: var(--success); }
-        .quiz-options li.incorrect { background: #fee2e2; border-color: var(--danger); }
-
-        .quiz-result {
-            text-align: center;
-            padding: 30px;
-            background: var(--bg-card);
-            border-radius: 12px;
-            margin-top: 20px;
-            box-shadow: var(--shadow-md);
-        }
-        .quiz-result h3 { color: var(--forge-dark); margin-bottom: 15px; }
-        .quiz-score { font-size: 3rem; font-weight: bold; color: var(--forge-primary); }
-        .quiz-score.pass { color: var(--success); }
-        .quiz-score.fail { color: var(--danger); }
-
-        /* Progress Bar */
-        .progress-container {
-            background: var(--bg-card);
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-md);
-        }
-        .progress-bar {
-            height: 10px;
-            background: var(--border-color);
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 5px;
-            transition: width 0.3s;
-        }
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-
-        /* Lab Card */
-        .lab-card {
-            background: linear-gradient(135deg, var(--forge-dark), var(--forge-darker));
-            color: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-        .lab-card h3 { color: var(--forge-accent); margin-bottom: 15px; }
-        .lab-card p { margin-bottom: 15px; opacity: 0.9; }
-        .lab-card a {
-            display: inline-block;
-            padding: 10px 20px;
-            background: var(--forge-primary);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-        .lab-card a:hover { background: var(--forge-secondary); }
-
-        /* Topology Cards */
-        .topology-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .topology-card {
-            background: var(--forge-light);
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-        }
-        .topology-card h4 { color: var(--forge-dark); margin-bottom: 8px; }
-        .topology-card p { font-size: 0.9rem; color: var(--text-secondary); }
-
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.5rem; }
-            .matcher-grid { grid-template-columns: 1fr; }
-            .osi-layer { flex-wrap: wrap; }
-            .osi-layer .layer-example { margin-top: 8px; }
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="../../index.html" class="back-link">← Back to Core 1 Chapters</a>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Chapter 5: Networking Fundamentals</h1>
 
-        <header class="header">
-            <div class="chapter-num">Chapter 5</div>
-            <h1>Networking Fundamentals</h1>
-            <p>Network types, topologies, OSI model, cabling, and connectivity devices</p>
-            <div class="objectives">
-                <span class="obj-badge">Objective 2.2</span>
-                <span class="obj-badge">Objective 2.7</span>
-                <span class="obj-badge">Objective 3.1</span>
-            </div>
-        </header>
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:4.55%"></div>
 
-        <div class="progress-container">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 1 &mdash; 220-1101 &nbsp;|&nbsp; Domains 2.2, 2.7, 3.1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Chapter 5:<br>
+                <span class="accent">Networking Fundamentals</span>
             </div>
-            <div class="progress-text">
-                <span>Chapter Progress</span>
-                <span id="progressPercent">0%</span>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                Network types, topologies, the OSI model, cabling, connectivity devices, and IEEE standards. The conceptual foundation every A+ technician must own.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>22 Slides</span>
+            <span>Domains 2.2, 2.7, 3.1</span>
+            <span>OSI &bull; Cabling &bull; Devices &bull; Standards</span>
+            <span>Exam 220-1101</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — NETWORK TYPES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 22</div>
+        <div class="slide-title">Network <span class="accent">Types</span></div>
+        <div class="slide-subtitle">Networks classified by geographic scope and purpose.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Type</th><th>Full Name</th><th>Scope</th><th>Example</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>LAN</strong></td><td>Local Area Network</td><td>Single building or campus</td><td>Office network, home network</td></tr>
+                <tr><td><strong>WAN</strong></td><td>Wide Area Network</td><td>Large geographic area</td><td>The Internet, corporate backbone</td></tr>
+                <tr><td><strong>PAN</strong></td><td>Personal Area Network</td><td>Within reach of a person</td><td>Bluetooth devices, smartphone hotspot</td></tr>
+                <tr><td><strong>MAN</strong></td><td>Metropolitan Area Network</td><td>City or metro area</td><td>City-wide Wi-Fi, cable TV network</td></tr>
+                <tr><td><strong>SAN</strong></td><td>Storage Area Network</td><td>Dedicated storage network</td><td>Data center storage arrays</td></tr>
+                <tr><td><strong>WLAN</strong></td><td>Wireless Local Area Network</td><td>Local area via wireless</td><td>Wi-Fi network</td></tr>
+            </tbody>
+        </table>
+
+        <!-- SVG: Network types as concentric range circles (PAN/LAN/MAN/WAN) -->
+        <svg class="svg-diagram" viewBox="0 0 520 148" aria-label="Network types concentric range diagram">
+            <!-- WAN — outermost -->
+            <ellipse cx="200" cy="80" rx="175" ry="68" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="380" y="22" text-anchor="middle" font-size="9" fill="#475569">WAN</text>
+            <text x="380" y="34" text-anchor="middle" font-size="7" fill="#334155">Continent / Internet</text>
+            <!-- MAN -->
+            <ellipse cx="200" cy="80" rx="130" ry="52" fill="rgba(6,182,212,0.04)" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 3"/>
+            <text x="336" y="44" text-anchor="middle" font-size="9" fill="#06b6d4">MAN</text>
+            <text x="336" y="56" text-anchor="middle" font-size="7" fill="#0e7490">City / Metro</text>
+            <!-- LAN -->
+            <ellipse cx="200" cy="80" rx="86" ry="36" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="292" y="66" text-anchor="middle" font-size="9" fill="#22c55e">LAN</text>
+            <text x="292" y="78" text-anchor="middle" font-size="7" fill="#16a34a">Building</text>
+            <!-- PAN — innermost -->
+            <ellipse cx="200" cy="80" rx="42" ry="18" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="2"/>
+            <text x="200" y="84" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700">PAN</text>
+            <!-- animated pulse on PAN -->
+            <ellipse cx="200" cy="80" rx="42" ry="18" fill="none" stroke="#c9a83a" stroke-width="1" opacity="0">
+                <animate attributeName="rx" values="42;54;42" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="ry" values="18;24;18" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite"/>
+            </ellipse>
+            <!-- PAN label -->
+            <text x="200" y="108" text-anchor="middle" font-size="7" fill="#64748b">~10m (BT)</text>
+            <!-- person icon at center -->
+            <circle cx="200" cy="74" r="4" fill="#c9a83a"/>
+            <line x1="200" y1="78" x2="200" y2="88" stroke="#c9a83a" stroke-width="1.5"/>
+            <!-- right panel: legend -->
+            <rect x="415" y="18" width="96" height="112" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)"/>
+            <text x="463" y="32" text-anchor="middle" font-size="8" fill="#94a3b8" font-weight="700">Range Scale</text>
+            <ellipse cx="427" cy="46" rx="7" ry="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="438" y="50" font-size="7" fill="#94a3b8">PAN &lt;10m</text>
+            <ellipse cx="427" cy="62" rx="9" ry="5" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="438" y="66" font-size="7" fill="#94a3b8">LAN &lt;1km</text>
+            <ellipse cx="427" cy="80" rx="11" ry="6" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="438" y="84" font-size="7" fill="#94a3b8">MAN &lt;100km</text>
+            <ellipse cx="427" cy="100" rx="13" ry="7" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="438" y="104" font-size="7" fill="#94a3b8">WAN global</text>
+        </svg>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">SAN vs NAS</div>
+                SAN provides <strong>block-level storage</strong> over a dedicated network. NAS provides <strong>file-level storage</strong> and appears as a network share. Do not confuse them on the exam.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Exam Tip</div>
+                SAN relieves load on the main LAN, enables fast data access, and is easily expandable. It runs on a completely separate network fabric, not your regular Ethernet switch.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — NETWORK ACCESS MODELS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 22</div>
+        <div class="slide-title">Network <span class="accent">Access Models</span></div>
+        <div class="slide-subtitle">Peer-to-peer workgroup vs. client-server domain environments.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Peer-to-Peer (Workgroup)</div>
+                <div class="card-desc">Decentralized administration. Each device manages its own accounts and shares. No dedicated server required. Best for SOHO environments with fewer than 10 devices. Easy to set up, difficult to secure at scale.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Client-Server (Domain)</div>
+                <div class="card-desc">Centralized administration via a domain controller (Active Directory). User accounts, policies, and permissions managed from one place. Required for enterprise environments. Enhanced security and auditing. Single sign-on across resources.</div>
             </div>
         </div>
 
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-section="learn">Learn</button>
-            <button class="nav-tab" data-section="interactive">Interactive</button>
-            <button class="nav-tab" data-section="labs">Labs</button>
-            <button class="nav-tab" data-section="quiz">Quiz</button>
+        <table class="slide-table">
+            <thead>
+                <tr><th>Component</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Servers</strong></td><td>Dedicated (single purpose) or nondedicated (multiple roles)</td></tr>
+                <tr><td><strong>Thick Client</strong></td><td>Full OS, local processing, local storage</td></tr>
+                <tr><td><strong>Thin Client</strong></td><td>Minimal local processing, relies on server-side computing</td></tr>
+                <tr><td><strong>NOS</strong></td><td>Network Operating System &mdash; controls communication and data flow</td></tr>
+            </tbody>
+        </table>
+
+        <!-- SVG: Client-server vs Peer-to-peer side-by-side topology diagrams -->
+        <svg class="svg-diagram" viewBox="0 0 520 136" aria-label="Client-server vs peer-to-peer diagram">
+            <!-- Client-Server panel -->
+            <rect x="8" y="8" width="238" height="120" rx="6" fill="rgba(201,168,58,0.05)" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="127" y="24" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700">Client-Server (Domain)</text>
+            <!-- Server node -->
+            <rect x="101" y="32" width="52" height="32" rx="4" fill="#1e293b" stroke="#c9a83a" stroke-width="2"/>
+            <text x="127" y="52" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700">SERVER</text>
+            <!-- Client nodes -->
+            <circle cx="40" cy="96" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+            <text x="40" y="100" text-anchor="middle" font-size="7" fill="#94a3b8">Client</text>
+            <circle cx="90" cy="96" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+            <text x="90" y="100" text-anchor="middle" font-size="7" fill="#94a3b8">Client</text>
+            <circle cx="164" cy="96" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+            <text x="164" y="100" text-anchor="middle" font-size="7" fill="#94a3b8">Client</text>
+            <circle cx="214" cy="96" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+            <text x="214" y="100" text-anchor="middle" font-size="7" fill="#94a3b8">Client</text>
+            <!-- animated request lines from clients to server -->
+            <line x1="40" y1="82" x2="105" y2="64" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="4 3">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+            </line>
+            <line x1="90" y1="82" x2="110" y2="64" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="4 3">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1.4s" repeatCount="indefinite"/>
+            </line>
+            <line x1="164" y1="82" x2="144" y2="64" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="4 3">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite"/>
+            </line>
+            <line x1="214" y1="82" x2="153" y2="64" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="4 3">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1.6s" repeatCount="indefinite"/>
+            </line>
+            <text x="127" y="126" text-anchor="middle" font-size="7" fill="#64748b">Centralized / Active Directory</text>
+            <!-- P2P panel -->
+            <rect x="274" y="8" width="238" height="120" rx="6" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="393" y="24" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700">Peer-to-Peer (Workgroup)</text>
+            <!-- peer nodes in mesh -->
+            <circle cx="330" cy="60" r="16" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="330" y="64" text-anchor="middle" font-size="7" fill="#06b6d4">Peer A</text>
+            <circle cx="393" cy="44" r="16" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="393" y="48" text-anchor="middle" font-size="7" fill="#06b6d4">Peer B</text>
+            <circle cx="456" cy="60" r="16" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="456" y="64" text-anchor="middle" font-size="7" fill="#06b6d4">Peer C</text>
+            <circle cx="340" cy="104" r="16" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="340" y="108" text-anchor="middle" font-size="7" fill="#06b6d4">Peer D</text>
+            <circle cx="446" cy="104" r="16" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="446" y="108" text-anchor="middle" font-size="7" fill="#06b6d4">Peer E</text>
+            <!-- interconnect lines (mesh) -->
+            <line x1="346" y1="60" x2="377" y2="52" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            <line x1="409" y1="52" x2="440" y2="60" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            <line x1="330" y1="76" x2="336" y2="88" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            <line x1="456" y1="76" x2="450" y2="88" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            <line x1="356" y1="104" x2="430" y2="104" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            <line x1="393" y1="60" x2="356" y2="96" stroke="#06b6d4" stroke-width="1" opacity="0.35"/>
+            <line x1="393" y1="60" x2="430" y2="96" stroke="#06b6d4" stroke-width="1" opacity="0.35"/>
+            <text x="393" y="126" text-anchor="middle" font-size="7" fill="#64748b">Decentralized / Workgroup / SOHO</text>
+        </svg>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Association</div>
+            Peer-to-peer = Workgroup = Decentralized. Client-server = Domain = Centralized. This pairing appears frequently as a recall question.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — NETWORK TOPOLOGIES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 22</div>
+        <div class="slide-title">Network <span class="accent">Topologies</span></div>
+        <div class="slide-subtitle">Physical or logical arrangement of connected devices.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Topology</th><th>Description</th><th>Key Characteristic</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Bus</strong></td><td>All devices on a single backbone cable</td><td>Single point of failure; legacy</td></tr>
+                <tr><td><strong>Star</strong></td><td>All devices connect to a central hub or switch</td><td>Most common today; central device is SPOF</td></tr>
+                <tr><td><strong>Ring</strong></td><td>Devices in a circular chain; data travels one direction</td><td>Token Ring (legacy); any break halts the ring</td></tr>
+                <tr><td><strong>Mesh</strong></td><td>Every device connects to every other device</td><td>Highly redundant; used in WANs</td></tr>
+                <tr><td><strong>Hybrid</strong></td><td>Combination of two or more topologies</td><td>Most real-world networks</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-green">
+                <div class="box-label">Key Point</div>
+                Modern networks use <strong>Star topology</strong> with switches at the center. The central switch is a potential single point of failure (SPOF). Redundant switches solve this.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Physical vs Logical</div>
+                Physical topology is the actual cable layout. Logical topology is how data flows. A network can be physically wired as a star but operate logically as a bus (legacy Ethernet on a hub).
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — OSI MODEL OVERVIEW ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 22</div>
+        <div class="slide-title">The OSI Model: <span class="accent">7 Layers</span></div>
+        <div class="slide-subtitle">Please Do Not Throw Sausage Pizza Away &mdash; Physical through Application.</div>
+
+        <div class="osi-stack">
+            <div class="osi-row l7">
+                <div class="osi-num" style="background:#dc2626;">7</div>
+                <div class="osi-name">Application</div>
+                <div class="osi-desc">User interface and network services</div>
+                <div class="osi-example">HTTP, FTP, SMTP, DNS</div>
+            </div>
+            <div class="osi-row l6">
+                <div class="osi-num" style="background:#ea580c;">6</div>
+                <div class="osi-name">Presentation</div>
+                <div class="osi-desc">Data format, encryption, compression</div>
+                <div class="osi-example">SSL/TLS, JPEG, ASCII</div>
+            </div>
+            <div class="osi-row l5">
+                <div class="osi-num" style="background:#b45309;">5</div>
+                <div class="osi-name">Session</div>
+                <div class="osi-desc">Establish, maintain, terminate connections</div>
+                <div class="osi-example">NetBIOS, RPC</div>
+            </div>
+            <div class="osi-row l4">
+                <div class="osi-num" style="background:#16a34a;">4</div>
+                <div class="osi-name">Transport</div>
+                <div class="osi-desc">End-to-end delivery, flow control, segmentation</div>
+                <div class="osi-example">TCP, UDP</div>
+            </div>
+            <div class="osi-row l3">
+                <div class="osi-num" style="background:#0ea5e9;">3</div>
+                <div class="osi-name">Network</div>
+                <div class="osi-desc">Logical addressing, routing</div>
+                <div class="osi-example">IP, ICMP, Routers</div>
+            </div>
+            <div class="osi-row l2">
+                <div class="osi-num" style="background:#7c3aed;">2</div>
+                <div class="osi-name">Data Link</div>
+                <div class="osi-desc">Physical addressing, frames</div>
+                <div class="osi-example">MAC, Switches, NICs</div>
+            </div>
+            <div class="osi-row l1">
+                <div class="osi-num" style="background:#475569;">1</div>
+                <div class="osi-name">Physical</div>
+                <div class="osi-desc">Cables, signals, bits</div>
+                <div class="osi-example">Ethernet, Hubs, Cables</div>
+            </div>
         </div>
 
-        <!-- LEARN SECTION -->
-        <div id="learn" class="content-section active">
+        <!-- SVG: OSI data flow — packet traveling down sender side, across medium, up receiver side -->
+        <svg class="svg-diagram" viewBox="0 0 520 122" aria-label="OSI model data flow animation">
+            <!-- Sender stack -->
+            <rect x="8" y="8" width="70" height="106" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)"/>
+            <text x="43" y="20" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700">SENDER</text>
+            <!-- Layer bars sender -->
+            <rect x="10" y="22" width="66" height="11" rx="2" fill="rgba(220,38,38,0.3)" stroke="#dc2626" stroke-width="0.5"/>
+            <text x="43" y="31" text-anchor="middle" font-size="6" fill="#fca5a5">L7 App</text>
+            <rect x="10" y="34" width="66" height="11" rx="2" fill="rgba(234,88,12,0.3)" stroke="#ea580c" stroke-width="0.5"/>
+            <text x="43" y="43" text-anchor="middle" font-size="6" fill="#fdba74">L6 Pres</text>
+            <rect x="10" y="46" width="66" height="11" rx="2" fill="rgba(180,83,9,0.3)" stroke="#b45309" stroke-width="0.5"/>
+            <text x="43" y="55" text-anchor="middle" font-size="6" fill="#fcd34d">L5 Sess</text>
+            <rect x="10" y="58" width="66" height="11" rx="2" fill="rgba(22,163,74,0.3)" stroke="#16a34a" stroke-width="0.5"/>
+            <text x="43" y="67" text-anchor="middle" font-size="6" fill="#86efac">L4 Trans</text>
+            <rect x="10" y="70" width="66" height="11" rx="2" fill="rgba(14,165,233,0.3)" stroke="#0ea5e9" stroke-width="0.5"/>
+            <text x="43" y="79" text-anchor="middle" font-size="6" fill="#7dd3fc">L3 Net</text>
+            <rect x="10" y="82" width="66" height="11" rx="2" fill="rgba(124,58,237,0.3)" stroke="#7c3aed" stroke-width="0.5"/>
+            <text x="43" y="91" text-anchor="middle" font-size="6" fill="#c4b5fd">L2 DL</text>
+            <rect x="10" y="94" width="66" height="11" rx="2" fill="rgba(71,85,105,0.4)" stroke="#475569" stroke-width="0.5"/>
+            <text x="43" y="103" text-anchor="middle" font-size="6" fill="#94a3b8">L1 Phys</text>
+            <!-- Receiver stack -->
+            <rect x="442" y="8" width="70" height="106" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)"/>
+            <text x="477" y="20" text-anchor="middle" font-size="7" fill="#22c55e" font-weight="700">RECEIVER</text>
+            <rect x="444" y="22" width="66" height="11" rx="2" fill="rgba(220,38,38,0.3)" stroke="#dc2626" stroke-width="0.5"/>
+            <text x="477" y="31" text-anchor="middle" font-size="6" fill="#fca5a5">L7 App</text>
+            <rect x="444" y="34" width="66" height="11" rx="2" fill="rgba(234,88,12,0.3)" stroke="#ea580c" stroke-width="0.5"/>
+            <text x="477" y="43" text-anchor="middle" font-size="6" fill="#fdba74">L6 Pres</text>
+            <rect x="444" y="46" width="66" height="11" rx="2" fill="rgba(180,83,9,0.3)" stroke="#b45309" stroke-width="0.5"/>
+            <text x="477" y="55" text-anchor="middle" font-size="6" fill="#fcd34d">L5 Sess</text>
+            <rect x="444" y="58" width="66" height="11" rx="2" fill="rgba(22,163,74,0.3)" stroke="#16a34a" stroke-width="0.5"/>
+            <text x="477" y="67" text-anchor="middle" font-size="6" fill="#86efac">L4 Trans</text>
+            <rect x="444" y="70" width="66" height="11" rx="2" fill="rgba(14,165,233,0.3)" stroke="#0ea5e9" stroke-width="0.5"/>
+            <text x="477" y="79" text-anchor="middle" font-size="6" fill="#7dd3fc">L3 Net</text>
+            <rect x="444" y="82" width="66" height="11" rx="2" fill="rgba(124,58,237,0.3)" stroke="#7c3aed" stroke-width="0.5"/>
+            <text x="477" y="91" text-anchor="middle" font-size="6" fill="#c4b5fd">L2 DL</text>
+            <rect x="444" y="94" width="66" height="11" rx="2" fill="rgba(71,85,105,0.4)" stroke="#475569" stroke-width="0.5"/>
+            <text x="477" y="103" text-anchor="middle" font-size="6" fill="#94a3b8">L1 Phys</text>
+            <!-- Physical medium line -->
+            <line x1="78" y1="100" x2="442" y2="100" stroke="#334155" stroke-width="2" stroke-dasharray="6 4"/>
+            <text x="260" y="97" text-anchor="middle" font-size="7" fill="#334155">Physical Medium</text>
+            <!-- Animated packet traveling down sender, across medium, up receiver -->
+            <!-- Down sender: y from 27 to 99 along x=43 -->
+            <circle cx="43" cy="27" r="5" fill="#c9a83a" opacity="0">
+                <animate attributeName="cy" values="27;99" dur="1.4s" begin="0s" repeatCount="indefinite" fill="freeze" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="0s" repeatCount="indefinite" keyTimes="0;0.05;0.9;1"/>
+            </circle>
+            <!-- Across medium: x from 78 to 442 at y=100 -->
+            <circle cx="78" cy="100" r="5" fill="#c9a83a" opacity="0">
+                <animate attributeName="cx" values="78;442" dur="1.2s" begin="1.4s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="1.4s" repeatCount="indefinite" keyTimes="0;0.05;0.9;1"/>
+            </circle>
+            <!-- Up receiver: y from 99 to 27 along x=477 -->
+            <circle cx="477" cy="99" r="5" fill="#22c55e" opacity="0">
+                <animate attributeName="cy" values="99;27" dur="1.4s" begin="2.6s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="2.6s" repeatCount="indefinite" keyTimes="0;0.05;0.9;1"/>
+            </circle>
+            <!-- down arrow sender -->
+            <text x="96" y="64" font-size="14" fill="#c9a83a" opacity="0.5">&#8595;</text>
+            <text x="400" y="64" font-size="14" fill="#22c55e" opacity="0.5">&#8593;</text>
+        </svg>
+    </div>
+</section>
 
-            <!-- Section 1: Network Types -->
-            <div class="section-card">
-                <h2>1. Network Types</h2>
-                <p>Networks are classified by their geographic scope and purpose. Understanding these classifications is essential for the A+ exam.</p>
+<!-- ==================== SLIDE 6 — OSI DEVICES & ENCAPSULATION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 22</div>
+        <div class="slide-title">OSI: <span class="accent">Devices &amp; Encapsulation</span></div>
+        <div class="slide-subtitle">Which device lives at which layer, and how data moves through the stack.</div>
 
-                <table class="data-table">
-                    <tr>
-                        <th>Type</th>
-                        <th>Full Name</th>
-                        <th>Scope</th>
-                        <th>Example</th>
-                    </tr>
-                    <tr>
-                        <td><strong>LAN</strong></td>
-                        <td>Local Area Network</td>
-                        <td>Single building or campus</td>
-                        <td>Office network, home network</td>
-                    </tr>
-                    <tr>
-                        <td><strong>WAN</strong></td>
-                        <td>Wide Area Network</td>
-                        <td>Large geographic area</td>
-                        <td>The Internet, corporate backbone</td>
-                    </tr>
-                    <tr>
-                        <td><strong>PAN</strong></td>
-                        <td>Personal Area Network</td>
-                        <td>Within reach of a person</td>
-                        <td>Bluetooth devices, smartphone hotspot</td>
-                    </tr>
-                    <tr>
-                        <td><strong>MAN</strong></td>
-                        <td>Metropolitan Area Network</td>
-                        <td>City or metro area</td>
-                        <td>City-wide Wi-Fi, cable TV network</td>
-                    </tr>
-                    <tr>
-                        <td><strong>SAN</strong></td>
-                        <td>Storage Area Network</td>
-                        <td>Dedicated storage network</td>
-                        <td>Data center storage arrays</td>
-                    </tr>
-                    <tr>
-                        <td><strong>WLAN</strong></td>
-                        <td>Wireless Local Area Network</td>
-                        <td>Local area via wireless</td>
-                        <td>Wi-Fi network</td>
-                    </tr>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong>SAN Key Features:</strong> Storage Area Networks provide <strong>block-level storage</strong>, relieve network loads, enable fast data access, and are easily expandable. They're separate from the main LAN.
-                </div>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip:</strong> Don't confuse SAN (Storage Area Network) with NAS (Network Attached Storage). SAN provides block-level storage; NAS provides file-level storage and appears as a network share.
-                </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Layer 1 Devices</div>
+                <div class="card-desc">Hubs, repeaters, cables, physical connectors. Operate on raw bits only. No addressing awareness. A hub broadcasts every signal out every port &mdash; no filtering, all collision domain.</div>
             </div>
-
-            <!-- Section 2: Network Components & Access Models -->
-            <div class="section-card">
-                <h2>2. Network Components & Access Models</h2>
-
-                <h3>Primary Network Components</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Component</th>
-                        <th>Description</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Servers</strong></td>
-                        <td>Dedicated (single purpose) or Nondedicated (multiple roles)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Clients/Workstations</strong></td>
-                        <td>Thick clients (full OS), Thin clients (minimal local processing), VDI</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Network Resources</strong></td>
-                        <td>Printers, disk storage, file servers, applications</td>
-                    </tr>
-                    <tr>
-                        <td><strong>NOS</strong></td>
-                        <td>Network Operating System - controls communication and data flow</td>
-                    </tr>
-                </table>
-
-                <h3>Network Access Models</h3>
-                <div class="topology-grid">
-                    <div class="topology-card">
-                        <h4>Peer-to-Peer</h4>
-                        <p><strong>Workgroup</strong> environment</p>
-                        <p>Decentralized administration</p>
-                        <p>Best for: SOHO (Small Office/Home Office)</p>
-                    </div>
-                    <div class="topology-card">
-                        <h4>Client-Server</h4>
-                        <p><strong>Domain</strong> environment</p>
-                        <p>Centralized administration</p>
-                        <p>Best for: Enterprise, enhanced security</p>
-                    </div>
-                </div>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip:</strong> Peer-to-peer = Workgroup = Decentralized. Client-server = Domain = Centralized. This is a common association question!
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer 2 Devices</div>
+                <div class="card-desc">Switches and bridges. Read MAC addresses from frames to make forwarding decisions. Each switch port is its own collision domain. MAC address table built dynamically by observing source MACs.</div>
             </div>
-
-            <!-- Section 3: Network Topologies -->
-            <div class="section-card">
-                <h2>3. Network Topologies</h2>
-                <p>A network topology describes the physical or logical arrangement of connected devices.</p>
-
-                <table class="data-table">
-                    <tr>
-                        <th>Topology</th>
-                        <th>Description</th>
-                        <th>Pros/Cons</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Bus</strong></td>
-                        <td>All devices connect to a single backbone cable</td>
-                        <td>Simple but single point of failure; legacy</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Star</strong></td>
-                        <td>All devices connect to a central hub/switch</td>
-                        <td>Most common today; easy troubleshooting; central device is SPOF</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Ring</strong></td>
-                        <td>Devices connect in a circular chain</td>
-                        <td>Data travels one direction; used in Token Ring (legacy)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Mesh</strong></td>
-                        <td>Every device connects to every other device</td>
-                        <td>Highly redundant; expensive; used in WANs</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Hybrid</strong></td>
-                        <td>Combination of two or more topologies</td>
-                        <td>Flexible; complex; most real networks</td>
-                    </tr>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong>Key Point:</strong> Modern networks typically use a <strong>Star topology</strong> with switches at the center. The central switch is a potential single point of failure (SPOF).
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Layer 3 Devices</div>
+                <div class="card-desc">Routers. Read IP addresses from packets. Route traffic between networks. Each router interface is a separate broadcast domain. Required to move packets between different subnets.</div>
             </div>
+        </div>
 
-            <!-- Section 4: OSI Model - THE BIG ONE -->
-            <div class="section-card">
-                <h2>4. The OSI Model (7 Layers)</h2>
-                <p>The Open Systems Interconnection (OSI) model is a conceptual framework for understanding network communication. <strong>This is heavily tested on the A+ exam!</strong></p>
-
-                <div class="mnemonic-box">
-                    <h3>Memory Aid - Remember All 7 Layers!</h3>
-                    <div class="mnemonic-text">
-                        <span>P</span>lease <span>D</span>o <span>N</span>ot <span>T</span>hrow <span>S</span>ausage <span>P</span>izza <span>A</span>way
-                    </div>
-                    <div class="mnemonic-meaning">
-                        Physical → Data Link → Network → Transport → Session → Presentation → Application
-                    </div>
-                </div>
-
-                <div class="osi-stack">
-                    <div class="osi-layer layer-7">
-                        <span class="layer-num">7</span>
-                        <div class="layer-info"><strong>Application</strong> - User interface, network services</div>
-                        <span class="layer-example">HTTP, FTP, SMTP, DNS</span>
-                    </div>
-                    <div class="osi-layer layer-6">
-                        <span class="layer-num">6</span>
-                        <div class="layer-info"><strong>Presentation</strong> - Data format, encryption, compression</div>
-                        <span class="layer-example">SSL, TLS, JPEG, ASCII</span>
-                    </div>
-                    <div class="osi-layer layer-5">
-                        <span class="layer-num">5</span>
-                        <div class="layer-info"><strong>Session</strong> - Establish, maintain, terminate connections</div>
-                        <span class="layer-example">NetBIOS, RPC</span>
-                    </div>
-                    <div class="osi-layer layer-4">
-                        <span class="layer-num">4</span>
-                        <div class="layer-info"><strong>Transport</strong> - End-to-end delivery, flow control</div>
-                        <span class="layer-example">TCP, UDP</span>
-                    </div>
-                    <div class="osi-layer layer-3">
-                        <span class="layer-num">3</span>
-                        <div class="layer-info"><strong>Network</strong> - Logical addressing, routing</div>
-                        <span class="layer-example">IP, ICMP, Routers</span>
-                    </div>
-                    <div class="osi-layer layer-2">
-                        <span class="layer-num">2</span>
-                        <div class="layer-info"><strong>Data Link</strong> - Physical addressing, frames</div>
-                        <span class="layer-example">MAC, Switches, NICs</span>
-                    </div>
-                    <div class="osi-layer layer-1">
-                        <span class="layer-num">1</span>
-                        <div class="layer-info"><strong>Physical</strong> - Cables, signals, bits</div>
-                        <span class="layer-example">Ethernet, Hubs, Cables</span>
-                    </div>
-                </div>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip - Device Layers:</strong><br>
-                    • <strong>Layer 1 (Physical):</strong> Hubs, Cables, Repeaters<br>
-                    • <strong>Layer 2 (Data Link):</strong> Switches, Bridges, NICs (MAC addresses)<br>
-                    • <strong>Layer 3 (Network):</strong> Routers (IP addresses)
-                </div>
-
-                <div class="info-box key-point">
-                    <strong>Key Point:</strong> Data travels DOWN the stack when sending (encapsulation) and UP the stack when receiving (decapsulation). Each layer adds its own header.
-                </div>
+        <div class="card-grid-2">
+            <div class="box box-cyan">
+                <div class="box-label">Encapsulation (Sending)</div>
+                Data travels DOWN the stack. Each layer adds its own header (encapsulation). Application data becomes a segment at Layer 4, a packet at Layer 3, a frame at Layer 2, and bits at Layer 1.
             </div>
-
-            <!-- Section 5: Network Cabling - Copper -->
-            <div class="section-card">
-                <h2>5. Network Cabling - Copper</h2>
-
-                <h3>Coaxial Cable</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Type</th>
-                        <th>Use</th>
-                        <th>Core Size</th>
-                        <th>Max Distance</th>
-                    </tr>
-                    <tr>
-                        <td><strong>RG-6</strong></td>
-                        <td>Digital cable/satellite, cable modems</td>
-                        <td>1.0 mm</td>
-                        <td>304 meters (1000 ft)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>RG-59</strong></td>
-                        <td>Analog cable TV</td>
-                        <td>0.762 mm</td>
-                        <td>228 meters (750 ft)</td>
-                    </tr>
-                </table>
-                <p><strong>Connectors:</strong> BNC (twist-lock), F-type (screw-on, most common for cable)</p>
-
-                <h3>Twisted Pair Cable (Ethernet)</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Category</th>
-                        <th>Ethernet Spec</th>
-                        <th>Max Speed</th>
-                        <th>Max Distance</th>
-                        <th>Notes</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Cat 5</strong></td>
-                        <td>100BaseT</td>
-                        <td>100 Mbps</td>
-                        <td>100m</td>
-                        <td>Legacy, uses 2 pairs</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cat 5e</strong></td>
-                        <td>1000BaseT</td>
-                        <td>1 Gbps</td>
-                        <td>100m</td>
-                        <td>Enhanced, uses 4 pairs</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cat 6</strong></td>
-                        <td>10GBaseT</td>
-                        <td>10 Gbps</td>
-                        <td>55m (10G) / 100m (1G)</td>
-                        <td>Stricter specs</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cat 6a</strong></td>
-                        <td>10GBaseT</td>
-                        <td>10 Gbps</td>
-                        <td>100m</td>
-                        <td>Augmented Cat 6</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cat 7</strong></td>
-                        <td>10GBaseT</td>
-                        <td>10 Gbps</td>
-                        <td>100m</td>
-                        <td>Individually shielded pairs</td>
-                    </tr>
-                </table>
-
-                <h3>Twisted Pair Types</h3>
-                <ul class="feature-list">
-                    <li><strong>UTP</strong> (Unshielded Twisted Pair) - Most common, no shielding</li>
-                    <li><strong>STP</strong> (Shielded Twisted Pair) - Foil shielding reduces EMI</li>
-                    <li><strong>Plenum</strong> - Fire-resistant jacket for air handling spaces</li>
-                    <li><strong>Direct Burial</strong> - Waterproof for underground installation</li>
-                </ul>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip:</strong> All twisted pair categories have a max distance of <strong>100 meters</strong> EXCEPT Cat 6 at 10Gbps (only 55m). The "100 meter rule" is important!
-                </div>
+            <div class="box box-green">
+                <div class="box-label">Decapsulation (Receiving)</div>
+                Data travels UP the stack on receipt. Each layer strips its header (decapsulation) and passes the payload to the layer above. This is why the OSI model is a conceptual framework, not physical hardware.
             </div>
+        </div>
+    </div>
+</section>
 
-            <!-- Section 6: Wiring Standards & Fiber -->
-            <div class="section-card">
-                <h2>6. Wiring Standards & Fiber Optic</h2>
+<!-- ==================== SLIDE 7 — COAXIAL CABLE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 22</div>
+        <div class="slide-title">Network Cabling: <span class="accent">Coaxial</span></div>
+        <div class="slide-subtitle">RG-6 and RG-59 &mdash; coax standards and connectors for cable broadband.</div>
 
-                <h3>T568A vs T568B Wiring Standards</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Pin</th>
-                        <th>T568A</th>
-                        <th>T568B</th>
-                    </tr>
+        <table class="slide-table">
+            <thead>
+                <tr><th>Type</th><th>Use</th><th>Core Diameter</th><th>Max Distance</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>RG-6</strong></td><td>Digital cable TV, satellite, cable modems</td><td>1.0 mm</td><td>304 m (1,000 ft)</td></tr>
+                <tr><td><strong>RG-59</strong></td><td>Analog cable TV</td><td>0.762 mm</td><td>228 m (750 ft)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">F-Type Connector</div>
+                <div class="card-desc">Screw-on connector. Most common for cable TV and cable modems. The center conductor of the coax itself serves as the pin. Must be tightened finger-tight to ensure good signal. Found on all residential cable installations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">BNC Connector</div>
+                <div class="card-desc">Bayonet Neill-Concelman. Twist-lock connection. Used on legacy 10Base2 Ethernet (thinnet), test equipment, and security cameras. Quick connect/disconnect. Still found in professional video and RF test gear.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            RG-6 is the current standard for cable internet connections. RG-59 is older, thinner, and less shielded. If a cable internet install is failing at distance, check whether RG-59 was used instead of RG-6.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — TWISTED PAIR CATEGORIES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 22</div>
+        <div class="slide-title">Twisted Pair: <span class="accent">Categories</span></div>
+        <div class="slide-subtitle">Cat 5 through Cat 7 &mdash; speeds, distances, and what changed.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Category</th><th>Ethernet Spec</th><th>Max Speed</th><th>Max Distance</th><th>Note</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Cat 5</strong></td><td>100BaseT</td><td>100 Mbps</td><td>100 m</td><td>Legacy, 2 pairs used</td></tr>
+                <tr><td><strong>Cat 5e</strong></td><td>1000BaseT</td><td>1 Gbps</td><td>100 m</td><td>Enhanced, 4 pairs, reduced crosstalk</td></tr>
+                <tr><td><strong>Cat 6</strong></td><td>10GBaseT</td><td>10 Gbps</td><td>55 m at 10G / 100 m at 1G</td><td>Spline separator inside</td></tr>
+                <tr><td><strong>Cat 6a</strong></td><td>10GBaseT</td><td>10 Gbps</td><td>100 m</td><td>Augmented; larger diameter</td></tr>
+                <tr><td><strong>Cat 7</strong></td><td>10GBaseT</td><td>10 Gbps</td><td>100 m</td><td>Individually shielded pairs</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">The 100-Meter Rule</div>
+                All twisted pair categories support a maximum segment length of <strong>100 meters</strong>, EXCEPT Cat 6 running at 10 Gbps, which is limited to <strong>55 meters</strong>. Cat 6a restores the full 100 m at 10G.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">UTP vs STP</div>
+                UTP (Unshielded) is most common &mdash; no shielding. STP (Shielded) adds foil or braid shielding to reduce EMI. Plenum-rated cable has a fire-resistant jacket required in air-handling spaces (above drop ceilings, raised floors).
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — T568A & T568B ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 22</div>
+        <div class="slide-title">Wiring Standards: <span class="accent">T568A &amp; T568B</span></div>
+        <div class="slide-subtitle">Pin assignments for RJ-45 connectors and cable types.</div>
+
+        <div class="card-grid-2">
+            <table class="slide-table">
+                <thead><tr><th>Pin</th><th>T568A</th><th>T568B</th></tr></thead>
+                <tbody>
                     <tr><td>1</td><td>White/Green</td><td>White/Orange</td></tr>
                     <tr><td>2</td><td>Green</td><td>Orange</td></tr>
                     <tr><td>3</td><td>White/Orange</td><td>White/Green</td></tr>
@@ -823,813 +647,595 @@
                     <tr><td>6</td><td>Orange</td><td>Green</td></tr>
                     <tr><td>7</td><td>White/Brown</td><td>White/Brown</td></tr>
                     <tr><td>8</td><td>Brown</td><td>Brown</td></tr>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong>Cable Types:</strong><br>
-                    • <strong>Straight-through:</strong> Same standard on both ends (T568B-T568B) - connects different devices<br>
-                    • <strong>Crossover:</strong> Different standards on each end (T568A-T568B) - connects similar devices<br>
-                    Note: Modern switches use Auto-MDI/MDIX to auto-detect!
+                </tbody>
+            </table>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Straight-Through Cable</div>
+                    <div class="card-desc">Same standard on both ends (T568B&ndash;T568B). Connects unlike devices: computer to switch, switch to router. Most common patch cable type in use today.</div>
                 </div>
-
-                <h3>Fiber Optic Cable</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Type</th>
-                        <th>Core Size</th>
-                        <th>Speed</th>
-                        <th>Distance</th>
-                        <th>Use</th>
-                    </tr>
-                    <tr>
-                        <td><strong>MMF</strong> (Multimode)</td>
-                        <td>50-62.5 microns</td>
-                        <td>1-10 Gbps</td>
-                        <td>Up to 550m</td>
-                        <td>Short distances, data centers</td>
-                    </tr>
-                    <tr>
-                        <td><strong>SMF</strong> (Single-mode)</td>
-                        <td>8-10 microns</td>
-                        <td>10+ Gbps</td>
-                        <td>Up to 40+ km</td>
-                        <td>Long distances, WAN links</td>
-                    </tr>
-                </table>
-
-                <h3>Fiber Connectors</h3>
-                <ul class="feature-list">
-                    <li><strong>ST</strong> (Straight Tip) - Twist-lock, round, older style</li>
-                    <li><strong>SC</strong> (Subscriber Connector) - Square push/pull, common</li>
-                    <li><strong>LC</strong> (Lucent Connector) - Small form factor, most common today</li>
-                </ul>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip:</strong> Single-mode fiber uses a LASER and goes LONGER distances. Multimode uses LED and is for shorter distances. Remember: <strong>S</strong>ingle-mode = <strong>S</strong>mall core = <strong>L</strong>onger distance.
+                <div class="card c-cyan">
+                    <div class="card-label">Crossover Cable</div>
+                    <div class="card-desc">Different standards each end (T568A one end, T568B the other). Connects like devices: computer to computer, switch to switch. Modern switches use Auto-MDI/MDIX to auto-detect, making crossover cables largely obsolete.</div>
                 </div>
-
-                <h3>Connectors Summary</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Connector</th>
-                        <th>Use</th>
-                    </tr>
-                    <tr><td><strong>RJ-45</strong></td><td>Ethernet (twisted pair) - 8 pins</td></tr>
-                    <tr><td><strong>RJ-11</strong></td><td>Telephone/DSL - 6 pins</td></tr>
-                    <tr><td><strong>F-type</strong></td><td>Coaxial cable (cable TV, modems)</td></tr>
-                    <tr><td><strong>BNC</strong></td><td>Coaxial (legacy, test equipment)</td></tr>
-                    <tr><td><strong>ST/SC/LC</strong></td><td>Fiber optic</td></tr>
-                </table>
-            </div>
-
-            <!-- Section 7: Connectivity Devices -->
-            <div class="section-card">
-                <h2>7. Connectivity Devices</h2>
-
-                <table class="data-table">
-                    <tr>
-                        <th>Device</th>
-                        <th>OSI Layer</th>
-                        <th>Function</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Hub</strong></td>
-                        <td>Layer 1</td>
-                        <td>Basic connectivity, broadcasts to all ports (obsolete)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Repeater/Extender</strong></td>
-                        <td>Layer 1</td>
-                        <td>Extends signal distance, regenerates signal</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Bridge</strong></td>
-                        <td>Layer 2</td>
-                        <td>Connects two network segments, filters by MAC</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Switch</strong></td>
-                        <td>Layer 2</td>
-                        <td>Forwards frames based on MAC address</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Router</strong></td>
-                        <td>Layer 3</td>
-                        <td>Forwards packets based on IP address, connects networks</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Access Point</strong></td>
-                        <td>Layer 2</td>
-                        <td>Provides wireless connectivity to wired network</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Firewall</strong></td>
-                        <td>Layers 3-7</td>
-                        <td>Security barrier, filters traffic by rules</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Modem</strong></td>
-                        <td>Layer 1-2</td>
-                        <td>Modulates/demodulates signals (digital ↔ analog)</td>
-                    </tr>
-                </table>
-
-                <h3>Switch Types</h3>
-                <ul class="feature-list">
-                    <li><strong>Unmanaged:</strong> Simple plug-and-play, no configuration</li>
-                    <li><strong>Managed:</strong> Configurable - VLANs, QoS, port mirroring, SNMP</li>
-                </ul>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip - Layer Associations:</strong><br>
-                    • <strong>Switch = Layer 2 = MAC addresses</strong><br>
-                    • <strong>Router = Layer 3 = IP addresses</strong><br>
-                    • Hubs are Layer 1 and obsolete - switches replaced them
-                </div>
-
-                <h3>Other Network Components</h3>
-                <ul class="feature-list">
-                    <li><strong>Patch Panel:</strong> Terminates wall wiring, provides RJ-45 connections</li>
-                    <li><strong>Cable/DSL Modem:</strong> Connects to ISP, provides internet access</li>
-                    <li><strong>ONT:</strong> Optical Network Terminal - fiber to home converter</li>
-                    <li><strong>PoE (Power over Ethernet):</strong> Delivers power + data over Cat 5e/6</li>
-                    <li><strong>Ethernet over Power:</strong> Uses electrical wiring for network connectivity</li>
-                </ul>
-            </div>
-
-            <!-- Section 8: NICs & IEEE Standards -->
-            <div class="section-card">
-                <h2>8. Network Interface Cards & Standards</h2>
-
-                <h3>NIC Considerations</h3>
-                <ul class="feature-list">
-                    <li><strong>Compatibility:</strong> PCIe slot type (x1, x4), 32/64-bit bus</li>
-                    <li><strong>Speed:</strong> 100 Mbps, 1 Gbps, 10 Gbps</li>
-                    <li><strong>Duplex:</strong> Half duplex (one direction) vs Full duplex (both)</li>
-                    <li><strong>MAC Address:</strong> Unique 48-bit hardware identifier (burned-in)</li>
-                    <li><strong>Drivers:</strong> Software to communicate between NIC and OS</li>
-                </ul>
-
-                <h3>IEEE 802 Standards</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Standard</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                    </tr>
-                    <tr>
-                        <td><strong>802.3</strong></td>
-                        <td>Ethernet</td>
-                        <td>Wired LAN, uses CSMA/CD</td>
-                    </tr>
-                    <tr>
-                        <td><strong>802.11</strong></td>
-                        <td>Wi-Fi</td>
-                        <td>Wireless LAN, uses CSMA/CA</td>
-                    </tr>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong>CSMA/CD vs CSMA/CA:</strong><br>
-                    • <strong>CSMA/CD</strong> (Collision Detection) - Used by wired Ethernet (802.3). Detects collisions and retransmits.<br>
-                    • <strong>CSMA/CA</strong> (Collision Avoidance) - Used by Wi-Fi (802.11). Avoids collisions using RTS/CTS.
-                </div>
-
-                <div class="info-box exam-tip">
-                    <strong>Exam Tip:</strong> Wired = CD (Detection), Wireless = CA (Avoidance). Wireless can't detect collisions easily, so it tries to avoid them!
-                </div>
-            </div>
-
-        </div>
-
-        <!-- INTERACTIVE SECTION -->
-        <div id="interactive" class="content-section">
-
-            <!-- OSI Layer Sequencer -->
-            <div class="game-container">
-                <h3 class="game-title">OSI Model Layer Sequencer</h3>
-                <div class="game-instructions">
-                    <strong>Instructions:</strong> Drag and drop the OSI layers into the correct order (Layer 1 at bottom to Layer 7 at top). Click "Check Order" when done.
-                </div>
-
-                <div class="sequencer-container" id="osiSequencer">
-                    <div class="sequence-item" draggable="true" data-layer="4">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Transport</strong> - TCP/UDP, end-to-end</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="1">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Physical</strong> - Cables, signals, bits</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="7">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Application</strong> - HTTP, FTP, user services</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="3">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Network</strong> - IP addresses, routing</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="6">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Presentation</strong> - Encryption, formatting</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="2">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Data Link</strong> - MAC addresses, switches</span>
-                    </div>
-                    <div class="sequence-item" draggable="true" data-layer="5">
-                        <span class="sequence-num">?</span>
-                        <span class="sequence-content"><strong>Session</strong> - Connections, sessions</span>
-                    </div>
-                </div>
-
-                <button class="game-btn" onclick="checkOSISequence()">Check Order</button>
-                <button class="game-btn" onclick="resetOSISequencer()">Reset</button>
-
-                <div class="game-result" id="osiResult"></div>
-            </div>
-
-            <!-- Cable Category Matcher -->
-            <div class="game-container">
-                <h3 class="game-title">Cable Category Matcher</h3>
-                <div class="game-instructions">
-                    <strong>Instructions:</strong> Click a cable category on the left, then click its matching speed on the right.
-                </div>
-
-                <div class="matcher-grid">
-                    <div class="matcher-column" id="cableLeft">
-                        <h4>Cable Category</h4>
-                        <div class="matcher-item" data-match="100mbps">Cat 5</div>
-                        <div class="matcher-item" data-match="1gbps">Cat 5e</div>
-                        <div class="matcher-item" data-match="10gbps55">Cat 6</div>
-                        <div class="matcher-item" data-match="10gbps100">Cat 6a</div>
-                        <div class="matcher-item" data-match="smf">Single-mode Fiber</div>
-                        <div class="matcher-item" data-match="mmf">Multimode Fiber</div>
-                    </div>
-                    <div class="matcher-column" id="cableRight">
-                        <h4>Speed / Distance</h4>
-                        <div class="matcher-item" data-match="smf">10 Gbps @ 40+ km</div>
-                        <div class="matcher-item" data-match="1gbps">1 Gbps @ 100m</div>
-                        <div class="matcher-item" data-match="10gbps100">10 Gbps @ 100m</div>
-                        <div class="matcher-item" data-match="100mbps">100 Mbps @ 100m</div>
-                        <div class="matcher-item" data-match="mmf">1 Gbps @ 550m</div>
-                        <div class="matcher-item" data-match="10gbps55">10 Gbps @ 55m</div>
-                    </div>
-                </div>
-
-                <button class="game-btn" onclick="resetCableMatcher()">Reset Game</button>
-                <div class="game-result" id="cableResult"></div>
-            </div>
-
-            <!-- Device Layer Quiz -->
-            <div class="game-container">
-                <h3 class="game-title">Device Layer Quick Check</h3>
-                <div class="game-instructions">
-                    <strong>Instructions:</strong> Select the OSI layer each device operates at.
-                </div>
-
-                <div class="quiz-question" data-correct="2">
-                    <h4><span class="q-number">1</span> At which OSI layer does a SWITCH operate?</h4>
-                    <ul class="quiz-options device-quiz">
-                        <li onclick="checkDeviceLayer(this, '1')">Layer 1 - Physical</li>
-                        <li onclick="checkDeviceLayer(this, '2')">Layer 2 - Data Link</li>
-                        <li onclick="checkDeviceLayer(this, '3')">Layer 3 - Network</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question" data-correct="3">
-                    <h4><span class="q-number">2</span> At which OSI layer does a ROUTER operate?</h4>
-                    <ul class="quiz-options device-quiz">
-                        <li onclick="checkDeviceLayer(this, '1')">Layer 1 - Physical</li>
-                        <li onclick="checkDeviceLayer(this, '2')">Layer 2 - Data Link</li>
-                        <li onclick="checkDeviceLayer(this, '3')">Layer 3 - Network</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question" data-correct="1">
-                    <h4><span class="q-number">3</span> At which OSI layer does a HUB operate?</h4>
-                    <ul class="quiz-options device-quiz">
-                        <li onclick="checkDeviceLayer(this, '1')">Layer 1 - Physical</li>
-                        <li onclick="checkDeviceLayer(this, '2')">Layer 2 - Data Link</li>
-                        <li onclick="checkDeviceLayer(this, '3')">Layer 3 - Network</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question" data-correct="mac">
-                    <h4><span class="q-number">4</span> What type of address does a switch use to forward frames?</h4>
-                    <ul class="quiz-options device-quiz">
-                        <li onclick="checkDeviceLayer(this, 'ip')">IP Address</li>
-                        <li onclick="checkDeviceLayer(this, 'mac')">MAC Address</li>
-                        <li onclick="checkDeviceLayer(this, 'port')">Port Number</li>
-                    </ul>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- LABS SECTION -->
-        <div id="labs" class="content-section">
-            <div class="lab-card">
-                <h3>Network Topology Builder Lab</h3>
-                <p>Build different network topologies and understand how devices connect. Practice identifying star, bus, mesh, and ring configurations.</p>
-                <a href="../../labs/forge-topology-builder.lab.html">Launch Lab</a>
-            </div>
-
-            <div class="section-card">
-                <h2>Hands-On Practice Activities</h2>
-
-                <h3>Activity 1: Identify Network Cables</h3>
-                <ul class="feature-list">
-                    <li>Locate Cat 5e, Cat 6, and coaxial cables in your environment</li>
-                    <li>Examine RJ-45 connectors - note the 8 pins</li>
-                    <li>Compare RJ-45 (Ethernet) to RJ-11 (phone) connectors</li>
-                    <li>If available, examine fiber optic cables and connectors</li>
-                </ul>
-
-                <h3>Activity 2: Check Your NIC Settings</h3>
-                <ul class="feature-list">
-                    <li>Open Device Manager → Network Adapters</li>
-                    <li>View your NIC properties → Advanced tab</li>
-                    <li>Find the Speed & Duplex setting</li>
-                    <li>Use <code>ipconfig /all</code> to view your MAC address</li>
-                </ul>
-
-                <h3>Activity 3: Trace Network Path</h3>
-                <ul class="feature-list">
-                    <li>Use <code>tracert google.com</code> (Windows) to see routing</li>
-                    <li>Identify how many routers (hops) are in the path</li>
-                    <li>Note the round-trip times at each hop</li>
-                </ul>
-
-                <h3>Activity 4: Identify OSI Layers in Action</h3>
-                <ul class="feature-list">
-                    <li>Open a web browser - Application layer (HTTP)</li>
-                    <li>Check if site uses HTTPS - Presentation layer (TLS)</li>
-                    <li>Run <code>netstat -an</code> to see TCP connections - Transport layer</li>
-                    <li>View your IP address - Network layer</li>
-                    <li>View your MAC address - Data Link layer</li>
-                </ul>
             </div>
         </div>
-
-        <!-- QUIZ SECTION -->
-        <div id="quiz" class="content-section">
-            <div class="section-card">
-                <h2>Chapter 5 Quiz</h2>
-                <p>Test your knowledge of networking fundamentals. You need 70% (11/15) to pass.</p>
-            </div>
-
-            <form id="chapterQuiz">
-                <div class="quiz-question">
-                    <h3><span class="q-number">1</span> Which network type spans a single building or campus?</h3>
-                    <ul class="quiz-options">
-                        <li data-answer="a">WAN</li>
-                        <li data-answer="b">LAN</li>
-                        <li data-answer="c">MAN</li>
-                        <li data-answer="d">SAN</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">2</span> At which OSI layer do switches operate?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Layer 1 - Physical</li>
-                        <li data-answer="b">Layer 2 - Data Link</li>
-                        <li data-answer="c">Layer 3 - Network</li>
-                        <li data-answer="d">Layer 4 - Transport</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">3</span> What is the maximum distance for Cat 6 cable at 10 Gbps?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">100 meters</li>
-                        <li data-answer="b">55 meters</li>
-                        <li data-answer="c">1000 meters</li>
-                        <li data-answer="d">25 meters</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">4</span> Which topology connects all devices to a central hub or switch?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Bus</li>
-                        <li data-answer="b">Ring</li>
-                        <li data-answer="c">Star</li>
-                        <li data-answer="d">Mesh</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">5</span> What type of address does a router use to forward packets?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">MAC address</li>
-                        <li data-answer="b">IP address</li>
-                        <li data-answer="c">Port number</li>
-                        <li data-answer="d">VLAN ID</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">6</span> Which fiber type can transmit data up to 40+ kilometers?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Multimode fiber (MMF)</li>
-                        <li data-answer="b">Single-mode fiber (SMF)</li>
-                        <li data-answer="c">Cat 6a</li>
-                        <li data-answer="d">Coaxial RG-6</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">7</span> Which wiring standard has orange and white/orange on pins 1 and 2?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">T568A</li>
-                        <li data-answer="b">T568B</li>
-                        <li data-answer="c">Crossover</li>
-                        <li data-answer="d">Rollover</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">8</span> What access control method does wireless (802.11) use?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">CSMA/CD</li>
-                        <li data-answer="b">CSMA/CA</li>
-                        <li data-answer="c">Token passing</li>
-                        <li data-answer="d">Polling</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">9</span> Which OSI layer handles encryption and data formatting?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Application</li>
-                        <li data-answer="b">Presentation</li>
-                        <li data-answer="c">Session</li>
-                        <li data-answer="d">Transport</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">10</span> What connector is used for standard Ethernet cables?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">RJ-11</li>
-                        <li data-answer="b">RJ-45</li>
-                        <li data-answer="c">F-type</li>
-                        <li data-answer="d">BNC</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">11</span> A peer-to-peer network is also known as a:</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Domain</li>
-                        <li data-answer="b">Workgroup</li>
-                        <li data-answer="c">Enterprise</li>
-                        <li data-answer="d">Cluster</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">12</span> Which device regenerates signals to extend network distance?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">Router</li>
-                        <li data-answer="b">Switch</li>
-                        <li data-answer="c">Repeater</li>
-                        <li data-answer="d">Firewall</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">13</span> What type of cable should be used in air handling spaces (plenum)?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">UTP</li>
-                        <li data-answer="b">STP</li>
-                        <li data-answer="c">Plenum-rated</li>
-                        <li data-answer="d">Direct burial</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">14</span> Which network type provides block-level storage?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">LAN</li>
-                        <li data-answer="b">WAN</li>
-                        <li data-answer="c">SAN</li>
-                        <li data-answer="d">PAN</li>
-                    </ul>
-                </div>
-
-                <div class="quiz-question">
-                    <h4><span class="q-number">15</span> What is the maximum speed of Cat 5e cable?</h4>
-                    <ul class="quiz-options">
-                        <li data-answer="a">100 Mbps</li>
-                        <li data-answer="b">1 Gbps</li>
-                        <li data-answer="c">10 Gbps</li>
-                        <li data-answer="d">40 Gbps</li>
-                    </ul>
-                </div>
-            </form>
-
-            <button class="game-btn" onclick="submitQuiz()">Submit Quiz</button>
-            <button class="game-btn" onclick="resetQuiz()">Reset</button>
-
-            <div class="quiz-result" id="quizResult" style="display: none;">
-                <h3>Quiz Results</h3>
-                <div class="quiz-score" id="quizScore">0/15</div>
-                <p id="quizMessage"></p>
-            </div>
-        </div>
-
     </div>
+</section>
 
-    <script>
-        // Tab Navigation
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.section).classList.add('active');
-            });
+<!-- ==================== SLIDE 10 — FIBER OPTIC ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 22</div>
+        <div class="slide-title">Fiber Optic <span class="accent">Cable</span></div>
+        <div class="slide-subtitle">Single-mode vs. multimode, and common fiber connectors.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Type</th><th>Core Size</th><th>Speed</th><th>Distance</th><th>Light Source</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>MMF</strong> (Multimode)</td><td>50&ndash;62.5 microns</td><td>1&ndash;10 Gbps</td><td>Up to 550 m</td><td>LED</td></tr>
+                <tr><td><strong>SMF</strong> (Single-mode)</td><td>8&ndash;10 microns</td><td>10+ Gbps</td><td>Up to 40+ km</td><td>Laser</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">ST Connector</div>
+                <div class="card-desc">Straight Tip. Twist-lock, round bayonet style. Older standard, still found in legacy installations and some campus networks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SC Connector</div>
+                <div class="card-desc">Subscriber Connector. Square push/pull snap-in design. Very common in data centers and enterprise networking. Duplex SC has two connectors side by side.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">LC Connector</div>
+                <div class="card-desc">Lucent Connector. Small form factor (half size of SC). The most widely deployed connector today. Used in SFP/SFP+ transceivers. Latching tab for secure connection.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            <strong>S</strong>ingle-mode = <strong>S</strong>mall core = <strong>L</strong>aser = <strong>L</strong>onger distance. Multimode uses LED and is for shorter distances. Fiber has zero EMI susceptibility &mdash; ideal for industrial environments.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — CONNECTORS SUMMARY ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 22</div>
+        <div class="slide-title">Connector <span class="accent">Reference</span></div>
+        <div class="slide-subtitle">All major network connectors and their correct media type.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Connector</th><th>Media Type</th><th>Pins/Notes</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>RJ-45</strong></td><td>Twisted pair Ethernet</td><td>8 pins; used with Cat 5/5e/6/6a/7</td></tr>
+                <tr><td><strong>RJ-11</strong></td><td>Telephone / DSL</td><td>6-pin housing, 2 or 4 pins used; smaller than RJ-45</td></tr>
+                <tr><td><strong>F-Type</strong></td><td>Coaxial (cable TV, modem)</td><td>Screw-on; coax center conductor is the pin</td></tr>
+                <tr><td><strong>BNC</strong></td><td>Coaxial (legacy, test equipment)</td><td>Twist-lock; 10Base2 (thinnet)</td></tr>
+                <tr><td><strong>ST</strong></td><td>Fiber optic</td><td>Twist-lock round; older fiber installations</td></tr>
+                <tr><td><strong>SC</strong></td><td>Fiber optic</td><td>Square push/pull; common in enterprise</td></tr>
+                <tr><td><strong>LC</strong></td><td>Fiber optic</td><td>Small form factor; most common today</td></tr>
+            </tbody>
+        </table>
+
+        <div class="scenario-strip">
+            A technician is handed a cable with a rectangular square snap-in connector and asked to identify it. The housing is plastic and beige. It must be an SC fiber connector. If it were smaller with a latch tab, it would be LC. If it had 8 metal contacts and was larger, it would be RJ-45.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — HUBS, SWITCHES, BRIDGES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 22</div>
+        <div class="slide-title">Connectivity Devices: <span class="accent">Layer 1 &amp; 2</span></div>
+        <div class="slide-subtitle">Hubs, repeaters, bridges, and switches &mdash; what each does and at which layer.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Hub (Layer 1 &mdash; Obsolete)</div>
+                <div class="card-desc">Broadcasts every received signal out every port. No MAC address awareness. All ports share one collision domain. Half duplex only. Replaced by switches in the late 1990s. Still appears on A+ exams as a negative example of poor design.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Repeater / Extender (Layer 1)</div>
+                <div class="card-desc">Regenerates and amplifies a signal to extend distance. No filtering or intelligence. Used to overcome the 100-meter cable limit on copper segments. Wireless range extenders operate on a similar principle at Layer 2.</div>
+            </div>
+        </div>
+        <!-- SVG: Hub vs Switch vs Router with animated packet behavior -->
+        <svg class="svg-diagram" viewBox="0 0 520 140" aria-label="Hub switch and router comparison with animated packets">
+            <!-- HUB panel -->
+            <rect x="8" y="8" width="156" height="124" rx="6" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="86" y="22" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700">Hub (Layer 1)</text>
+            <!-- hub device -->
+            <rect x="58" y="32" width="56" height="22" rx="3" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="86" y="47" text-anchor="middle" font-size="7" fill="#ef4444">HUB</text>
+            <!-- 4 host nodes -->
+            <circle cx="30" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="30" y="96" text-anchor="middle" font-size="6" fill="#64748b">A</text>
+            <circle cx="66" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="66" y="96" text-anchor="middle" font-size="6" fill="#64748b">B</text>
+            <circle cx="106" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="106" y="96" text-anchor="middle" font-size="6" fill="#64748b">C</text>
+            <circle cx="142" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="142" y="96" text-anchor="middle" font-size="6" fill="#64748b">D</text>
+            <!-- lines to hub -->
+            <line x1="30" y1="82" x2="66" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="66" y1="82" x2="76" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="106" y1="82" x2="96" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="142" y1="82" x2="106" y2="54" stroke="#334155" stroke-width="1"/>
+            <!-- broadcast flood: A sends, ALL receive -->
+            <circle cx="30" cy="82" r="3" fill="#ef4444" opacity="0">
+                <animate attributeName="cy" values="82;54" dur="0.5s" begin="0s;4s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="0s;4s"/>
+            </circle>
+            <circle cx="66" cy="54" r="3" fill="#ef4444" opacity="0">
+                <animate attributeName="cy" values="54;82" dur="0.5s" begin="0.6s;4.6s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="0.6s;4.6s"/>
+            </circle>
+            <circle cx="96" cy="54" r="3" fill="#ef4444" opacity="0">
+                <animate attributeName="cy" values="54;82" dur="0.5s" begin="0.6s;4.6s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="0.6s;4.6s"/>
+            </circle>
+            <circle cx="106" cy="54" r="3" fill="#ef4444" opacity="0">
+                <animate attributeName="cy" values="54;82" dur="0.5s" begin="0.6s;4.6s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="0.6s;4.6s"/>
+            </circle>
+            <text x="86" y="118" text-anchor="middle" font-size="8" fill="#ef4444">Broadcasts to ALL ports</text>
+            <!-- SWITCH panel -->
+            <rect x="182" y="8" width="156" height="124" rx="6" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="260" y="22" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700">Switch (Layer 2)</text>
+            <rect x="232" y="32" width="56" height="22" rx="3" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="260" y="47" text-anchor="middle" font-size="7" fill="#06b6d4">SWITCH</text>
+            <!-- 4 nodes -->
+            <circle cx="204" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="204" y="96" text-anchor="middle" font-size="6" fill="#64748b">A</text>
+            <circle cx="240" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="240" y="96" text-anchor="middle" font-size="6" fill="#64748b">B</text>
+            <circle cx="280" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="280" y="96" text-anchor="middle" font-size="6" fill="#64748b">C</text>
+            <circle cx="316" cy="92" r="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <text x="316" y="96" text-anchor="middle" font-size="6" fill="#64748b">D</text>
+            <line x1="204" y1="82" x2="240" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="240" y1="82" x2="250" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="280" y1="82" x2="270" y2="54" stroke="#334155" stroke-width="1"/>
+            <line x1="316" y1="82" x2="280" y2="54" stroke="#334155" stroke-width="1"/>
+            <!-- A sends to C only — targeted delivery -->
+            <circle cx="204" cy="82" r="3" fill="#06b6d4" opacity="0">
+                <animate attributeName="cy" values="82;54" dur="0.5s" begin="1s;5s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="1s;5s"/>
+            </circle>
+            <circle cx="270" cy="54" r="3" fill="#06b6d4" opacity="0">
+                <animate attributeName="cy" values="54;82" dur="0.5s" begin="1.6s;5.6s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;0" dur="0.5s" begin="1.6s;5.6s"/>
+            </circle>
+            <text x="260" y="118" text-anchor="middle" font-size="8" fill="#06b6d4">Sends to MAC address only</text>
+            <!-- ROUTER panel -->
+            <rect x="356" y="8" width="156" height="124" rx="6" fill="rgba(201,168,58,0.05)" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="434" y="22" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700">Router (Layer 3)</text>
+            <!-- two network segments separated by router -->
+            <rect x="366" y="34" width="50" height="36" rx="3" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="391" y="55" text-anchor="middle" font-size="7" fill="#06b6d4">Net A</text>
+            <rect x="436" y="34" width="50" height="36" rx="3" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="461" y="55" text-anchor="middle" font-size="7" fill="#22c55e">Net B</text>
+            <!-- router in middle -->
+            <rect x="408" y="42" width="26" height="20" rx="3" fill="#1e293b" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="421" y="56" text-anchor="middle" font-size="6" fill="#c9a83a">RTR</text>
+            <!-- routed packet -->
+            <circle cx="391" cy="80" r="4" fill="#c9a83a" opacity="0">
+                <animate attributeName="cx" values="391;421;461" dur="1.8s" begin="2s;6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
+                <animate attributeName="cy" values="80;52;80" dur="1.8s" begin="2s;6s" fill="freeze"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.8s" begin="2s;6s" keyTimes="0;0.1;0.9;1"/>
+            </circle>
+            <!-- connection lines -->
+            <line x1="416" y1="62" x2="416" y2="72" stroke="#c9a83a" stroke-width="1" opacity="0.4"/>
+            <line x1="416" y1="72" x2="391" y2="80" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+            <line x1="416" y1="72" x2="461" y2="80" stroke="#22c55e" stroke-width="1" opacity="0.4"/>
+            <!-- host dots in each net -->
+            <circle cx="376" cy="80" r="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+            <circle cx="391" cy="80" r="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+            <circle cx="446" cy="80" r="6" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
+            <circle cx="461" cy="80" r="6" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
+            <text x="434" y="118" text-anchor="middle" font-size="8" fill="#c9a83a">Separates networks by IP</text>
+        </svg>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Bridge (Layer 2)</div>
+                <div class="card-desc">Connects two network segments. Filters traffic by MAC address. Only two ports. The precursor to the multi-port switch. Still referenced in the exam for its SPOF-reducing role when segmenting collision domains.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Switch (Layer 2)</div>
+                <div class="card-desc">Forwards frames based on destination MAC address from its CAM table. Each port is its own collision domain. Supports full duplex. Unmanaged: plug-and-play. Managed: supports VLANs, QoS, port mirroring, SNMP.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — ROUTERS, APs, FIREWALLS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 22</div>
+        <div class="slide-title">Connectivity Devices: <span class="accent">Layer 3+</span></div>
+        <div class="slide-subtitle">Routers, access points, firewalls, modems, and PoE.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Device</th><th>OSI Layer</th><th>Function</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Router</strong></td><td>Layer 3</td><td>Forwards packets by IP address; connects different networks; each interface is a broadcast domain boundary</td></tr>
+                <tr><td><strong>Access Point (WAP)</strong></td><td>Layer 2</td><td>Wireless bridge to wired network; does not route; extends collision domain wirelessly</td></tr>
+                <tr><td><strong>Firewall</strong></td><td>Layers 3&ndash;7</td><td>Filters traffic by rules (IP, port, protocol, application); security perimeter device</td></tr>
+                <tr><td><strong>Modem</strong></td><td>Layer 1&ndash;2</td><td>Modulates/demodulates signals (digital &harr; analog) for DSL or cable connections to ISP</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">PoE (Power over Ethernet)</div>
+                Delivers both data and electrical power over a single Cat 5e/6 cable. Used for WAPs, IP cameras, IP phones, and small switches. PoE switch or injector required on the sourcing end. Max power: PoE = 15.4 W; PoE+ = 30 W; PoE++ = 60&ndash;100 W.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">ONT (Optical Network Terminal)</div>
+                Converts fiber optic signal to copper Ethernet at the customer premises. Required for FTTH (Fiber to the Home) ISP connections. The ONT is the fiber-equivalent of a cable modem.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — PATCH PANELS & STRUCTURED CABLING ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 22</div>
+        <div class="slide-title">Patch Panels &amp; <span class="accent">Structured Cabling</span></div>
+        <div class="slide-subtitle">Termination, organization, and the path from wall jack to switch.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Patch Panel</div>
+                <div class="card-desc">Passive device that terminates permanent wall wiring to RJ-45 ports on the front. Short patch cables then run from panel ports to switch ports. Allows flexible moves, adds, and changes without re-running cable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">66 / 110 Block</div>
+                <div class="card-desc">Punchdown termination blocks. 66 block is legacy telephony (voice). 110 block is the standard for data cabling. Cable pairs are pushed into slots with a punchdown tool, trimming excess wire simultaneously.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cable Run Path</div>
+                <div class="card-desc">Wall jack &rarr; permanent horizontal run (max 90 m) &rarr; patch panel in IDF/MDF &rarr; patch cable to switch. Total segment including patch cables must stay within 100 m. Horizontal cabling is the most common failure point.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">MDF vs IDF</div>
+            MDF (Main Distribution Frame): the main wiring closet where the ISP connection and core switches live. IDF (Intermediate Distribution Frame): secondary closets on each floor or wing, connected back to the MDF via backbone cabling (typically fiber).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — NIC FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 22</div>
+        <div class="slide-title">Network Interface <span class="accent">Cards</span></div>
+        <div class="slide-subtitle">NIC hardware, MAC addresses, duplex, and driver requirements.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">NIC Basics</div>
+                <div class="card-desc">The physical interface between a device and the network. Wired NICs use RJ-45. Wireless NICs use antennas. PCIe x1 slot for add-in cards. Onboard NICs are soldered to the motherboard. Most modern NICs support 10/100/1000 Mbps auto-negotiation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MAC Address</div>
+                <div class="card-desc">48-bit hardware address burned into the NIC at manufacturing. Written in hex: XX:XX:XX:XX:XX:XX. First 24 bits = OUI (Organizationally Unique Identifier) identifying the manufacturer. Last 24 bits = device-specific. Operates at Layer 2. Cannot be routed across networks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Duplex &amp; Speed</div>
+                <div class="card-desc">Half duplex: transmit or receive, not both simultaneously (hubs). Full duplex: transmit and receive simultaneously (switches). Duplex mismatch between NIC and switch causes poor performance. Auto-negotiation resolves this in most cases, but manual configuration may be needed.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">NIC Drivers</div>
+            Software component that allows the OS to communicate with the NIC hardware. Out-of-date or missing drivers cause no network connectivity, limited speed, or random disconnections. Device Manager in Windows shows driver status. Always download NIC drivers from the manufacturer's site.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — IEEE 802 STANDARDS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 22</div>
+        <div class="slide-title">IEEE <span class="accent">802 Standards</span></div>
+        <div class="slide-subtitle">802.3 Ethernet and 802.11 Wi-Fi &mdash; the two standards every A+ tech must know cold.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">IEEE 802.3 &mdash; Ethernet</div>
+                <div class="card-desc">Defines wired LAN communication over twisted pair and fiber. Uses CSMA/CD (Carrier Sense Multiple Access with Collision Detection). Devices listen before transmitting, detect collisions, back off randomly, and retransmit. Full duplex on switches eliminates collisions entirely.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IEEE 802.11 &mdash; Wi-Fi</div>
+                <div class="card-desc">Defines wireless LAN communication. Uses CSMA/CA (Collision Avoidance) because wireless nodes cannot detect collisions while transmitting. Uses RTS/CTS (Request to Send / Clear to Send) to reserve the medium before transmitting data.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Standard</th><th>Method</th><th>Reasoning</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>802.3 Ethernet</strong></td><td>CSMA/CD &mdash; Collision Detection</td><td>Wired: can detect a voltage change when two signals collide</td></tr>
+                <tr><td><strong>802.11 Wi-Fi</strong></td><td>CSMA/CA &mdash; Collision Avoidance</td><td>Wireless: cannot detect collisions while transmitting; must avoid them</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Memory Trick</div>
+            Wired = <strong>CD</strong> (Detection). Wireless = <strong>CA</strong> (Avoidance). Wireless avoids because it cannot detect. The D and A are the only letters that change.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ETHERNET NAMING CONVENTIONS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 22</div>
+        <div class="slide-title">Ethernet <span class="accent">Naming Conventions</span></div>
+        <div class="slide-subtitle">Reading the BaseX naming system: speed, signaling, and medium.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Name Breakdown</div>
+                <div class="card-desc">Format: [Speed][Signaling][Medium]. Example: <strong>100BaseTX</strong> = 100 Mbps / Baseband / Twisted pair. <strong>1000BaseSX</strong> = 1 Gbps / Baseband / Short-wavelength fiber. Always baseband on modern Ethernet (full bandwidth on single channel).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">T vs F vs S/L</div>
+                <div class="card-desc">"T" = Twisted pair copper. "F" = Fiber optic (generic). "S" = Short-range fiber (multimode). "L" = Long-range fiber (single-mode). "X" = encoding variant. Knowing T vs fiber lets you identify the physical medium from the standard name alone.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Common Names</div>
+                <div class="card-desc">10BaseT (10 Mbps, Cat 3+). 100BaseTX (100 Mbps, Cat 5+). 1000BaseT (Gigabit, Cat 5e+). 10GBaseT (10G, Cat 6/6a). 10GBaseSR (10G, MMF). 10GBaseLR (10G, SMF, 10 km). These appear directly on exam questions.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            The number before "Base" is speed in Mbps or Gbps. All current Ethernet is baseband. The suffix tells you the medium. 1000BaseT = Gigabit over copper. 10GBaseSR = 10G over short-range multimode fiber.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — MANAGED VS UNMANAGED SWITCHES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 22</div>
+        <div class="slide-title">Managed vs. <span class="accent">Unmanaged Switches</span></div>
+        <div class="slide-subtitle">When to use each type and what capabilities managed switches add.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Unmanaged Switch</div>
+                <div class="card-desc">Plug-and-play. No configuration interface. Automatically learns MAC addresses. Fixed behavior &mdash; cannot configure VLANs, QoS, or port settings. Best for small networks and home use where simplicity outweighs control. No administrative access means no SNMP monitoring either.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Managed Switch</div>
+                <div class="card-desc">Web interface or CLI for configuration. Supports VLANs (logical network segmentation), QoS (quality of service prioritization), port mirroring (traffic analysis), SNMP (network monitoring), STP (loop prevention), link aggregation, and port security by MAC address.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Feature</th><th>Unmanaged</th><th>Managed</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>VLANs</td><td>No</td><td>Yes</td></tr>
+                <tr><td>QoS</td><td>No</td><td>Yes</td></tr>
+                <tr><td>SNMP</td><td>No</td><td>Yes</td></tr>
+                <tr><td>Port Mirroring</td><td>No</td><td>Yes</td></tr>
+                <tr><td>STP (Loop Prevention)</td><td>Basic only</td><td>Full STP/RSTP</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — VLAN CONCEPTS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 22</div>
+        <div class="slide-title">VLAN <span class="accent">Concepts</span></div>
+        <div class="slide-subtitle">Virtual LANs segment a single physical switch into multiple isolated broadcast domains.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What VLANs Do</div>
+                <div class="card-desc">Logically isolate groups of ports on a single switch as if they were on separate physical switches. Devices on VLAN 10 cannot communicate with devices on VLAN 20 without a router or Layer 3 switch. Reduces broadcast traffic and improves security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access vs. Trunk Ports</div>
+                <div class="card-desc">Access port: assigned to one VLAN; connects end devices (computers, printers). Trunk port: carries traffic for multiple VLANs simultaneously using 802.1Q tagging; used between switches and between a switch and a router for inter-VLAN routing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">VLAN Use Cases</div>
+                <div class="card-desc">Separate guest Wi-Fi from corporate LAN. Isolate VoIP traffic onto its own VLAN for QoS. Segment accounting department from general staff. Contain a compromised device from spreading laterally. All on the same physical hardware.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Inter-VLAN Routing</div>
+            Traffic between VLANs must pass through a router (or a Layer 3 switch that can route). The "router-on-a-stick" method uses a single trunk uplink from switch to router with subinterfaces per VLAN. Each subinterface serves as the default gateway for its VLAN.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — ETHERNET OVER POWER & OTHER MEDIA ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 22</div>
+        <div class="slide-title">Alternative <span class="accent">Network Media</span></div>
+        <div class="slide-subtitle">Non-standard but exam-relevant connectivity options.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Ethernet over Power (HomePlug)</div>
+                <div class="card-desc">Uses existing electrical wiring to carry network data. Adapters plug into standard AC outlets. Useful when running new cable is impractical. Speeds vary significantly based on wiring quality and electrical noise. Not suitable for mission-critical applications.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ethernet over HDMI</div>
+                <div class="card-desc">HDMI 1.4 and later includes an Ethernet channel (HEC &mdash; HDMI Ethernet Channel) within the cable. Allows connected AV devices to share a network connection. Rarely used in practice but can appear on the exam as an alternative media question.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Direct Burial Cable</div>
+                <div class="card-desc">Twisted pair or coaxial with a waterproof outer jacket rated for underground outdoor installation. Does not require conduit. Used for outdoor runs between buildings. Cat 5e/6 direct burial rated for 600 V. Different from standard outdoor-rated cable.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Cable / DSL Modems</div>
+            Cable modem: connects to ISP via coaxial RG-6 using DOCSIS standard. DSL modem: connects over telephone line; distance from the central office directly limits speed. Both convert the ISP's signal to standard Ethernet for the local network.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — TROUBLESHOOTING SCENARIOS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 22</div>
+        <div class="slide-title">Networking <span class="accent">Troubleshooting Scenarios</span></div>
+        <div class="slide-subtitle">Applying chapter knowledge to real-world problems.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">10G Link at 1G Speed</div>
+                <div class="card-desc">Cat 6 cable run is 70 meters. Cat 6 only supports 10G at 55 meters. Replacing with Cat 6a resolves the limitation. Alternatively, run a fiber link. The port negotiates down to 1G because the medium cannot sustain 10G at that distance.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">No Link Light on Switch</div>
+                <div class="card-desc">Check cable termination at both ends (flipped pair, bad crimp). Swap with a known-good patch cable. Try a different switch port. Use a cable tester to identify which pair is open or miswired. 90% of no-link issues are physical layer (Layer 1) problems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Intermittent Drops</div>
+                <div class="card-desc">Duplex mismatch: NIC set to full duplex, switch port at half duplex. Set both ends to auto-negotiate or manually match. Check for bent RJ-45 pins. Also check for excessive cable length &mdash; link errors increase significantly beyond 100 meters.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A user cannot reach file shares on a different department's server, but can ping the default gateway. The network uses VLANs. The user's VLAN is correct. The router ACL is blocking inter-VLAN traffic to the file server's subnet &mdash; a Layer 3 routing/policy issue, not a cable or switch problem.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 22 &mdash; Chapter 5 Complete</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways from Networking Fundamentals.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">1</div>
+                <div class="fact-text"><strong>Network types</strong> by scope: PAN (personal), LAN (local), MAN (metro), WAN (wide). SAN is a separate storage network; NAS is file-level storage on the LAN.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">2</div>
+                <div class="fact-text"><strong>OSI 7 layers</strong> top-down: Application, Presentation, Session, Transport, Network, Data Link, Physical. Mnemonic: Please Do Not Throw Sausage Pizza Away (bottom-up).</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">3</div>
+                <div class="fact-text"><strong>Layer devices</strong>: Hub = Layer 1. Switch = Layer 2 (MAC). Router = Layer 3 (IP). Firewall = Layers 3&ndash;7. This association is tested heavily.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">4</div>
+                <div class="fact-text"><strong>Twisted pair 100-meter rule</strong>: all categories max at 100 m, except Cat 6 at 10G which is limited to 55 m. Cat 6a restores 100 m at 10G.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">5</div>
+                <div class="fact-text"><strong>Fiber</strong>: Single-mode = small core + laser + long distance (40+ km). Multimode = larger core + LED + short distance (550 m). LC connector is the most common today.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">6</div>
+                <div class="fact-text"><strong>Wired = CSMA/CD, Wireless = CSMA/CA</strong>. Wired detects collisions; wireless avoids them. Only the D vs. A changes between the two standards.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">7</div>
+                <div class="fact-text"><strong>T568B</strong> is the dominant wiring standard. Straight-through (T568B both ends) connects unlike devices. Crossover (T568A one end) connects like devices; Auto-MDI/MDIX on modern switches makes crossover cables obsolete.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">8</div>
+                <div class="fact-text"><strong>VLANs</strong> segment a single switch into isolated broadcast domains. Access ports carry one VLAN. Trunk ports carry multiple VLANs using 802.1Q tagging. Inter-VLAN traffic requires routing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../../index.html" class="nav-btn back-btn" aria-label="Back to Core 1 hub">Back to Core 1</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 22</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark chapter complete">Mark Complete</button>
+</nav>
+
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 22;
+    let current = 1;
+
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
+
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
+
+        /* Restart SVG animations by clone-replacing each svg element */
+        next.querySelectorAll('svg').forEach(function(svg) {
+            var parent = svg.parentNode;
+            var clone = svg.cloneNode(true);
+            parent.replaceChild(clone, svg);
         });
 
-        // Progress tracking
-        function updateProgress() {
-            const visited = localStorage.getItem('ch05-visited') === 'true';
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
-            const quizCompleted = progress.ch05?.completed || false;
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
 
-            let percent = 0;
-            if (visited) percent = 50;
-            if (quizCompleted) percent = 100;
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
 
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressPercent').textContent = percent + '%';
-        }
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
 
-        localStorage.setItem('ch05-visited', 'true');
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
 
-        // ========== OSI SEQUENCER ==========
-        const correctOSI = ['7', '6', '5', '4', '3', '2', '1']; // Top to bottom
-        let draggedItem = null;
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
 
-        function initOSIDrag() {
-            const sequencer = document.getElementById('osiSequencer');
-            const items = sequencer.querySelectorAll('.sequence-item');
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
 
-            items.forEach(item => {
-                item.addEventListener('dragstart', (e) => {
-                    draggedItem = item;
-                    item.classList.add('dragging');
-                });
-                item.addEventListener('dragend', () => {
-                    item.classList.remove('dragging');
-                });
-                item.addEventListener('dragover', (e) => e.preventDefault());
-                item.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    if (item !== draggedItem) {
-                        const sequencer = document.getElementById('osiSequencer');
-                        const items = Array.from(sequencer.children);
-                        const draggedIndex = items.indexOf(draggedItem);
-                        const targetIndex = items.indexOf(item);
-
-                        if (draggedIndex < targetIndex) {
-                            item.parentNode.insertBefore(draggedItem, item.nextSibling);
-                        } else {
-                            item.parentNode.insertBefore(draggedItem, item);
-                        }
-                    }
-                    updateOSINumbers();
-                });
-            });
-        }
-
-        function updateOSINumbers() {
-            const items = document.querySelectorAll('#osiSequencer .sequence-item');
-            items.forEach((item, index) => {
-                item.querySelector('.sequence-num').textContent = 7 - index;
-            });
-        }
-
-        function shuffleOSI() {
-            const sequencer = document.getElementById('osiSequencer');
-            const items = Array.from(sequencer.children);
-            for (let i = items.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                sequencer.appendChild(items[j]);
-            }
-            updateOSINumbers();
-        }
-
-        function checkOSISequence() {
-            const items = document.querySelectorAll('#osiSequencer .sequence-item');
-            const userOrder = Array.from(items).map(item => item.dataset.layer);
-            const resultDiv = document.getElementById('osiResult');
-
-            let correct = 0;
-            items.forEach((item, index) => {
-                const expectedLayer = 7 - index;
-                if (parseInt(item.dataset.layer) === expectedLayer) {
-                    item.classList.add('correct');
-                    item.classList.remove('incorrect');
-                    correct++;
-                } else {
-                    item.classList.add('incorrect');
-                    item.classList.remove('correct');
-                }
-            });
-
-            resultDiv.classList.add('show');
-            if (correct === 7) {
-                resultDiv.className = 'game-result show success';
-                resultDiv.innerHTML = 'Perfect! All 7 layers in correct order! Remember: <strong>Please Do Not Throw Sausage Pizza Away</strong>';
-            } else {
-                resultDiv.className = 'game-result show error';
-                resultDiv.innerHTML = `${correct}/7 correct. Layer 7 (Application) goes at top, Layer 1 (Physical) at bottom!`;
-            }
-        }
-
-        function resetOSISequencer() {
-            document.querySelectorAll('#osiSequencer .sequence-item').forEach(item => {
-                item.classList.remove('correct', 'incorrect');
-            });
-            document.getElementById('osiResult').classList.remove('show');
-            shuffleOSI();
-        }
-
-        // ========== CABLE MATCHER ==========
-        let selectedCable = null;
-        let cableMatches = 0;
-        const totalCableMatches = 6;
-
-        function initCableMatcher() {
-            const leftItems = document.querySelectorAll('#cableLeft .matcher-item');
-            const rightItems = document.querySelectorAll('#cableRight .matcher-item');
-
-            leftItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    if (item.classList.contains('matched')) return;
-                    document.querySelectorAll('#cableLeft .matcher-item').forEach(i => i.classList.remove('selected'));
-                    item.classList.add('selected');
-                    selectedCable = item;
-                });
-            });
-
-            rightItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    if (!selectedCable || item.classList.contains('matched')) return;
-                    if (selectedCable.dataset.match === item.dataset.match) {
-                        selectedCable.classList.add('matched');
-                        selectedCable.classList.remove('selected');
-                        item.classList.add('matched');
-                        cableMatches++;
-                        if (cableMatches === totalCableMatches) {
-                            document.getElementById('cableResult').className = 'game-result show success';
-                            document.getElementById('cableResult').innerHTML = 'Excellent! All cables matched correctly!';
-                        }
-                    } else {
-                        item.classList.add('wrong');
-                        setTimeout(() => item.classList.remove('wrong'), 500);
-                    }
-                    selectedCable = null;
-                });
-            });
-
-            shuffleCableRight();
-        }
-
-        function shuffleCableRight() {
-            const rightColumn = document.getElementById('cableRight');
-            const items = Array.from(rightColumn.querySelectorAll('.matcher-item'));
-            for (let i = items.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                rightColumn.appendChild(items[j]);
-            }
-        }
-
-        function resetCableMatcher() {
-            document.querySelectorAll('.matcher-item').forEach(item => {
-                item.classList.remove('selected', 'matched', 'wrong');
-            });
-            cableMatches = 0;
-            selectedCable = null;
-            document.getElementById('cableResult').classList.remove('show');
-            shuffleCableRight();
-        }
-
-        // ========== DEVICE LAYER QUIZ ==========
-        function checkDeviceLayer(element, selected) {
-            const question = element.parentElement.parentElement;
-            const correctAnswer = question.dataset.correct;
-
-            question.querySelectorAll('li').forEach(li => {
-                li.classList.remove('selected', 'correct', 'incorrect');
-            });
-
-            if (selected === correctAnswer) {
-                element.classList.add('correct');
-            } else {
-                element.classList.add('incorrect');
-                question.querySelectorAll('li').forEach(li => {
-                    if (li.textContent.includes(correctAnswer) ||
-                        (correctAnswer === 'mac' && li.textContent.includes('MAC')) ||
-                        (correctAnswer === '1' && li.textContent.includes('Layer 1')) ||
-                        (correctAnswer === '2' && li.textContent.includes('Layer 2')) ||
-                        (correctAnswer === '3' && li.textContent.includes('Layer 3'))) {
-                        li.classList.add('correct');
-                    }
-                });
-            }
-        }
-
-        // ========== CHAPTER QUIZ ==========
-        const quizAnswers = {
-            1: 'b', 2: 'b', 3: 'b', 4: 'c', 5: 'b',
-            6: 'b', 7: 'b', 8: 'b', 9: 'b', 10: 'b',
-            11: 'b', 12: 'c', 13: 'c', 14: 'c', 15: 'b'
-        };
-
-        document.querySelectorAll('#chapterQuiz .quiz-options').forEach(optionList => {
-            optionList.querySelectorAll('li').forEach(option => {
-                option.addEventListener('click', function() {
-                    optionList.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
-                    this.classList.add('selected');
-                });
-            });
+    /* Mark Complete — records module progress and returns to Core 1 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-ch05-networking', {
+            returnUrl: '../../index.html'
         });
-
-        function submitQuiz() {
-            const questions = document.querySelectorAll('#chapterQuiz .quiz-question');
-            let correct = 0;
-            let questionNum = 1;
-
-            questions.forEach(question => {
-                const selected = question.querySelector('.quiz-options li.selected');
-                const options = question.querySelectorAll('.quiz-options li');
-
-                options.forEach(opt => {
-                    opt.classList.remove('correct', 'incorrect');
-                    if (opt.dataset.answer === quizAnswers[questionNum]) {
-                        opt.classList.add('correct');
-                    }
-                });
-
-                if (selected) {
-                    if (selected.dataset.answer === quizAnswers[questionNum]) {
-                        correct++;
-                    } else {
-                        selected.classList.add('incorrect');
-                    }
-                }
-                questionNum++;
-            });
-
-            const resultDiv = document.getElementById('quizResult');
-            const scoreDiv = document.getElementById('quizScore');
-            const messageDiv = document.getElementById('quizMessage');
-
-            resultDiv.style.display = 'block';
-            scoreDiv.textContent = `${correct}/15`;
-
-            if (correct >= 11) {
-                scoreDiv.classList.add('pass');
-                scoreDiv.classList.remove('fail');
-                messageDiv.textContent = 'Congratulations! You passed! Chapter 5 complete.';
-                saveProgress(correct);
-            } else {
-                scoreDiv.classList.add('fail');
-                scoreDiv.classList.remove('pass');
-                messageDiv.textContent = `You need 11/15 to pass. Review the OSI model and cable specs!`;
-            }
-
-            resultDiv.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function resetQuiz() {
-            document.querySelectorAll('#chapterQuiz .quiz-options li').forEach(li => {
-                li.classList.remove('selected', 'correct', 'incorrect');
-            });
-            document.getElementById('quizResult').style.display = 'none';
-        }
-
-        function saveProgress(quizScore) {
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
-            progress.ch05 = {
-                completed: quizScore >= 11,
-                quizScore: quizScore,
-                lastAttempt: new Date().toISOString()
-            };
-            localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
-            updateProgress();
-        }
-
-        // Initialize
-        updateProgress();
-        initOSIDrag();
-        shuffleOSI();
-        initCableMatcher();
-    </script>
+    }
+</script>
 </body>
 </html>

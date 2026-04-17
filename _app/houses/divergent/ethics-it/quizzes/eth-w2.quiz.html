@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Quiz: Privacy, Expression, and IP | Ethics in IT</title>
+    <style>
+        :root {
+            --bg: #090910;
+            --bg-card: #12121e;
+            --bg-option: #161625;
+            --cyan: #ff00ff;
+            --cyan-dim: rgba(255, 0, 255, 0.15);
+            --text: #e2e8f0;
+            --text-muted: #8892a8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #110828 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--cyan-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--cyan);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--success));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--cyan);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num {
+            font-size: 0.8rem;
+            color: var(--cyan);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option:hover { border-color: rgba(255, 0, 255, 0.4); background: rgba(255, 0, 255, 0.05); }
+        .option.selected { border-color: var(--cyan); background: rgba(255, 0, 255, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--cyan);
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .quiz-nav {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.4);
+            color: var(--cyan);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .next-btn:hover { background: var(--cyan); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(255, 0, 255, 0.15); color: var(--cyan); }
+
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 { color: var(--cyan); font-size: 1.4rem; margin-bottom: 1rem; }
+
+        .score-big {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+
+        .results-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btns a, .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-retry {
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.4) !important;
+            color: var(--cyan);
+        }
+        .btn-retry:hover { background: var(--cyan); color: #fff; }
+
+        .btn-hub {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4) !important;
+            color: var(--success);
+        }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Ethics in IT Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 2 Quiz: Privacy, Expression, and IP</h1>
+            <p class="subtitle">Privacy rights, free expression, and intellectual property in the digital age (Ch. 4-6)</p>
+            <div class="meta">
+                <span>Chapters 4-6</span>
+                <span>15 Questions</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Ethics Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ── Quiz Engine: Ethics in IT -- Week 2: Privacy, Expression, IP ──
+           Covers Ch. 4 (Privacy), Ch. 5 (Freedom of Expression), Ch. 6 (Intellectual Property).
+           Questions test legal knowledge, ethical reasoning, and case analysis.
+           All cases reference scenarios consistent with the Reynolds textbook. */
+        var questions = [
+            {
+                q: "The Health Insurance Portability and Accountability Act (HIPAA) establishes the right of patients to control their Protected Health Information (PHI). A hospital's IT team is migrating records to a cloud vendor. Which action is ethically and legally required before the migration?",
+                opts: [
+                    "Informing the cloud vendor of the HIPAA sensitivity before contract signing",
+                    "Executing a Business Associate Agreement with the cloud vendor that obligates HIPAA compliance",
+                    "Encrypting all data in transit using any commercially available encryption standard",
+                    "Obtaining explicit consent from each patient whose records will be migrated"
+                ],
+                ans: 1,
+                exp: "HIPAA requires covered entities to execute a Business Associate Agreement (BAA) with any vendor who handles PHI. Without a BAA, the hospital is legally exposed and ethically responsible for the vendor's handling of patient data."
+            },
+            {
+                q: "Edward Snowden disclosed classified NSA surveillance programs to journalists in 2013. Which ethical argument most directly supports his decision?",
+                opts: [
+                    "He followed proper whistleblower channels within the NSA before going public",
+                    "The public's right to know about mass surveillance programs outweighed his obligation of secrecy",
+                    "His disclosure caused no measurable harm to national security operations",
+                    "His employment contract did not specifically prohibit disclosure to journalists"
+                ],
+                ans: 1,
+                exp: "Defenders of Snowden argue from a democratic transparency standpoint: citizens have a right to know when their government conducts mass surveillance. This is a values conflict between security obligations and democratic accountability, not a procedural argument."
+            },
+            {
+                q: "A company discovers it has been collecting more user location data than it disclosed in its privacy policy -- a processing error caused the over-collection for six months. The company has not yet suffered a breach. From an ethical standpoint, what should the company do?",
+                opts: [
+                    "Delete the excess data quietly and update the privacy policy going forward",
+                    "Conduct an internal audit and disclose the issue to affected users and relevant regulators",
+                    "Retain the data indefinitely because it may have research value",
+                    "Wait to see if regulators notice before taking action"
+                ],
+                ans: 1,
+                exp: "Transparency is a core privacy principle. Collecting data beyond disclosed scope is a violation of user trust. Ethical practice requires disclosure to affected users and, under regulations like GDPR or CCPA, notification to regulators even when no breach has occurred."
+            },
+            {
+                q: "The 'right to be forgotten,' established in EU law under GDPR, requires search engines to:",
+                opts: [
+                    "Delete all personal data from their databases upon request",
+                    "Deindex certain links from search results when an individual's privacy interest outweighs the public interest",
+                    "Remove all references to individuals from third-party websites they index",
+                    "Anonymize all stored personal data after 90 days"
+                ],
+                ans: 1,
+                exp: "The right to be forgotten (GDPR Article 17) does not require deletion of source content. It requires search engines to deindex links on a case-by-case basis when the individual's right to privacy outweighs legitimate public interest in access to the information."
+            },
+            {
+                q: "A social media platform's content moderation policy removes posts it deems 'misinformation' about public health topics. Critics argue this restricts free expression. Which argument best defends the platform's action?",
+                opts: [
+                    "Private companies are not bound by the First Amendment and may set their own speech rules",
+                    "The platform has a legal obligation to remove harmful content under Section 230",
+                    "Misinformation causes no harm if users are educated enough to evaluate it critically",
+                    "The government has authorized platforms to regulate health misinformation"
+                ],
+                ans: 0,
+                exp: "The First Amendment restricts government censorship, not private actors. Social media platforms, as private companies, are legally permitted to set community standards and moderate content as they see fit. Whether this is ethically wise is a separate debate."
+            },
+            {
+                q: "Under US copyright law, the doctrine of 'fair use' permits copying of copyrighted material WITHOUT the owner's permission under certain conditions. Which factor is NOT one of the four official fair use factors?",
+                opts: [
+                    "The purpose and character of the use (commercial vs. educational)",
+                    "The nature of the copyrighted work",
+                    "The amount and substantiality of the portion used",
+                    "The intent of the original author when creating the work"
+                ],
+                ans: 3,
+                exp: "The four statutory fair use factors under 17 U.S.C. 107 are: (1) purpose and character of use, (2) nature of the copyrighted work, (3) amount used, (4) effect on the market. The author's original intent is not among them."
+            },
+            {
+                q: "In 2005, Sony BMG distributed music CDs that secretly installed rootkit software on users' computers to prevent copying. This action raised ethical concerns primarily because:",
+                opts: [
+                    "Copy protection itself is unethical regardless of the method used",
+                    "Sony installed software on users' computers without notice or consent, compromising their security",
+                    "The rootkit was poorly coded and caused system instability for many users",
+                    "Digital rights management violates the fair use doctrine"
+                ],
+                ans: 1,
+                exp: "The Sony rootkit scandal is a landmark case in IT ethics. Sony's act of secretly installing software that modified users' systems without consent -- and created security vulnerabilities -- violated user autonomy and trust, regardless of Sony's legitimate interest in copy protection."
+            },
+            {
+                q: "A developer uses a short snippet of open-source code licensed under the GNU GPL in a commercial product but does not release the product's source code. What ethical and legal issue does this create?",
+                opts: [
+                    "The developer has committed plagiarism by not crediting the original author",
+                    "The developer has violated the GPL's copyleft requirement, which mandates that derivative works be released under the same license",
+                    "Using any GPL code in a commercial product is always prohibited",
+                    "The developer owes licensing fees to the Free Software Foundation"
+                ],
+                ans: 1,
+                exp: "The GPL is a copyleft license: it requires that any derivative work incorporating GPL code must also be released under the GPL. Distributing a proprietary product containing GPL code without source disclosure is a license violation and an ethical breach of the open-source community's trust."
+            },
+            {
+                q: "An employer wants to monitor employee activity on company-issued laptops, including personal browsing done during lunch breaks. Which statement most accurately reflects the ethical analysis?",
+                opts: [
+                    "Monitoring is always ethical because the employer owns the equipment",
+                    "Monitoring is always unethical because it invades the employee's personal life",
+                    "Monitoring may be justified for company resources but requires clear, advance notice to employees",
+                    "Monitoring is only ethical if directed at employees suspected of misconduct"
+                ],
+                ans: 2,
+                exp: "Most ethical frameworks support an employer's right to monitor company-owned devices for legitimate business purposes, but require that employees receive clear, unambiguous notice. Covert monitoring without policy disclosure violates reasonable employee expectations and is considered an ethics breach."
+            },
+            {
+                q: "A journalist publishes a story using leaked documents revealing corporate fraud. The documents were obtained without authorization by a source. From a press freedom perspective, the journalist's publication is:",
+                opts: [
+                    "Clearly unethical because it relies on stolen material",
+                    "Ethically defensible if the public interest value of the disclosure outweighs the means by which it was obtained",
+                    "Legal and ethical because journalists are exempt from laws governing stolen property",
+                    "Only ethical if the journalist independently verified the documents before publishing"
+                ],
+                ans: 1,
+                exp: "Press ethics recognize a public interest defense: when corporate or government misconduct significantly affects the public, disclosure through a free press serves a democratic function that can outweigh the irregular means of acquisition. Most codes of journalism ethics require independent verification but do not prohibit publishing documents obtained by others."
+            },
+            {
+                q: "A software company patents an algorithm that was previously described in an academic research paper published two years earlier. A competitor challenges the patent. The relevant doctrine is:",
+                opts: [
+                    "Fair use, which permits educational use of patented algorithms",
+                    "Prior art, which invalidates a patent when the invention was already publicly known before the application",
+                    "Copyleft, which requires algorithm disclosures to remain in the public domain",
+                    "Trade secret law, which protects proprietary algorithms regardless of public disclosure"
+                ],
+                ans: 1,
+                exp: "Prior art is the legal doctrine that invalidates a patent if the claimed invention was already publicly known or described before the patent application date. A published academic paper describing the algorithm would constitute prior art and could render the patent invalid."
+            },
+            {
+                q: "A company collects extensive behavioral data on users and sells detailed profiles to advertisers without clearly disclosing this in its privacy policy. Which ethical principle is most directly violated?",
+                opts: [
+                    "The principle of data minimization",
+                    "The principle of transparency and notice",
+                    "The principle of purpose limitation",
+                    "The principle of data accuracy"
+                ],
+                ans: 1,
+                exp: "Transparency and notice require that organizations clearly disclose what data they collect and how it will be used. Selling behavioral profiles without clear disclosure violates the user's right to know and make an informed choice, which is the foundational privacy harm in this scenario."
+            },
+            {
+                q: "The Children's Online Privacy Protection Act (COPPA) primarily restricts which type of data collection activity?",
+                opts: [
+                    "Collection of financial data from adults on e-commerce platforms",
+                    "Collection of personal information from children under 13 without verifiable parental consent",
+                    "Collection of behavioral tracking data from any user without explicit opt-in consent",
+                    "Collection of health data by organizations not covered by HIPAA"
+                ],
+                ans: 1,
+                exp: "COPPA regulates websites and online services directed at children under 13, requiring verifiable parental consent before collecting personal information from this age group. It does not apply to adult financial, behavioral, or health data."
+            },
+            {
+                q: "A government agency proposes building a national facial recognition database to identify individuals in public spaces in real time. Which concern is MOST central to the ethical debate about this proposal?",
+                opts: [
+                    "The technical accuracy rate of current facial recognition systems",
+                    "The chilling effect on freedom of assembly, expression, and movement created by mass surveillance",
+                    "The cost of deploying and maintaining the infrastructure at national scale",
+                    "The potential for the database to be breached by foreign adversaries"
+                ],
+                ans: 1,
+                exp: "While accuracy, cost, and security are real concerns, the core ethical issue is the impact on civil liberties. When citizens know they are being identified and tracked in public, they may self-censor and avoid lawful activities -- a chilling effect that undermines the freedoms a democratic society is meant to protect."
+            },
+            {
+                q: "A programmer creates a tool to bypass digital rights management (DRM) on e-books, arguing that she purchased the books and has a right to read them on any device she owns. Under the Digital Millennium Copyright Act (DMCA), this activity is:",
+                opts: [
+                    "Permitted under fair use because she legally purchased the content",
+                    "Prohibited by the DMCA's anti-circumvention provisions regardless of whether copying occurs",
+                    "Legal if she does not redistribute the circumvention tool to others",
+                    "Legal if the books are no longer available in the format she needs"
+                ],
+                ans: 1,
+                exp: "The DMCA Section 1201 prohibits circumventing technological measures that control access to copyrighted works, even when no copying occurs. The question of whether this is ethically just -- given that the buyer legally owns the content -- is a live and contested debate in IP ethics."
+            }
+        ];
+
+        /* ── Quiz Engine State ──
+           15 questions covering Ch. 4-6 (Privacy, Expression, IP).
+           Passing threshold: 70% (11/15). */
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) {
+                scoreBig.className = 'score-big';
+            } else if (pct >= 60) {
+                scoreBig.className = 'score-big mid';
+            } else {
+                scoreBig.className = 'score-big low';
+            }
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You understand the intersection of law and ethics across privacy, expression, and IP.';
+            else if (pct >= 70) msg = 'Solid. Review the specific cases you missed before the midterm.';
+            else if (pct >= 50) msg = 'Making progress. Revisit the Week 2 readings and pay attention to the case studies.';
+            else msg = 'Keep studying. Re-read Ch. 4-6 and map each law (HIPAA, COPPA, DMCA, GPL) to the ethical principle it addresses.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('divergent', 'eth-w2-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

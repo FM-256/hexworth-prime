@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced CLI Operations | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Matrix green progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom nav */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Scenario strip */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        /* Colored boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title hero */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Code block with syntax coloring */
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }   /* keywords: pipe, redirect operators, builtins */
+        .code-block .fn { color: #06b6d4; }   /* commands: ls, grep, awk, sort */
+        .code-block .st { color: #3ab577; }   /* string literals / quoted args */
+        .code-block .cm { color: #475569; }   /* comments */
+        .code-block .nb { color: #f472b6; }   /* numeric values, signals */
+        .code-block .er { color: #ef4444; }   /* error output */
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Advanced CLI Operations | Advanced Linux Administration</h1>
+
+<!-- Matrix green progress bar -->
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-01 &nbsp;|&nbsp; Week 1 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Advanced CLI Operations<br>
+                <span class="accent">Pipes, Process Control &amp; Multiplexing</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Advanced Pipes &nbsp;&bull;&nbsp; Process Substitution &nbsp;&bull;&nbsp; Job Control &nbsp;&bull;&nbsp; tmux &nbsp;&bull;&nbsp; Subshells
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your cell has been assigned a degraded sector node. You need to audit running processes, redirect output to three separate log streams, and keep your session alive while SSH flaps. You have sixty seconds. These tools are how you operate under that tempo.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-01</span>
+            <span>Week 1 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — THE UNIX PHILOSOPHY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The <span class="accent">Unix Philosophy</span></div>
+        <div class="slide-subtitle">Why the CLI is still more powerful than any GUI ever built.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Do One Thing Well</div>
+                <div class="card-desc">Each CLI tool solves exactly one problem. <span class="ic">grep</span> finds patterns. <span class="ic">sort</span> sorts. <span class="ic">uniq</span> removes duplicates. <span class="ic">wc</span> counts. None of them try to be more. The power comes from connecting them.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Text Is the Universal Interface</div>
+                <div class="card-desc">Every Unix tool reads text and writes text. That shared contract is what makes pipes work. A tool written in 1975 can receive output from a tool written in 2024 because both speak lines of text.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Compose, Don't Monolith</div>
+                <div class="card-desc">Instead of one program that does everything, you chain small programs into pipelines. A five-command pipeline that you understand completely is far more powerful than a GUI tool you cannot modify or script.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Why This Matters for You</div>
+            Every advanced CLI technique in this module is an application of composition. You are not learning isolated commands. You are learning how to build pipelines that would take a GUI operator ten times as long to reproduce.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — PIPES REVIEW AND DEPTH ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Pipes: <span class="accent">Beyond the Basics</span></div>
+        <div class="slide-subtitle">You know <span class="ic">|</span> exists. Now understand exactly what it does and where it breaks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What a Pipe Actually Does</div>
+                <div class="card-desc">A pipe <span class="ic">|</span> connects stdout of the left command to stdin of the right command. The kernel creates an in-memory buffer between them. Both processes run concurrently. The left writes; the right reads. No disk I/O involved.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Pipes Do NOT Pass stderr</div>
+                <div class="card-desc">Only stdout flows through a pipe. Error messages written to stderr bypass the pipe entirely and appear on your terminal. If you want stderr in the pipeline, redirect it first: <span class="ic">cmd 2&gt;&amp;1 | next</span>. This is a common debugging trap.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Classic pipe: stdout flows left-to-right</span>
+<span class="fn">ps</span> aux <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'nginx'</span> <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $2, $11}'</span>
+
+<span class="cm"># stderr bypasses the pipe by default — errors appear on terminal</span>
+<span class="fn">find</span> /etc -name <span class="st">'*.conf'</span> <span class="kw">|</span> <span class="fn">wc</span> -l          <span class="cm"># Permission errors go to terminal</span>
+
+<span class="cm"># Merge stderr into stdout before piping</span>
+<span class="fn">find</span> /etc -name <span class="st">'*.conf'</span> <span class="nb">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fn">grep</span> -v <span class="st">'Permission denied'</span> <span class="kw">|</span> <span class="fn">wc</span> -l
+
+<span class="cm"># Pipe to tee: write to file AND continue the pipeline</span>
+<span class="fn">journalctl</span> -u nginx <span class="kw">|</span> <span class="fn">tee</span> /tmp/nginx.log <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'error'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — NAMED PIPES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Named Pipes: <span class="accent">FIFOs</span></div>
+        <div class="slide-subtitle">Pipes that exist on the filesystem, enabling IPC between unrelated processes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What Is a FIFO?</div>
+                <div class="card-desc">A named pipe (FIFO = First In, First Out) is a special file created with <span class="ic">mkfifo</span>. Unlike an anonymous pipe, it persists on the filesystem and allows two separate processes, started independently, to communicate through it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use Named Pipes</div>
+                <div class="card-desc">When the two processes cannot be started in the same command line (e.g., different terminals, different scripts, different users). Common in logging architectures: one process writes continuously; another reads and filters.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Create a named pipe (FIFO)</span>
+<span class="fn">mkfifo</span> /tmp/grid-feed
+
+<span class="cm"># Terminal 1 — writer: continuously send data into the FIFO</span>
+<span class="fn">tail</span> -f /var/log/syslog <span class="kw">&gt;</span> /tmp/grid-feed
+
+<span class="cm"># Terminal 2 — reader: consume from the FIFO and filter</span>
+<span class="fn">grep</span> --line-buffered <span class="st">'CRIT'</span> /tmp/grid-feed <span class="kw">|</span> <span class="fn">tee</span> /var/log/critical-events.log
+
+<span class="cm"># Inspect the pipe file — notice the 'p' type in ls output</span>
+<span class="fn">ls</span> -la /tmp/grid-feed
+<span class="cm"># prw-r--r-- 1 user user 0 Apr  9 09:00 /tmp/grid-feed</span>
+
+<span class="cm"># Remove when done</span>
+<span class="fn">rm</span> /tmp/grid-feed</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Behavior</div>
+            A FIFO blocks. The writer blocks until a reader opens the pipe. The reader blocks until the writer writes. This synchronization is by design. If you need non-blocking behavior, use a socket or message queue instead.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — PROCESS SUBSTITUTION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Process Substitution: <span class="accent">&lt;(command)</span></div>
+        <div class="slide-subtitle">Treat the output of a command as if it were a file. One of bash's most powerful features.</div>
+
+        <div class="scenario-strip">
+            You want to compare two live outputs without writing temp files. Process substitution lets you hand a command's output to another command that expects a filename. The shell handles the plumbing behind the scenes.
+        </div>
+
+        <div class="code-block"><span class="cm"># Syntax: &lt;(command) provides output as a readable pseudo-file</span>
+<span class="cm"># diff expects two file arguments — we feed it two live command outputs</span>
+<span class="fn">diff</span> <span class="kw">&lt;(</span><span class="fn">cat</span> /etc/passwd<span class="kw">)</span> <span class="kw">&lt;(</span><span class="fn">getent</span> passwd<span class="kw">)</span>
+
+<span class="cm"># Compare sorted package list from two different hosts via SSH</span>
+<span class="fn">diff</span> <span class="kw">&lt;(</span><span class="fn">ssh</span> node-a <span class="st">'dpkg -l | sort'</span><span class="kw">)</span> <span class="kw">&lt;(</span><span class="fn">ssh</span> node-b <span class="st">'dpkg -l | sort'</span><span class="kw">)</span>
+
+<span class="cm"># comm needs two sorted files — use process substitution</span>
+<span class="fn">comm</span> -23 <span class="kw">&lt;(</span><span class="fn">sort</span> /tmp/hosts-a.txt<span class="kw">)</span> <span class="kw">&lt;(</span><span class="fn">sort</span> /tmp/hosts-b.txt<span class="kw">)</span>
+
+<span class="cm"># Output process substitution &gt;(command): redirect into a command's stdin</span>
+<span class="fn">tee</span> <span class="kw">&gt;(</span><span class="fn">grep</span> ERROR <span class="kw">&gt;</span> /var/log/errors.log<span class="kw">)</span> <span class="kw">&gt;(</span><span class="fn">grep</span> WARN <span class="kw">&gt;</span> /var/log/warnings.log<span class="kw">)</span> <span class="kw">&lt;</span> /var/log/app.log</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Under the Hood</div>
+            Bash creates a temporary file descriptor (e.g., <span class="ic">/dev/fd/63</span>) connected to the command's stdout. The outer command receives that path as its argument. No disk writes occur. This is a bash and zsh feature -- it does not work in plain sh.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — COMMAND CHAINING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Command Chaining: <span class="accent">&amp;&amp;, ||, ;</span></div>
+        <div class="slide-subtitle">Control whether the next command runs based on whether the previous one succeeded.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><span class="ic">&amp;&amp;</span> — AND (run if success)</div>
+                <div class="card-desc">Run the right command only if the left command exits with status 0 (success). Use for sequential operations where each step depends on the previous one completing successfully. Most common chaining operator.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label"><span class="ic">||</span> — OR (run if failure)</div>
+                <div class="card-desc">Run the right command only if the left command exits with a non-zero status (failure). Use for fallback logic: try the primary action; if it fails, run the recovery. Common in deployment scripts and service restarts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label"><span class="ic">;</span> — Unconditional</div>
+                <div class="card-desc">Always run the right command regardless of the exit status of the left. Equivalent to pressing Enter between two commands. Use when the commands are independent and you do not care if one fails.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># && — create dir AND copy only if mkdir succeeds</span>
+<span class="fn">mkdir</span> -p /opt/sector/config <span class="kw">&amp;&amp;</span> <span class="fn">cp</span> /etc/app.conf /opt/sector/config/
+
+<span class="cm"># || — restart service if status check fails</span>
+<span class="fn">systemctl</span> is-active nginx <span class="kw">||</span> <span class="fn">systemctl</span> start nginx
+
+<span class="cm"># Chain: install, then enable, then start — stop at first failure</span>
+<span class="fn">apt-get</span> install -y nginx <span class="kw">&amp;&amp;</span> <span class="fn">systemctl</span> enable nginx <span class="kw">&amp;&amp;</span> <span class="fn">systemctl</span> start nginx
+
+<span class="cm"># ; — run cleanup regardless of what happened above</span>
+<span class="fn">cp</span> /tmp/deploy.sh /opt/ <span class="kw">;</span> <span class="fn">rm</span> -f /tmp/deploy.sh
+
+<span class="cm"># Combine: try primary, fall back, then log result either way</span>
+<span class="fn">systemctl</span> start app-primary <span class="kw">||</span> <span class="fn">systemctl</span> start app-backup <span class="kw">;</span> <span class="fn">echo</span> <span class="st">"startup attempted"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — EXIT CODES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Exit Codes: <span class="accent">The Language of Success and Failure</span></div>
+        <div class="slide-subtitle">Every command reports its outcome as a number. Your chaining logic depends on reading it correctly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Exit Code 0 = Success</div>
+                <div class="card-desc">By convention, exit code 0 means the command completed without error. This is the only value that <span class="ic">&amp;&amp;</span> treats as success. The shell stores the last exit code in <span class="ic">$?</span>. Read it immediately after a command -- the next command overwrites it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Non-Zero = Failure</div>
+                <div class="card-desc">Any value 1-255 is failure. The specific value encodes the type of failure. Exit 1 is a generic error. Exit 2 is often a misuse of the command. Exit 126 = command found but not executable. Exit 127 = command not found. Exit 128+N = terminated by signal N.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check the exit code of the last command</span>
+<span class="fn">ls</span> /etc/nginx
+<span class="fn">echo</span> <span class="nb">$?</span>    <span class="cm"># 0 — directory exists, ls succeeded</span>
+
+<span class="fn">ls</span> /etc/nonexistent
+<span class="fn">echo</span> <span class="nb">$?</span>    <span class="cm"># 2 — no such file or directory</span>
+
+<span class="cm"># grep: exit 0 if match found, exit 1 if no match, exit 2 on error</span>
+<span class="fn">grep</span> <span class="st">'root'</span> /etc/passwd
+<span class="fn">echo</span> <span class="nb">$?</span>    <span class="cm"># 0 — found</span>
+
+<span class="fn">grep</span> <span class="st">'zzz_no_such_user'</span> /etc/passwd
+<span class="fn">echo</span> <span class="nb">$?</span>    <span class="cm"># 1 — not found (not an error — just no match)</span>
+
+<span class="cm"># In a script: test exit codes explicitly</span>
+<span class="kw">if</span> <span class="fn">systemctl</span> is-active --quiet nginx; <span class="kw">then</span>
+    <span class="fn">echo</span> <span class="st">"nginx is running"</span>
+<span class="kw">else</span>
+    <span class="fn">echo</span> <span class="st">"nginx is DOWN — alerting ops"</span>
+<span class="kw">fi</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — SUBSHELLS VS GROUPING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Subshells <span class="accent">()</span> vs Command Grouping <span class="accent">{}</span></div>
+        <div class="slide-subtitle">Both run multiple commands together. The critical difference: isolation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label"><span class="ic">( )</span> — Subshell</div>
+                <div class="card-desc">Commands run in a child process. Any variable assignments, directory changes, or environment modifications made inside do NOT affect the parent shell. When the subshell exits, it is as if nothing happened outside. Use when you need isolation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label"><span class="ic">{ }</span> — Current Shell Group</div>
+                <div class="card-desc">Commands run in the current shell process. Variable changes, <span class="ic">cd</span> changes, and environment modifications DO persist after the group exits. The opening brace requires a space after it. The closing brace must be preceded by a semicolon or newline.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Subshell: cd change is isolated — parent stays in /etc</span>
+<span class="fn">pwd</span>                              <span class="cm"># /etc</span>
+(<span class="fn">cd</span> /tmp <span class="kw">&amp;&amp;</span> <span class="fn">ls</span>)               <span class="cm"># runs in child, lists /tmp</span>
+<span class="fn">pwd</span>                              <span class="cm"># /etc — unchanged</span>
+
+<span class="cm"># Group: cd change persists in current shell</span>
+{ <span class="fn">cd</span> /tmp <span class="kw">&amp;&amp;</span> <span class="fn">ls</span>; }             <span class="cm"># runs in current shell</span>
+<span class="fn">pwd</span>                              <span class="cm"># /tmp — changed!</span>
+
+<span class="cm"># Subshell: redirect combined output of multiple commands</span>
+(<span class="fn">echo</span> <span class="st">"=== /etc/hosts ==="</span> <span class="kw">&amp;&amp;</span> <span class="fn">cat</span> /etc/hosts) <span class="kw">&gt;</span> /tmp/report.txt
+
+<span class="cm"># Group: redirect combined output while preserving shell state</span>
+{ <span class="fn">date</span>; <span class="fn">uptime</span>; <span class="fn">who</span>; } <span class="kw">&gt;</span> /tmp/status.txt</div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Gotcha</div>
+            Using <span class="ic">( )</span> when you meant <span class="ic">{ }</span> in a script that sets variables. The variables exist inside the subshell and silently disappear the moment it exits. Always check which one you need before writing deployment scripts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — REDIRECTION DEEP DIVE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Redirection: <span class="accent">Full Reference</span></div>
+        <div class="slide-subtitle">stdin, stdout, stderr — redirect each precisely or lose control of your output.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">stdout Redirect</div>
+                <div class="card-desc"><span class="ic">&gt; file</span> truncates and writes. <span class="ic">&gt;&gt; file</span> appends. File descriptor 1 is stdout. Explicit form: <span class="ic">1&gt; file</span>. The file is created if it does not exist, truncated if <span class="ic">&gt;</span> is used.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">stderr Redirect</div>
+                <div class="card-desc"><span class="ic">2&gt; file</span> redirects stderr (fd 2) to a file. <span class="ic">2&gt;&amp;1</span> redirects stderr to wherever stdout currently points. Order matters: <span class="ic">cmd &gt; file 2&gt;&amp;1</span> is different from <span class="ic">cmd 2&gt;&amp;1 &gt; file</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">stdin Redirect</div>
+                <div class="card-desc"><span class="ic">&lt; file</span> feeds a file as stdin. <span class="ic">&lt;&lt;EOF ... EOF</span> is a here-document: inline multiline input. <span class="ic">&lt;&lt;&lt;"string"</span> is a here-string: single string on stdin.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Redirect stdout only — errors still appear on terminal</span>
+<span class="fn">find</span> / -name <span class="st">'shadow'</span> <span class="kw">&gt;</span> /tmp/shadow-results.txt
+
+<span class="cm"># Redirect stderr only — output still appears on terminal</span>
+<span class="fn">find</span> / -name <span class="st">'shadow'</span> <span class="nb">2&gt;</span> /tmp/errors.txt
+
+<span class="cm"># Redirect both to the same file (bash 4+ shorthand)</span>
+<span class="fn">find</span> / -name <span class="st">'shadow'</span> <span class="kw">&gt;</span>/tmp/all.txt <span class="nb">2&gt;&amp;1</span>
+<span class="fn">find</span> / -name <span class="st">'shadow'</span> <span class="kw">&amp;&gt;</span>/tmp/all.txt   <span class="cm"># bash shorthand, same result</span>
+
+<span class="cm"># Discard stderr entirely</span>
+<span class="fn">find</span> / -name <span class="st">'shadow'</span> <span class="nb">2&gt;</span>/dev/null
+
+<span class="cm"># Here-string: pass a string directly as stdin</span>
+<span class="fn">base64</span> <span class="kw">&lt;&lt;&lt;</span><span class="st">"sector-alpha-credentials"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — JOB CONTROL INTRO ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Job Control: <span class="accent">Managing Background Processes</span></div>
+        <div class="slide-subtitle">Keep your terminal free while long operations run. Essential under operational tempo.</div>
+
+        <div class="scenario-strip">
+            You launch a 45-minute log archival job. Your terminal locks. Fifteen minutes in, a critical alert arrives and you need the terminal now. This is why job control exists -- you do not need a second terminal for every task.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><span class="ic">&amp;</span> — Background Launch</div>
+                <div class="card-desc">Append <span class="ic">&amp;</span> to any command to launch it in the background immediately. The shell prints the job number and PID, then returns your prompt. The job runs as a background process in your current session.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label"><span class="ic">Ctrl+Z</span> — Suspend</div>
+                <div class="card-desc">Sends SIGTSTP to the foreground process, pausing it. The process is now stopped but not terminated. Its state is preserved. You get your prompt back. Use <span class="ic">fg</span> or <span class="ic">bg</span> to resume it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label"><span class="ic">jobs</span> — List Jobs</div>
+                <div class="card-desc">Shows all background and stopped jobs in the current shell session. Each job has a number like <span class="ic">[1]</span>. Reference jobs by this number with <span class="ic">%1</span>, <span class="ic">%2</span>, etc. The <span class="ic">+</span> marker indicates the current job.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Launch a background job with &amp;</span>
+<span class="fn">tar</span> czf /backup/sector-$(date +%F).tar.gz /opt/sector/ <span class="kw">&amp;</span>
+<span class="cm"># [1] 14823</span>
+
+<span class="cm"># List running jobs</span>
+<span class="fn">jobs</span>
+<span class="cm"># [1]+  Running    tar czf /backup/sector-... &amp;</span>
+
+<span class="cm"># Suspend the foreground process (press Ctrl+Z interactively)</span>
+<span class="cm"># [1]+  Stopped    tar czf /backup/sector-... &amp;</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — FG, BG, DISOWN ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title"><span class="accent">fg, bg, disown</span> — Job Lifecycle</div>
+        <div class="slide-subtitle">Move jobs between foreground, background, and full independence from your session.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><span class="ic">fg [%n]</span> — Bring to Foreground</div>
+                <div class="card-desc">Resume a stopped or background job in the foreground. Without an argument, resumes the current job (marked <span class="ic">+</span> in <span class="ic">jobs</span>). With <span class="ic">%2</span>, resumes job 2. The terminal attaches to it -- you will not get your prompt back until it finishes or you suspend it again.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label"><span class="ic">bg [%n]</span> — Resume in Background</div>
+                <div class="card-desc">Resume a stopped job in the background (as if launched with <span class="ic">&amp;</span>). The job continues running but you keep your prompt. Useful after <span class="ic">Ctrl+Z</span>: suspend a job that is taking too long, then send it to background with <span class="ic">bg</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label"><span class="ic">disown [%n]</span> — Detach from Session</div>
+                <div class="card-desc">Remove a job from the shell's job table. The process continues running, but the shell will no longer send it SIGHUP when your session ends. Use after <span class="ic">&amp;</span> when you need a background job to outlive your SSH session. Works without <span class="ic">nohup</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Start a job, suspend it, resume in background</span>
+<span class="fn">rsync</span> -av /data/ backup-node:/data/    <span class="cm"># starts running</span>
+<span class="cm"># Press Ctrl+Z to suspend</span>
+<span class="cm"># [1]+  Stopped    rsync -av /data/ ...</span>
+<span class="fn">bg</span> <span class="nb">%1</span>                                  <span class="cm"># resume in background</span>
+<span class="fn">disown</span> <span class="nb">%1</span>                              <span class="cm"># detach — safe to close terminal</span>
+
+<span class="cm"># Useful pattern: launch, disown, walk away</span>
+<span class="fn">./full-audit.sh</span> <span class="kw">&gt;</span> /var/log/audit.log <span class="nb">2&gt;&amp;1</span> <span class="kw">&amp;</span>
+<span class="fn">disown</span>          <span class="cm"># no job number needed — acts on most recent</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SIGNALS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Signals: <span class="accent">Communicating with Processes</span></div>
+        <div class="slide-subtitle">Signals are the kernel's mechanism for sending notifications to running processes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Sending Signals with kill</div>
+                <div class="card-desc"><span class="ic">kill</span> sends a signal to a process by PID. Despite the name, it does not always terminate. <span class="ic">kill -l</span> lists all signals. Signal numbers and names are interchangeable: <span class="ic">kill -9 PID</span> and <span class="ic">kill -SIGKILL PID</span> are identical.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">SIGKILL vs SIGTERM</div>
+                <div class="card-desc">SIGTERM (15) is the polite request to terminate. The process can catch it, clean up, and exit gracefully. SIGKILL (9) is instant, unconditional termination by the kernel. The process cannot catch or ignore it. Always try SIGTERM first -- use SIGKILL only if the process ignores it.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Common signals</span>
+<span class="cm"># SIGTERM (15) — graceful termination request</span>
+<span class="fn">kill</span> <span class="nb">14823</span>             <span class="cm"># SIGTERM is the default</span>
+<span class="fn">kill</span> -<span class="nb">15</span> <span class="nb">14823</span>         <span class="cm"># explicit SIGTERM</span>
+
+<span class="cm"># SIGKILL (9) — force kill, no cleanup possible</span>
+<span class="fn">kill</span> -<span class="nb">9</span> <span class="nb">14823</span>
+
+<span class="cm"># SIGHUP (1) — reload config without restarting (many daemons)</span>
+<span class="fn">kill</span> -<span class="nb">1</span> $(cat /var/run/nginx.pid)
+
+<span class="cm"># SIGUSR1 (10) — user-defined, used by some apps for log rotation</span>
+<span class="fn">kill</span> -<span class="nb">10</span> $(pgrep nginx)
+
+<span class="cm"># killall: signal all processes with a given name</span>
+<span class="fn">killall</span> -TERM python3
+
+<span class="cm"># pkill: signal by pattern match (more flexible)</span>
+<span class="fn">pkill</span> -f <span class="st">'worker_process'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — SCREEN MULTIPLEXER ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Terminal Multiplexing: <span class="accent">screen</span></div>
+        <div class="slide-subtitle">Keep sessions alive after SSH disconnects. The original survival tool.</div>
+
+        <div class="scenario-strip">
+            Your SSH connection to the remote node drops mid-deployment. Without screen or tmux, your running process gets SIGHUP and dies. With a multiplexer, you reconnect and your session is exactly where you left it.
+        </div>
+
+        <div class="code-block"><span class="cm"># Start a new named screen session</span>
+<span class="fn">screen</span> -S deploy-session
+
+<span class="cm"># Detach from screen (keep it running): Ctrl+A then d</span>
+
+<span class="cm"># List active screen sessions</span>
+<span class="fn">screen</span> -ls
+<span class="cm"># There is a screen on: 18293.deploy-session (Detached)</span>
+
+<span class="cm"># Reattach to a session by name</span>
+<span class="fn">screen</span> -r deploy-session
+
+<span class="cm"># Reattach if session is already attached (take over)</span>
+<span class="fn">screen</span> -d -r deploy-session
+
+<span class="cm"># Kill a screen session cleanly (from inside: Ctrl+A then :quit)</span>
+<span class="fn">screen</span> -S deploy-session -X quit</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Essential Key Bindings (Ctrl+A prefix)</div>
+                <div class="card-desc"><span class="ic">Ctrl+A d</span> = detach. <span class="ic">Ctrl+A c</span> = new window. <span class="ic">Ctrl+A n</span> = next window. <span class="ic">Ctrl+A p</span> = previous window. <span class="ic">Ctrl+A "</span> = list windows. <span class="ic">Ctrl+A k</span> = kill current window.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When to Use screen vs tmux</div>
+                <div class="card-desc">screen is available on virtually every Linux system, including minimal server installs. Use it when tmux is not installed and you cannot install packages. For new deployments where you control the environment, use tmux -- it is more capable.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — TMUX INTRO ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">tmux: <span class="accent">The Modern Multiplexer</span></div>
+        <div class="slide-subtitle">Sessions, windows, panes. Persistent workspaces for serious operations.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Sessions</div>
+                <div class="card-desc">The top-level container. A session persists independently of any terminal window. You can detach and reattach. Multiple sessions let you maintain separate work contexts (e.g., one for monitoring, one for deployments, one for log review).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows</div>
+                <div class="card-desc">Tabs within a session. Each window has its own shell. Switch between them instantly. Name them to stay organized. A window occupies the full terminal area and can be split into panes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Panes</div>
+                <div class="card-desc">Splits within a window. Split horizontally or vertically. Each pane is an independent shell. Run a log monitor in one pane, a command prompt in another, a process viewer in a third -- all visible simultaneously.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install tmux (Ubuntu 22.04)</span>
+<span class="fn">apt-get</span> install -y tmux
+
+<span class="cm"># Start a new named session</span>
+<span class="fn">tmux</span> new -s ops
+
+<span class="cm"># Detach: Ctrl+B then d</span>
+
+<span class="cm"># List sessions</span>
+<span class="fn">tmux</span> ls
+
+<span class="cm"># Reattach to a session</span>
+<span class="fn">tmux</span> attach -t ops
+
+<span class="cm"># Create a new window: Ctrl+B then c</span>
+<span class="cm"># Switch to window 0: Ctrl+B then 0</span>
+<span class="cm"># Split vertically: Ctrl+B then %</span>
+<span class="cm"># Split horizontally: Ctrl+B then "</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — TMUX KEY BINDINGS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">tmux Key Bindings: <span class="accent">Operational Reference</span></div>
+        <div class="slide-subtitle">All bindings use the Ctrl+B prefix. Learn the essentials first, expand later.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Session Management</div>
+                <div class="card-desc">
+                    <span class="ic">Ctrl+B d</span> -- detach from session<br>
+                    <span class="ic">Ctrl+B $</span> -- rename current session<br>
+                    <span class="ic">Ctrl+B s</span> -- list/switch sessions<br>
+                    <span class="ic">Ctrl+B (</span> -- switch to previous session<br>
+                    <span class="ic">Ctrl+B )</span> -- switch to next session
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Window Management</div>
+                <div class="card-desc">
+                    <span class="ic">Ctrl+B c</span> -- create new window<br>
+                    <span class="ic">Ctrl+B ,</span> -- rename current window<br>
+                    <span class="ic">Ctrl+B n</span> -- next window<br>
+                    <span class="ic">Ctrl+B p</span> -- previous window<br>
+                    <span class="ic">Ctrl+B &amp;</span> -- kill current window
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Pane Management</div>
+                <div class="card-desc">
+                    <span class="ic">Ctrl+B %</span> -- split vertically<br>
+                    <span class="ic">Ctrl+B "</span> -- split horizontally<br>
+                    <span class="ic">Ctrl+B arrow</span> -- move between panes<br>
+                    <span class="ic">Ctrl+B z</span> -- zoom/unzoom pane<br>
+                    <span class="ic">Ctrl+B x</span> -- kill current pane
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Prefix Customization</div>
+            The default prefix <span class="ic">Ctrl+B</span> conflicts with terminal scroll-back on some systems. Many admins remap it to <span class="ic">Ctrl+A</span> (screen-style) in <span class="ic">~/.tmux.conf</span>: add <span class="ic">set -g prefix C-a</span>. This is a personal preference -- learn the default before remapping.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — TMUX SCRIPTED LAYOUTS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">tmux: <span class="accent">Scripted Session Layouts</span></div>
+        <div class="slide-subtitle">Launch a complete multi-pane workspace with a single command.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash
+# ops-layout.sh — Launch a 3-pane ops workspace in tmux</span>
+
+SESSION=<span class="st">"sector-ops"</span>
+
+<span class="cm"># Kill existing session if it exists, then create fresh</span>
+<span class="fn">tmux</span> kill-session -t <span class="nb">$SESSION</span> <span class="nb">2&gt;</span>/dev/null
+<span class="fn">tmux</span> new-session -d -s <span class="nb">$SESSION</span> -n <span class="st">"monitor"</span>
+
+<span class="cm"># Window 1: split into three panes</span>
+<span class="fn">tmux</span> send-keys -t <span class="nb">$SESSION</span>:0 <span class="st">'htop'</span> Enter
+<span class="fn">tmux</span> split-window -h -t <span class="nb">$SESSION</span>:0
+<span class="fn">tmux</span> send-keys -t <span class="nb">$SESSION</span>:0 <span class="st">'journalctl -f -u nginx'</span> Enter
+<span class="fn">tmux</span> split-window -v -t <span class="nb">$SESSION</span>:0.1
+<span class="fn">tmux</span> send-keys -t <span class="nb">$SESSION</span>:0 <span class="st">'watch -n 2 ss -tuln'</span> Enter
+
+<span class="cm"># Window 2: command prompt</span>
+<span class="fn">tmux</span> new-window -t <span class="nb">$SESSION</span> -n <span class="st">"cmd"</span>
+
+<span class="cm"># Attach to the session</span>
+<span class="fn">tmux</span> attach -t <span class="nb">$SESSION</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Operational Value</div>
+            Check this script into your ops repository. Any team member who inherits your node can run one script and have a fully configured workspace -- same pane layout, same running monitors, same windows. Reproducible environments under pressure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — XARGS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title"><span class="accent">xargs</span> — Building Commands from Input</div>
+        <div class="slide-subtitle">Convert lines of stdin into arguments for another command. Bridges pipes and argument-based tools.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Why xargs Exists</div>
+                <div class="card-desc">Many commands (like <span class="ic">rm</span>, <span class="ic">chmod</span>, <span class="ic">grep</span>) accept arguments, not stdin. You cannot pipe a list of filenames directly to <span class="ic">rm</span>. <span class="ic">xargs</span> takes stdin lines and passes them as arguments to the specified command.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Use -0 for Safety</div>
+                <div class="card-desc">By default xargs splits on whitespace. A filename with a space (e.g., <span class="ic">my file.txt</span>) becomes two arguments. Use <span class="ic">find -print0</span> paired with <span class="ic">xargs -0</span> to use null bytes as delimiters instead. Always use this pattern in scripts.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Basic: pipe filenames to rm via xargs</span>
+<span class="fn">find</span> /tmp -name <span class="st">'*.tmp'</span> <span class="kw">|</span> <span class="fn">xargs</span> <span class="fn">rm</span> -f
+
+<span class="cm"># Safe: use null delimiter to handle filenames with spaces</span>
+<span class="fn">find</span> /tmp -name <span class="st">'*.tmp'</span> -print0 <span class="kw">|</span> <span class="fn">xargs</span> -0 <span class="fn">rm</span> -f
+
+<span class="cm"># -P: run N processes in parallel (here: 4 simultaneous greps)</span>
+<span class="fn">find</span> /var/log -name <span class="st">'*.log'</span> -print0 <span class="kw">|</span> <span class="fn">xargs</span> -0 -P <span class="nb">4</span> <span class="fn">grep</span> -l <span class="st">'CRITICAL'</span>
+
+<span class="cm"># -I {}: place each input item at a specific position in the command</span>
+<span class="fn">cat</span> /tmp/host-list.txt <span class="kw">|</span> <span class="fn">xargs</span> -I{} <span class="fn">ssh</span> {} <span class="st">'uptime'</span>
+
+<span class="cm"># -n 1: pass one argument at a time</span>
+<span class="fn">echo</span> <span class="st">"alpha bravo charlie"</span> <span class="kw">|</span> <span class="fn">xargs</span> -n <span class="nb">1</span> <span class="fn">echo</span> <span class="st">"Host:"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — WATCH AND TPUT ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title"><span class="accent">watch</span> and Real-Time Monitoring</div>
+        <div class="slide-subtitle">Repeat any command on an interval. Build live terminal dashboards without scripts.</div>
+
+        <div class="code-block"><span class="cm"># watch: run a command every N seconds and display the output</span>
+<span class="fn">watch</span> -n 2 <span class="st">'ss -tuln'</span>                    <span class="cm"># refresh every 2 seconds</span>
+<span class="fn">watch</span> -n 1 <span class="st">'ps aux --sort=-%cpu | head -10'</span> <span class="cm"># top 10 CPU consumers</span>
+
+<span class="cm"># -d: highlight differences between refreshes</span>
+<span class="fn">watch</span> -d -n 2 <span class="st">'cat /proc/net/dev'</span>           <span class="cm"># spot network counter changes</span>
+
+<span class="cm"># Practical: monitor disk I/O while a backup runs</span>
+<span class="fn">watch</span> -n 1 <span class="st">'iostat -xz 1 1 | grep -v "^$"'</span>
+
+<span class="cm"># Combine watch with a pipeline for live log counting</span>
+<span class="fn">watch</span> -n 5 <span class="st">'grep -c "ERROR" /var/log/app.log'</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Useful watch Flags</div>
+                <div class="card-desc"><span class="ic">-n N</span> = interval in seconds (default 2). <span class="ic">-d</span> = highlight changes. <span class="ic">-t</span> = no header. <span class="ic">-e</span> = exit on non-zero. <span class="ic">-g</span> = exit when output changes (bash 3.2+). <span class="ic">Ctrl+C</span> to quit.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Alternatives</div>
+                <div class="card-desc"><span class="ic">vmstat 2</span>, <span class="ic">iostat 2</span>, and <span class="ic">sar</span> have built-in repeat intervals and produce more detailed resource data. For production monitoring, use these over <span class="ic">watch</span>. For quick one-liners, <span class="ic">watch</span> wins.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — AWK FOR SYSADMINS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title"><span class="accent">awk</span> for System Administrators</div>
+        <div class="slide-subtitle">Field extraction, pattern matching, and arithmetic in one tool. Indispensable for log and config parsing.</div>
+
+        <div class="code-block"><span class="cm"># awk: process text by fields, separated by whitespace by default</span>
+<span class="cm"># $1 = first field, $2 = second, $NF = last field, $0 = entire line</span>
+
+<span class="cm"># Extract PID and command name from ps aux</span>
+<span class="fn">ps</span> aux <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $2, $11}'</span>
+
+<span class="cm"># Print lines where CPU usage (&gt;column 3) exceeds 50%</span>
+<span class="fn">ps</span> aux <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'$3 > 50 {print $2, $3, $11}'</span>
+
+<span class="cm"># Change field separator: parse /etc/passwd (colon-delimited)</span>
+<span class="fn">awk</span> -F: <span class="st">'{print $1, $3}'</span> /etc/passwd           <span class="cm"># username, UID</span>
+<span class="fn">awk</span> -F: <span class="st">'$3 >= 1000 {print $1}'</span> /etc/passwd   <span class="cm"># human accounts (UID >= 1000)</span>
+
+<span class="cm"># Sum a column: total bytes received across all interfaces</span>
+<span class="fn">cat</span> /proc/net/dev <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'NR > 2 {sum += $2} END {print "Total RX bytes:", sum}'</span>
+
+<span class="cm"># Print BEGIN and END blocks (run before/after processing)</span>
+<span class="fn">awk</span> <span class="st">'BEGIN {print "--- User Report ---"} $3 >= 1000 {print $1} END {print "---"}'</span> -F: /etc/passwd</div>
+
+        <div class="box box-green">
+            <div class="box-label">Pattern</div>
+            The general awk form is: <span class="ic">awk 'pattern { action }' file</span>. Pattern is optional (match all lines). Action is optional (default: print the whole line). Combine them for precise control.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — SED FOR SYSADMINS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title"><span class="accent">sed</span> for Stream Editing</div>
+        <div class="slide-subtitle">In-place substitution, line deletion, and address ranges for config file management.</div>
+
+        <div class="code-block"><span class="cm"># Basic substitution: s/pattern/replacement/flags</span>
+<span class="fn">sed</span> <span class="st">'s/error/ERROR/g'</span> /var/log/app.log        <span class="cm"># replace all occurrences, output to stdout</span>
+
+<span class="cm"># In-place edit: modify the file itself (always keep a backup)</span>
+<span class="fn">sed</span> -i.bak <span class="st">'s/Listen 80/Listen 8080/g'</span> /etc/apache2/ports.conf
+
+<span class="cm"># Delete lines matching a pattern</span>
+<span class="fn">sed</span> -i <span class="st">'/^#/d'</span> /etc/fstab.tmp             <span class="cm"># delete comment lines</span>
+<span class="fn">sed</span> -i <span class="st">'/^$/d'</span> /etc/fstab.tmp             <span class="cm"># delete blank lines</span>
+
+<span class="cm"># Address range: edit only lines 10-20</span>
+<span class="fn">sed</span> -n <span class="st">'10,20p'</span> /var/log/syslog            <span class="cm"># print lines 10-20</span>
+
+<span class="cm"># Insert a line BEFORE a pattern match</span>
+<span class="fn">sed</span> -i <span class="st">'/^ServerName/i # Managed by ops-config v2.1'</span> /etc/apache2/sites-enabled/000-default.conf
+
+<span class="cm"># Append a line AFTER a pattern match</span>
+<span class="fn">sed</span> -i <span class="st">'/^GRUB_TIMEOUT=/a GRUB_TIMEOUT_STYLE=countdown'</span> /etc/default/grub</div>
+
+        <div class="box box-red">
+            <div class="box-label">Warning: Always Backup Before In-Place Edits</div>
+            <span class="ic">sed -i</span> modifies the file directly. There is no undo. Use <span class="ic">sed -i.bak</span> to create an automatic backup with a <span class="ic">.bak</span> suffix before making changes. This has saved countless admins from restoring from actual backup.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — ADVANCED GREP ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Advanced <span class="accent">grep</span></div>
+        <div class="slide-subtitle">Context lines, recursive search, extended regex, and binary-safe operation.</div>
+
+        <div class="code-block"><span class="cm"># Context lines: show N lines before, after, or both sides of match</span>
+<span class="fn">grep</span> -B 3 <span class="st">'CRITICAL'</span> /var/log/app.log    <span class="cm"># 3 lines Before the match</span>
+<span class="fn">grep</span> -A 5 <span class="st">'CRITICAL'</span> /var/log/app.log    <span class="cm"># 5 lines After the match</span>
+<span class="fn">grep</span> -C 2 <span class="st">'CRITICAL'</span> /var/log/app.log    <span class="cm"># 2 lines each side (Context)</span>
+
+<span class="cm"># Extended regex (no backslash escaping needed)</span>
+<span class="fn">grep</span> -E <span class="st">'(ERROR|WARN|CRIT)'</span> /var/log/syslog
+
+<span class="cm"># Recursive: search all files in a directory tree</span>
+<span class="fn">grep</span> -r <span class="st">'PermitRootLogin yes'</span> /etc/ssh/
+
+<span class="cm"># Count matches per file</span>
+<span class="fn">grep</span> -rc <span class="st">'failed'</span> /var/log/auth.log*
+
+<span class="cm"># Print only the matching part of the line</span>
+<span class="fn">grep</span> -o <span class="st">'[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'</span> /var/log/nginx/access.log <span class="kw">|</span> <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> <span class="fn">sort</span> -rn <span class="kw">|</span> <span class="fn">head</span> -20
+
+<span class="cm"># Invert match: print lines that do NOT match</span>
+<span class="fn">grep</span> -v <span class="st">'DEBUG'</span> /var/log/app.log <span class="kw">|</span> <span class="fn">grep</span> -v <span class="st">'^#'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — SORT, UNIQ, CUT ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title"><span class="accent">sort, uniq, cut</span> — Data Pipeline Tools</div>
+        <div class="slide-subtitle">The three tools you combine most often after grep for structured output analysis.</div>
+
+        <div class="code-block"><span class="cm"># sort: alphabetic by default</span>
+<span class="fn">sort</span> /etc/hosts
+<span class="fn">sort</span> -r /etc/hosts                          <span class="cm"># reverse order</span>
+<span class="fn">sort</span> -n /tmp/sizes.txt                      <span class="cm"># numeric sort (not lexicographic)</span>
+<span class="fn">sort</span> -k2 -n /tmp/data.txt                   <span class="cm"># sort by field 2, numerically</span>
+<span class="fn">sort</span> -t: -k3 -n /etc/passwd                 <span class="cm"># sort by UID (field 3, colon-delimited)</span>
+
+<span class="cm"># uniq: remove adjacent duplicate lines (input MUST be sorted first)</span>
+<span class="fn">sort</span> /tmp/ips.txt <span class="kw">|</span> <span class="fn">uniq</span>                    <span class="cm"># unique IPs</span>
+<span class="fn">sort</span> /tmp/ips.txt <span class="kw">|</span> <span class="fn">uniq</span> -c               <span class="cm"># count each unique line</span>
+<span class="fn">sort</span> /tmp/ips.txt <span class="kw">|</span> <span class="fn">uniq</span> -d               <span class="cm"># only lines that appear more than once</span>
+
+<span class="cm"># cut: extract specific fields from delimited text</span>
+<span class="fn">cut</span> -d: -f1 /etc/passwd                     <span class="cm"># first field (username)</span>
+<span class="fn">cut</span> -d: -f1,3 /etc/passwd                   <span class="cm"># fields 1 and 3 (username, UID)</span>
+<span class="fn">cut</span> -c1-20 /var/log/syslog                  <span class="cm"># first 20 characters of each line</span>
+
+<span class="cm"># Classic pipeline: top 10 IP addresses hitting nginx</span>
+<span class="fn">awk</span> <span class="st">'{print $1}'</span> /var/log/nginx/access.log <span class="kw">|</span> <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> <span class="fn">sort</span> -rn <span class="kw">|</span> <span class="fn">head</span> -10</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — BASH VARIABLES AND EXPANSIONS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Bash Variable <span class="accent">Expansion Tricks</span></div>
+        <div class="slide-subtitle">Parameter expansion features that eliminate the need for external commands.</div>
+
+        <div class="code-block"><span class="cm"># Default value: use fallback if variable is unset or empty</span>
+LOG_DIR=<span class="st">${LOG_DIR:-/var/log/sector}</span>          <span class="cm"># use /var/log/sector if LOG_DIR is unset</span>
+
+<span class="cm"># Assign default and also set the variable</span>
+: <span class="st">${CONFIG_FILE:=/etc/sector/config.yml}</span>    <span class="cm"># CONFIG_FILE is now set if it was empty</span>
+
+<span class="cm"># String manipulation without external tools</span>
+FILENAME=<span class="st">"sector-backup-2026-04-09.tar.gz"</span>
+<span class="fn">echo</span> <span class="st">${FILENAME%.tar.gz}</span>                       <span class="cm"># strip shortest suffix: sector-backup-2026-04-09</span>
+<span class="fn">echo</span> <span class="st">${FILENAME#sector-}</span>                        <span class="cm"># strip prefix: backup-2026-04-09.tar.gz</span>
+<span class="fn">echo</span> <span class="st">${FILENAME^^}</span>                               <span class="cm"># uppercase: SECTOR-BACKUP-2026-04-09.TAR.GZ</span>
+<span class="fn">echo</span> <span class="st">${FILENAME,,}</span>                               <span class="cm"># lowercase</span>
+
+<span class="cm"># Substring extraction: ${var:offset:length}</span>
+DATE=<span class="st">"2026-04-09"</span>
+<span class="fn">echo</span> <span class="st">${DATE:0:4}</span>                                 <span class="cm"># 2026 (year)</span>
+<span class="fn">echo</span> <span class="st">${DATE:5:2}</span>                                 <span class="cm"># 04 (month)</span>
+
+<span class="cm"># Length of a variable's value</span>
+<span class="fn">echo</span> <span class="st">${#FILENAME}</span>                               <span class="cm"># 30</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — HEREDOCS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Here-Documents: <span class="accent">Inline Multiline Input</span></div>
+        <div class="slide-subtitle">Feed multiline content to commands without creating temp files. Critical for automation scripts.</div>
+
+        <div class="code-block"><span class="cm"># Basic heredoc: content between EOF markers goes to stdin</span>
+<span class="fn">cat</span> <span class="kw">&lt;&lt;EOF</span>
+<span class="st">This is line one.
+This is line two.
+Hostname: $(hostname)
+Date: $(date +%F)</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Write a config file using heredoc</span>
+<span class="fn">cat</span> <span class="kw">&gt;</span> /etc/sector/worker.conf <span class="kw">&lt;&lt;EOF</span>
+<span class="st">listen_port = 9000
+log_level = INFO
+max_workers = 4
+node_id = $(hostname -s)</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Quoted delimiter: NO variable expansion inside (literal)</span>
+<span class="fn">cat</span> <span class="kw">&lt;&lt;'EOF'</span>
+<span class="st">This ${var} will not expand.
+Neither will $(this command).
+Useful for generating scripts that contain bash syntax.</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># SSH: run multiline commands on a remote host</span>
+<span class="fn">ssh</span> node-b <span class="kw">&lt;&lt;'EOF'</span>
+<span class="st">apt-get update -qq
+apt-get install -y fail2ban
+systemctl enable fail2ban</span>
+<span class="kw">EOF</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — COMMAND SUBSTITUTION ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Command Substitution: <span class="accent">$(command)</span></div>
+        <div class="slide-subtitle">Capture the output of a command and use it as a value inline. Fundamental to scripting.</div>
+
+        <div class="code-block"><span class="cm"># $() runs the command and replaces itself with the output</span>
+TODAY=<span class="st">"$(date +%F)"</span>
+<span class="fn">echo</span> <span class="st">"Backup started: $TODAY"</span>             <span class="cm"># Backup started: 2026-04-09</span>
+
+<span class="cm"># Capture IP address of an interface</span>
+MY_IP=<span class="st">"$(ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1)"</span>
+<span class="fn">echo</span> <span class="st">"Node IP: $MY_IP"</span>
+
+<span class="cm"># Use output in a loop</span>
+<span class="kw">for</span> pid <span class="kw">in</span> <span class="st">$(pgrep python3)</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Found python3 PID: $pid"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Nest substitutions for complex expressions</span>
+DISK_FREE=<span class="st">"$(df -h / | awk 'NR==2 {print $4}')"</span>
+<span class="fn">echo</span> <span class="st">"Root filesystem free: $DISK_FREE"</span>
+
+<span class="cm"># Avoid old backtick syntax -- use $() instead</span>
+<span class="cm"># Old (avoid): version=`python3 --version`</span>
+<span class="cm"># New (use):   version=$(python3 --version)</span>
+<span class="cm"># $() is readable, nestable, and unambiguous</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — TRAP ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title"><span class="accent">trap</span> — Signal Handling in Scripts</div>
+        <div class="slide-subtitle">Define cleanup actions when your script receives a signal or exits unexpectedly.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash
+# cleanup.sh — demonstrates trap for reliable resource cleanup</span>
+
+<span class="cm"># Create a temp directory for this script's work</span>
+WORKDIR=<span class="st">"$(mktemp -d /tmp/sector-work.XXXXXX)"</span>
+<span class="fn">echo</span> <span class="st">"Working in: $WORKDIR"</span>
+
+<span class="cm"># trap: run cleanup() on EXIT, SIGINT, SIGTERM</span>
+cleanup() {
+    <span class="fn">echo</span> <span class="st">"[trap] Cleaning up $WORKDIR"</span>
+    <span class="fn">rm</span> -rf <span class="st">"$WORKDIR"</span>
+    <span class="fn">echo</span> <span class="st">"[trap] Done"</span>
+}
+<span class="fn">trap</span> cleanup EXIT INT TERM
+
+<span class="cm"># Do work</span>
+<span class="fn">cp</span> /etc/passwd <span class="st">"$WORKDIR/passwd-snapshot"</span>
+<span class="fn">grep</span> -E <span class="st">'^[a-z]'</span> <span class="st">"$WORKDIR/passwd-snapshot"</span> <span class="kw">&gt;</span> <span class="st">"$WORKDIR/users.txt"</span>
+<span class="fn">cat</span> <span class="st">"$WORKDIR/users.txt"</span>
+
+<span class="cm"># When the script exits (normally or via Ctrl+C), cleanup() runs automatically</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Best Practice</div>
+            Every script that creates temp files, locks, or holds resources should use <span class="ic">trap cleanup EXIT</span>. EXIT fires on normal termination AND on uncaught signals (depending on bash version). This prevents stale files and lock collisions in automated pipelines.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — BASH ARRAYS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Bash <span class="accent">Arrays</span> in Pipelines</div>
+        <div class="slide-subtitle">Store and iterate over collections in scripts without temporary files.</div>
+
+        <div class="code-block"><span class="cm"># Declare and populate an indexed array</span>
+NODES=(<span class="st">"web-01"</span> <span class="st">"web-02"</span> <span class="st">"db-01"</span> <span class="st">"cache-01"</span>)
+
+<span class="cm"># Access by index</span>
+<span class="fn">echo</span> <span class="st">${NODES[0]}</span>                    <span class="cm"># web-01</span>
+<span class="fn">echo</span> <span class="st">${NODES[-1]}</span>                   <span class="cm"># cache-01 (last element)</span>
+<span class="fn">echo</span> <span class="st">${#NODES[@]}</span>                   <span class="cm"># 4 (count)</span>
+
+<span class="cm"># Iterate over all elements</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${NODES[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Checking: $node"</span>
+    <span class="fn">ping</span> -c 1 -W 1 <span class="st">"$node"</span> <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span> <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"  UP"</span> <span class="kw">||</span> <span class="fn">echo</span> <span class="st">"  DOWN"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Append to an array</span>
+NODES+=(<span class="st">"fw-01"</span>)
+
+<span class="cm"># Build array from command output</span>
+FAILED_SERVICES=(<span class="st">$(systemctl list-units --state=failed --no-legend | awk '{print $1}')</span>)
+<span class="fn">echo</span> <span class="st">"Failed services: ${#FAILED_SERVICES[@]}"</span>
+<span class="kw">for</span> svc <span class="kw">in</span> <span class="st">"${FAILED_SERVICES[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"  - $svc"</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — COPROC ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title"><span class="accent">coproc</span> — Coprocesses</div>
+        <div class="slide-subtitle">Run a command in the background with bidirectional communication pipes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">What coproc Does</div>
+                <div class="card-desc"><span class="ic">coproc</span> launches a command as a background process and creates two file descriptors: one to write to its stdin, one to read from its stdout. This enables two-way communication without named pipes or temporary files.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">When you need to send input to and read output from a long-running background process interactively in a script. Common with <span class="ic">bc</span> (calculator), <span class="ic">python3 -i</span>, or a database CLI. Avoids relaunching the process for every calculation.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># coproc launches bc as a coprocess named CALC</span>
+<span class="fn">coproc</span> CALC (<span class="fn">bc</span> -l)
+
+<span class="cm"># Send expression to bc's stdin via the write file descriptor</span>
+<span class="fn">echo</span> <span class="st">"scale=4; 355/113"</span> <span class="kw">&gt;&amp;</span><span class="nb">${CALC[1]}</span>
+
+<span class="cm"># Read bc's output from the read file descriptor</span>
+<span class="fn">read</span> result <span class="kw">&lt;&amp;</span><span class="nb">${CALC[0]}</span>
+<span class="fn">echo</span> <span class="st">"pi approximation: $result"</span>     <span class="cm"># 3.1415</span>
+
+<span class="cm"># Send another expression</span>
+<span class="fn">echo</span> <span class="st">"sqrt(2)"</span> <span class="kw">&gt;&amp;</span><span class="nb">${CALC[1]}</span>
+<span class="fn">read</span> result <span class="kw">&lt;&amp;</span><span class="nb">${CALC[0]}</span>
+<span class="fn">echo</span> <span class="st">"sqrt(2) = $result"</span>               <span class="cm"># 1.41421356...</span>
+
+<span class="cm"># Terminate the coprocess</span>
+<span class="fn">kill</span> <span class="st">"$CALC_PID"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — PRACTICAL PIPELINE 1 ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35 &nbsp;|&nbsp; Applied Pipeline</div>
+        <div class="slide-title">Applied Pipeline: <span class="accent">Failed Auth Analysis</span></div>
+        <div class="slide-subtitle">Identify brute-force sources from auth.log using everything covered so far.</div>
+
+        <div class="scenario-strip">
+            You receive an alert: unusual SSH activity on the sector node. You need the top attacking IPs, the count per IP, and the usernames being tried -- in under 60 seconds, without a SIEM.
+        </div>
+
+        <div class="code-block"><span class="cm"># Full auth.log pipeline -- run in a tmux window</span>
+
+<span class="cm"># Step 1: What are the top attacking IPs?</span>
+<span class="fn">grep</span> <span class="st">'Failed password'</span> /var/log/auth.log <span class="kw">|</span> \
+    <span class="fn">awk</span> <span class="st">'{print $(NF-3)}'</span> <span class="kw">|</span> \
+    <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> \
+    <span class="fn">sort</span> -rn <span class="kw">|</span> \
+    <span class="fn">head</span> -15
+
+<span class="cm"># Step 2: What usernames are being tried?</span>
+<span class="fn">grep</span> <span class="st">'Failed password'</span> /var/log/auth.log <span class="kw">|</span> \
+    <span class="fn">awk</span> <span class="st">'{print $9}'</span> <span class="kw">|</span> \
+    <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> \
+    <span class="fn">sort</span> -rn <span class="kw">|</span> \
+    <span class="fn">head</span> -10
+
+<span class="cm"># Step 3: Is it active right now? Watch in real-time</span>
+<span class="fn">tail</span> -f /var/log/auth.log <span class="kw">|</span> <span class="fn">grep</span> --line-buffered <span class="st">'Failed password'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — PRACTICAL PIPELINE 2 ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35 &nbsp;|&nbsp; Applied Pipeline</div>
+        <div class="slide-title">Applied Pipeline: <span class="accent">Disk Hog Finder</span></div>
+        <div class="slide-subtitle">Locate the largest files and directories on a system under time pressure.</div>
+
+        <div class="code-block"><span class="cm"># Find the 20 largest files in /var (where logs usually grow)</span>
+<span class="fn">find</span> /var -type f -print0 <span class="kw">|</span> \
+    <span class="fn">xargs</span> -0 <span class="fn">du</span> -sh <span class="nb">2&gt;</span>/dev/null <span class="kw">|</span> \
+    <span class="fn">sort</span> -rh <span class="kw">|</span> \
+    <span class="fn">head</span> -20
+
+<span class="cm"># Disk usage summary by top-level directory under /</span>
+<span class="fn">du</span> -sh //* <span class="nb">2&gt;</span>/dev/null <span class="kw">|</span> <span class="fn">sort</span> -rh <span class="kw">|</span> <span class="fn">head</span> -20
+
+<span class="cm"># Find files modified in the last 24 hours (new large files)</span>
+<span class="fn">find</span> /var/log -mtime -1 -type f -print0 <span class="kw">|</span> \
+    <span class="fn">xargs</span> -0 <span class="fn">du</span> -sh <span class="nb">2&gt;</span>/dev/null <span class="kw">|</span> \
+    <span class="fn">sort</span> -rh
+
+<span class="cm"># All of this in a tmux pane while running the backup in another pane</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">du flags</div>
+                <div class="card-desc"><span class="ic">-s</span> = summarize (one line per argument). <span class="ic">-h</span> = human-readable (GB, MB). <span class="ic">-a</span> = all files, not just directories. <span class="ic">--max-depth=N</span> = only descend N levels. <span class="ic">-c</span> = grand total at the end.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">sort -h</div>
+                <div class="card-desc"><span class="ic">sort -h</span> sorts human-readable numbers correctly: 1K, 10M, 1G are ordered by magnitude. Without <span class="ic">-h</span>, lexicographic sort produces <span class="ic">10K &lt; 1M &lt; 2K</span> which is wrong. Always use <span class="ic">sort -h</span> with <span class="ic">du -h</span> output.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — SCRIPT ROBUSTNESS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Script Robustness: <span class="accent">set -euo pipefail</span></div>
+        <div class="slide-subtitle">Three options that turn a fragile script into one that fails loudly and safely.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label"><span class="ic">set -e</span></div>
+                <div class="card-desc">Exit immediately on any non-zero exit code. Without this, your script silently continues after a failure. A script that keeps running after a failed <span class="ic">mkdir</span> or failed <span class="ic">cp</span> can cause serious damage on production systems.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label"><span class="ic">set -u</span></div>
+                <div class="card-desc">Treat unset variables as an error. Without this, an unset <span class="ic">$TARGET_DIR</span> in <span class="ic">rm -rf $TARGET_DIR/*</span> expands to <span class="ic">rm -rf /*</span>. This has happened in production. <span class="ic">set -u</span> prevents it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label"><span class="ic">set -o pipefail</span></div>
+                <div class="card-desc">Without this, a pipeline's exit code is only the last command's code. <span class="ic">false | true</span> exits 0. With <span class="ic">pipefail</span>, the pipeline fails if any command in it fails. Catches silent failures in multi-command pipelines.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash
+# Every production script starts with this</span>
+<span class="fn">set</span> -euo pipefail
+
+<span class="cm"># Now any unhandled failure exits the script immediately</span>
+BACKUP_DIR=<span class="st">"${BACKUP_DIR:-/var/backups/sector}"</span>   <span class="cm"># safe default</span>
+<span class="fn">mkdir</span> -p <span class="st">"$BACKUP_DIR"</span>
+<span class="fn">rsync</span> -av /opt/sector/ <span class="st">"$BACKUP_DIR/"</span>
+<span class="fn">echo</span> <span class="st">"Backup complete: $(date)"</span>          <span class="cm"># only runs if rsync succeeded</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — WAIT AND PARALLEL EXECUTION ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Parallel Execution with <span class="accent">wait</span></div>
+        <div class="slide-subtitle">Launch multiple background jobs and block until all complete. Speeds up multi-host operations.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash
+# Run SSH commands on multiple nodes in parallel, then collect results</span>
+
+<span class="fn">set</span> -euo pipefail
+NODES=(<span class="st">"web-01"</span> <span class="st">"web-02"</span> <span class="st">"db-01"</span>)
+PIDS=()
+
+<span class="cm"># Launch one background job per node</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${NODES[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">ssh</span> <span class="st">"$node"</span> <span class="st">'uptime && df -h /'</span> <span class="kw">&gt;</span> <span class="st">"/tmp/report-$node.txt"</span> <span class="nb">2&gt;&amp;1</span> <span class="kw">&amp;</span>
+    PIDS+=(<span class="st">"$!"</span>)    <span class="cm"># $! = PID of the last background job</span>
+<span class="kw">done</span>
+
+<span class="cm"># Wait for ALL background jobs to finish, check exit codes</span>
+<span class="kw">for</span> pid <span class="kw">in</span> <span class="st">"${PIDS[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">wait</span> <span class="st">"$pid"</span> <span class="kw">||</span> <span class="fn">echo</span> <span class="st">"WARNING: PID $pid failed"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Collect and display results</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${NODES[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"=== $node ==="</span>
+    <span class="fn">cat</span> <span class="st">"/tmp/report-$node.txt"</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PROFILING PIPELINES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Profiling and <span class="accent">Timing Commands</span></div>
+        <div class="slide-subtitle">Measure what you build. A slow pipeline in a cron job is a ticking problem.</div>
+
+        <div class="code-block"><span class="cm"># time: measure wall clock, user, and system time</span>
+<span class="fn">time</span> <span class="fn">find</span> / -name <span class="st">'*.log'</span> -size +100M <span class="nb">2&gt;</span>/dev/null
+
+<span class="cm"># real = wall clock elapsed
+# user = CPU time in user space
+# sys  = CPU time in kernel (system calls)</span>
+
+<span class="cm"># time a full pipeline</span>
+<span class="fn">time</span> (<span class="fn">grep</span> <span class="st">'Failed'</span> /var/log/auth.log <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $(NF-3)}'</span> <span class="kw">|</span> <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> <span class="fn">sort</span> -rn)
+
+<span class="cm"># Bash's built-in TIMEFORMAT for custom output</span>
+TIMEFORMAT=<span class="st">'Elapsed: %Rs'</span>
+<span class="fn">time</span> { <span class="fn">rsync</span> --dry-run -av /opt/ /tmp/test/; }
+
+<span class="cm"># strace: see every system call a command makes</span>
+<span class="fn">strace</span> -c -p <span class="nb">$(</span>pgrep nginx | head -1<span class="nb">)</span>          <span class="cm"># profile a running process</span>
+<span class="fn">strace</span> -e trace=network <span class="fn">curl</span> https://example.com  <span class="cm"># trace only network syscalls</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">Rule of Thumb</div>
+            If a cron job takes more than 30 seconds, it needs to be profiled and likely optimized. A pipeline that reads a 500 MB log file on every run should instead tail only new entries. Use <span class="ic">time</span> before scheduling anything.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before leaving the lab. Real Ubuntu 22.04 system required.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Use process substitution to <code>diff</code> the output of <code>getent passwd</code> against <code>/etc/passwd</code>. Explain any differences you see.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Start a long-running command (e.g., <code>sleep 300</code>), suspend it with Ctrl+Z, send it to background with <code>bg</code>, verify with <code>jobs</code>, then <code>disown</code> it. Verify it survives shell exit with <code>ps aux | grep sleep</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a pipeline that finds the top 5 users by number of processes currently running. Use <code>ps</code>, <code>awk</code>, <code>sort</code>, and <code>uniq</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Create a tmux session named <code>lab</code> with two windows: one running <code>htop</code>, one with a shell. Detach, close the terminal, reattach, and verify both windows are intact.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Write a script using <code>set -euo pipefail</code>, <code>trap</code> for cleanup, and an array of at least 3 items. The script should process each item and write results to a temp file that is cleaned up on exit.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Extension: Write a parallel SSH runner that checks <code>uptime</code> on at least 2 hosts simultaneously using background jobs and <code>wait</code>. Time it with <code>time</code> and compare to sequential execution.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-01</div>
+        <div class="slide-title">ALA-01 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You can now operate at a level of CLI efficiency that most admins never reach. Pipes are your compositing tool. Process substitution eliminates temp files. Job control keeps your terminal free. tmux makes your session indestructible. These are not tricks -- they are professional standards.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Pipes connect stdout to stdin. They do NOT pass stderr -- use <code>2&gt;&amp;1</code> to merge before piping.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Process substitution <code>&lt;(cmd)</code> passes command output as a pseudo-file. Requires bash or zsh -- not available in plain sh.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>&amp;&amp;</code> runs only on success (exit 0). <code>||</code> runs only on failure. <code>;</code> runs unconditionally. Exit code is in <code>$?</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Subshells <code>( )</code> isolate changes. Command groups <code>{ }</code> share the current shell's environment. Know which you need before writing deployment scripts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Job control: <code>&amp;</code> backgrounds, Ctrl+Z suspends, <code>fg</code> foregrounds, <code>bg</code> resumes in background, <code>disown</code> detaches from session.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">tmux provides sessions (persistent), windows (tabs), and panes (splits). One script can launch your entire workspace. Use it for every remote session.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>set -euo pipefail</code> makes scripts fail loudly. <code>trap cleanup EXIT</code> ensures cleanup runs. Both are required in production scripts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Use <code>xargs -0</code> with <code>find -print0</code> for safety with filenames containing spaces. Use <code>-P N</code> for parallel execution.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update Matrix green progress bar */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w1-cli', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

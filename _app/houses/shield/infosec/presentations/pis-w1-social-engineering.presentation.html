@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Engineering | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Social Engineering | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-04 &nbsp;|&nbsp; Week 1 of 8 &nbsp;|&nbsp; SY0-701: 2.1, 2.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Social <span class="accent">Engineering</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Phishing &nbsp;&bull;&nbsp; Vishing &nbsp;&bull;&nbsp; Pretexting &nbsp;&bull;&nbsp; Tailgating &nbsp;&bull;&nbsp; Typosquatting
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Delta. A SHIELD-7 security analyst receives a voicemail from "Dr. Harlow Vance, IT Security," requesting immediate callback to verify their credentials before a "scheduled system maintenance window." The analyst has never heard of Dr. Vance. The callback number resolves to a VOIP service registered in the Cayman Islands. This is not a maintenance window. This is the opening move of a targeted social engineering campaign against the facility.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-04</span>
+            <span>Week 1 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS SOCIAL ENGINEERING ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">What Is <span class="accent">Social Engineering</span>?</div>
+        <div class="slide-subtitle">Psychological manipulation of people to perform actions or divulge information that benefits the attacker. No code required.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">The Core Principle</div>
+                <div class="card-desc">Social engineering attacks humans, not systems. Technical defenses cannot block a socially engineered action -- the victim voluntarily provides credentials, opens the door, or wires the money. The attack exploits predictable human psychological patterns: authority response, helpfulness, urgency, fear, curiosity, and social proof. These patterns are features of normal human cognition, not security failures that can be eliminated.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why It Works</div>
+                <div class="card-desc">Humans are hardwired to cooperate, defer to authority, and respond to urgency. An attacker who can convincingly impersonate a senior executive, an IT support technician, or a law enforcement officer will obtain compliance from the majority of targets regardless of technical security controls. Kevin Mitnick, the most famous social engineer in history, stated that his primary tool was always the telephone, not a keyboard.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Defender's Challenge</div>
+                <div class="card-desc">You cannot patch human psychology. Training reduces susceptibility but never eliminates it. The same cognitive patterns that make an employee a good team member (helpful, responsive to authority, willing to make exceptions for urgent requests) are the exact patterns attackers exploit. The goal of social engineering training is not to make people suspicious of everything -- it is to teach them to verify through out-of-band channels before acting.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Social Engineering Is the #1 Initial Access Vector</div>
+            Multiple industry studies consistently show that 70-90% of data breaches involve a human element. Social engineering is the primary delivery mechanism for ransomware, BEC (Business Email Compromise) fraud, and credential theft. Organizations that invest only in technical controls while neglecting human layer defenses have a structural gap in their security architecture.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PSYCHOLOGICAL PRINCIPLES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Psychological <span class="accent">Principles</span> Exploited</div>
+        <div class="slide-subtitle">Social engineering attacks are designed around documented human cognitive biases. Recognizing the principle being exploited is the first step to resistance.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Authority</div>
+                <div class="card-desc">People comply with requests from perceived authority figures without questioning them. "This is your CEO -- I need this wire transfer processed in the next 30 minutes." "This is the FBI Cyber Division. We need your cooperation immediately." The perception of authority short-circuits normal verification behavior. The attacker researches real names and titles to make the claim credible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Urgency and Scarcity</div>
+                <div class="card-desc">Time pressure prevents careful deliberation. "Your account will be suspended in 2 hours unless you verify immediately." "This is the last payment window before your company faces legal action." Urgency is the single most consistent element of social engineering attacks because it forces the victim to act before they can verify. Attackers create artificial urgency to override the natural human impulse to verify.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Social Proof</div>
+                <div class="card-desc">"Everyone else in your department has already verified their account." "Your colleague John Smith forwarded me your contact information." References to peers and colleagues lower resistance because humans look to others' behavior to validate their own decisions. Attackers research organizational charts and team structures to craft believable peer references that short-circuit skepticism.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reciprocity</div>
+                <div class="card-desc">People feel obligated to return favors. Attackers offer something before making a request -- solving a fake problem, providing false assistance, or delivering useful information -- to establish a sense of reciprocal obligation. "I helped you access that system last month when you were locked out. Now I just need you to let me in without badging." Reciprocity is powerful and difficult to override.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Liking and Trust</div>
+                <div class="card-desc">People comply more readily with people they like or trust. Attackers use rapport-building, mirroring, flattery, and shared interests to create artificial familiarity. Spear phishing emails reference real coworkers, real projects, and real events gleaned from OSINT. The target is more likely to click a link from someone who seems to know their work context than from a stranger.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Fear</div>
+                <div class="card-desc">Fear of consequences overrides careful reasoning. "If you do not verify your credentials, your account will be deleted and your manager will be notified of non-compliance." "We have detected unauthorized activity on your account. Immediate action required." Fear-based attacks target the victim's desire to avoid negative outcomes, making them more willing to take actions they would normally scrutinize.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PHISHING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">Phishing</span></div>
+        <div class="slide-subtitle">Mass email-based social engineering designed to steal credentials, deliver malware, or initiate fraudulent financial transactions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">How Phishing Works</div>
+                <div class="card-desc">Mass email sent to large lists. Email appears to come from a trusted entity (bank, IT department, package courier, social media platform). Contains a link to a credential-harvesting site (a replica of the legitimate service) or a malicious attachment. When the victim enters credentials, the attacker captures them and redirects the victim to the real site. The victim may not realize the attack occurred. Simple but high volume -- even a 0.5% click rate across a million-email campaign produces 5,000 compromised accounts.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Phishing Infrastructure</div>
+                <div class="card-desc">Attackers register domains that appear legitimate: paypa1-security.com, microsoft-support-ticket.net. They obtain TLS certificates (Let's Encrypt is free) so the phishing site shows a padlock, which victims incorrectly associate with safety. Evilginx and similar tools proxy real sites, capturing credentials and session cookies even when MFA is enabled -- the victim authenticates to the real site through the attacker's proxy, and the attacker captures the authenticated session.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Spear Phishing</div>
+                <div class="card-desc">Targeted phishing using personalized information. Attacker researches the target using LinkedIn, company websites, and social media. Email references the target's actual projects, team members, and recent events. "Hi Sarah -- per your conversation with Mark Renner about the Q3 budget process, please review the attached spreadsheet." Personalization dramatically increases click rates -- from 3% for generic phishing to 30-50% for well-crafted spear phishing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Whaling</div>
+                <div class="card-desc">Spear phishing targeting senior executives (C-suite, board members). High-value targets: CFO authorizes wire transfers, CEO's email can be used to direct employees. Attackers invest significant OSINT research to craft credible whaling emails. The target's high authority level means that a successful compromise yields access to critical financial approvals, sensitive M&A data, and the ability to social engineer other employees using the executive's identity.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PHISHING TECHNICAL INDICATORS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Phishing <span class="accent">Technical Indicators</span></div>
+        <div class="slide-subtitle">Recognizing phishing emails requires checking multiple technical signals, not just the visual appearance of the message.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Domain and Header Analysis</div>
+                <div class="card-desc">Check the actual sending domain in the email headers, not the display name. "Microsoft Support" with a sending address of support@microsoft-helpdesk-ticket.info is a phishing email. Check for lookalike domains: paypa1.com (numeral 1 instead of l), micosoft.com (missing r), paypai.com (AI instead of AL). Email clients hide headers by default -- raw header inspection reveals the true origin.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Link Analysis</div>
+                <div class="card-desc">Hover over links before clicking to reveal the true destination URL. Phishing links often use URL shorteners, legitimate services as redirectors (Google Docs links that redirect to phishing sites), or typosquatted domains. The displayed link text may show a legitimate URL while the actual href points to a malicious site. Never trust the visible link text -- always inspect the actual destination before clicking.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Attachment Indicators</div>
+                <div class="card-desc">Unexpected attachments are high-risk regardless of sender. Office documents with macros (Excel with .xlsm or .xlsb, Word with .docm). Password-protected ZIP files that contain malware (password protects the archive from antivirus scanning). Double-extension files: invoice.pdf.exe appears to be a PDF but executes as a program. HTML attachments that redirect to phishing sites -- the attachment itself is not malware, so it bypasses attachment scanning.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authentication Indicators</div>
+                <div class="card-desc">Email authentication protocols: SPF (Sender Policy Framework) verifies the sending IP is authorized for the domain. DKIM (DomainKeys Identified Mail) provides a cryptographic signature that the email has not been modified. DMARC (Domain-based Message Authentication, Reporting and Conformance) tells receiving servers how to handle SPF/DKIM failures. Organizations that properly configure DMARC with a reject policy prevent domain spoofing. Check DMARC compliance status for your own domain and for domains you receive critical communications from.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- VISHING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title"><span class="accent">Vishing</span></div>
+        <div class="slide-subtitle">Voice phishing: using phone calls to impersonate trusted entities and manipulate victims into disclosing information or taking harmful actions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">How Vishing Works</div>
+                <div class="card-desc">Attacker calls the target impersonating IT support, bank fraud departments, government agencies, or corporate executives. Caller ID spoofing makes the call appear to come from a legitimate number. The attacker uses information gathered through OSINT to establish credibility ("I'm calling about your account ending in 4821"). The real-time, voice-based nature creates more urgency than email -- the victim cannot take time to analyze the request.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">IT Help Desk Vishing</div>
+                <div class="card-desc">Most targeted vishing vector in enterprise environments. Attacker calls the help desk impersonating an employee ("This is John Martinez in Finance, employee ID 48231, I'm locked out of my account and have an executive presentation in 10 minutes"). The help desk's goal is to help employees -- this culture directly enables vishing. Authentication procedures at help desks must be strict and enforced consistently, especially under time pressure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scattered Spider Case Study</div>
+                <div class="card-desc">In 2023, the Scattered Spider group compromised MGM Resorts by calling MGM's IT help desk and impersonating an employee to have their password reset and MFA bypassed. The attacker found the employee's name and basic information from LinkedIn. The call lasted approximately 10 minutes. The result: a 10-day outage, $100M+ in losses, and the compromise of millions of customer records. Zero technical exploits were involved in the initial access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense Against Vishing</div>
+                <div class="card-desc">Strict identity verification procedures that resist time pressure. Never reset credentials or disable MFA for a caller -- require them to appear in person with photo ID, or use a pre-established PIN known only to the account holder. Callback procedures: hang up and call the person back at a number from the corporate directory, not a number they provided. Train help desk staff on social engineering tactics -- they are the primary target.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- SMISHING AND EMERGING CHANNELS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Smishing and <span class="accent">Emerging Channels</span></div>
+        <div class="slide-subtitle">Social engineering via SMS, messaging apps, and collaboration platforms. Users apply less scrutiny to these channels than to email.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Smishing (SMS Phishing)</div>
+                <div class="card-desc">Text message-based phishing. Common scenarios: package delivery notifications with links, bank fraud alerts requiring verification, two-factor authentication bypass requests ("Your code is XXX -- reply with this code to verify your identity"). SMS lacks the technical header analysis tools available for email. People click links in texts at higher rates than in emails -- 98% of SMS messages are read within 3 minutes of receipt.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Collaboration Platform Attacks</div>
+                <div class="card-desc">Microsoft Teams, Slack, and similar platforms are attack vectors because users trust internal-seeming messages. External senders can message Teams users in many configurations. Attackers impersonate IT support in Slack DMs, send malicious files through Teams, or use compromised accounts to send trusted-looking messages within the platform. Users who would not click a phishing email link will click the same link sent through a trusted internal tool.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Social Media Engineering</div>
+                <div class="card-desc">LinkedIn connection requests from fake profiles with credible backgrounds. Facebook messages impersonating customer service. Twitter/X direct messages with fake support links. Dating app-based long-con social engineering for financial fraud. Social media channels are used both for OSINT gathering (reconnaissance) and for direct social engineering attacks. The attacker builds a relationship over time before making the request.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Channel-Agnostic Awareness</div>
+            Security awareness training must cover every channel employees use: email, phone, SMS, Teams, Slack, and social media. Attackers will always migrate to the least scrutinized channel. When organizations trained users on email phishing and click rates dropped, attackers moved to SMS and Teams. The principle -- verify out-of-band before acting on a sensitive request -- applies regardless of the delivery channel.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PRETEXTING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title"><span class="accent">Pretexting</span></div>
+        <div class="slide-subtitle">Creating a fabricated scenario (pretext) to manipulate a victim into providing information or taking an action they would not otherwise take.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Pretext Structure</div>
+                <div class="card-desc">A pretext requires four elements: a believable identity (who the attacker claims to be), a plausible scenario (why they are making contact), a specific need (what they want from the victim), and evidence of legitimacy (information that makes the scenario credible). The attacker researches all four elements using OSINT before making contact. A well-constructed pretext survives multiple rounds of questioning from a suspicious target.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Common Pretexts</div>
+                <div class="card-desc">IT security conducting an urgent audit -- need your credentials to verify account configuration. Auditor from the parent company reviewing expense report compliance -- need access to the financial system. New vendor onboarding team -- need the facility access code to set up equipment. Survey researcher from the employee wellness program -- need to ask a few questions about work processes. Each targets a different department's natural willingness to cooperate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Long-Con Pretexting</div>
+                <div class="card-desc">For high-value targets, attackers invest weeks or months in relationship building before making the ultimate request. The XZ Utils attack involved a threat actor who spent two years establishing trust as an open-source contributor before inserting a backdoor. Romantic relationship scams (pig butchering) build weeks of trust before the financial request is made. Long-con attacks are harder to detect because the relationship context makes the eventual request seem natural.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense Against Pretexting</div>
+                <div class="card-desc">Identity verification that does not rely on information the attacker could have researched. A caller who knows your employee ID, manager's name, and current project is not verified -- that information is obtainable. Verified identity requires either in-person appearance with ID, a pre-established shared secret, or confirmation via a separate authenticated channel (the employee's HR-registered email, not an email they provided on the call). Never skip verification for any reason, regardless of urgency.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- BUSINESS EMAIL COMPROMISE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Business Email <span class="accent">Compromise (BEC)</span></div>
+        <div class="slide-subtitle">A specialized social engineering attack targeting financial processes, resulting in billions of dollars in annual losses worldwide.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">BEC Attack Pattern</div>
+                <div class="card-desc">Attacker compromises or spoofs a corporate executive's email account. Sends email to the finance team directing an urgent wire transfer to a new vendor account, acquisition-related escrow payment, or invoice. Uses the executive's authority and urgency to discourage verification. Finance staff comply because questioning an executive's direct request feels politically risky. The FBI's IC3 reports BEC losses exceeding $2.7B in 2022 -- the single largest category of cybercrime losses.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Vendor Email Compromise</div>
+                <div class="card-desc">Variant where the attacker compromises a legitimate vendor's email account and modifies banking details in an invoice. The target receives what appears to be a legitimate invoice from a known vendor, but the payment details have been changed to attacker-controlled accounts. No urgency or authority needed -- the invoice arrives through normal business channels. Legitimate vendors have been unknowingly used to defraud their own customers through this method.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Payroll Diversion BEC</div>
+                <div class="card-desc">Attacker compromises or spoofs an employee's email to contact HR or payroll requesting a direct deposit account change. Next pay cycle, the employee's paycheck goes to an attacker-controlled account. The employee is often not affected for 2-4 weeks until they contact payroll about a missing deposit. By then, multiple pay cycles may have been redirected. HR staff must verify bank account changes via phone callback to the employee's HR-registered number, not via the email requesting the change.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">BEC Prevention Controls</div>
+                <div class="card-desc">Dual authorization for wire transfers above a threshold. Verbal verification of wire instructions via a known phone number before processing. Change payment details only after phone verification with the vendor at a number from the original contract -- not from the email requesting the change. DMARC enforcement to prevent domain spoofing. Email banners on messages from external senders impersonating internal executives. These are primarily administrative preventive controls.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- TAILGATING AND PIGGYBACKING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Tailgating and <span class="accent">Piggybacking</span></div>
+        <div class="slide-subtitle">Physical social engineering techniques that bypass access controls by exploiting human courtesy and inattention.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Tailgating (Unauthorized)</div>
+                <div class="card-desc">Following an authorized person through a secured access point without their knowledge. The authorized person badges in, and the attacker walks through behind them before the door closes. The attacker exploits the natural human reluctance to slam a door in someone's face. Tailgating requires no social interaction and leaves no badge reader log entry for the attacker. The attack is opportunistic -- it requires only physical proximity to an access point.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Piggybacking (With Consent)</div>
+                <div class="card-desc">The attacker asks the authorized person to hold the door: "I forgot my badge -- can you let me in? I'm with the HVAC service team." The victim consciously allows entry, often asking no further questions. Piggybacking exploits helpfulness and courtesy -- people feel rude refusing to help someone who appears legitimately present. The authorized employee has just bypassed the access control on the attacker's behalf and created no log entry.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why These Work</div>
+                <div class="card-desc">Confronting someone at a door feels socially aggressive, especially in professional environments where the intruder is well-dressed, carrying equipment, or projects confident body language. Cognitive load at badge-in points is high -- employees are checking their phones, carrying coffee, or discussing work. Security training must explicitly address this discomfort: stopping someone at a door is a security responsibility, not rudeness, and every employee is authorized to do it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Countermeasures</div>
+                <div class="card-desc">Mantraps (single-person airlocks) physically enforce one-person-at-a-time access. Security guards at entry points verify every visitor. Turnstiles that allow only one person per badge read. Security culture training that normalizes challenging unknown individuals at access points. "If you see something, say something" combined with explicit permission for any employee to require badging. Multiple complementary controls are required -- no single one is sufficient.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- BAITING AND USB DROPS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Baiting and <span class="accent">USB Drop Attacks</span></div>
+        <div class="slide-subtitle">Physical delivery of malware using human curiosity as the propagation mechanism. No email required, no network contact needed.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">How USB Drops Work</div>
+                <div class="card-desc">Attacker drops USB drives in the target's parking lot, lobby, or reception area labeled with enticing text: "Salary Survey Q4," "Layoff List CONFIDENTIAL," "Project X Prototype." A significant percentage of employees who find these drives plug them in. Once connected, the USB device executes a payload (autorun if enabled, or waits for the user to open an apparently legitimate file). Curiosity is the exploit. Discovered USB drives should never be connected to any organizational device.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">USB Hardware Attacks</div>
+                <div class="card-desc">USB Rubber Ducky and O.MG Cable devices appear as legitimate peripherals but act as Human Interface Devices (HID) -- they register as keyboards and type pre-programmed commands at superhuman speed. A USB drive disguised as a cable can open a PowerShell window and execute an attack payload in under two seconds. These attacks bypass antivirus because they appear as keyboard input, not executable code. Detection requires endpoint monitoring for rapid keyboard input sequences.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Documented Effectiveness</div>
+                <div class="card-desc">Google Project Zero researchers dropped 297 USB drives in university campus parking lots. 98% were picked up. 45% were connected to a computer and files on the drive were opened. Similar studies in corporate environments yield connection rates of 20-45%. The attack requires no technical skill to execute -- buy USB drives, copy malware, label them provocatively, drop them in a parking lot. The victim does all the work. Physical USB port control is the technical preventive countermeasure.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Technical Controls for USB Attacks</div>
+            Disable USB storage on all endpoints using Group Policy, MDM (Mobile Device Management), or endpoint DLP software. Some organizations physically fill USB ports with epoxy for highest-sensitivity systems. For environments where removable media is operationally necessary, implement USB allowlisting (only pre-registered organizational devices are permitted). Human training alone is insufficient -- technical enforcement is required.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- TYPOSQUATTING ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title"><span class="accent">Typosquatting</span></div>
+        <div class="slide-subtitle">Registering domains that are slight misspellings of legitimate domains to capture traffic from users who make typing errors.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Typosquatting Methods</div>
+                <div class="card-desc">Character substitution: goog1e.com (numeral 1). Adjacent key: mircosoft.com (c and o adjacent on keyboard). Missing character: paypa.com. Transposition: amazno.com. Homograph attack: using Unicode characters that visually resemble ASCII letters (Cyrillic "a" in place of Latin "a" -- looks identical but is a different domain). All are registered at legitimate domain registrars and fully functional for hosting credential-harvesting sites.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Credential harvesting: a typosquatted corporate VPN login page captures credentials when an employee mistypos the address. Package squatting in software repositories: registering npm or PyPI package names with typos of popular packages. Developers who mistype a package name install malware. Email attack: registering payroll@acme-hr.corp when the real domain is acme.corp and waiting for misdirected emails containing sensitive information.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Combosquatting</div>
+                <div class="card-desc">Adding words to legitimate domains to appear official. microsoft-support.net, paypal-security.com, amazon-accounts-verify.info. These are not typosquats (no typo) but exploit the legitimate brand by adding plausible support-related words. Users who search for "microsoft support" and click on a result may not notice the domain is not microsoft.com. Combosquatting is more effective than typosquatting because the brand name is spelled correctly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense</div>
+                <div class="card-desc">Organizations can register common typosquatting variants of their own domain as a defensive measure. DNS filtering and web proxies can block known typosquatted domains. Employee training on checking the exact URL before entering credentials. Certificate Transparency log monitoring identifies newly registered certificates for lookalike domains, providing early warning. Browser security features that flag newly registered domains accessing sensitive form fields help with detection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- WATERING HOLE ATTACKS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title"><span class="accent">Watering Hole</span> Attacks</div>
+        <div class="slide-subtitle">Compromising a website frequented by the target group, then using it to deliver malware to all visitors. The attack comes from a trusted, legitimate source.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Attack Mechanics</div>
+                <div class="card-desc">Attacker identifies websites that the target organization's employees frequently visit: industry news sites, professional association portals, technical forums specific to their work. Attacker compromises the website (via SQL injection, CMS vulnerability, or supply chain) and injects malicious JavaScript. Employees who visit the site with unpatched browsers receive a drive-by download payload. The attack comes from a site the user trusts, bypassing URL filtering that blocks unknown domains.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Targeting Refinement</div>
+                <div class="card-desc">Sophisticated watering hole attacks only serve the exploit to visitors matching specific criteria: IP ranges that resolve to the target organization, specific browser or OS versions, specific geographic locations. This targeting limits collateral damage and reduces detection -- only the intended victims are attacked, making the malicious site less likely to be reported by random visitors. APT groups use this technique to target specific government agencies or defense contractors.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense</div>
+                <div class="card-desc">Browser isolation technology renders web content in a sandboxed container -- even successful exploits cannot reach the endpoint OS. Keeping browsers and plugins patched eliminates the vulnerabilities that drive-by exploits target. Web proxy with URL categorization and anomaly detection can identify unusual behavior from previously clean sites. Script blocking (NoScript, uBlock Origin in strict mode) prevents execution of third-party JavaScript on visited pages.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            SHIELD-7 scenario: A researcher regularly visits the International Biosafety Association's members-only forum. Unknown to anyone, the forum's server was compromised three weeks ago. Every visitor with Internet Explorer 11 running on Windows 7 (which the facility's legacy workstations use) receives a silent malware install. The attacker waited for the facility to come to them.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- QUID PRO QUO AND IMPERSONATION ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Quid Pro Quo and <span class="accent">Impersonation</span></div>
+        <div class="slide-subtitle">Additional social engineering techniques that exploit helpfulness, authority, and the desire for convenience.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Quid Pro Quo</div>
+                <div class="card-desc">The attacker offers something in exchange for information. "I'm from the IT helpdesk. We noticed your system is running slowly. Let me fix it for you -- I just need your login credentials to remote in." The victim believes they are receiving a service. The attacker gains credentials or remote access. Quid pro quo exploits the reciprocity principle and the natural desire for assistance with a problem. Effective because the victim feels like the beneficiary of the exchange.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Impersonation</div>
+                <div class="card-desc">Directly claiming to be a trusted individual or role. Impersonating an IT administrator to gain physical access to a server room. Impersonating a vendor technician to access restricted equipment. Impersonating a law enforcement officer to pressure compliance without verification. Impersonation relies on the human tendency to defer to perceived roles without independently verifying identity. Dress, props, and confident behavior make impersonation more effective than most people expect.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vendor Impersonation</div>
+                <div class="card-desc">Attacker researches real vendors who service the target organization. Arrives wearing matching coveralls or with branded equipment. Claims to be doing scheduled maintenance. Reception staff call the vendor's main line -- but the number they have is outdated, or the vendor's receptionist is unaware of all scheduled visits. The impersonation succeeds not because the attacker is convincing but because the verification process is insufficient.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense Against Impersonation</div>
+                <div class="card-desc">Pre-registration of all vendor visits. Escort policies requiring authorized employees to accompany any vendor representative at all times. No unescorted physical access for any non-badged personnel, regardless of claimed affiliation. Photo ID verification against a pre-submitted list. Callback to the vendor's company main number (from the vendor contract, not from a business card provided by the visitor) to confirm the visit. Challenging unknown individuals is a security responsibility, not a social breach.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- DUMPSTER DIVING AND SHOULDER SURFING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Dumpster Diving and <span class="accent">Shoulder Surfing</span></div>
+        <div class="slide-subtitle">Low-tech physical reconnaissance techniques that predate digital computing and remain effective today.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Dumpster Diving</div>
+                <div class="card-desc">Searching discarded materials for useful information. Printed documents with employee names, account numbers, or internal project data. Organizational charts thrown away when updated. Old hardware with data still on drives. Sticky notes with passwords attached to discarded monitors. Pre-shredded documents recoverable by reassembly. Corporate dumpsters are often in accessible parking lots or loading docks. In most jurisdictions, once discarded materials are in a public trash receptacle, accessing them is legal.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Countermeasures: Dumpster Diving</div>
+                <div class="card-desc">Cross-cut shredder (or micro-cut) policy for all printed sensitive materials -- strip shredders are insufficient (documents can be reassembled). Secure disposal bins that are locked and periodically emptied by a certified destruction vendor. Hard drive destruction procedures: certified shredding or degaussing before disposal. Employee training on what constitutes sensitive material. Locking dumpsters or placing them in secured areas prevents casual access by unauthorized parties.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Shoulder Surfing</div>
+                <div class="card-desc">Observing someone's screen or keyboard to capture information. In-person: standing behind someone at a coffee shop, airport, or open-plan office. Remote: observing a screen visible through a window. Video call attacks: background screens visible during video calls can reveal application windows, documents, or login screens. The attack requires only visual access and is virtually silent. One captured password or piece of sensitive data can enable further compromise.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Countermeasures: Shoulder Surfing</div>
+                <div class="card-desc">Privacy screens (polarized filters) limit screen visibility beyond approximately 60 degrees from direct facing. Screen lock policies requiring re-authentication after short idle timeouts. Clear desk and clear screen policies. Awareness of surroundings when entering credentials in public. Video call backgrounds or background blur to prevent screen content from being visible to remote observers. Auto-lock shortcuts (Windows+L) that employees habitually use before leaving a workstation unattended.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- INFLUENCE CAMPAIGNS AND DISINFORMATION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Influence Campaigns and <span class="accent">Disinformation</span></div>
+        <div class="slide-subtitle">Large-scale social engineering targeting groups, organizations, or the public. The objective is behavioral change through manufactured belief.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Disinformation vs. Misinformation</div>
+                <div class="card-desc">Misinformation is false information shared without intent to deceive (the sharer believes it). Disinformation is false information deliberately created and spread to manipulate. Nation-state influence operations are disinformation campaigns: fabricated documents, deepfake videos, fake news sites, and inauthentic social media accounts are created with the deliberate goal of changing the target population's beliefs and behaviors.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Organizational Disinformation</div>
+                <div class="card-desc">Targeting employees with false internal communications to destabilize operations. Fake executive announcements causing employees to take harmful actions. Fake security alerts directing employees to "verify" on a phishing site. Fabricated negative news about an organization to damage reputation or cause customers to disengage. Competitor intelligence operations that plant false strategic information to influence business decisions based on manufactured data.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Deepfake Social Engineering</div>
+                <div class="card-desc">AI-generated voice and video clones of executives used for vishing and video call fraud. In 2024, a Hong Kong finance employee was tricked into transferring $25M after a video call with what appeared to be the company's CFO and other executives -- all deepfakes generated in real time. The employee was suspicious but the video call format overcame their doubts. Deepfake capabilities are rapidly improving and lowering the cost and skill threshold for this attack vector.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense</div>
+                <div class="card-desc">Out-of-band verification for high-value requests regardless of the communication channel. Pre-established code words for executives to use when authorizing unusual requests via non-standard channels. Media literacy training for employees to recognize disinformation patterns. Source verification for internal communications -- official announcements only via established channels (corporate intranet, direct manager communication). Deepfake awareness training: specific behaviors to require when authenticity is in doubt (ask the caller to perform a specific unscriptable action).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- PHARMING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title"><span class="accent">Pharming</span></div>
+        <div class="slide-subtitle">Redirecting users from legitimate websites to malicious ones without any user action through DNS or hosts file manipulation.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">DNS Cache Poisoning</div>
+                <div class="card-desc">Injecting false DNS records into a resolver's cache so that lookups for legitimate domains return attacker-controlled IP addresses. A successfully poisoned DNS resolver will direct every user querying through it to the attacker's site, regardless of whether they click on a link or type the URL correctly. The Kaminsky DNS vulnerability (2008) demonstrated how cache poisoning could be achieved against major DNS resolvers. DNSSEC provides cryptographic integrity for DNS responses.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hosts File Manipulation</div>
+                <div class="card-desc">The local hosts file (C:\Windows\System32\drivers\etc\hosts on Windows) is checked before DNS queries. Malware that modifies the hosts file can redirect any domain to an attacker-controlled IP without affecting DNS. A hosts file entry of "192.168.1.1 paypal.com" would redirect all PayPal traffic to 192.168.1.1 regardless of what DNS returns. File Integrity Monitoring (FIM) on the hosts file detects this modification.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Distinguishing Pharming from Phishing</div>
+                <div class="card-desc">Phishing requires the victim to act (click a link, type a wrong URL). Pharming redirects the victim even when they do everything correctly -- they type the real URL, the URL resolves to the attacker's IP because DNS has been poisoned. This makes pharming more dangerous but also harder for attackers to execute at scale. DNSSEC, DNS-over-HTTPS (DoH), and trusted DNS resolvers with anomaly detection reduce DNS poisoning risk.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">HSTS and Certificate Pinning as Pharming Defenses</div>
+            HTTP Strict Transport Security (HSTS) instructs browsers to always use HTTPS for a domain and to refuse connections if the certificate does not validate. Certificate pinning specifies which certificate authorities (or even specific certificate hashes) are valid for a domain. Both controls mean that even if an attacker redirects DNS to their server, they cannot present a valid certificate for the victim's actual domain -- the browser will block the connection.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- SPEAR PHISHING CASE STUDIES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Spear Phishing <span class="accent">Case Studies</span></div>
+        <div class="slide-subtitle">Real-world attacks demonstrate the sophistication of targeted phishing and the devastating consequences of a single click.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">RSA Security Breach (2011)</div>
+                <div class="card-desc">A spear phishing email titled "2011 Recruitment Plan" was sent to a small group of RSA employees and landed in a junk mail folder. One employee retrieved it from junk and opened an attached Excel spreadsheet. The spreadsheet exploited a zero-day Adobe Flash vulnerability, installing a remote access tool. The initial foothold was used to exfiltrate SecurID seed data, compromising two-factor authentication tokens for RSA's customers including defense contractors.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Sony Pictures (2014)</div>
+                <div class="card-desc">Spear phishing emails delivered to Sony employees contained a malware payload attributed to North Korea's Lazarus Group. Initial access led to the exfiltration of 100 terabytes of data including unreleased films, executive salary data, employee SSNs, and internal communications. Wiper malware then destroyed data on approximately 70% of Sony's corporate computers. The attack combined spear phishing initial access with destructive payload -- not financial, but reputational and operational destruction.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Twitter Account Takeover (2020)</div>
+                <div class="card-desc">A 17-year-old attacker used vishing to impersonate Twitter IT support, convincing Twitter employees to provide credentials to internal admin tools. Using these tools, he took control of high-profile accounts (Obama, Biden, Gates, Musk, Apple) and posted Bitcoin scam messages. $120,000 was collected before the scam was stopped. The attack required no technical sophistication -- phone calls and insider tool access. Twitter had no technical control preventing employees from performing privileged actions after a vish.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Colonial Pipeline (2021)</div>
+                <div class="card-desc">DarkSide ransomware operators gained initial access via a compromised VPN password found in a leaked credential database. The VPN account had no MFA enabled. A single reused password in a breach database was sufficient for initial access. The resulting 6-day pipeline shutdown caused fuel shortages across the US East Coast. Social engineering (credential stuffing) at the initial access phase was the root cause. MFA on all remote access endpoints would have prevented the breach.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- MFA BYPASS SOCIAL ENGINEERING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">MFA Bypass via <span class="accent">Social Engineering</span></div>
+        <div class="slide-subtitle">Multi-factor authentication is highly effective -- but social engineering can bypass it without any cryptographic weakness.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">MFA Prompt Bombing (Fatigue Attack)</div>
+                <div class="card-desc">Attacker obtains a victim's credentials and repeatedly triggers MFA push notification requests to the victim's phone. After receiving dozens of push requests, the victim approves one to make them stop, or accidentally approves one. Uber (2022) was compromised this way -- the attacker sent repeated push requests, then WhatsApp messaged the victim claiming to be IT support, advising the victim to approve the push. The victim complied. MFA fatigue attacks are defeated by number-matching prompts (FIDO2) rather than simple push approval.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SIM Swapping</div>
+                <div class="card-desc">Attacker impersonates the victim to their mobile carrier's customer service, convincing the representative to transfer the victim's phone number to a SIM card the attacker controls. Once the number is transferred, the attacker receives all SMS codes for the victim's accounts. SMS-based MFA is completely bypassed. The social engineering target is the carrier's support team, not the victim directly. NIST SP 800-63B discourages SMS OTP as a secondary factor for this reason.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Adversary-in-the-Middle (AitM) Phishing</div>
+                <div class="card-desc">Tools like Evilginx proxy the real login page through an attacker-controlled server. The victim authenticates normally (including MFA), but the attacker captures both the credentials and the session cookie. The attacker then uses the authenticated session cookie to access the account, bypassing MFA entirely because authentication has already been completed. Phishing-resistant MFA (FIDO2/passkeys) counters this by binding the authentication to the legitimate origin domain -- a proxy cannot satisfy the origin check.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Phishing-Resistant MFA</div>
+                <div class="card-desc">FIDO2 passkeys and hardware security keys (YubiKey) are bound to a specific origin domain. If a phishing site presents a login form, the FIDO2 authentication will fail because the origin does not match the registered domain -- there is no way for the attacker to capture a valid credential because the credential is cryptographically tied to the legitimate site. FIDO2 is the strongest available MFA method and is explicitly recommended by CISA as phishing-resistant.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- SECURITY AWARENESS TRAINING ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Security <span class="accent">Awareness Training</span></div>
+        <div class="slide-subtitle">The primary administrative control against social engineering. Effective programs change behavior permanently, not just during annual compliance training.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Effective Training Covers</div>
+                <div class="card-desc">Phishing recognition: indicators, domain analysis, hover-before-clicking. Physical security: tailgating challenge culture, USB policy, clear desk. Vishing: verification procedures, callback protocols, IT help desk policies. Reporting: how to report suspicious activity without fear of blame. BEC and wire fraud: verification requirements for financial requests. The curriculum must be updated continuously -- attackers evolve their techniques faster than annual training cycles refresh content.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Phishing Simulations</div>
+                <div class="card-desc">Simulated phishing campaigns send realistic phishing emails to employees and measure click rates, credential submission rates, and report rates. Employees who click receive immediate, non-punitive remediation training at the moment of failure -- highest retention rate. Click rates typically drop from 20-30% to under 5% over 12 months of consistent simulation. Simulation results identify departments and roles that need targeted additional training.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Metrics That Matter</div>
+                <div class="card-desc">Click rate on simulated phishing (lower is better). Report rate on simulated phishing (higher is better -- employees who report rather than click). Help desk call volume for "suspicious email" reports (increasing is good -- awareness is rising). Time-to-report after a real incident. These metrics tell you whether training is changing behavior, not just whether employees have completed modules. Completion rate is a compliance metric; click rate is a security metric.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why Annual Training Fails</div>
+                <div class="card-desc">Annual compliance training is completed once and forgotten within weeks. Memory research (Ebbinghaus forgetting curve) shows that without reinforcement, 70% of new knowledge is lost within 24 hours. Effective awareness programs use frequent, short microlearning modules (3-5 minutes), simulated attacks for immediate reinforcement, and role-specific training that addresses the specific threats facing each job function. Frequency and relevance matter more than duration and comprehensiveness.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- SOCIAL ENGINEERING DEFENSE FRAMEWORK ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Social Engineering <span class="accent">Defense Framework</span></div>
+        <div class="slide-subtitle">Defending against social engineering requires controls at the technical, administrative, and procedural layers simultaneously.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Controls</div>
+                <div class="card-desc">Email filtering (spam, phishing, malware). DMARC/DKIM/SPF enforcement. Web proxy with URL categorization. DNS filtering blocking known phishing and typosquatted domains. MFA on all remote access and sensitive systems (FIDO2 preferred). DLP to detect sensitive data exfiltration triggered by social engineering. Browser isolation for high-risk users. Disable USB storage via Group Policy or MDM.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Controls</div>
+                <div class="card-desc">Security awareness training with regular simulated phishing. Strict identity verification procedures at the help desk. Dual authorization for wire transfers. Vendor visit pre-registration and escort requirements. Change payment details verification procedure (callback at known number). Incident reporting culture that rewards reporting over concealment. Role-specific social engineering training for high-risk roles (finance, help desk, reception, executives).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Controls</div>
+                <div class="card-desc">Mantraps for high-security areas. Visible security presence as deterrent. Clear desk policy enforcement. Privacy screens. Locked shredder bins. Badge verification at all controlled access points. Reception procedures requiring photo ID and pre-approval for all visitors. Physical security culture that normalizes challenging unknown individuals in secure areas without social judgment.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The One Universal Defense</div>
+            When in doubt, verify out-of-band. If an email, call, or text requests a sensitive action, verify the request via a separate channel -- call the person at a number from the corporate directory (not a number they provided), walk to their desk, or use a pre-established secure communication channel. Social engineering cannot survive out-of-band verification that the attacker cannot intercept or influence.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- REPORTING CULTURE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title"><span class="accent">Reporting Culture</span></div>
+        <div class="slide-subtitle">Organizations that punish employees for falling for phishing attacks have higher breach severity than those with blameless reporting cultures.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Reporting Is Critical</div>
+                <div class="card-desc">Every minute between a successful phishing attack and its detection is a minute the attacker is operating undetected. An employee who clicks a phishing link and immediately reports it allows the security team to isolate the endpoint, reset the compromised credential, and identify other employees who received the same email -- before the attacker has had time to establish persistence or move laterally. Early reporting dramatically limits breach scope.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why Punishment Destroys Reporting</div>
+                <div class="card-desc">An employee who clicked a phishing link and knows they will be disciplined, publicly embarrassed, or fired for it will not report the incident. They will hope the problem goes away on its own. The average time to detect a breach in punitive cultures is weeks to months. In reporting-positive cultures, it is hours. The security team needs reports from the humans in the organization -- those humans must believe that reporting is safe. Shame-based training is counterproductive.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Building a Reporting Culture</div>
+                <div class="card-desc">Publicly acknowledge and thank employees who report suspicious activity. Never use simulated phishing results for disciplinary purposes. Frame security awareness as a shared responsibility -- "you were targeted by a sophisticated attack, and reporting it helped us protect everyone." Provide easy reporting mechanisms: a "Report Phish" button in the email client. Communicate what happened after a report to show that reports produce action and are valued.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reporting Metrics</div>
+                <div class="card-desc">Track the ratio of reported phishing to clicked phishing. The ideal outcome of a simulated phishing campaign is: 0% clicked, 100% reported. In practice: lower click rate and higher report rate indicate a healthier security culture. Reports per month from real suspicious emails (not just simulated ones) indicate whether the training is changing real-world behavior. An organization with 1,000 employees and zero monthly reports has a reporting culture problem, not a zero-threat environment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ELICITATION TECHNIQUES ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title"><span class="accent">Elicitation</span> Techniques</div>
+        <div class="slide-subtitle">Advanced conversational tactics used by skilled social engineers to extract information without asking direct questions.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Flattery and False Statements</div>
+                <div class="card-desc">Complimenting someone's expertise and then making a subtly incorrect statement about their domain of knowledge. Most experts feel compelled to correct a wrong statement about their field, even to a stranger. "Of course, your company is still running that old SAP ERP from 2015..." -- if the target corrects the version, they have disclosed internal system information the attacker can use for further targeting. The technique is invisible because the target does not feel interrogated.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bracketing</div>
+                <div class="card-desc">Providing a range that includes the target information to prompt correction. "I heard the security team has somewhere between 3 and 50 people. Is that about right?" The target naturally corrects toward the actual number. "Your backup cycles are either daily or weekly, right?" The target confirms which. Bracketing feels like casual conversation, not interrogation. Targets are not aware they are providing specific operational information through apparently corrective comments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deliberate Pauses</div>
+                <div class="card-desc">Humans are uncomfortable with silence in conversation. After posing a question or making a statement, a skilled elicitor pauses longer than normal. The target, feeling the social pressure of the silence, fills it with additional information the attacker did not specifically request. "So the network upgrade is scheduled for..." (pause) -- the target says "...the first Tuesday of every month, usually between 2 and 4 AM." The silence extracted the specific schedule without an explicit question.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Counterintelligence Awareness</div>
+            SHIELD-7 personnel interacting with the public, media, or external partners must apply elicitation awareness: be conscious of what operational information they are sharing, never correct false statements about classified operations, apply a "need-to-share" filter (not just need-to-know) before disclosing any facility-related information. Elicitation training is standard in national security contexts and applicable to any sensitive organizational environment.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- SPEAR PHISHING ANATOMY ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Spear Phishing <span class="accent">Anatomy</span></div>
+        <div class="slide-subtitle">Deconstructing a sophisticated spear phishing email to identify every element the attacker researched and crafted.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Display Name:</strong> "James Whitfield, IT Security" -- researched from LinkedIn company page. Display name is free text, not verified by email systems.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Sending Domain:</strong> it-helpdesk-tickets.acme.org -- typosquatted. Not from acme.com. Only visible in raw headers or by hovering over the sender address.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Subject Line:</strong> "Action Required: Security Policy Update for Q3 Project Phoenix" -- Project Phoenix is a real internal project name found in a job posting.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Body Content:</strong> References the target's manager by name (from LinkedIn). Mentions a recent company announcement (from press release). Creates urgency with a 2-hour deadline.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Link:</strong> Displayed text shows "https://acme.com/security-portal". Actual href points to https://acme-security-portal.net. Visible only by hovering -- visually identical to the legitimate URL.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Attachment Alternative:</strong> A password-protected ZIP ("policy_update.zip, password: Acme2024") contains a malicious document. Password prevents antivirus scanning of the attachment.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Signature Block:</strong> Copied from a real IT department email signature found in a previous email that leaked to a public forum. Makes the email appear indistinguishable from legitimate IT communications.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- HELPDESK SOCIAL ENGINEERING CONTROLS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Help Desk <span class="accent">Social Engineering Controls</span></div>
+        <div class="slide-subtitle">The IT help desk is the most targeted position in social engineering attacks. Specific procedural controls reduce the risk without destroying operational efficiency.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Identity Verification Procedure</div>
+                <div class="card-desc">Shared secret (a unique code the employee registered at onboarding, not their employee ID which is obtainable through OSINT). Manager callback authorization for high-risk requests (MFA reset, password change, account unlock for privileged accounts). Video verification for remote workers with photo ID display. Never accept urgency as a reason to bypass verification -- urgency is the attack signal, not a legitimate reason to skip controls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Tiered Request Classification</div>
+                <div class="card-desc">Not all help desk requests carry equal risk. Password reset for a standard user account: standard verification. MFA reset for any account: elevated verification (callback to HR-registered phone). Password reset or MFA bypass for privileged/administrator accounts: in-person verification with photo ID plus manager approval. Risk-tiered procedures focus friction on the requests most valuable to an attacker, not on every interaction.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Social Engineering Red Flags for Help Desk</div>
+                <div class="card-desc">Caller cannot provide the shared secret. Caller claims the CEO/CTO needs this done immediately. Caller is unusually angry or threatening if verification is required. Caller provides alternate callback number instead of letting you use the corporate directory. Request involves disabling MFA or security controls. Request comes from an "auditor" or "consultant" you cannot verify through a manager. Any combination of urgency plus unusual request is a red flag requiring escalation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Help Desk Training</div>
+                <div class="card-desc">Regular role-playing exercises with simulated social engineering calls. Clear authorization to say "I'm not able to process this request without completing our verification procedure" and to escalate to a supervisor for any call that pressures them to skip verification. Explicit assurance that being the one who prevents a social engineering attack is valued -- help desk staff who are pressured by a visher need to know that management supports their adherence to procedure even when an apparent executive is angry.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- SOCIAL ENGINEERING TESTING ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Social Engineering <span class="accent">Testing</span></div>
+        <div class="slide-subtitle">Regularly testing human defenses using the same techniques attackers use. The results reveal training gaps that technical testing cannot find.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Phishing Simulation</div>
+                <div class="card-desc">Automated platforms (Proofpoint Security Awareness Training, KnowBe4, Microsoft Attack Simulator) send realistic phishing emails and measure click rate, credential submission, and report rate. Results feed directly into targeted training. Programs that run monthly simulations see click rates fall from 30%+ to under 5% within 12-18 months. Simulation quality matters -- templates must reflect current attacker techniques, not 2015 phishing patterns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vishing Testing</div>
+                <div class="card-desc">Red team members call the help desk, reception, and other targeted roles using social engineering scenarios. Measures whether identity verification procedures are followed under real-time pressure. Commonly reveals that procedures are documented but not enforced -- help desk staff who know the procedure bypass it when faced with a convincing authority claim. Testing must be authorized in writing by senior management to avoid legal complications if staff report suspicious calls to law enforcement.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Physical Social Engineering Testing</div>
+                <div class="card-desc">Red team members attempt tailgating at building entrances, impersonate vendors or service technicians, and drop labeled USB drives in the parking lot. Tests whether physical security culture matches policy. Results often reveal that documented procedures (no unescorted visitors, challenge any unknown person) are not practiced -- employees feel too socially uncomfortable to challenge a confident person holding a clipboard and wearing a tool vest.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Authorization and Scope</div>
+            All social engineering testing must be explicitly authorized by senior management with a signed rules of engagement document. Scope must be defined (which facilities, which personnel categories, what techniques are in scope). Legal counsel must review testing plans. Out-of-scope employees who report social engineering tests to law enforcement can create significant organizational problems. Proper authorization protects both the tester and the organization.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- SOCIAL MEDIA AND PROFESSIONAL OPSEC ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Social Media and <span class="accent">Professional OPSEC</span></div>
+        <div class="slide-subtitle">What employees post publicly gives attackers the intelligence they need to craft credible social engineering attacks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What LinkedIn Reveals</div>
+                <div class="card-desc">Employee names, titles, and departments. Management chain and organizational structure. Internal project names and technologies (in job descriptions and employee profiles). Contractors and vendors who work with the organization. Recent organizational changes (new hires, departures). Current technology initiatives (cloud migration, ERP implementation). This information is freely available and used by every sophisticated attacker before they send the first email or make the first call.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Job Postings Reveal</div>
+                <div class="card-desc">Current security gaps (posting for a SIEM analyst indicates no analyst is currently monitoring SIEM). Technology stack (specific product names, versions). Compliance requirements the organization is trying to meet (hiring a PCI DSS consultant indicates a PCI gap). Internal project names. Salary information that can be used to identify employees who might be motivated by financial offers. Job postings are intelligence gold for targeted attackers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OPSEC Training for Employees</div>
+                <div class="card-desc">Limit specificity in public LinkedIn profiles -- "infrastructure security" rather than "Palo Alto NGFW engineer specializing in firewall policy review for Azure-connected environments." Do not post about specific internal projects on social media. Do not photograph whiteboards or screens visible in background of conference room photos. Recognize that conference presentations, published papers, and industry panel participation all contribute to the organizational attack surface available to adversaries.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Executive OPSEC</div>
+                <div class="card-desc">Executives are the highest-value social engineering targets. Executive travel schedules published on social media enable physical social engineering (attacker approaches executive at hotel). Executive home addresses discoverable through property records combined with LinkedIn can be used for physical intimidation. Phone numbers disclosed in WhatsApp groups can be used for deepfake vishing. Executives should work with security teams to audit their public digital footprint and reduce unnecessary exposure.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- SOCIAL ENGINEERING IN THE KILL CHAIN ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Social Engineering in <span class="accent">the Kill Chain</span></div>
+        <div class="slide-subtitle">Social engineering enables multiple kill chain phases -- not just initial access. Understanding where it appears in the attack lifecycle shapes defensive priorities.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Reconnaissance:</strong> Elicitation from employees, OSINT from social media, LinkedIn intelligence gathering. Social engineering extracts information before the technical attack begins.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Delivery:</strong> Phishing, vishing, smishing, watering hole -- the payload reaches the target through a human interaction vector, not a direct technical exploit.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Exploitation:</strong> The victim IS the vulnerability. The attacker exploits human psychology rather than a software CVE. "Exploitation" here means the victim takes the desired action.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Privilege Escalation:</strong> Vishing an administrator to reset a non-privileged account's MFA, then using that account to pivot to privileged systems. Social engineering within the environment after initial access.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Lateral Movement:</strong> Impersonating an employee in internal communications (from a compromised email account) to gain access to additional systems or information from colleagues.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Actions on Objectives:</strong> BEC wire fraud occurs at this phase. The attacker has established access and uses social engineering to execute the final financial theft.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Anti-Forensics:</strong> Social engineering IT staff into not saving log data, destroying evidence under the guise of storage management, or overlooking suspicious activity. Rare but documented in insider threat cases.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- COGNITIVE BIASES AND SECURITY ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Cognitive Biases in <span class="accent">Security Decisions</span></div>
+        <div class="slide-subtitle">Social engineering succeeds because it exploits cognitive shortcuts that are features of human cognition, not defects. They cannot be removed -- only managed.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Status Quo Bias</div>
+                <div class="card-desc">People prefer inaction over action when uncertain. This is why employees who receive a suspicious email are more likely to do nothing or ignore it than to report it -- reporting requires effort and commitment. Security programs must make the reporting action easier than inaction (one-click "Report Phish" button, no forms to fill out) to overcome status quo bias and drive reporting behavior.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Authority Bias</div>
+                <div class="card-desc">Humans instinctively defer to authority figures without questioning instructions. This is exploited by impersonating executives, IT teams, law enforcement, and auditors. It also affects security teams themselves -- junior security staff are less likely to escalate a suspicious activity that a senior manager has dismissed as a false positive. Security procedures must explicitly override authority bias: "verify regardless of who is asking."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Optimism Bias</div>
+                <div class="card-desc">"It won't happen to me." Most people believe they are less susceptible to social engineering than average. This bias makes employees less likely to engage seriously with security training and more likely to skip verification steps because "I would recognize a phishing email." Effective training includes actual examples of highly sophisticated attacks that fooled intelligent, experienced people -- demonstrating that susceptibility is not a sign of low intelligence.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Availability Bias</div>
+                <div class="card-desc">People assess probability based on how easily examples come to mind. If they have never experienced or heard of a social engineering attack in their organization, they perceive the threat as low-probability. Organizations that share breach incident details internally (even at a high level, without shaming individuals) raise the perceived likelihood of the threat and increase engagement with training and vigilance. Real examples are more effective than hypothetical scenarios.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- EMAIL SECURITY ARCHITECTURE ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Email Security <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">The technical controls that reduce phishing effectiveness before the email reaches the user. Defense in depth at the email channel.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SPF, DKIM, DMARC</div>
+                <div class="card-desc">SPF (Sender Policy Framework): DNS record specifying which IPs are authorized to send email for your domain. DKIM (DomainKeys Identified Mail): cryptographic signature on outbound email verifying message integrity. DMARC (Domain-based Message Authentication, Reporting and Conformance): policy that tells receiving servers what to do when SPF or DKIM fails (none/quarantine/reject). DMARC at p=reject prevents domain spoofing. All three must be configured correctly to be effective.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Secure Email Gateway (SEG)</div>
+                <div class="card-desc">Sits between the internet and the mail server. Scans all inbound mail for spam, phishing indicators, malicious links, and malicious attachments. Rewrites URLs through a time-of-click protection proxy (checks the destination at click time, not scan time, defeating evasion techniques that activate after initial scanning). Sandboxes attachments by executing them in an isolated environment to observe behavior. Primary technical preventive control against phishing delivery.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Banner and Tagging</div>
+                <div class="card-desc">Email banners on externally sourced emails: "[EXTERNAL] This email originated outside your organization." Banners on emails where the display name matches an internal executive but the sending domain is external: "[CAUTION: This email appears to be from a company executive but was sent from an external address. Verify before acting]." Tagging does not block phishing but increases the cognitive friction that allows users to catch attacks the SEG missed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">User Reporting Integration</div>
+                <div class="card-desc">One-click "Report Phish" button integrated into email clients (Outlook, Gmail). Submitted reports automatically send the email to the security team for analysis and feed the SEG's threat intelligence. When a real phishing email is confirmed, the SEG can retroactively remove similar messages from all inboxes that received it (mail retraction). The reporting workflow closes the loop between human detection and technical response.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- PRETEXTING LEGAL ASPECTS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Pretexting: <span class="accent">Legal Aspects</span></div>
+        <div class="slide-subtitle">The Gramm-Leach-Bliley Act specifically prohibits pretexting to obtain financial information. Other laws govern social engineering in specific contexts.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Gramm-Leach-Bliley Act</div>
+                <div class="card-desc">The GLBA Pretexting Provision (15 U.S.C. 6821) prohibits using false pretenses to obtain customer information from financial institutions. Specifically enacted after HP hired a private investigation firm that used pretexting to obtain AT&T phone records of journalists. Violations are a federal crime with criminal and civil penalties. Banks and financial institutions have specific obligations to protect customers from pretexting attacks targeting their accounts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Computer Fraud and Abuse Act (CFAA)</div>
+                <div class="card-desc">Unauthorized access obtained through social engineering (using false credentials provided through phishing) may constitute a CFAA violation. The "exceeds authorized access" provision has been interpreted to include access obtained through deception even using valid credentials. Social engineers who obtain credentials through phishing and use them to access systems can face federal prosecution under CFAA in addition to wire fraud statutes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Impersonating Law Enforcement</div>
+                <div class="card-desc">Federal law (18 U.S.C. 912) prohibits impersonating US government officers or employees. State laws similarly prohibit impersonating local law enforcement. Social engineers who claim to be FBI agents, IRS auditors, or local police officers to coerce compliance are committing a separate federal or state crime independent of any computer fraud statutes. Security professionals conducting authorized tests must explicitly exclude law enforcement impersonation from their scope.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorized Testing Requirements</div>
+                <div class="card-desc">Security professionals conducting authorized social engineering tests must have signed, written authorization from appropriate management specifying the scope, techniques, and personnel who may be targeted. Get-out-of-jail-free letters describing the authorized test should be carried. Tests must never include techniques that could cause real harm (impersonating law enforcement, creating false emergencies). Legal review of test plans is required in most jurisdictions before execution.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Identify the social engineering technique, the psychological principle exploited, and the appropriate countermeasure.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">An employee receives an email from "HR Department" with a link to "update your direct deposit information before Friday's payroll." The domain is hr-portal-update.net. <strong>(Phishing / urgency + authority. Defense: email banner, DMARC, out-of-band verification.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">A person in a visitor badge asks a receptionist to hold the door to the server room because "my hands are full with these UPS batteries." <strong>(Piggybacking / helpfulness. Defense: mantrap, escort policy, physical security culture.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">A caller reaches the help desk claiming to be the CFO, urgently needing their MFA reset before a board call in 10 minutes. They correctly state the CFO's employee ID. <strong>(Vishing / authority + urgency. Defense: shared secret verification, callback policy, tiered request classification.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">A developer accidentally installs a Python package named "reqeusts" (typo of "requests") that contains malware. <strong>(Typosquatting / package squatting. Defense: package integrity verification, dependency pinning, private package mirrors.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">An employee finds a USB drive labeled "IT Asset - DO NOT REMOVE" in the break room and plugs it into their workstation to see who it belongs to. <strong>(Baiting / USB drop. Defense: USB port control via Group Policy, training on found-device policy.)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">An employee receives 47 MFA push notifications in 30 minutes, then a WhatsApp message from "IT Support" saying "just approve the next one to stop the requests." <strong>(MFA fatigue / urgency + impersonation. Defense: number-matching MFA, FIDO2, unusual MFA activity alerting.)</strong></span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SHIELD-7 SOCIAL ENGINEERING SCENARIOS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SHIELD-7 <span class="accent">Social Engineering Scenarios</span></div>
+        <div class="slide-subtitle">Applying social engineering concepts to the facility context. Each scenario illustrates a specific technique against a specific target role.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Scenario: Vishing the Lab Administrator</div>
+                <div class="card-desc">Caller: "This is Director Harlow Vance from the oversight board. Our auditors need immediate access to the specimen archive logs for a compliance review. I need you to provide the access code and unlock remote viewing. This is time-sensitive -- the audit closes in 45 minutes." Correct response: cannot verify caller identity, cannot grant access without in-person authorization from the department head, will escalate to security operations immediately. Urgency is the red flag.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scenario: Spear Phishing the Researcher</div>
+                <div class="card-desc">Email from "IT Security" referencing the researcher's current project (from a published conference abstract), requesting they verify their network credentials before an "upcoming system migration" via a link that resolves to a convincing replica of the facility's VPN login page. Correct response: hover to check the actual URL, look for the facility's DMARC-protected domain in the raw headers, report via the one-click phish button, and do not enter credentials until calling IT directly.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Scenario: Physical Impersonation</div>
+                <div class="card-desc">A professional in a tool vest arrives at the facility entrance claiming to be from the HVAC service company and showing a realistic-looking work order for "emergency cooling system inspection in Lab 9." Lab 9 contains the primary specimen containment systems. Correct response: reception contacts the HVAC company at the number in the vendor contract (not the one on the work order), confirms the visit is authorized, and escorts the visitor at all times. No unescorted access under any circumstances.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before moving to the next module. Written analysis required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Analyze a sample phishing email (provided by your instructor) and identify: the psychological principle exploited, the technical indicators present, and the controls that should have blocked it at the technical, administrative, and physical layers.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Your organization wants to deploy DMARC. Describe the three policy values (none, quarantine, reject) and explain the rollout sequence you would recommend. Explain why starting at p=reject on day one is high risk, and what you must verify in the monitoring phase before advancing to stricter enforcement.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">A security manager proposes firing any employee who fails a simulated phishing test. Write a two-paragraph counter-argument addressing the impact on reporting culture, the research on shame versus positive reinforcement in security training, and the organizational security outcome the manager's policy would actually produce.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Design a social engineering awareness program for a 200-person professional services firm. Define: the training cadence, the simulation schedule, the metrics you will track, the role-specific training topics for Finance/HR/IT/Executives, and how you will report program effectiveness to the CISO quarterly.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">MFA is considered a strong preventive control. List five specific social engineering techniques that can bypass MFA without exploiting any cryptographic weakness. For each, explain the specific MFA technology that defeats that bypass technique and why it is technically resistant to that attack.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Social engineering exploits human psychology, not technical vulnerabilities. Defenses must address the human layer with the same rigor applied to technical controls.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            The single most effective defense against social engineering is out-of-band verification. Anytime a sensitive request arrives through any channel, verify through a separate channel that you control. An attacker who can intercept your email cannot intercept a phone call to a number you already have. An attacker who can make phone calls cannot also control your corporate directory at the same time. Verification breaks the social engineering chain at every phase.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Phishing (email), vishing (voice), smishing (SMS), and pharming (DNS) are all social engineering variants distinguished by delivery channel, not psychological technique.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Spear phishing targets specific individuals using personalized information from OSINT. Whaling targets executives. Both have dramatically higher success rates than generic phishing.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">BEC (Business Email Compromise) exploits authority and urgency to authorize fraudulent wire transfers. The FBI reports $2.7B+ in annual losses. Dual authorization and callback verification are the primary defenses.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Tailgating (without victim knowledge) and piggybacking (with victim permission) are physical social engineering attacks. Mantraps and security culture are the defenses.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Typosquatting registers lookalike domains for credential harvesting. DMARC prevents domain spoofing. DNS filtering blocks known typosquatted domains. User training on URL verification reduces susceptibility.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">MFA fatigue, SIM swapping, and AitM phishing (Evilginx) bypass MFA without cryptographic weakness. FIDO2/passkeys are phishing-resistant because they are bound to a specific origin domain.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">The six psychological principles exploited: Authority, Urgency/Scarcity, Social Proof, Reciprocity, Liking/Trust, Fear. Recognizing the principle being applied is the first defense.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Organizations with punitive security cultures have worse breach outcomes than those with blameless reporting cultures. Early reporting limits breach scope -- punishment delays it.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">SPF prevents IP spoofing. DKIM signs message integrity. DMARC sets enforcement policy. All three are required -- any one missing leaves exploitable gaps in email authentication.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w1-social', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

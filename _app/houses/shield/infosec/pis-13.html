@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIS-13: Wireless and Cloud Security | Principles of Information Security</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060810;
+            --bg-card:    #0a1018;
+            --accent:     #3b82f6;
+            --accent-dim: rgba(59, 130, 246, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Sticky header */
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+
+        .ne-badge {
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        /* Main content */
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        /* Objectives panel */
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* SY0-701 objective badge */
+        .obj-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content sections */
+        .ne-section { margin-bottom: 35px; }
+
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        /* Tables */
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: top;
+        }
+        .ne-table tr:hover td { background: rgba(59, 130, 246, 0.04); }
+
+        /* Callout boxes (lore context, tips) */
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        /* Breach / case study callout */
+        .ne-breach {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 16px 0;
+        }
+        .ne-breach strong {
+            color: #f87171;
+            display: block;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .ne-breach p { color: #fca5a5; font-size: 0.875rem; }
+
+        /* Inline code */
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        /* Takeaways */
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li {
+            padding: 5px 0;
+            padding-left: 24px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        /* Quiz section */
+        .ne-quiz {
+            background: var(--accent-dim);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 12px;
+            padding: 28px 24px;
+            margin-top: 32px;
+            margin-bottom: 20px;
+        }
+
+        .ne-quiz-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ne-quiz-header h3 { font-size: 1rem; color: var(--accent); letter-spacing: 0.5px; margin-bottom: 3px; }
+        .ne-quiz-header p { font-size: 0.78rem; color: var(--text-secondary); }
+
+        .question-block { margin-bottom: 24px; }
+
+        .question-num {
+            color: var(--accent);
+            font-size: 0.72rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .question-text {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            line-height: 1.65;
+        }
+
+        .options-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+        .option-item { display: flex; align-items: flex-start; gap: 10px; }
+        .option-item input[type="radio"] {
+            margin-top: 3px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+        .option-item label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1.55;
+        }
+        .option-item label:hover { color: var(--text-primary); }
+
+        .quiz-submit-area {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #quizSubmitBtn {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 11px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #quizSubmitBtn:hover:not(:disabled) { background: #2563eb; }
+        #quizSubmitBtn:disabled { opacity: 0.45; cursor: default; }
+
+        .quiz-status-msg { font-size: 0.78rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+
+        .quiz-result {
+            display: none;
+            text-align: center;
+            padding: 24px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .quiz-result.pass {
+            display: block;
+            background: rgba(16, 185, 129, 0.07);
+            border: 1px solid rgba(16, 185, 129, 0.30);
+        }
+        .quiz-result.fail {
+            display: block;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .result-score { font-size: 2.2rem; font-weight: 700; margin-bottom: 6px; }
+        .quiz-result.pass .result-score { color: #34d399; }
+        .quiz-result.fail .result-score { color: #f87171; }
+
+        .result-label { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+        .quiz-result.pass .result-label { color: #6ee7b7; }
+        .quiz-result.fail .result-label { color: #fca5a5; }
+
+        .result-msg { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; }
+
+        .retry-btn {
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, 0.40);
+            color: #f87171;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            padding: 8px 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        /* Completion */
+        .ne-complete {
+            text-align: center;
+            padding: 30px 20px 40px;
+        }
+        #completeBtn {
+            background: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+            transition: all 0.2s;
+        }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+        #completeBtn.is-done { background: #16a34a; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 700px) {
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-13: Wireless and Cloud Security</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PIS-13</span>
+            <h1>Wireless and Cloud Security</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Infosec</a> / PIS-13
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives <span class="obj-badge">SY0-701: 3.1, 3.2</span></h2>
+            <ul>
+                <li>Compare WEP, WPA2, and WPA3 wireless security protocols by authentication mechanism and vulnerability</li>
+                <li>Distinguish EAP-TLS, PEAP, and EAP-TTLS by certificate requirements and security level</li>
+                <li>Identify rogue AP and evil twin attack characteristics and the controls that defeat each</li>
+                <li>Apply the shared responsibility model to IaaS, PaaS, and SaaS cloud service scenarios</li>
+                <li>Explain CASB capabilities including shadow IT discovery and DLP enforcement</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            <p>"Containment beyond the facility walls. The perimeter used to end at the fence. Now specimens are cataloged in cloud vaults that no one can physically touch, and field teams connect over wireless networks the facility does not own. The barrier does not stop at the building. The barrier is the policy -- and the policy has to follow the data wherever it goes."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Wireless Security -- WPA3, EAP, and Authentication Protocols</h2>
+            <p class="ne-text">Wireless networks introduce a fundamentally different attack surface: the radio signal is broadcast into uncontrolled physical space. SY0-701 Objective 3.1 requires you to compare wireless security protocols and select the appropriate one for a given scenario.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Encryption</th>
+                        <th>Status</th>
+                        <th>Exam Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>WEP</td>
+                        <td>RC4 (broken)</td>
+                        <td>Deprecated. Never use.</td>
+                        <td>Broken in minutes using IV reuse. No integrity protection. If a scenario mentions WEP as an existing deployment, the answer is always "replace it."</td>
+                    </tr>
+                    <tr>
+                        <td>WPA2-Personal</td>
+                        <td>AES-CCMP</td>
+                        <td>Acceptable for small deployments</td>
+                        <td>Pre-shared key (PSK) authentication. Vulnerable to offline dictionary attacks if the key is captured. KRACK attack against WPA2 implementation flaws.</td>
+                    </tr>
+                    <tr>
+                        <td>WPA2-Enterprise</td>
+                        <td>AES-CCMP</td>
+                        <td>Standard for corporate wireless</td>
+                        <td>Uses 802.1X with RADIUS server for per-user authentication. No shared key to compromise. Requires a RADIUS infrastructure.</td>
+                    </tr>
+                    <tr>
+                        <td>WPA3-Personal</td>
+                        <td>AES-GCMP-256</td>
+                        <td>Current standard</td>
+                        <td>SAE (Simultaneous Authentication of Equals) replaces PSK handshake. Resistant to offline dictionary attacks even if handshake is captured. Forward secrecy per session.</td>
+                    </tr>
+                    <tr>
+                        <td>WPA3-Enterprise</td>
+                        <td>192-bit security suite</td>
+                        <td>Current standard, high-security environments</td>
+                        <td>Mandates stronger cipher suites and certificate-based mutual authentication. Required for government and defense deployments.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="ne-text"><strong style="color:var(--accent)">EAP (Extensible Authentication Protocol)</strong> is an authentication framework used within WPA2/WPA3-Enterprise. Key EAP types tested on SY0-701: <span class="ne-inline-code">EAP-TLS</span> uses mutual certificate-based authentication -- the gold standard, requires a PKI. <span class="ne-inline-code">PEAP</span> (Protected EAP) wraps the EAP exchange in a TLS tunnel; the server has a certificate but the client authenticates with credentials. <span class="ne-inline-code">EAP-TTLS</span> is similar to PEAP but more flexible. EAP-TLS is the most secure because both client and server present certificates.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">RADIUS</strong> (Remote Authentication Dial-In User Service) is the AAA server used in WPA2/WPA3-Enterprise deployments. The wireless access point acts as a RADIUS client and forwards authentication requests to the RADIUS server. RADIUS uses UDP and encrypts only the password field. TACACS+ (used for network device authentication) uses TCP and encrypts the entire payload.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>Facility wireless is WPA3-Enterprise with EAP-TLS. Every device that joins the network presents a facility-issued certificate. No certificate, no connection. Guest wireless is isolated on a separate SSID with no path to internal systems -- it reaches the internet through a separate uplink with no facility DNS or internal routing.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Wireless Attacks -- Rogue APs, Evil Twin, and Detection</h2>
+            <p class="ne-text">Wireless attacks target the communication channel itself rather than specific applications. SY0-701 Objective 3.1 tests your ability to identify wireless attack types and the controls that prevent them.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Attack</th>
+                        <th>Mechanism</th>
+                        <th>Detection / Mitigation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rogue AP</td>
+                        <td>An unauthorized access point is connected to the corporate network by an insider or attacker. Clients that connect to it gain internal network access through an unsecured path.</td>
+                        <td>Wireless intrusion detection system (WIDS) monitors for new BSSIDs. 802.1X on wired ports prevents unauthorized switches and APs from getting network access without authentication.</td>
+                    </tr>
+                    <tr>
+                        <td>Evil Twin</td>
+                        <td>An attacker sets up an access point with the same SSID as a legitimate network. Clients associate with the stronger signal and send credentials or traffic through the attacker's AP.</td>
+                        <td>Certificate-based EAP authentication (EAP-TLS) defeats evil twin because the server certificate does not match. WIDS monitors for duplicate SSIDs with different BSSIDs.</td>
+                    </tr>
+                    <tr>
+                        <td>Deauthentication Attack</td>
+                        <td>Attacker sends forged 802.11 deauthentication frames to disconnect clients from the legitimate AP. Clients reconnect, potentially to an evil twin, or the handshake is captured for offline cracking.</td>
+                        <td>802.11w (Management Frame Protection) authenticates management frames, preventing forged deauth. WPA3 implements 802.11w as mandatory.</td>
+                    </tr>
+                    <tr>
+                        <td>Disassociation / Jamming</td>
+                        <td>Radio frequency interference disrupts wireless communication. Can be unintentional or deliberate.</td>
+                        <td>Spectrum analysis tools identify interference sources. Frequency agility (switching channels) mitigates some interference. Wired fallback for critical systems.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-breach">
+                <strong>Exam Trap: Rogue AP vs Evil Twin</strong>
+                <p>A rogue AP is connected to the internal network -- the threat is unauthorized internal access. An evil twin impersonates a legitimate SSID -- the threat is man-in-the-middle over the wireless connection. Different threats, different mitigations. Know which is which.</p>
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility runs continuous wireless monitoring. Every access point is registered by BSSID, channel, and SSID. Any new BSSID appearing on a monitored frequency triggers an immediate alert. Field team laptops are configured to reject connections to the corporate SSID unless the server certificate is valid -- an evil twin with a self-signed certificate will cause the connection to fail and alert the user.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Cloud Security Models -- IaaS, PaaS, SaaS, and Shared Responsibility</h2>
+            <p class="ne-text">Cloud computing shifts infrastructure from on-premises hardware to shared provider infrastructure. SY0-701 Objective 3.2 requires you to understand the three primary cloud service models and the shared responsibility model that defines which security controls the customer owns versus the provider.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Customer Manages</th>
+                        <th>Provider Manages</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>IaaS (Infrastructure as a Service)</td>
+                        <td>OS, middleware, runtime, applications, data, identity, network config inside the VM</td>
+                        <td>Physical hardware, hypervisor, data center facilities, network infrastructure</td>
+                        <td>AWS EC2, Azure VMs, Google Compute Engine</td>
+                    </tr>
+                    <tr>
+                        <td>PaaS (Platform as a Service)</td>
+                        <td>Application code, data, identity, access management</td>
+                        <td>OS, runtime, middleware, underlying infrastructure</td>
+                        <td>AWS Elastic Beanstalk, Azure App Service, Heroku</td>
+                    </tr>
+                    <tr>
+                        <td>SaaS (Software as a Service)</td>
+                        <td>Data entered into the application, user identity and access configuration</td>
+                        <td>Everything: application, runtime, OS, infrastructure</td>
+                        <td>Microsoft 365, Salesforce, Google Workspace</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="ne-text">The <strong style="color:var(--accent)">shared responsibility model</strong> is the critical exam concept: as you move from IaaS to SaaS, the customer's security responsibility decreases, but the customer never transfers responsibility for their own data and identity management. The provider's breach of the physical facility is the provider's problem. The customer's misconfigured S3 bucket left public is always the customer's problem.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility's threat intelligence database is hosted on a cloud IaaS platform. The cloud provider secures the physical hardware and hypervisor. The facility owns all OS-level security: patching, firewall rules, encryption of specimens at rest, and IAM policy. If the cloud provider's physical data center is breached, they are liable. If the facility's IAM misconfiguration exposes the data, the facility is liable. Shared does not mean the provider does it for you.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">CASB, Cloud-Native Security, and Exam Scenarios</h2>
+            <p class="ne-text"><strong style="color:var(--accent)">CASB</strong> (Cloud Access Security Broker) is a security policy enforcement point between cloud service users and cloud service providers. A CASB provides visibility into cloud usage (shadow IT discovery), enforces data loss prevention (DLP) policies, applies access control, and provides threat protection for cloud-based traffic. CASBs can operate in-line (as a proxy) or via API integration with cloud providers.</p>
+            <p class="ne-text">Key CASB capabilities for the exam: <span class="ne-inline-code">Shadow IT discovery</span> identifies cloud services employees are using without IT approval. <span class="ne-inline-code">DLP enforcement</span> blocks sensitive data from being uploaded to unauthorized cloud storage. <span class="ne-inline-code">User behavior analytics</span> detects anomalous cloud access patterns.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Correct Control</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Employees uploading sensitive files to personal Dropbox accounts</td>
+                        <td>CASB with DLP policy blocking uploads to unsanctioned storage services</td>
+                    </tr>
+                    <tr>
+                        <td>Visibility into which cloud applications employees are using without IT approval</td>
+                        <td>CASB shadow IT discovery / cloud application discovery</td>
+                    </tr>
+                    <tr>
+                        <td>Ensuring consistent security policy across IaaS workloads in multiple cloud regions</td>
+                        <td>Cloud Security Posture Management (CSPM) / cloud-native security tooling</td>
+                    </tr>
+                    <tr>
+                        <td>Customer asks who is responsible for patching the OS on their IaaS virtual machines</td>
+                        <td>The customer -- OS patching is always customer responsibility in IaaS</td>
+                    </tr>
+                    <tr>
+                        <td>Customer asks who is responsible for patching the application in their SaaS deployment</td>
+                        <td>The provider -- in SaaS, the provider owns everything except data and IAM</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility's CASB monitors all outbound traffic to cloud storage services. Any attempt to upload a file tagged as specimen data to a non-sanctioned destination triggers an immediate block and analyst alert. Field teams using personal devices cannot exfiltrate specimen classification records to personal cloud storage because the CASB DLP policy covers all facility-managed identities regardless of device.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>WPA3-SAE resists offline dictionary attacks even if the handshake is captured -- WPA2-PSK is vulnerable to offline cracking</li>
+                <li>EAP-TLS requires mutual certificate authentication (both client and server); PEAP only requires a server certificate</li>
+                <li>Rogue AP is physically on the internal network (unauthorized access); evil twin impersonates an SSID over the air (MITM)</li>
+                <li>802.11w (Management Frame Protection) prevents forged deauthentication attacks; WPA3 mandates it</li>
+                <li>In IaaS the customer patches the OS; in SaaS the provider patches the application -- the customer always owns data and IAM in all models</li>
+                <li>CASB provides shadow IT visibility and DLP enforcement for cloud services without blocking all cloud access</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <div class="question-block">
+                    <span class="question-num">Question 1 of 5</span>
+                    <p class="question-text">A corporate wireless network uses WPA2-Enterprise with PEAP authentication. An attacker sets up an access point with the same SSID and a stronger signal. Client devices begin associating with the rogue AP. Which EAP method would have BEST prevented clients from successfully authenticating to the fake AP?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">EAP-TTLS with password credentials</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">EAP-TLS with mutual certificate authentication</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">WPA2-Personal with a stronger pre-shared key</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Disabling SSID broadcast on the legitimate AP</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 2 of 5</span>
+                    <p class="question-text">An organization discovers that employees are connecting unauthorized personal wireless routers to their office network drops, creating unsecured paths onto the corporate network. Which control BEST prevents unauthorized network devices from obtaining network access through wired switch ports?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">Wireless IDS monitoring for new BSSIDs</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">802.1X port-based network access control on wired switch ports</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">Disabling WPS on the corporate access points</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">Upgrading all APs to WPA3</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 3 of 5</span>
+                    <p class="question-text">A company hosts virtual machines on an IaaS cloud provider. The cloud provider experiences a physical intrusion at their data center and hardware is stolen. The VMs contained encrypted customer data. Under the shared responsibility model, which party is primarily responsible for the physical security failure?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">The customer, because they chose that provider</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">The cloud provider, because physical facility security is their responsibility</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">Both equally, under joint responsibility provisions</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">The customer, because they should have encrypted the data</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 4 of 5</span>
+                    <p class="question-text">A security analyst discovers that employees are uploading sensitive product designs to personal cloud storage accounts from their corporate laptops. The organization wants to detect and block this behavior without restricting legitimate cloud application usage. Which security control BEST addresses this?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">NGFW blocking all cloud storage IP ranges</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">Cloud Access Security Broker (CASB) with DLP policy</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">Disabling USB ports on all corporate laptops</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">VPN that routes all cloud traffic through corporate infrastructure</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 5 of 5</span>
+                    <p class="question-text">In a SaaS deployment, a company uses a vendor-hosted CRM application. The vendor announces a security patch for the application. Under the shared responsibility model, who is responsible for applying that patch?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">The customer, as part of their patch management program</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">The SaaS vendor, as they own and operate the application</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">Both, under a coordinated patching agreement</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">The customer's cloud security team using the provider's patching API</label></li>
+                    </ul>
+                </div>
+
+                <div class="quiz-submit-area">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span class="quiz-status-msg" id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <div class="quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn" disabled>Pass the quiz to complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* Module constants */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-13';
+        const QUIZ_ID      = 'pis-13-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) { answerMap[String(i)] = selections[i]; }
+            }
+            var score = 0, percentage = 0, passed = false;
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: answerMap });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-13] Server grading failed:', e.message);
+            }
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.disabled = true; });
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Wireless and cloud containment protocols confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+            if (passed) { markComplete(score); } else { document.getElementById('retryBtn').style.display = 'inline-block'; }
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.checked = false; r.disabled = false; });
+            document.getElementById('quizResult').className = 'quiz-result';
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+        }
+
+        /* Restore completed state on load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+            }
+        })();
+    </script>
+</body>
+</html>

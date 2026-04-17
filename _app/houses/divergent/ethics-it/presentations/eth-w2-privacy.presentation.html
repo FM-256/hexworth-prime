@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d001a 0%, #130020 50%, #160025 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 0, 26, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #0d001a; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Privacy | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:3.03%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 33 &nbsp;|&nbsp; ETH-W2-04 &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Privacy in the<br>
+                <span class="accent">Digital Age</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Fourth Amendment &nbsp;&bull;&nbsp; HIPAA &nbsp;&bull;&nbsp; COPPA &nbsp;&bull;&nbsp; FERPA &nbsp;&bull;&nbsp; GDPR &nbsp;&bull;&nbsp; PATRIOT Act
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Warehouse question: Timothy Carpenter's phone company turned over 127 days of his cell-site location records to the FBI without a warrant. Those records placed him near the scene of armed robberies. He was convicted. He appealed, arguing the Fourth Amendment should have required a warrant. The Supreme Court agreed, 5-4, in 2018. The question this case forced: when the government can reconstruct your movements without setting foot on your property, what does the Fourth Amendment actually protect?
+        </div>
+        <div class="title-meta-row">
+            <span>33 Slides</span>
+            <span>ETH-W2-04</span>
+            <span>Week 2</span>
+            <span>Ethics in IT</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- PRIVACY AS A FOUNDATIONAL VALUE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 33</div>
+        <div class="slide-title">Privacy as a <span class="accent">Foundational Value</span></div>
+        <div class="slide-subtitle">Privacy is not about having something to hide. It is the condition under which other freedoms are possible.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Autonomy</div>
+                <div class="card-desc">Privacy enables individuals to control the narrative of their own lives -- what they share, with whom, in what context. The erosion of that control is not neutral. It shifts power toward whoever holds the information and away from the person the information is about. Surveillance is an asymmetric power relationship.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Chilling Effect</div>
+                <div class="card-desc">When people know they are being watched, they change their behavior. They self-censor. They avoid associations. They moderate political expression. Research consistently finds that surveillance of legal activity changes that activity -- not because people are doing something wrong, but because visibility itself creates risk they would rather avoid.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Contextual Integrity</div>
+                <div class="card-desc">Helen Nissenbaum: privacy is violated when information flows in ways that violate the norms of the context in which it was shared. Medical information shared with a doctor flows appropriately to other treating physicians -- not to employers. Location data shared with a navigation app does not appropriately flow to law enforcement without a warrant.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The "Nothing to Hide" Fallacy</div>
+            "If you have nothing to hide, you have nothing to fear." This argument proves too much: it would justify continuous video surveillance in all homes and workplaces. Privacy protects not just wrongdoing but medical conditions, political beliefs, religious practice, sexual orientation, financial struggles, and every other domain of human life that people reasonably want to control.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- FOURTH AMENDMENT FOUNDATIONS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 33</div>
+        <div class="slide-title">Fourth Amendment <span class="accent">Foundations</span></div>
+        <div class="slide-subtitle">The constitutional right against unreasonable searches and seizures. The digital era has required the Supreme Court to reinterpret it repeatedly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Text</div>
+                <div class="card-desc">The right of the people to be secure in their persons, houses, papers, and effects, against unreasonable searches and seizures, shall not be violated, and no Warrants shall issue, but upon probable cause, supported by Oath or affirmation, and particularly describing the place to be searched, and the persons or things to be seized.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Reasonable Expectation Test</div>
+                <div class="card-desc">Katz v. United States (1967): Fourth Amendment protects people, not places. The test: does the person have a subjective expectation of privacy, and does society recognize that expectation as reasonable? This framework has been strained by digital surveillance -- when you share data with a company, do you retain a reasonable expectation of privacy in it?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Third-Party Doctrine</div>
+                <div class="card-desc">Smith v. Maryland (1979): information voluntarily shared with a third party (like a phone company recording numbers dialed) carries no Fourth Amendment protection. This doctrine was the legal basis for bulk collection of phone records, email metadata, and digital communications -- until Carpenter v. United States began to erode it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Digital Challenges</div>
+                <div class="card-desc">Kyllo v. United States (2001): thermal imaging of a home from a public street is a search. Riley v. California (2014): warrantless search of cell phone incident to arrest is unconstitutional. Carpenter v. United States (2018): prolonged cell-site location tracking requires a warrant. The Court is slowly adapting Fourth Amendment doctrine to digital realities.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CARPENTER V UNITED STATES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 33 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">Case Study: <span class="accent">Carpenter v. United States</span></div>
+        <div class="slide-subtitle">The case that forced the Supreme Court to decide whether the digital age requires a new framework for the Fourth Amendment.</div>
+
+        <div class="scenario-strip">
+            The government obtained, without a warrant, 127 days of cell-site location records from Timothy Carpenter's wireless carrier. The records showed his phone connecting to towers near the scenes of armed robberies in Michigan and Ohio. This evidence was used to convict him. He was sentenced to more than 116 years in prison. His appeal reached the Supreme Court.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Government's Argument</div>
+                <div class="card-desc">Under the third-party doctrine, Carpenter voluntarily shared his location data with the wireless carrier every time his phone connected to a tower. The carrier's business records have no Fourth Amendment protection. No warrant was required. The Stored Communications Act allows the government to obtain records with a court order rather than a warrant, requiring a lower showing than probable cause.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Court's Decision</div>
+                <div class="card-desc">Chief Justice Roberts, writing for a 5-4 majority: the third-party doctrine does not apply to the digital-age collection of comprehensive, retrospective location data. CSLI records reveal the privacies of life. A warrant supported by probable cause is required for this kind of prolonged digital surveillance. The Court explicitly declined to extend the ruling beyond its specific facts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- CARPENTER IMPLICATIONS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 33 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">Carpenter: <span class="accent">Implications</span> for IT Professionals</div>
+        <div class="slide-subtitle">What this ruling means for the design of systems that generate, collect, and retain location and behavioral data.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The Court treated comprehensiveness and duration as the key factors. A single cell tower ping is different from 127 days of continuous location tracking. Systems that aggregate data over time create different constitutional concerns than systems that collect isolated data points.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The ruling does not reach beyond cell-site location data. Open questions: does it apply to GPS precision location? To smart device usage logs? To financial transaction records? To fitness tracker biometric streams? Each is a potential future Carpenter.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">IT professionals who design systems that collect and retain persistent location, behavioral, or activity data are creating potential warrant-requiring evidence about their users. That obligation runs in both directions: they must comply with lawful orders and resist unlawful ones.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Data minimization -- collecting only what is necessary and retaining only as long as needed -- is now not just an ethical principle but a defensive legal strategy. Data you do not hold cannot be subpoenaed or improperly accessed.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Design Question</div>
+            If you are building a system that generates location data, fitness data, or behavioral data: what is the minimum retention period required for the product to function? Everything retained beyond that serves the organization's interests, not the user's. Own that choice explicitly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- HIPAA ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 33</div>
+        <div class="slide-title">HIPAA: <span class="accent">Healthcare Privacy</span></div>
+        <div class="slide-subtitle">The Health Insurance Portability and Accountability Act. The primary US federal framework for protecting health information.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What HIPAA Covers</div>
+                <div class="card-desc">Protected Health Information (PHI): individually identifiable health information in any form -- electronic, paper, oral. Covered entities: health plans, healthcare clearinghouses, healthcare providers who transmit health information electronically. Business associates: third parties that handle PHI on behalf of covered entities. IT vendors working with healthcare clients are often business associates.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Privacy Rule</div>
+                <div class="card-desc">PHI may only be used or disclosed for treatment, payment, or healthcare operations without patient authorization -- and only the minimum necessary for those purposes. Patients have rights: access their own records, request corrections, receive a notice of privacy practices, request restrictions on disclosures, and receive an accounting of disclosures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Security Rule</div>
+                <div class="card-desc">Covered entities must implement administrative, physical, and technical safeguards for electronic PHI. Administrative: security officer, training, risk analysis. Physical: access controls, workstation security. Technical: access controls, audit controls, integrity, transmission security. The security rule is not prescriptive on implementation -- it requires risk-based controls appropriate to the entity's size and complexity.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Penalties</div>
+                <div class="card-desc">Tier 1 (unknowing): $100-$50,000 per violation, $25,000 annual max. Tier 2 (reasonable cause): $1,000-$50,000 per violation, $100,000 annual max. Tier 3 (willful neglect, corrected): $10,000-$50,000 per violation, $250,000 annual max. Tier 4 (willful neglect, uncorrected): $50,000 per violation, $1.9M annual max. Criminal penalties include imprisonment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- HIPAA AND IT PROFESSIONALS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 33</div>
+        <div class="slide-title">HIPAA and <span class="accent">IT Professionals</span></div>
+        <div class="slide-subtitle">If you work with systems that touch PHI, HIPAA obligations are your daily professional reality.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Business Associate Agreements</div>
+                <div class="card-desc">Any IT vendor, cloud provider, software company, or consultant that handles PHI on behalf of a covered entity must sign a BAA. The BAA passes HIPAA obligations to the vendor. IT professionals signing BAAs on behalf of their employers are taking on enforceable legal and ethical obligations to protect data they may never directly handle.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Violations in IT</div>
+                <div class="card-desc">Unencrypted PHI on portable devices. PHI in test environments without deidentification. Email containing PHI without TLS encryption. Vendor access not terminated when the relationship ends. Insufficient access logging for ePHI systems. Each represents both a HIPAA violation and an ethical failure to protect patients who provided data under medical necessity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Breach Notification</div>
+                <div class="card-desc">Covered entities must notify affected individuals within 60 days of breach discovery. The HHS Office for Civil Rights must be notified. If the breach affects 500+ individuals in a single state, media notification in that state is also required. Business associates must notify covered entities within 60 days. The clock runs from discovery, not from determination that harm occurred.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            You are a developer at a health technology startup that is a HIPAA business associate. You discover that the QA environment contains real patient data from production -- SSNs, diagnoses, and prescription information -- for 12,000 patients. It has been there for eight months with minimal access controls. What is your next action?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- COPPA ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 33</div>
+        <div class="slide-title">COPPA: <span class="accent">Children's Online Privacy</span></div>
+        <div class="slide-subtitle">The Children's Online Privacy Protection Act. Different rules apply when the users are children.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What COPPA Requires</div>
+                <div class="card-desc">Sites and services directed at children under 13, or that knowingly collect data from children under 13, must: post a clear privacy notice, obtain verifiable parental consent before collecting personal information, give parents access to children's data and the ability to delete it, not condition participation on providing more information than necessary, and maintain reasonable data security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The "Directed at Children" Test</div>
+                <div class="card-desc">The FTC uses multiple factors: subject matter, visual content, music or celebrities popular with children, use of animated characters, child-oriented activities. An app that uses cartoon characters and targets education for young students is almost certainly covered regardless of what the terms of service say about minimum age.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Enforcement History</div>
+                <div class="card-desc">Google/YouTube: $170M for collecting children's data without parental consent. TikTok: $5.7M (2019) and an ongoing investigation as of 2024. Musical.ly predecessor collected children's data prior to the TikTok acquisition. The FTC has demonstrated willingness to pursue large platforms -- but the enforcement gap between violations and cases remains substantial.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Age Verification Problem</div>
+                <div class="card-desc">Many platforms use "enter your birthdate" as their COPPA compliance mechanism. This creates an incentive structure where children lie about their age and the platform has documented that it "verified" compliance. This is not meaningful protection -- it is liability offloading. The ethical standard requires design that actually deters children's use of adult-intended platforms, not just a checkbox.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- FERPA ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 33</div>
+        <div class="slide-title">FERPA: <span class="accent">Student Privacy</span></div>
+        <div class="slide-subtitle">The Family Educational Rights and Privacy Act. Privacy rights in educational records -- and the IT implications for EdTech.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What FERPA Covers</div>
+                <div class="card-desc">Education records maintained by schools that receive federal funding. Grades, transcripts, disciplinary records, financial aid records, special education records, and any "personally identifiable information" that can be used to identify the student. FERPA applies to all levels of education -- K-12 and higher education.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Student Rights Under FERPA</div>
+                <div class="card-desc">Students (or parents for minors) have the right to: inspect and review their education records, request amendment of inaccurate records, consent to disclosure of records (with exceptions), and file complaints with the Department of Education. Rights transfer from parents to students when the student turns 18 or begins postsecondary education.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Disclosure Exceptions</div>
+                <div class="card-desc">FERPA allows disclosure without consent to: school officials with legitimate educational interest, other schools in transfer, certain government agencies, financial aid authorities, accreditation organizations, in response to judicial orders, in health and safety emergencies, and to parents of dependent students. Each exception has specific conditions that are frequently misapplied.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">EdTech and FERPA</div>
+                <div class="card-desc">Schools increasingly use third-party EdTech platforms. These platforms may become "school officials" under FERPA and must comply with its provisions. The commercial use of student data by EdTech vendors -- for advertising, product development, or sale to third parties -- violates FERPA when not covered by a legitimate exception. This is a live enforcement area.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ECPA ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 33</div>
+        <div class="slide-title">ECPA: <span class="accent">Electronic Communications</span></div>
+        <div class="slide-subtitle">The Electronic Communications Privacy Act of 1986. Written before the World Wide Web. Applied daily to modern internet communications.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Title I -- Wiretap Act</div>
+                <div class="card-desc">Prohibits intentional interception of wire, oral, or electronic communications. Requires a court order for law enforcement wiretaps. Covers real-time interception of communications in transit. Criminal penalties for violations. Applies to both government and private parties -- an employer who secretly intercepts employee phone calls violates the Wiretap Act.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Title II -- Stored Communications Act</div>
+                <div class="card-desc">Governs government access to stored electronic communications (emails, messages, cloud storage). Creates two standards: warrant (for communications stored less than 180 days) and subpoena or court order (for communications stored 180+ days). This distinction, made in 1986 based on storage cost realities, has been widely criticized as obsolete in an era of indefinite cloud storage.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Title III -- Pen Register Act</div>
+                <div class="card-desc">Governs collection of dialing, routing, addressing, and signaling information -- the metadata of communications. Requires a court order, but at a lower standard than a warrant (no probable cause required). This is the provision under which the NSA collected bulk telephone metadata under Section 215 of the PATRIOT Act until 2015.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">ECPA's Age Problem</div>
+            ECPA was passed in 1986. It does not address cloud storage, social media, search history, location data, or any form of digital communication invented after that year. Courts have applied it by analogy, but the gaps are substantial. Carpenter addressed one gap -- the third-party doctrine for location data -- but dozens of analogous questions remain unresolved.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- GDPR ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 33</div>
+        <div class="slide-title">GDPR: <span class="accent">Global Privacy Standard</span></div>
+        <div class="slide-subtitle">The General Data Protection Regulation. The most significant data privacy law in the world, with jurisdiction over any organization that processes EU residents' data.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Key Principles</div>
+                <div class="card-desc">Lawfulness, fairness, and transparency. Purpose limitation (collect only for specified, explicit, legitimate purposes). Data minimization. Accuracy. Storage limitation (retain only as long as necessary). Integrity and confidentiality. Accountability (controllers must demonstrate compliance). These are legal obligations, not aspirations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Lawful Bases for Processing</div>
+                <div class="card-desc">Six legal bases: consent, performance of a contract, legal obligation, protection of vital interests, public task, and legitimate interests. Organizations cannot simply pick the most convenient basis after the fact -- the basis must be determined before processing begins and documented. Legitimate interests requires a balancing test that specifically considers data subjects' interests.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Individual Rights</div>
+                <div class="card-desc">Right to be informed. Right of access. Right to rectification. Right to erasure (right to be forgotten). Right to restrict processing. Right to data portability. Right to object. Rights related to automated decision-making. These are enforceable rights, not preferences. Building systems that honor them is a GDPR compliance requirement and an ethical professional standard.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Penalties</div>
+            Tier 1: up to EUR 10M or 2% of global annual revenue, whichever is higher, for technical violations. Tier 2: up to EUR 20M or 4% of global annual revenue for violations of core principles, consent requirements, data subject rights, or international transfer requirements. As of 2024, the largest single fine exceeded EUR 1.2 billion (Meta).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- GDPR AND IT DESIGN ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 33</div>
+        <div class="slide-title">GDPR: <span class="accent">Design Obligations</span></div>
+        <div class="slide-subtitle">Privacy by design and by default are not phrases -- they are mandatory architectural requirements under GDPR Article 25.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Privacy by Design</div>
+                <div class="card-desc">Data protection must be built into systems from the earliest design stage, not bolted on afterward. This means: minimizing data collection in the schema design, implementing access controls in the architecture, building deletion capability into the data model, and considering privacy implications before writing a single line of code.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Privacy by Default</div>
+                <div class="card-desc">The most privacy-protective settings must be the default. Users must actively choose to share more, not actively choose to share less. This directly conflicts with engagement-optimizing design patterns that make data sharing the path of least resistance. The privacy-invasive option cannot be the default under GDPR -- but it often is the default in practice.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Protection Impact Assessments</div>
+                <div class="card-desc">High-risk processing activities require a DPIA before processing begins. High-risk includes: systematic monitoring of publicly accessible areas, large-scale processing of special categories, or systematic evaluation of individuals (profiling). A DPIA is not just a compliance document -- it is an ethical review mechanism requiring documentation of identified risks and mitigations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">International Transfers</div>
+                <div class="card-desc">Personal data of EU residents cannot be transferred to countries without adequate protection unless specific safeguards apply: adequacy decision, standard contractual clauses, binding corporate rules, specific derogations. The US-EU data transfer framework has been litigated and revised multiple times. Schrems I and II invalidated previous frameworks. The current Data Privacy Framework is under continued legal challenge.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- CCPA AND US STATE LAWS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 33</div>
+        <div class="slide-title">US State Privacy Laws: <span class="accent">CCPA and Beyond</span></div>
+        <div class="slide-subtitle">In the absence of comprehensive federal privacy legislation, states have moved. California led; others followed.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">CCPA / CPRA (California)</div>
+                <div class="card-desc">California Consumer Privacy Act (2020) and California Privacy Rights Act (2023 amendments). Rights: know what personal information is collected, know if it is sold and to whom, opt out of sale, request deletion, non-discrimination for exercising rights. The CPRA added: right to correct, right to limit use of sensitive personal information, and created the California Privacy Protection Agency.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Virginia, Colorado, Connecticut</div>
+                <div class="card-desc">Multiple states passed GDPR-inspired comprehensive privacy laws between 2021 and 2023. Common elements: right to access, correct, delete, and opt out of processing for targeted advertising and profiling. Enforcement is typically through state attorneys general, not private right of action (unlike CCPA's limited private right of action for data breaches).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Patchwork Problem</div>
+                <div class="card-desc">US organizations operating nationally face a mosaic of state privacy laws with different scopes, thresholds, exceptions, and enforcement mechanisms. A company compliant with CCPA may not be compliant with Virginia's VCDPA or Colorado's CPA. The absence of federal preemption means compliance complexity scales with the number of states in which the company has customers.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Federal Gap</div>
+            Congress has repeatedly attempted federal comprehensive privacy legislation and repeatedly failed. The American Data Privacy and Protection Act came closer than any previous attempt in 2022 but did not pass. In the absence of federal law, state laws fill the gap unevenly. IT professionals building products for national audiences must track state law developments as a professional obligation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- CONSUMER PROFILING ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 33</div>
+        <div class="slide-title">Consumer <span class="accent">Profiling</span></div>
+        <div class="slide-subtitle">The aggregation of data from multiple sources to build comprehensive profiles of individuals. Legal in most US contexts. Ethically contested universally.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Aggregation Problem</div>
+                <div class="card-desc">Each individual data point may be innocuous: your name, your employer, your neighborhood. Combined with purchase history, browsing behavior, location patterns, and social graph data, these reveal medical conditions, financial stress, political beliefs, relationship status, and fertility decisions -- without any of the source data being explicitly medical or political.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Data Broker Industry</div>
+                <div class="card-desc">Data brokers collect, aggregate, and sell personal information without any direct relationship with the individuals they profile. Companies like Acxiom, LexisNexis, and Experian maintain profiles on hundreds of millions of Americans. The individuals profiled have no meaningful ability to review, correct, or remove their profiles from most commercial data brokers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Discriminatory Applications</div>
+                <div class="card-desc">Consumer profiles have been used for differential pricing -- charging different prices to different customers based on inferred willingness to pay. For housing and employment advertising, profile-based targeting can violate fair housing and employment discrimination laws when it creates disparate impact on protected classes. The FTC has brought enforcement actions on these grounds.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Contextual Integrity Violations</div>
+                <div class="card-desc">A person who shares health information with a healthcare provider expects it to flow to other treating physicians. They did not expect it to be sold to a data broker, combined with their retail purchase history, and used to infer insurance risk for pricing. The data flowed; the privacy expectation was violated at each transfer that violated the original context of sharing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- WORKPLACE MONITORING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 33</div>
+        <div class="slide-title">Workplace <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Employers have broad legal authority to monitor employees. That authority is not unlimited -- and legal authority is not the same as ethical authority.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Is Generally Permitted</div>
+                <div class="card-desc">In most US jurisdictions, employers may monitor: company-owned devices and systems, email sent through employer systems, internet usage on employer networks, physical access via badge systems, video surveillance of common work areas (with notice). The key legal condition in most states is notice to employees -- monitoring disclosed in an employment agreement or handbook generally survives legal challenge.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Is Generally Not Permitted</div>
+                <div class="card-desc">Monitoring personal devices not connected to company networks without consent. Recording audio in private conversations where no party has consented (two-party consent states). Video surveillance of bathrooms, locker rooms, or changing areas. Discriminatory application of monitoring policies targeting protected classes. Using monitoring data to interfere with employees' legally protected union organizing activities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Remote Work Expansion</div>
+                <div class="card-desc">The shift to remote work dramatically expanded employer monitoring appetite. Keystroke logging, screenshot capture, webcam activation, mouse movement tracking, and productivity scoring became common. The ethical question is whether monitoring that captures home environments, family members, and personal behavior beyond work tasks is proportionate to legitimate business needs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">GDPR Workplace Monitoring</div>
+                <div class="card-desc">For employees in EU jurisdictions, GDPR applies to workplace monitoring. Employers must have a lawful basis, typically legitimate interests balanced against employees' rights. Employee monitoring must be transparent, proportionate, and the least privacy-invasive means of achieving the legitimate objective. GDPR significantly constrains the scope of permissible monitoring compared to US law.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- PATRIOT ACT AND SURVEILLANCE ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 33</div>
+        <div class="slide-title">PATRIOT Act and <span class="accent">Government Surveillance</span></div>
+        <div class="slide-subtitle">Post-9/11 expansion of surveillance authority. The tension between national security imperatives and constitutional privacy rights.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Section 215 -- Business Records</div>
+                <div class="card-desc">Allowed the FBI to obtain a court order for "any tangible things" (including business records) relevant to a terrorism investigation, with a lower standard than a traditional subpoena. Used by the NSA to conduct bulk collection of telephone call records for virtually every American. The program was held illegal by a federal appeals court in 2020 and not renewed by Congress.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Section 702 -- Foreign Intelligence</div>
+                <div class="card-desc">Authorizes collection of electronic communications of non-US persons located outside the US for foreign intelligence purposes. The statutory provision under which PRISM and other collection programs operated. The incidental collection of US persons' communications in contact with foreign targets remains a contested privacy issue. Section 702 was reauthorized in 2024 with new minimization requirements.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">National Security Letters</div>
+            NSLs allow the FBI to demand records from businesses without any court order. The recipient is typically prohibited from disclosing that they received an NSL. Major technology companies fought for years to publish aggregate numbers of NSLs received as part of transparency reports -- a legal battle about whether users deserve to know the government is accessing their data through their technology providers.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The IT Professional's Position</div>
+            If your organization receives a lawful government order for user data, the professional obligation is compliance with lawful process -- and challenge of unlawful process. Tech companies that mounted legal challenges to NSLs and other overbroad orders acted consistent with professional ethics obligations to protect user data from improper government access.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- PRIVACY IMPACT ASSESSMENTS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 33</div>
+        <div class="slide-title">Privacy Impact <span class="accent">Assessments</span></div>
+        <div class="slide-subtitle">A structured methodology for identifying and mitigating privacy risks before systems are built or significantly changed.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">When a PIA Is Required</div>
+                <div class="card-desc">Federal agencies are required by the E-Government Act to conduct PIAs before developing IT systems that collect personal information. GDPR Article 35 requires DPIAs for high-risk processing. Best practice: any significant new collection, any new third-party data sharing, any processing of special categories of data, and any major system change affecting data flows.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PIA Content</div>
+                <div class="card-desc">What data is collected? Who collects it? Why? How is it used? Who shares it? How long is it retained? What are the privacy risks? What controls mitigate those risks? Is the collection necessary and proportionate? What are users' rights and how are they exercised? The PIA is a record of these answers -- a privacy decision audit trail.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PIA as Ethics Tool</div>
+                <div class="card-desc">A PIA performed honestly forces explicit consideration of questions that engineers frequently skip in sprint planning: who is affected by this feature, what are the risks to people who have not consented, and are there less privacy-invasive ways to achieve the same objective? The professional who skips this review because it slows development is making an ethical choice -- and should acknowledge it as one.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- SPECIAL CATEGORIES OF DATA ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 33</div>
+        <div class="slide-title">Special Categories of <span class="accent">Sensitive Data</span></div>
+        <div class="slide-subtitle">Some categories of personal data warrant heightened protection because the consequences of exposure are particularly severe.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">GDPR Special Categories</div>
+                <div class="card-desc">Racial or ethnic origin. Political opinions. Religious or philosophical beliefs. Trade union membership. Genetic data. Biometric data processed for unique identification. Health data. Sex life and sexual orientation. Processing these categories is prohibited absent a specific legal basis. The enhanced protection reflects the severe harm potential of exposure -- discrimination, violence, persecution.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Inferred Sensitive Data</div>
+                <div class="card-desc">Data that does not explicitly fall into a special category can be used to infer that it does. Purchase history can reveal pregnancy. Search history can reveal health conditions. Location data can reveal religious practice (attendance at place of worship), political activity (attendance at protests), and medical care (visits to specific clinics). Systems that generate these inferences carry equivalent protection obligations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Biometric Data</td>
+                <div class="card-desc">Fingerprints, facial geometry, iris patterns, and voice prints are unique to individuals and cannot be changed if compromised. Illinois' BIPA (Biometric Information Privacy Act) creates a private right of action for violations -- the most aggressive biometric privacy law in the US. Multiple class actions have resulted in hundreds of millions in settlements against companies collecting biometric data without notice and consent.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Children's Data</div>
+                <div class="card-desc">Children represent a category warranting heightened protection across all major privacy regimes: COPPA, GDPR Article 8 (age-appropriate design), UK Children's Code. Systems likely to be accessed by children must apply the most protective privacy settings by default, not just when the user is known to be a child. Design that relies on children lying about their age is not COPPA compliance -- it is liability washing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- PRIVACY RIGHTS IN PRACTICE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 33</div>
+        <div class="slide-title">Privacy Rights <span class="accent">in Practice</span></div>
+        <div class="slide-subtitle">What it actually looks like to build systems that honor individual privacy rights rather than merely avoid the most obvious violations.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Access Requests</div>
+                <div class="card-desc">When an individual requests a copy of their data, the response must be complete, comprehensible, and timely. A data export that requires a computer science degree to interpret is not meaningful access. A 30-day wait for a response to a simple request tests the statutory limit. Building access mechanisms that users can actually use is a design obligation, not a compliance detail.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deletion Requests</div>
+                <div class="card-desc">Deletion means deletion -- not archiving under a different label, not de-identification that preserves identifiability in context, not deletion from production but not from backups. Honoring deletion requests requires building systems that can actually delete data from all storage locations where it exists. Systems designed without deletion capability built in are harder to make compliant and easier to make ethical failures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Portability</div>
+                <div class="card-desc">Individuals have the right to receive their data in a structured, commonly used, machine-readable format. This right enables users to take their data to competing services -- it is an antitrust-adjacent concept as much as a privacy one. Systems designed to make data export technically difficult are designed to defeat this right rather than honor it.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Design Principle</div>
+            Privacy rights must be honored by design, not as an exception workflow. If your system cannot generate a complete, accurate response to a subject access request within 30 days without significant manual effort, your data architecture is an ethical failure waiting to become a legal one.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- CONSENT AS A PRIVACY MECHANISM ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 33</div>
+        <div class="slide-title">Consent as a <span class="accent">Privacy Mechanism</span></div>
+        <div class="slide-subtitle">Consent is only a valid legal and ethical basis for processing when it is genuine. Most "consent" in digital products is not genuine.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">GDPR Consent Requirements</div>
+                <div class="card-desc">Consent must be: freely given (no coercion, no bundling with service terms), specific (for a defined purpose), informed (the person understands what they are consenting to), and unambiguous (affirmative action -- not pre-ticked boxes, not silence). Consent can be withdrawn at any time. Withdrawal must be as easy as giving consent.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Dark Patterns in Consent</div>
+                <div class="card-desc">Consent dialogs designed to make rejection difficult. Pre-ticked boxes. Reject options in small text in low-contrast colors. "Accept all" prominently displayed, "manage preferences" buried. Cookie banners that require 15 clicks to reject but one to accept. These are not compliance failures -- they are deliberate design choices to defeat the consent requirement while appearing to satisfy it.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            Your company's product team wants to redesign the cookie consent modal so that "Accept All" is a large prominent button and "Reject Non-Essential" requires clicking through three additional screens. The legal team has approved it. The stated goal is to increase consent rates. What is your position?
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">The Ethical Standard</div>
+            If users would reject the data processing if the consent dialog were equally easy in both directions, then the current design is capturing consent under false conditions. Consent captured through asymmetric friction is not meaningful consent -- it is manufacturing legal cover for processing users would not authorize if they understood it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CROSS-BORDER DATA FLOWS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 33</div>
+        <div class="slide-title">Cross-Border <span class="accent">Data Flows</span></div>
+        <div class="slide-subtitle">International data transfers are both a technical reality and a regulatory minefield. The compliance requirements exist for substantive privacy reasons.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">GDPR Transfer Mechanisms</div>
+                <div class="card-desc">Adequacy decision: the European Commission has determined that the destination country provides adequate protection (UK, Japan, South Korea, Canada (partially)). Standard contractual clauses: contractual obligations between the exporter and importer. Binding corporate rules: approved intragroup transfer policies. Each mechanism imposes substantive obligations, not just paperwork.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Schrems Litigation</div>
+                <div class="card-desc">Schrems I (2015) invalidated Safe Harbor, the US-EU transfer framework. Schrems II (2020) invalidated Privacy Shield, its successor. Both decisions turned on the incompatibility of US government surveillance programs with EU fundamental rights to privacy. The current EU-US Data Privacy Framework faces ongoing legal challenge on the same grounds.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">China's PIPL</div>
+                <div class="card-desc">China's Personal Information Protection Law (2021) mirrors some GDPR principles but requires government access to personal data held by companies -- creating a direct tension with GDPR requirements for data protection from unauthorized access. Organizations operating in both markets face structural incompatibility between the two regimes' requirements.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- HEALTH DATA BEYOND HIPAA ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 33</div>
+        <div class="slide-title">Health Data <span class="accent">Beyond HIPAA</span></div>
+        <div class="slide-subtitle">HIPAA covers healthcare providers and insurers. It does not cover most consumer health apps, fitness trackers, and direct-to-consumer genetic testing.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The HIPAA Gap</div>
+                <div class="card-desc">A hospital's electronic medical records are covered by HIPAA. A consumer health app that tracks your blood glucose is not. A fitness tracker that monitors heart rate and sleep is not. A genetic testing service is not. Yet these sources generate more intimate health data, aggregated over longer periods, than most clinical encounters. They have minimal federal privacy protection in the US.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Location Data and Abortion</div>
+                <div class="card-desc">Post-Dobbs, location data from smartphones became a practical privacy crisis. Prosecutors in states that criminalized abortion sought location data showing visits to reproductive health clinics. Data brokers openly sold location data from devices seen near abortion providers. The health information was never shared with a healthcare provider -- but the behavioral data revealed it regardless.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Professional Obligation</div>
+            Building a health app that is not covered by HIPAA does not relieve you of the ethical obligation to protect health information. Users who share their menstrual cycle, blood glucose, or mental health data with an app expect that information to be protected. The legal floor for non-HIPAA health apps does not define the ethical ceiling. Your professional obligation goes higher.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- PRIVACY ENGINEERING ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 33</div>
+        <div class="slide-title">Privacy <span class="accent">Engineering</span></div>
+        <div class="slide-subtitle">Technical mechanisms for building privacy into systems. The professional obligation to use them is independent of whether regulations require them.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Differential Privacy</div>
+                <div class="card-desc">A mathematical technique that adds calibrated noise to aggregate statistics, making it impossible to infer whether any specific individual's data contributed to the output. Used by Apple for usage statistics and by the US Census Bureau for 2020 census data. Provides provable privacy guarantees rather than policy-based ones. Requires expertise to implement correctly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">k-Anonymity and Variants</div>
+                <div class="card-desc">A dataset satisfies k-anonymity if each record is indistinguishable from at least k-1 other records on identifying attributes. l-diversity and t-closeness address known weaknesses in k-anonymity. These techniques reduce re-identification risk in published datasets. They do not provide strong guarantees against adversaries with auxiliary information.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Encryption and Tokenization</div>
+                <div class="card-desc">Encrypting personal data makes it unreadable without the key. Tokenization replaces sensitive values (credit card numbers, SSNs) with non-sensitive substitutes (tokens) that can be mapped back to the original values only through a secure token vault. Both reduce breach impact. Neither eliminates the privacy obligation for the plaintext data they protect.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Engineering Commitment</div>
+            Privacy engineering is not an optional specialization -- it is a baseline professional competency for any engineer who works with personal data. Understanding the techniques, their limitations, and when to apply them is part of professional due diligence, not a career luxury.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- APPLIED SCENARIOS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 33</div>
+        <div class="slide-title">Applied <span class="accent">Privacy Scenarios</span></div>
+        <div class="slide-subtitle">Apply the laws and frameworks. Identify which statute applies, what it requires, and whether the described conduct meets the ethical standard above the legal minimum.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A healthcare company stores patient prescription data in a cloud environment. A third-party analytics vendor has read access to the entire dataset for performance analysis. The vendor has not signed a BAA. Which law applies? What is the violation? What is the first remediation step?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A school district deploys a learning management system. The LMS vendor uses student interaction data to train its AI features. The vendor's privacy policy permits this. Parents have not been notified. Which federal statute applies? What does it require? Does the LMS vendor's privacy policy satisfy the standard?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A fitness app collects location data continuously. It sells aggregated location data to a data broker. CCPA applies. Does the user have a right to opt out? What disclosure is required? What is the ethical issue independent of legal compliance?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Under GDPR, a user submits a Subject Access Request to receive all personal data held by your company. The system was built without an SAR workflow. Manual assembly of the data will take 45 days. The GDPR deadline is 30 days (extendable to 90 for complex requests). What are the legal and professional obligations now?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- CARPENTER DEEP ANALYSIS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 33</div>
+        <div class="slide-title">Carpenter: <span class="accent">Legal Arguments</span></div>
+        <div class="slide-subtitle">Both sides made serious legal arguments. Understanding both prepares you to engage with the unsettled questions the case left open.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Majority's Reasoning</div>
+                <div class="card-desc">Five Justices held: the third-party doctrine does not automatically apply to all digital data. CSLI data is comprehensive and retrospective in a way that reveals "the privacies of life" -- a phrase from Boyd v. United States (1886). The digital tracking of seven days or more of location data is a "search" requiring a warrant. The majority explicitly refused to define the rule's outer limits.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Dissents</div>
+                <div class="card-desc">Four justices dissented in four separate opinions. Kennedy (joined by Thomas and Alito): the third-party doctrine should apply. The distinction between "giving" data to a third party and "generating" it in their systems is untenable. Alito: the Court should have used statutory grounds, not constitutional ones. Thomas: the third-party doctrine is correct but should be reconsidered as a whole on originalist grounds.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Open Questions</div>
+            Carpenter's majority opinion explicitly cabined its holding. What about real-time rather than historical CSLI? GPS precision location versus cell tower approximation? Financial records? Email metadata? Smart device activity logs? Each represents a potential future case applying or distinguishing Carpenter. The constitutional privacy landscape is actively unsettled.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- PRIVACY ETHICS SUMMARY PRINCIPLES ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 33</div>
+        <div class="slide-title">Core Privacy <span class="accent">Ethics Principles</span></div>
+        <div class="slide-subtitle">The distilled professional standards that should guide any system touching personal data, independent of jurisdiction-specific legal requirements.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Collection limitation.</strong> Collect only what you need for a specific, defined purpose. The fact that data is available does not mean you should collect it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Use limitation.</strong> Use data only for the purpose for which it was collected. Repurposing data for unrelated uses -- even beneficial ones -- violates the original trust relationship.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Transparency.</strong> Tell people what you are collecting, why, and how. Plain language. Not buried in legalese. Not conditional on accepting a service.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Individual participation.</strong> People have the right to access, correct, and delete their own data. Build the systems that honor those rights before you are required to by law.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Security.</strong> Data you hold deserves protection proportional to its sensitivity. Not the minimum required by law -- the minimum required to actually protect the people whose data it is.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Accountability.</strong> Someone must be responsible for each decision about personal data. Diffuse accountability is no accountability. Name the responsible party before processing begins.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- SURVEILLANCE IN THE SMART HOME ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 33</div>
+        <div class="slide-title">Privacy in the <span class="accent">Smart Home</span></div>
+        <div class="slide-subtitle">IoT devices in domestic spaces create privacy risks that existing legal frameworks do not adequately address.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Data Being Generated</div>
+                <div class="card-desc">Smart speakers: ambient audio collection, voice commands, household routines. Smart TVs: viewing habits, room occupancy detection. Smart appliances: eating habits, sleep patterns. Smart thermostats: presence/absence schedules. Together these create a behavioral portrait of domestic life more intimate than anything previously available to commercial entities.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Consent in Shared Spaces</div>
+                <div class="card-desc">A smart speaker in a shared apartment collects audio data from everyone in the space -- including guests, children, and people who have explicitly refused to use the device. The consent of the owner does not constitute consent for everyone the device monitors. The ethical and legal basis for collection from non-consenting parties in shared domestic spaces is unresolved.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Law Enforcement Access</div>
+            Police have subpoenaed smart speaker records in murder investigations. Alexa recordings have been admitted as evidence. Ring doorbell footage has been requested through law enforcement partnerships with Amazon. The domestic space, traditionally the most protected against government intrusion, now generates commercially held records that are more accessible to law enforcement than a warrantless search of the home itself.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- FACIAL RECOGNITION AND PRIVACY ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 33</div>
+        <div class="slide-title">Facial Recognition <span class="accent">and Privacy</span></div>
+        <div class="slide-subtitle">The technology enables mass identification in public spaces. Whether that is a privacy catastrophe or a security benefit depends entirely on who controls it and under what constraints.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Core Privacy Threat</div>
+                <div class="card-desc">Historical anonymity in public spaces has always been partial -- you could be recognized by anyone who knew you. Facial recognition removes that limit: anyone with a camera and access to a sufficiently large database can identify anyone in any public space at any time. The privacy protection provided by partial anonymity in public disappears entirely.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Government Use</div>
+                <div class="card-desc">Law enforcement in the US has used facial recognition to identify suspects from surveillance footage. False positive matches have led to wrongful arrests, disproportionately of Black individuals (due to higher error rates on dark-skinned faces). San Francisco, Boston, and other cities have banned government facial recognition use pending better accuracy and oversight frameworks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Commercial Use</div>
+                <div class="card-desc">Clearview AI scraped billions of public social media photos to build a facial recognition database sold to law enforcement and commercial clients. Courts in multiple countries have ruled this illegal. The scraping of public photos without consent to build identification databases violates the contextual integrity of those photos -- they were shared socially, not for identification by strangers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 33 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Written responses required for exercises 2 and 3.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Match each scenario to the most applicable US privacy statute: (a) A children's app collects email addresses and phone numbers, (b) A hospital emails unencrypted patient diagnoses, (c) A university shares student grades with an employer without consent, (d) A company's email server is searched by law enforcement using a subpoena rather than a warrant.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Write a one-page analysis of Carpenter v. United States applying the contextual integrity framework. What was the original context in which CSLI data was generated? What context did the government's use place it in? Was the transfer appropriate under the Nissenbaum framework?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">You are designing a new feature for a consumer health app that will collect continuous heart rate and sleep data. Write a one-page privacy impact assessment covering: what data is collected, legal basis under GDPR, HIPAA applicability, data minimization analysis, retention policy, and the ethical case for the most privacy-protective design option available.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Compare the consent requirements under GDPR with what is typically required under US privacy law for consumer data collection. Where are the gaps? Are those gaps ethical failures, or merely policy choices that a democratic process could make differently?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- KEY REFERENCES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 33</div>
+        <div class="slide-title">Key <span class="accent">References</span></div>
+        <div class="slide-subtitle">Primary sources and authoritative references for the statutes and cases covered in this module.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Case Law</div>
+                <div class="card-desc">Carpenter v. United States, 585 US 296 (2018). Katz v. United States, 389 US 347 (1967). Smith v. Maryland, 442 US 735 (1979). Riley v. California, 573 US 373 (2014). Kyllo v. United States, 533 US 27 (2001). All available on Justia.com and the Supreme Court's official website.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Statutes</div>
+                <div class="card-desc">HIPAA: 45 CFR Parts 160, 162, 164. COPPA: 15 USC 6501-6506. FERPA: 20 USC 1232g. ECPA: 18 USC 2510-2523 (Wiretap), 2701-2713 (SCA), 3121-3127 (Pen Register). CCPA/CPRA: Cal. Civ. Code 1798.100 et seq. All available through Cornell Legal Information Institute -- law.cornell.edu.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GDPR</div>
+                <div class="card-desc">Regulation (EU) 2016/679 -- full text at eur-lex.europa.eu. European Data Protection Board guidelines and opinions -- edpb.europa.eu. Article 29 Working Party opinions (predecessor body). Supervisory authority decisions and fines database -- gdprhub.eu.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Academic and Policy Sources</div>
+                <div class="card-desc">Nissenbaum, Helen: "Privacy in Context: Technology, Policy, and the Integrity of Social Life." Solove, Daniel J.: "Nothing to Hide: The False Tradeoff Between Privacy and Security." FTC Staff Report: "Internet of Things: Privacy and Security in a Connected World" (2015). Electronic Frontier Foundation -- eff.org for current surveillance law developments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- PRIVACY LEGISLATION TIMELINE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 33</div>
+        <div class="slide-title">Privacy Legislation <span class="accent">Timeline</span></div>
+        <div class="slide-subtitle">Key legislative and regulatory milestones in US and global privacy law. The pace has accelerated dramatically since 2016.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1974</span>
+                <span class="fact-text">Privacy Act of 1974 -- governs federal agency collection of personal information. The first comprehensive US privacy law, limited to government actors.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1986</span>
+                <span class="fact-text">Electronic Communications Privacy Act -- extends wiretapping protections to electronic communications. Pre-internet. Now significantly outdated.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1996</span>
+                <span class="fact-text">HIPAA -- healthcare privacy and security protections. Privacy Rule effective 2003, Security Rule effective 2005.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1998</span>
+                <span class="fact-text">COPPA -- children's online privacy protections. Updated by FTC rule in 2013. Under significant revision as of 2024.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2018</span>
+                <span class="fact-text">GDPR effective. Carpenter v. United States decided. CCPA passed (effective 2020). The pivotal year for modern privacy law.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2024</span>
+                <span class="fact-text">EU AI Act passed. Section 702 reauthorized. Multiple state comprehensive privacy laws effective. Global privacy regulatory acceleration continues.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ADDITIONAL DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 33</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Bring a considered position on at least two of these to next class.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Should the US adopt a comprehensive federal privacy law similar to GDPR? Who benefits from the current patchwork of state laws, and who is harmed by it?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Is the "nothing to hide" argument ever valid? If so, under what conditions? If not, what is the most rigorous version of the argument you can construct before rejecting it?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Should facial recognition technology be banned entirely in public spaces, regulated and permitted, or permitted without significant regulation? Defend your position using the ethical frameworks from Week 1.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Carpenter v. United States declined to define the outer limits of its ruling. If you were writing the majority opinion, what rule would you articulate that would apply consistently to cell tower data, GPS precision data, financial transaction records, and smart home behavioral data?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SUMMARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 33 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Privacy is a foundational right. The laws that protect it are imperfect and incomplete. The professional obligation goes higher than the legal minimum.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            Carpenter established that prolonged digital surveillance requires a warrant. GDPR established that privacy is a right, not a preference. HIPAA, COPPA, and FERPA establish sector-specific floors. What you build determines whether those floors are honored or circumvented. That is an ethical choice even when it does not feel like one.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Fourth Amendment: protects people, not places. Katz reasonable expectation test. Carpenter: prolonged CSLI tracking requires a warrant. Third-party doctrine does not automatically apply to comprehensive digital tracking.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">HIPAA: covered entities and business associates. Privacy Rule requires minimum necessary. Security Rule requires administrative, physical, and technical safeguards. 60-day breach notification obligation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">COPPA: verifiable parental consent required for children under 13. "Directed at children" is a functional test, not self-declared. Age-verification checkbox is not meaningful compliance.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">FERPA: education records. Rights transfer to students at 18. EdTech vendors can become "school officials" with compliance obligations. Commercial use of student data is tightly restricted.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">GDPR: applies to any organization processing EU resident data. Seven principles. Six lawful bases. Eight individual rights. Privacy by design and default mandatory. Fines up to 4% of global revenue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">ECPA (1986): outdated framework applied to modern digital communications. SCA's 180-day distinction is widely criticized. Congress has not passed comprehensive reform despite repeated attempts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Consent is valid only when freely given, specific, informed, and unambiguous. Dark patterns that make rejection difficult do not produce valid consent under GDPR. Asymmetric friction is a design choice to defeat the consent requirement.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Privacy by design: built in from the start. Privacy by default: most protective setting is the default. These are mandatory requirements under GDPR Article 25 and ethical professional standards universally.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 33</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 33;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w2-privacy', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -2,1439 +2,1262 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Access Control -->
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <!-- Progress & Achievements -->
+    <script src="../../../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 1: Motherboards, Processors, and Memory - A+ Core 1</title>
+    <title>Chapter 1: Motherboards, Processors &amp; Memory | A+ Core 1</title>
     <style>
-        :root {
-            --forge-primary: #ea580c;
-            --forge-secondary: #f97316;
-            --forge-accent: #fdba74;
-            --forge-dark: #7c2d12;
-            --forge-darker: #431407;
-            --forge-light: #fff7ed;
-            --text-primary: #292524;
-            --text-secondary: #57534e;
-            --bg-main: #fafaf9;
-            --bg-card: #ffffff;
-            --border-color: #e7e5e4;
-            --success: #16a34a;
-            --warning: #eab308;
-            --danger: #dc2626;
-            --info: #0ea5e9;
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
-            color: var(--text-primary);
-            line-height: 1.7;
-            min-height: 100vh;
-            padding: 20px;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .container { max-width: 1000px; margin: 0 auto; }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--forge-primary);
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-weight: 500;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .back-link:hover { text-decoration: underline; }
-
-        .header {
-            text-align: center;
-            padding: 40px 30px;
-            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 16px;
-            color: white;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow-lg);
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .header h1 { font-size: 2rem; margin-bottom: 10px; }
-        .header .chapter-num {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: inline-block;
-            margin-bottom: 15px;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-        .header .objectives {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
         }
-        .obj-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85rem;
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
         }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
 
-        /* Navigation Tabs */
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            background: var(--bg-card);
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-md);
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
         }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
 
-        .nav-tab {
-            padding: 10px 20px;
-            background: var(--bg-main);
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            color: var(--text-primary);
-        }
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
 
-        .nav-tab:hover { background: var(--forge-accent); }
-        .nav-tab.active {
-            background: var(--forge-primary);
-            color: white;
-        }
-
-        /* Content Sections */
-        .content-section {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .content-section.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Section Cards */
-        .section-card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-md);
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .section-card h2 {
-            color: var(--forge-dark);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.4rem;
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .section-card h3 {
-            color: var(--forge-primary);
-            margin: 20px 0 10px;
-            font-size: 1.1rem;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
 
-        .section-card p { margin-bottom: 15px; color: var(--text-secondary); }
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
 
-        /* Info Boxes */
-        .info-box {
-            background: var(--forge-light);
-            border-left: 4px solid var(--forge-primary);
-            padding: 15px 20px;
-            margin: 15px 0;
-            border-radius: 0 8px 8px 0;
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
 
-        .info-box.exam-tip {
-            background: #fef3c7;
-            border-left-color: var(--warning);
-        }
-
-        .info-box.key-point {
-            background: #dbeafe;
-            border-left-color: var(--info);
-        }
-
-        .info-box strong { color: var(--forge-dark); }
-
-        /* Tables */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            font-size: 0.9rem;
-        }
-
-        .data-table th, .data-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .data-table th {
-            background: var(--forge-primary);
-            color: white;
-            font-weight: 600;
-        }
-
-        .data-table tr:hover { background: var(--forge-light); }
-
-        /* Interactive Comparison */
-        .comparison-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .compare-card {
-            background: var(--bg-main);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .compare-card:hover {
-            border-color: var(--forge-primary);
-            transform: translateY(-3px);
-        }
-
-        .compare-card.selected {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-        }
-
-        .compare-card h4 {
-            color: var(--forge-dark);
-            margin-bottom: 10px;
-        }
-
-        .compare-card .icon { font-size: 2rem; margin-bottom: 10px; }
-        .compare-card ul {
-            list-style: none;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            text-align: left;
-        }
-        .compare-card ul li { padding: 3px 0; }
-
-        /* Labs Section */
-        .labs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .lab-link {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 20px;
-            background: var(--bg-main);
-            border-radius: 10px;
-            text-decoration: none;
-            color: var(--text-primary);
-            border: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .lab-link:hover {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-            transform: translateY(-2px);
-        }
-
-        .lab-link .lab-icon { font-size: 2rem; }
-        .lab-link h4 { color: var(--forge-dark); margin-bottom: 5px; }
-        .lab-link p { font-size: 0.85rem; color: var(--text-secondary); }
-
-        /* Quiz Styles */
-        .quiz-container { margin-top: 20px; }
-
-        .quiz-question {
-            background: var(--bg-main);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .quiz-question h4 {
-            color: var(--forge-dark);
-            margin-bottom: 15px;
-            font-size: 1rem;
-        }
-
-        .quiz-question .q-number {
-            background: var(--forge-primary);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 15px;
-            font-size: 0.85rem;
-            margin-right: 10px;
-        }
-
-        .quiz-options { list-style: none; }
-
-        .quiz-options li {
-            padding: 12px 15px;
-            margin: 8px 0;
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quiz-options li:hover { border-color: var(--forge-primary); }
-
-        .quiz-options li.selected {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-        }
-
-        .quiz-options li.correct {
-            border-color: var(--success);
-            background: #dcfce7;
-        }
-
-        .quiz-options li.incorrect {
-            border-color: var(--danger);
-            background: #fee2e2;
-        }
-
-        .quiz-feedback {
-            display: none;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .quiz-feedback.show { display: block; }
-        .quiz-feedback.correct { background: #dcfce7; color: #166534; }
-        .quiz-feedback.incorrect { background: #fee2e2; color: #dc2626; }
-
-        .quiz-btn {
-            padding: 12px 25px;
-            background: var(--forge-primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-            transition: all 0.2s;
-        }
-
-        .quiz-btn:hover { background: var(--forge-dark); }
-        .quiz-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .score-display {
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 12px;
-            color: white;
-            margin-top: 20px;
-        }
-
-        .score-display h3 { font-size: 1.5rem; margin-bottom: 10px; }
-        .score-display .score { font-size: 3rem; font-weight: bold; }
-
-        /* Progress Section */
-        .chapter-progress {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .progress-bar-bg {
-            background: var(--border-color);
-            border-radius: 10px;
-            height: 12px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 10px;
-            transition: width 0.5s ease;
-        }
-
-        /* Accordion */
-        .accordion { margin: 15px 0; }
-
-        .accordion-item {
-            background: var(--bg-main);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-
-        .accordion-header {
-            padding: 15px 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            color: var(--forge-dark);
-        }
-
-        .accordion-header:hover { background: var(--forge-light); }
-
-        .accordion-header .icon { transition: transform 0.3s; }
-        .accordion-item.open .accordion-header .icon { transform: rotate(180deg); }
-
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            padding: 0 20px;
-        }
-
-        .accordion-item.open .accordion-content {
-            max-height: 500px;
-            padding: 0 20px 20px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.5rem; }
-            .nav-tabs { flex-direction: column; }
-            .nav-tab { width: 100%; text-align: center; }
-        }
+        /* ── SVG DIAGRAM LAYOUT HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .diagram-pair { display: flex; justify-content: center; gap: 24px; }
+        .diagram-panel { text-align: center; }
+        .diagram-panel-label { font-size: 0.75rem; color: #94a3b8; margin-top: 6px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="../../index.html" class="back-link">← Back to Core 1</a>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Chapter 1: Motherboards, Processors &amp; Memory</h1>
 
-        <header class="header">
-            <span class="chapter-num">Chapter 1 of 12</span>
-            <h1>Motherboards, Processors, and Memory</h1>
-            <p>The foundation of every computer system</p>
-            <div class="objectives">
-                <span class="obj-badge">Objective 3.2</span>
-                <span class="obj-badge">Objective 3.4</span>
-            </div>
-        </header>
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:4.17%"></div>
 
-        <!-- Chapter Progress -->
-        <div class="chapter-progress">
-            <strong>Chapter Progress</strong>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="chapterProgress" style="width: 0%"></div>
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 1 &mdash; 220-1101 &nbsp;|&nbsp; Domain 3.4, 3.5</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Chapter 1:<br>
+                <span class="accent">Motherboards, Processors &amp; Memory</span>
             </div>
-            <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;">
-                <span id="progressText">Start learning below</span>
-            </p>
+            <div class="slide-subtitle" style="max-width:600px; margin-top:4px;">
+                The hardware foundation of every computer system. From form factors to RAM channels, this chapter covers the physical core of CompTIA A+ Domain 3.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>24 Slides</span>
+            <span>Domain 3.4 &amp; 3.5</span>
+            <span>Form Factors &bull; CPU Sockets &bull; RAM &bull; BIOS</span>
+            <span>Exam 220-1101</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS A MOTHERBOARD ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 24</div>
+        <div class="slide-title">What Is a <span class="accent">Motherboard?</span></div>
+        <div class="slide-subtitle">The main printed circuit board that connects every component in the system.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Definition</div>
+                <div class="card-desc">The motherboard (also called system board or mainboard) is the primary PCB in a computer. All other components plug into it directly or connect through cables routed to its headers and slots.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What It Connects</div>
+                <div class="card-desc">CPU, RAM, storage drives (SATA/M.2), expansion cards (PCIe), power supply (24-pin ATX), front panel buttons, USB headers, audio headers, and fan headers. Everything talks through or to the motherboard.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why It Matters for A+</div>
+                <div class="card-desc">Form factor, slot type, socket type, and chipset determine what components are compatible. A technician must identify these correctly before recommending or installing hardware.</div>
+            </div>
         </div>
 
-        <!-- Navigation Tabs -->
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-section="learn"><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Learn</button>
-            <button class="nav-tab" data-section="interactive"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive</button>
-            <button class="nav-tab" data-section="labs"><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Labs</button>
-            <button class="nav-tab" data-section="quiz"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Quiz</button>
+        <div class="scenario-strip">
+            A client asks why the new CPU they purchased will not fit in their existing board. You look up the socket: LGA 1700 CPU, AM4 socket board. Incompatible. The motherboard must also be replaced. Knowing form factors and sockets is not academic &mdash; it saves a truck roll.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — FORM FACTORS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 24</div>
+        <div class="slide-title">Motherboard <span class="accent">Form Factors</span></div>
+        <div class="slide-subtitle">Size, mounting holes, and power connectors are standardized by form factor.</div>
+
+        <!-- SVG: Relative-scale form factor rectangles, left+bottom aligned -->
+        <div class="diagram-center">
+            <svg width="400" height="280" viewBox="0 0 400 280" aria-label="Motherboard form factor size comparison" role="img">
+                <!-- Scale: 1 inch = ~18px; ATX 12x9.6 -> 216x173, Micro-ATX 9.6x9.6 -> 173x173, Mini-ITX 6.7x6.7 -> 121x121 -->
+                <!-- All bottom-aligned at y=268, left-aligned at x=10 -->
+
+                <!-- ATX: 216w x 173h, bottom-left at (10, 268) => top-left (10, 95) -->
+                <rect x="10" y="95" width="216" height="173" fill="none" stroke="#c9a83a" stroke-width="2" rx="3"/>
+                <!-- ATX corner mounting holes -->
+                <circle cx="22" cy="107" r="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle cx="214" cy="107" r="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle cx="22" cy="256" r="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle cx="214" cy="256" r="4" fill="none" stroke="#c9a83a" stroke-width="1.5"/>
+                <!-- ATX label -->
+                <text x="118" y="138" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#c9a83a">ATX</text>
+                <text x="118" y="154" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#94a3b8">12 x 9.6 in</text>
+                <text x="118" y="169" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#64748b">Up to 7 slots</text>
+
+                <!-- Micro-ATX: 173w x 173h, bottom-left at (10, 268) => top-left (10, 95) -->
+                <rect x="10" y="95" width="173" height="173" fill="none" stroke="#06b6d4" stroke-width="2" rx="3"/>
+                <!-- Micro-ATX corner holes (only corners not shared with ATX) -->
+                <circle cx="171" cy="107" r="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+                <circle cx="171" cy="256" r="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+                <!-- Micro-ATX label (right side of its box, below ATX label) -->
+                <text x="91" y="200" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#06b6d4">Micro-ATX</text>
+                <text x="91" y="215" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#94a3b8">9.6 x 9.6 in</text>
+
+                <!-- Mini-ITX: 121w x 121h, bottom-left at (10, 268) => top-left (10, 147) -->
+                <rect x="10" y="147" width="121" height="121" fill="none" stroke="#3ab577" stroke-width="2" rx="3"/>
+                <!-- Mini-ITX corner holes -->
+                <circle cx="22" cy="159" r="4" fill="none" stroke="#3ab577" stroke-width="1.5"/>
+                <circle cx="119" cy="159" r="4" fill="none" stroke="#3ab577" stroke-width="1.5"/>
+                <!-- Mini-ITX label -->
+                <text x="65" y="235" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#3ab577">Mini-ITX</text>
+                <text x="65" y="249" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#94a3b8">6.7 x 6.7 in</text>
+
+                <!-- Legend on the right side -->
+                <rect x="260" y="110" width="12" height="12" fill="none" stroke="#c9a83a" stroke-width="2"/>
+                <text x="278" y="121" font-family="Segoe UI, sans-serif" font-size="11" fill="#c9a83a">ATX</text>
+                <rect x="260" y="132" width="12" height="12" fill="none" stroke="#06b6d4" stroke-width="2"/>
+                <text x="278" y="143" font-family="Segoe UI, sans-serif" font-size="11" fill="#06b6d4">Micro-ATX</text>
+                <rect x="260" y="154" width="12" height="12" fill="none" stroke="#3ab577" stroke-width="2"/>
+                <text x="278" y="165" font-family="Segoe UI, sans-serif" font-size="11" fill="#3ab577">Mini-ITX</text>
+                <text x="260" y="195" font-family="Segoe UI, sans-serif" font-size="10" fill="#475569">All left- and</text>
+                <text x="260" y="209" font-family="Segoe UI, sans-serif" font-size="10" fill="#475569">bottom-aligned</text>
+            </svg>
         </div>
 
-        <!-- LEARN SECTION -->
-        <div id="learn" class="content-section active">
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Form Factor</th>
+                    <th>Size (inches)</th>
+                    <th>Typical Use</th>
+                    <th>Expansion Slots</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>ATX</strong></td><td>12 &times; 9.6</td><td>Full-size desktops, workstations</td><td>Up to 7</td></tr>
+                <tr><td><strong>Micro-ATX</strong></td><td>9.6 &times; 9.6</td><td>Smaller desktops, budget builds</td><td>Up to 4</td></tr>
+                <tr><td><strong>Mini-ITX</strong></td><td>6.7 &times; 6.7</td><td>Small form factor, HTPCs</td><td>1</td></tr>
+                <tr><td><strong>Nano-ITX</strong></td><td>4.7 &times; 4.7</td><td>Embedded systems, kiosks</td><td>Limited</td></tr>
+                <tr><td><strong>Pico-ITX</strong></td><td>3.9 &times; 2.8</td><td>IoT, embedded devices</td><td>None/SoC</td></tr>
+            </tbody>
+        </table>
 
-            <!-- Section 1: Motherboards -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-square-filled.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Understanding Motherboards</h2>
-                <p>The <strong>motherboard</strong> (also called system board or mainboard) is the main printed circuit board (PCB) in a computer. It connects all components and allows them to communicate.</p>
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Exam Tip</div>
+                ATX is the most common desktop form factor. Micro-ATX boards fit in ATX cases (backward compatible). ATX boards do NOT fit in Micro-ATX cases. More slots = bigger board.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Case Compatibility</div>
+                Case manuals list supported form factors. An ATX case supports ATX, Micro-ATX, and Mini-ITX. A Micro-ATX case supports Micro-ATX and Mini-ITX only.
+            </div>
+        </div>
+    </div>
+</section>
 
-                <h3>Form Factors</h3>
-                <p>Form factor determines the physical size, mounting hole positions, and power connector type:</p>
+<!-- ==================== SLIDE 4 — BUS ARCHITECTURE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 24</div>
+        <div class="slide-title">Bus <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Three buses carry all communication between CPU, memory, and peripherals.</div>
 
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Form Factor</th>
-                            <th scope="col">Size (inches)</th>
-                            <th scope="col">Typical Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>ATX</strong></td>
-                            <td>12 × 9.6</td>
-                            <td>Full-size desktops, workstations</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Micro-ATX</strong></td>
-                            <td>9.6 × 9.6</td>
-                            <td>Smaller desktops, budget builds</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Mini-ITX</strong></td>
-                            <td>6.7 × 6.7</td>
-                            <td>Small form factor, HTPCs</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Nano-ITX</strong></td>
-                            <td>4.7 × 4.7</td>
-                            <td>Embedded systems</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Pico-ITX</strong></td>
-                            <td>3.9 × 2.8</td>
-                            <td>IoT, embedded devices</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Data Bus</div>
+                <div class="card-desc">Carries the actual data being transferred between the CPU, memory, and I/O devices. Width determines how many bits move in one clock cycle. A 64-bit data bus moves 64 bits per transfer. Wider buses = higher throughput.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Address Bus</div>
+                <div class="card-desc">Carries memory addresses — locations where data is stored or should be retrieved. A 32-bit address bus can address 2^32 unique locations (4 GB of RAM). A 64-bit address bus can address terabytes. This is why 32-bit OSes cap at 4 GB RAM.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Control Bus</div>
+                <div class="card-desc">Carries command signals that coordinate activity: read, write, interrupt request, clock signals, bus request/grant. The control bus is bidirectional and manages the timing and flow of all data bus and address bus operations.</div>
+            </div>
+        </div>
 
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> ATX is the most common desktop form factor. Micro-ATX boards can fit in ATX cases but not vice versa. Remember: bigger form factors have more expansion slots.
-                </div>
+        <div class="box box-cyan">
+            <div class="box-label">Key Concept</div>
+            The bus connects the CPU to RAM (front-side bus / memory bus) and the CPU to expansion slots (PCIe bus). Bus speed is measured in MHz or GT/s (GigaTransfers per second). A bottleneck on any bus limits overall system performance regardless of CPU speed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — CHIPSETS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 24</div>
+        <div class="slide-title">Chipsets: <span class="accent">Northbridge vs. Southbridge</span></div>
+        <div class="slide-subtitle">Traditional two-chip design vs. modern Platform Controller Hub (PCH).</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Northbridge (Legacy)</div>
+                <div class="card-desc">Handled the high-speed communication path. Connected CPU to RAM (memory controller), PCIe graphics slot, and the Southbridge. Sat closest to the CPU and ran at a higher clock than the Southbridge. Disappearing by 2010 as CPU manufacturers moved memory and PCIe controllers onto the die.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Southbridge (Legacy)</div>
+                <div class="card-desc">Handled slower I/O: SATA controller, USB controller, audio, LAN, legacy PCI slots, and the BIOS chip. Connected to the Northbridge via a dedicated high-speed bus. Still present in spirit as the PCH (Platform Controller Hub) on modern boards.</div>
+            </div>
+        </div>
+
+        <!-- SVG: Northbridge/Southbridge animated data-flow diagram -->
+        <div class="layout-split">
+            <div class="diagram-center">
+                <svg width="360" height="300" viewBox="0 0 360 300" aria-label="Northbridge Southbridge data flow diagram" role="img">
+                    <!-- Define arrow marker -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+                        </marker>
+                        <marker id="arrowhead-gold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#c9a83a"/>
+                        </marker>
+                        <marker id="arrowhead-rev" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+                            <polygon points="8 0, 0 3, 8 6" fill="#64748b"/>
+                        </marker>
+                        <!-- Animation paths -->
+                        <path id="path-cpu-nb" d="M 180,62 L 180,108" fill="none"/>
+                        <path id="path-nb-ram" d="M 130,130 L 68,130" fill="none"/>
+                        <path id="path-nb-pcie" d="M 230,130 L 292,130" fill="none"/>
+                    </defs>
+
+                    <!-- CPU box -->
+                    <rect x="130" y="12" width="100" height="40" rx="4" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                    <text x="180" y="37" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#c9a83a">CPU</text>
+
+                    <!-- FSB double-arrow line (CPU to Northbridge) -->
+                    <line x1="180" y1="52" x2="180" y2="108" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-rev)"/>
+                    <text x="186" y="84" font-family="Segoe UI, sans-serif" font-size="10" fill="#94a3b8">FSB</text>
+
+                    <!-- Northbridge box -->
+                    <rect x="110" y="108" width="140" height="40" rx="4" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                    <text x="180" y="133" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#c9a83a">Northbridge</text>
+
+                    <!-- Northbridge to RAM branch -->
+                    <line x1="130" y1="128" x2="68" y2="128" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <rect x="18" y="115" width="50" height="26" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                    <text x="43" y="132" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="600" fill="#06b6d4">RAM</text>
+
+                    <!-- Northbridge to PCIe/GPU branch -->
+                    <line x1="230" y1="128" x2="292" y2="128" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <rect x="292" y="115" width="58" height="26" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                    <text x="321" y="132" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600" fill="#3ab577">PCIe/GPU</text>
+
+                    <!-- DMI arrow (Northbridge to Southbridge) -->
+                    <line x1="180" y1="148" x2="180" y2="194" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+                    <text x="186" y="175" font-family="Segoe UI, sans-serif" font-size="10" fill="#94a3b8">DMI</text>
+
+                    <!-- Southbridge box -->
+                    <rect x="110" y="194" width="140" height="40" rx="4" fill="rgba(100,116,139,0.12)" stroke="#475569" stroke-width="1.5"/>
+                    <text x="180" y="219" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#94a3b8">Southbridge</text>
+
+                    <!-- Southbridge branches: USB, SATA, Audio, BIOS fanned out -->
+                    <line x1="135" y1="234" x2="50" y2="260" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <text x="46" y="275" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#64748b">USB</text>
+
+                    <line x1="158" y1="234" x2="120" y2="260" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <text x="116" y="275" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#64748b">SATA</text>
+
+                    <line x1="202" y1="234" x2="240" y2="260" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <text x="240" y="275" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#64748b">Audio</text>
+
+                    <line x1="225" y1="234" x2="310" y2="260" stroke="#64748b" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <text x="314" y="275" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#64748b">BIOS</text>
+
+                    <!-- Animated gold packet: CPU -> Northbridge -> RAM -->
+                    <circle r="5" fill="#c9a83a" opacity="0.9">
+                        <animateMotion dur="2.4s" repeatCount="indefinite" keyTimes="0;0.3;0.6;1" calcMode="linear">
+                            <mpath href="#path-cpu-nb"/>
+                        </animateMotion>
+                        <!-- Re-route to RAM after reaching NB using sequential motion -->
+                    </circle>
+                    <circle r="5" fill="#c9a83a" opacity="0.9">
+                        <animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite" keyTimes="0;1" calcMode="linear">
+                            <mpath href="#path-nb-ram"/>
+                        </animateMotion>
+                    </circle>
+
+                    <!-- Animated cyan packet: Northbridge -> PCIe -->
+                    <circle r="5" fill="#06b6d4" opacity="0.9">
+                        <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" keyTimes="0;1" calcMode="linear">
+                            <mpath href="#path-nb-pcie"/>
+                        </animateMotion>
+                    </circle>
+                </svg>
             </div>
 
-            <!-- Section 2: System Board Components -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> System Board Components</h2>
-
-                <h3>Bus Architecture</h3>
-                <p>The <strong>bus</strong> is a communication pathway that transfers data between components. There are three types:</p>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>Data Bus</strong> - Carries actual data between components</li>
-                    <li><strong>Address Bus</strong> - Carries memory addresses</li>
-                    <li><strong>Control Bus</strong> - Carries control signals (read/write commands)</li>
-                </ul>
-
-                <h3>Chipsets: Northbridge & Southbridge</h3>
-                <p>Traditional motherboards used a two-chip design:</p>
-
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Northbridge</h4>
-                        <ul>
-                            <li>• Handles high-speed components</li>
-                            <li>• CPU communication</li>
-                            <li>• Memory controller</li>
-                            <li>• PCIe controller</li>
-                            <li>• Closer to CPU</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <h4>Southbridge</h4>
-                        <div class="icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <ul>
-                            <li>• Handles slower I/O</li>
-                            <li>• SATA controller</li>
-                            <li>• USB controller</li>
-                            <li>• Audio, LAN</li>
-                            <li>• Legacy PCI</li>
-                        </ul>
-                    </div>
+            <div style="display:flex; flex-direction:column; gap:8px; justify-content:center;">
+                <div class="box box-gold" style="font-size:0.82rem;">
+                    <div class="box-label">Gold packet</div>
+                    CPU to Northbridge to RAM &mdash; high-speed path
                 </div>
-
-                <div class="info-box key-point">
-                    <strong><img src="/assets/images/icons/icon-pin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Modern Design:</strong> Today's CPUs have the memory controller and PCIe lanes integrated, eliminating the Northbridge. The remaining chip is called the <strong>Platform Controller Hub (PCH)</strong>.
+                <div class="box box-cyan" style="font-size:0.82rem;">
+                    <div class="box-label">Cyan packet</div>
+                    Northbridge to PCIe/GPU &mdash; graphics path
                 </div>
-            </div>
-
-            <!-- Section 3: Expansion Slots -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Expansion Slots</h2>
-
-                <h3>PCI (Legacy)</h3>
-                <p>Peripheral Component Interconnect was the standard for many years. Characteristics:</p>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li>Shared bus architecture</li>
-                    <li>32-bit or 64-bit versions</li>
-                    <li>3.3V or 5V signaling</li>
-                    <li>Largely replaced by PCIe</li>
-                </ul>
-
-                <h3>PCIe (Current Standard)</h3>
-                <p><strong>PCI Express</strong> uses a serial point-to-point connection with "lanes":</p>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Slot Size</th>
-                            <th scope="col">Lanes</th>
-                            <th scope="col">Typical Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>PCIe x1</td>
-                            <td>1 lane</td>
-                            <td>Sound cards, network adapters</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe x4</td>
-                            <td>4 lanes</td>
-                            <td>NVMe SSDs, RAID controllers</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe x8</td>
-                            <td>8 lanes</td>
-                            <td>High-speed storage, secondary GPUs</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe x16</td>
-                            <td>16 lanes</td>
-                            <td>Graphics cards (GPUs)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> "Up-plugging" - A smaller card (x1, x4) can work in a larger slot (x16). It will run at the card's speed, not the slot's maximum.
-                </div>
-
-                <h3>Riser Cards</h3>
-                <p>Used in low-profile cases to change expansion card orientation from vertical to horizontal. Common in rack servers and slim desktops.</p>
-            </div>
-
-            <!-- Section 4: Connectors -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Motherboard Connectors</h2>
-
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Power Connectors</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p><strong>24-pin ATX (P1)</strong> - Main motherboard power. Originally 20-pin, expanded to 24.</p>
-                            <p><strong>4/8-pin EPS</strong> - Additional CPU power connector near the socket.</p>
-                            <p>Provides +3.3V, +5V, +12V, and -12V rails.</p>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Storage Connectors</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p><strong>SATA</strong> - Serial ATA for HDDs and SSDs. SATA III = 6 Gbps.</p>
-                            <p><strong>eSATA</strong> - External SATA for hot-swappable external drives.</p>
-                            <p><strong>M.2</strong> - Compact slot for NVMe SSDs (uses PCIe lanes) or SATA SSDs.</p>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Headers</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p><strong>Front Panel</strong> - Power button, reset, HDD LED, power LED.</p>
-                            <p><strong>USB Headers</strong> - Internal connections for front USB ports.</p>
-                            <p><strong>Audio Header</strong> - Front panel audio jacks.</p>
-                            <p><strong>Fan Headers</strong> - CPU_FAN, SYS_FAN for case cooling.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 5: CPUs -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> CPUs and Sockets</h2>
-
-                <h3>Socket Types</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>PGA (Pin Grid Array)</h4>
-                        <ul>
-                            <li>• Pins are on the CPU</li>
-                            <li>• Socket has holes</li>
-                            <li>• Used by older AMD</li>
-                            <li>• Socket AM4 example</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-square-pattern.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <h4>LGA (Land Grid Array)</h4>
-                        <ul>
-                            <li>• Pins are on the socket</li>
-                            <li>• CPU has flat contacts</li>
-                            <li>• Used by Intel & new AMD</li>
-                            <li>• LGA 1700, AM5 examples</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Common Sockets</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Socket</th>
-                            <th scope="col">Type</th>
-                            <th scope="col">Manufacturer</th>
-                            <th scope="col">CPUs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>LGA 1700</td>
-                            <td>LGA</td>
-                            <td>Intel</td>
-                            <td>12th-14th Gen Core</td>
-                        </tr>
-                        <tr>
-                            <td>LGA 1200</td>
-                            <td>LGA</td>
-                            <td>Intel</td>
-                            <td>10th-11th Gen Core</td>
-                        </tr>
-                        <tr>
-                            <td>AM5</td>
-                            <td>LGA</td>
-                            <td>AMD</td>
-                            <td>Ryzen 7000 series</td>
-                        </tr>
-                        <tr>
-                            <td>AM4</td>
-                            <td>PGA</td>
-                            <td>AMD</td>
-                            <td>Ryzen 1000-5000 series</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> Intel uses LGA sockets (pins on motherboard = more expensive to replace if damaged). AMD traditionally used PGA but switched to LGA with AM5.
-                </div>
-            </div>
-
-            <!-- Section 6: Processor Concepts -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Understanding Processors</h2>
-
-                <h3>Architecture</h3>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>x86</strong> - 32-bit architecture, max 4GB RAM</li>
-                    <li><strong>x64 (AMD64)</strong> - 64-bit, supports much more RAM</li>
-                    <li><strong>ARM</strong> - RISC-based, used in mobile/embedded devices</li>
-                </ul>
-
-                <h3>Key Terms</h3>
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>Multicore</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Multiple processing cores on a single chip. Each core operates as an independent processor. More cores = better multitasking and parallel processing.</p>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>Hyper-Threading / SMT</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Allows one physical core to handle two threads simultaneously. Intel calls it Hyper-Threading, AMD calls it SMT (Simultaneous Multithreading). A 4-core CPU with HT appears as 8 logical processors.</p>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>Virtualization Support</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Hardware support for running virtual machines. Intel VT-x and AMD-V. Must be enabled in BIOS/UEFI for hypervisors like VMware or Hyper-V.</p>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>Throttling</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>CPU automatically reduces speed when overheating to prevent damage. Proper cooling prevents throttling and maintains performance.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 7: Memory -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Memory Types</h2>
-
-                <h3>DDR Generations</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Type</th>
-                            <th scope="col">Pins (Desktop)</th>
-                            <th scope="col">Voltage</th>
-                            <th scope="col">Max Per Module</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>DDR3</td>
-                            <td>240</td>
-                            <td>1.5V</td>
-                            <td>8 GB</td>
-                        </tr>
-                        <tr>
-                            <td>DDR4</td>
-                            <td>288</td>
-                            <td>1.2V</td>
-                            <td>64 GB</td>
-                        </tr>
-                        <tr>
-                            <td>DDR5</td>
-                            <td>288</td>
-                            <td>1.1V</td>
-                            <td>128 GB</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong><img src="/assets/images/icons/icon-pin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Not Interchangeable:</strong> DDR generations have different notch positions to prevent incorrect installation. DDR4 and DDR5 both have 288 pins but are NOT compatible due to different notch locations and electrical requirements.
-                </div>
-
-                <h3>Form Factors</h3>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>DIMM</strong> - Dual Inline Memory Module (desktops)</li>
-                    <li><strong>SO-DIMM</strong> - Small Outline DIMM (laptops, 260 pins for DDR4)</li>
-                </ul>
-
-                <h3>Memory Channels</h3>
-                <p>More channels = more bandwidth. Install matching modules in correct slots for dual-channel:</p>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>Single-channel</strong> - One memory path</li>
-                    <li><strong>Dual-channel</strong> - Two paths (most common)</li>
-                    <li><strong>Quad-channel</strong> - Four paths (workstations/servers)</li>
-                </ul>
-
-                <h3>ECC Memory</h3>
-                <p><strong>Error-Correcting Code</strong> memory detects and corrects single-bit errors. Required for servers and workstations where data integrity is critical. Regular desktop motherboards typically don't support ECC.</p>
-            </div>
-
-            <!-- Section 8: BIOS/UEFI -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> BIOS/UEFI and Firmware</h2>
-
-                <h3>BIOS vs UEFI</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-mobile.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <h4>Legacy BIOS</h4>
-                        <ul>
-                            <li>• 16-bit mode</li>
-                            <li>• MBR partitioning</li>
-                            <li>• 2TB drive limit</li>
-                            <li>• Text-based interface</li>
-                            <li>• Slower boot</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>UEFI</h4>
-                        <ul>
-                            <li>• 32/64-bit mode</li>
-                            <li>• GPT partitioning</li>
-                            <li>• No 2TB limit</li>
-                            <li>• Graphical interface</li>
-                            <li>• Secure Boot support</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Key BIOS/UEFI Settings</h3>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>Boot Order</strong> - Which device to boot from first</li>
-                    <li><strong>Secure Boot</strong> - Only loads signed bootloaders (prevents rootkits)</li>
-                    <li><strong>TPM</strong> - Trusted Platform Module for encryption keys</li>
-                    <li><strong>Virtualization</strong> - Enable VT-x/AMD-V</li>
-                    <li><strong>Boot Password</strong> - Require password to boot system</li>
-                </ul>
-
-                <h3>CMOS Battery</h3>
-                <p>CR2032 coin cell battery maintains BIOS settings when power is off. A dead battery causes date/time resets and lost settings.</p>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> Flashing the BIOS updates firmware. Only do this when necessary, use manufacturer tools, and NEVER lose power during the process - it can brick the motherboard!
-                </div>
-            </div>
-
-            <!-- Section 9: Cooling -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Cooling Systems</h2>
-
-                <h3>Types of Cooling</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Air Cooling</h4>
-                        <ul>
-                            <li>• Heat sink + fan</li>
-                            <li>• Most common</li>
-                            <li>• Lower cost</li>
-                            <li>• Easier maintenance</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <h4>Liquid Cooling</h4>
-                        <ul>
-                            <li>• Water block + radiator</li>
-                            <li>• Better heat transfer</li>
-                            <li>• Quieter operation</li>
-                            <li>• Higher cost</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Thermal Paste</h3>
-                <p>Applied between the CPU and heat sink to fill microscopic gaps and improve heat transfer. Must be reapplied when removing the cooler.</p>
-
-                <h3>Airflow</h3>
-                <ul style="margin-left: 20px; margin-bottom: 15px;">
-                    <li><strong>Front fans</strong> - Intake (bring cool air in)</li>
-                    <li><strong>Rear/Top fans</strong> - Exhaust (push hot air out)</li>
-                    <li><strong>PSU fan</strong> - Usually exhaust</li>
-                </ul>
-
-                <div class="info-box key-point">
-                    <strong><img src="/assets/images/icons/icon-pin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Remember:</strong> Cool air in from front/bottom, hot air out from rear/top. Positive pressure (more intake than exhaust) reduces dust buildup.
+                <div style="font-size:0.78rem; color:#475569; padding:0 4px;">
+                    DMI connects Northbridge to Southbridge for slower I/O (USB, SATA, Audio, BIOS).
                 </div>
             </div>
         </div>
 
-        <!-- INTERACTIVE SECTION -->
-        <div id="interactive" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: Form Factor Comparison</h2>
-                <p>Click on a form factor to learn more about it:</p>
+        <div class="box box-green">
+            <div class="box-label">Modern Design: PCH</div>
+            Today's Intel and AMD CPUs integrate the memory controller and most PCIe lanes directly into the processor die. The discrete Northbridge is gone. The remaining I/O chip is called the <strong>Platform Controller Hub (PCH)</strong>. It handles SATA, USB, PCIe lanes for M.2 and slower devices, audio, and LAN. One chip instead of two.
+        </div>
 
-                <div class="comparison-grid" id="formFactorGrid">
-                    <div class="compare-card" onclick="showFormFactor('atx')">
-                        <div class="icon"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h3>ATX</h3>
-                        <p style="font-size: 0.85rem;">12 × 9.6 inches</p>
-                    </div>
-                    <div class="compare-card" onclick="showFormFactor('matx')">
-                        <div class="icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Micro-ATX</h4>
-                        <p style="font-size: 0.85rem;">9.6 × 9.6 inches</p>
-                    </div>
-                    <div class="compare-card" onclick="showFormFactor('itx')">
-                        <div class="icon"><img src="/assets/images/icons/icon-mobile.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Mini-ITX</h4>
-                        <p style="font-size: 0.85rem;">6.7 × 6.7 inches</p>
-                    </div>
-                </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Note</div>
+            The A+ exam still references Northbridge/Southbridge terminology. Know both the legacy two-chip model and the modern PCH consolidation.
+        </div>
+    </div>
+</section>
 
-                <div id="formFactorInfo" class="info-box" style="display: none;">
-                    <h4 id="ffName"></h4>
-                    <p id="ffDesc"></p>
-                    <p id="ffSlots"></p>
-                </div>
+<!-- ==================== SLIDE 6 — PCI VS PCIe ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 24</div>
+        <div class="slide-title">Expansion Slots: <span class="accent">PCI vs. PCIe</span></div>
+        <div class="slide-subtitle">Legacy parallel bus vs. current serial point-to-point standard.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">PCI (Legacy)</div>
+                <div class="card-desc">Peripheral Component Interconnect. Shared parallel bus &mdash; all devices on one bus compete for bandwidth. 32-bit or 64-bit versions, 3.3V or 5V signaling. Max bandwidth: 133 MB/s (32-bit) or 533 MB/s (64-bit). Still encountered on older hardware. Slots are white and shorter than PCIe x16 slots.</div>
             </div>
-
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: Socket Matcher</h2>
-                <p>Match the socket to its manufacturer:</p>
-
-                <div id="socketGame" class="quiz-container">
-                    <div class="quiz-question">
-                        <h3><span class="q-number">1</span> LGA 1700</h3>
-                        <ul class="quiz-options">
-                            <li onclick="checkSocket(this, 'intel')">Intel</li>
-                            <li onclick="checkSocket(this, 'amd')">AMD</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">2</span> AM5</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkSocket(this, 'intel')">Intel</li>
-                            <li onclick="checkSocket(this, 'amd')">AMD</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">3</span> AM4</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkSocket(this, 'intel')">Intel</li>
-                            <li onclick="checkSocket(this, 'amd')">AMD</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">4</span> LGA 1200</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkSocket(this, 'intel')">Intel</li>
-                            <li onclick="checkSocket(this, 'amd')">AMD</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: DDR Comparison</h2>
-                <p>Compare DDR memory generations:</p>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Feature</th>
-                            <th scope="col">DDR3</th>
-                            <th scope="col">DDR4</th>
-                            <th scope="col">DDR5</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Desktop Pins</td>
-                            <td>240</td>
-                            <td>288</td>
-                            <td>288</td>
-                        </tr>
-                        <tr>
-                            <td>Voltage</td>
-                            <td>1.5V</td>
-                            <td>1.2V</td>
-                            <td>1.1V</td>
-                        </tr>
-                        <tr>
-                            <td>Max Speed</td>
-                            <td>2133 MT/s</td>
-                            <td>3200 MT/s</td>
-                            <td>6400+ MT/s</td>
-                        </tr>
-                        <tr>
-                            <td>Max Module Size</td>
-                            <td>8 GB</td>
-                            <td>64 GB</td>
-                            <td>128 GB</td>
-                        </tr>
-                        <tr>
-                            <td>Channels per DIMM</td>
-                            <td>1</td>
-                            <td>1</td>
-                            <td>2</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="card c-gold">
+                <div class="card-label">PCIe (Current Standard)</div>
+                <div class="card-desc">PCI Express. Serial point-to-point connection using dedicated lanes. Each device gets its own exclusive path to the CPU/PCH. No bandwidth sharing. Scales by adding more lanes (x1, x4, x8, x16). Faster, more efficient, and now the universal standard for all modern expansion cards.</div>
             </div>
         </div>
 
-        <!-- LABS SECTION -->
-        <div id="labs" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Hands-On Labs</h2>
-                <p>Practice identifying components with these interactive labs:</p>
+        <!-- SVG: PCIe slot widths to scale, stacked vertically -->
+        <div class="diagram-center">
+            <svg width="400" height="200" viewBox="0 0 400 200" aria-label="PCIe slot size comparison" role="img">
+                <!-- Slot lengths scaled proportionally: x1=25px, x4=60px, x8=100px, x16=185px -->
+                <!-- Each slot: 20px tall, 8px gap between, left-aligned at x=10 -->
 
-                <div class="labs-grid">
-                    <a href="../../labs/forge-pc-components.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h3>PC Components ID</h3>
-                            <p>Identify motherboard components visually</p>
-                        </div>
-                    </a>
-                    <a href="../../labs/forge-cpu-sockets.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h4>CPU Socket Identification</h4>
-                            <p>Match CPUs to their correct sockets</p>
-                        </div>
-                    </a>
-                    <a href="../../labs/forge-ram-identification.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h4>RAM Identification</h4>
-                            <p>Identify DDR generations and types</p>
-                        </div>
-                    </a>
-                </div>
+                <!-- x1 slot -->
+                <rect x="10" y="10" width="25" height="20" rx="2" fill="none" stroke="#c9a83a" stroke-width="2"/>
+                <!-- Slot key notch (small gap at left of bottom edge) -->
+                <line x1="10" y1="30" x2="16" y2="30" stroke="#090910" stroke-width="3"/>
+                <text x="42" y="25" font-family="Segoe UI, sans-serif" font-size="12" fill="#c9a83a" font-weight="600">x1</text>
+                <text x="80" y="25" font-family="Segoe UI, sans-serif" font-size="11" fill="#64748b">1 lane &mdash; NICs, sound cards</text>
 
-                <div class="info-box" style="margin-top: 20px;">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tip:</strong> Complete all three labs to reinforce your understanding of Chapter 1 hardware concepts. Each lab tracks your progress!
-                </div>
+                <!-- x4 slot -->
+                <rect x="10" y="50" width="60" height="20" rx="2" fill="none" stroke="#c9a83a" stroke-width="2"/>
+                <line x1="10" y1="70" x2="16" y2="70" stroke="#090910" stroke-width="3"/>
+                <text x="77" y="65" font-family="Segoe UI, sans-serif" font-size="12" fill="#c9a83a" font-weight="600">x4</text>
+                <text x="115" y="65" font-family="Segoe UI, sans-serif" font-size="11" fill="#64748b">4 lanes &mdash; NVMe, RAID cards</text>
+
+                <!-- x8 slot -->
+                <rect x="10" y="90" width="100" height="20" rx="2" fill="none" stroke="#c9a83a" stroke-width="2"/>
+                <line x1="10" y1="110" x2="16" y2="110" stroke="#090910" stroke-width="3"/>
+                <text x="117" y="105" font-family="Segoe UI, sans-serif" font-size="12" fill="#c9a83a" font-weight="600">x8</text>
+                <text x="155" y="105" font-family="Segoe UI, sans-serif" font-size="11" fill="#64748b">8 lanes &mdash; storage, secondary GPU</text>
+
+                <!-- x16 slot with GPU card seated inside -->
+                <rect x="10" y="130" width="185" height="20" rx="2" fill="none" stroke="#c9a83a" stroke-width="2"/>
+                <line x1="10" y1="150" x2="16" y2="150" stroke="#090910" stroke-width="3"/>
+                <!-- GPU card shape seated in x16 slot -->
+                <rect x="14" y="110" width="177" height="18" rx="2" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1" stroke-dasharray="3,2"/>
+                <text x="103" y="122" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#c9a83a" font-style="italic">GPU card</text>
+                <text x="202" y="145" font-family="Segoe UI, sans-serif" font-size="12" fill="#c9a83a" font-weight="600">x16</text>
+                <text x="240" y="145" font-family="Segoe UI, sans-serif" font-size="11" fill="#64748b">16 lanes &mdash; primary GPU slot</text>
+
+                <!-- Scale indicator -->
+                <text x="10" y="190" font-family="Segoe UI, sans-serif" font-size="9" fill="#334155">Slots drawn to relative scale &mdash; gold outline</text>
+            </svg>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Slot Size</th><th>Lanes</th><th>PCIe 3.0 BW</th><th>Typical Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>PCIe x1</strong></td><td>1</td><td>~1 GB/s</td><td>Sound cards, NICs, USB expansion</td></tr>
+                <tr><td><strong>PCIe x4</strong></td><td>4</td><td>~4 GB/s</td><td>NVMe SSDs, RAID controllers</td></tr>
+                <tr><td><strong>PCIe x8</strong></td><td>8</td><td>~8 GB/s</td><td>High-speed storage, secondary GPUs</td></tr>
+                <tr><td><strong>PCIe x16</strong></td><td>16</td><td>~16 GB/s</td><td>Graphics cards (primary GPU slot)</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — PCIe DEEP DIVE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 24</div>
+        <div class="slide-title">PCIe <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">Generations, lanes, bandwidth, and up-plugging.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">PCIe Generations</div>
+                <div class="card-desc">PCIe 1.0: 0.25 GB/s per lane. PCIe 2.0: 0.5 GB/s. PCIe 3.0: 1 GB/s. PCIe 4.0: 2 GB/s. PCIe 5.0: 4 GB/s. Each generation doubles bandwidth per lane while maintaining backward compatibility with the same physical slot shape.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Up-Plugging</div>
+                <div class="card-desc">A smaller card (x1, x4, x8) can physically fit in a larger slot (x16) and function correctly. The card runs at its own link width, not the slot's maximum. An x1 card in an x16 slot runs at x1 speed. This is called up-plugging and is fully supported by the standard.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Riser Cards</div>
+                <div class="card-desc">Used in low-profile and rack-mount cases to change expansion card orientation from vertical to horizontal. Common in 1U/2U servers and slim desktops where there is not enough vertical clearance for a full-height card.</div>
             </div>
         </div>
 
-        <!-- QUIZ SECTION -->
-        <div id="quiz" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Chapter 1 Quiz</h2>
-                <p>Test your knowledge of motherboards, processors, and memory. <strong>15 questions</strong></p>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Know that PCIe is backward and forward compatible &mdash; a PCIe 4.0 card works in a PCIe 3.0 slot at reduced speed. The slot physical size does NOT determine the card version; it determines the maximum lane count.
+        </div>
 
-                <div class="quiz-container" id="mainQuiz"></div>
+        <div class="box box-red">
+            <div class="box-label">Cannot Down-Plug</div>
+            A physically larger card (x16) will NOT fit in a smaller slot (x1) without modification. Down-plugging requires cutting open the end of the smaller slot, which voids warranty and is generally not recommended.
+        </div>
+    </div>
+</section>
 
-                <button class="quiz-btn" id="submitQuiz" onclick="submitQuiz()" style="display: none;">Submit Quiz</button>
+<!-- ==================== SLIDE 8 — POWER CONNECTORS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 24</div>
+        <div class="slide-title">Motherboard Connectors: <span class="accent">Power</span></div>
+        <div class="slide-subtitle">Two power connectors supply the board and CPU with multiple voltage rails.</div>
 
-                <div class="score-display" id="quizResults" style="display: none;">
-                    <h3>Quiz Complete!</h3>
-                    <div class="score"><span id="finalScore">0</span>/15</div>
-                    <p id="scoreMessage"></p>
-                    <button class="quiz-btn" onclick="resetQuiz()" style="background: white; color: var(--forge-primary); margin-top: 15px;">Try Again</button>
-                    <a href="../ch02-expansion-storage/index.html" class="quiz-btn" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 2 — Expansion &amp; Storage &rsaquo;</a>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">24-Pin ATX (P1 Connector)</div>
+                <div class="card-desc">Main motherboard power connector. Originally 20-pin; expanded to 24-pin with ATX12V 2.x to support higher power PCIe slots. Located near the right edge of the board. Supplies the board with +3.3V, +5V, +12V, -12V, and 5VSB (standby). The 24-pin connector is keyed &mdash; it can only install in one orientation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">4/8-Pin EPS (CPU Power)</div>
+                <div class="card-desc">Additional CPU power connector located near the CPU socket, typically the upper-left corner. The 4-pin version is ATX12V; the 8-pin is EPS12V. High-end and overclocking boards often have two 8-pin connectors. Powers the CPU voltage regulation module (VRM) directly. Missing this connector = no POST.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Rail</th><th>Voltage</th><th>Typical Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>+12V</strong></td><td>12V DC</td><td>CPU, PCIe cards, motors, fans</td></tr>
+                <tr><td><strong>+5V</strong></td><td>5V DC</td><td>USB ports, SATA data logic, older drives</td></tr>
+                <tr><td><strong>+3.3V</strong></td><td>3.3V DC</td><td>RAM, PCIe x1 cards, I/O circuitry</td></tr>
+                <tr><td><strong>5VSB</strong></td><td>5V Standby</td><td>Wake-on-LAN, USB charging while off</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — STORAGE & HEADERS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 24</div>
+        <div class="slide-title">Connectors: <span class="accent">Storage &amp; Headers</span></div>
+        <div class="slide-subtitle">SATA, M.2, and the front-panel header pin block.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">SATA &amp; eSATA</div>
+                <div class="card-desc">Serial ATA for HDDs and SSDs. SATA III = 6 Gbps (practical ~550 MB/s). L-shaped 7-pin data connector, separate 15-pin power. eSATA is external SATA for hot-swappable external drives. Same protocol, different connector form factor and cabling spec.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">M.2 Slot</div>
+                <div class="card-desc">Compact slot for NVMe SSDs (using PCIe lanes, up to 7 GB/s on PCIe 4.0 x4) or SATA SSDs (limited to ~550 MB/s). M.2 key types: M-key supports both NVMe and SATA; B-key SATA only. Screw-mounted, no cable required. Check board specs for whether a slot supports NVMe, SATA, or both.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Front Panel &amp; Headers</div>
+                <div class="card-desc">Small pin blocks on the board edge. Front panel header: power button, reset button, HDD activity LED, power LED. USB headers: 9-pin USB 2.0, 19-pin USB 3.x. Audio header: HD Audio for front jacks. Fan headers: CPU_FAN (controlled), SYS_FAN (case fans).</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            The front panel header is the most misidentified connector for new builders. If the power button does not work after assembly, check the front panel header pin layout in the motherboard manual. PWR_BTN and HDD_LED are adjacent but not interchangeable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — CPU SOCKET TYPES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 24</div>
+        <div class="slide-title">CPU Socket <span class="accent">Types</span></div>
+        <div class="slide-subtitle">Where the pins live determines who pays if they get bent.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">PGA &mdash; Pin Grid Array</div>
+                <div class="card-desc">Pins are on the CPU. The socket has holes. If pins are bent during installation, the CPU is damaged &mdash; an expensive mistake. Used by AMD for AM4 and earlier platforms. Requires a Zero Insertion Force (ZIF) lever to lock and release the CPU without force.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">LGA &mdash; Land Grid Array</div>
+                <div class="card-desc">Pins are on the socket (motherboard). The CPU has flat contact pads (lands). If pins are bent, the motherboard is damaged. Used by Intel for all modern platforms (LGA 1200, LGA 1700) and by AMD starting with AM5. A retention bracket and retention mechanism hold the CPU down. No ZIF lever required for alignment.</div>
+            </div>
+        </div>
+
+        <!-- SVG: PGA vs LGA side-by-side diagram panels -->
+        <div class="diagram-pair">
+            <!-- PGA panel: pins on CPU -->
+            <div class="diagram-panel">
+                <svg width="160" height="180" viewBox="0 0 160 180" aria-label="PGA socket: pins on CPU" role="img">
+                    <!-- Socket body -->
+                    <rect x="20" y="90" width="120" height="80" rx="4" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1.5"/>
+                    <!-- Socket holes (6x6 grid of small circles) -->
+                    <g fill="none" stroke="#334155" stroke-width="0.8">
+                        <!-- Row 1-6, Col 1-6, 16px spacing starting at (36,106) -->
+                        <circle cx="36" cy="106" r="3"/><circle cx="52" cy="106" r="3"/><circle cx="68" cy="106" r="3"/><circle cx="84" cy="106" r="3"/><circle cx="100" cy="106" r="3"/><circle cx="116" cy="106" r="3"/>
+                        <circle cx="36" cy="122" r="3"/><circle cx="52" cy="122" r="3"/><circle cx="68" cy="122" r="3"/><circle cx="84" cy="122" r="3"/><circle cx="100" cy="122" r="3"/><circle cx="116" cy="122" r="3"/>
+                        <circle cx="36" cy="138" r="3"/><circle cx="52" cy="138" r="3"/><circle cx="68" cy="138" r="3"/><circle cx="84" cy="138" r="3"/><circle cx="100" cy="138" r="3"/><circle cx="116" cy="138" r="3"/>
+                        <circle cx="36" cy="154" r="3"/><circle cx="52" cy="154" r="3"/><circle cx="68" cy="154" r="3"/><circle cx="84" cy="154" r="3"/><circle cx="100" cy="154" r="3"/><circle cx="116" cy="154" r="3"/>
+                    </g>
+                    <!-- CPU chip body above socket -->
+                    <rect x="20" y="20" width="120" height="60" rx="4" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                    <!-- Pins underneath CPU (pointing down toward socket) -->
+                    <g stroke="#06b6d4" stroke-width="1.2">
+                        <line x1="36" y1="80" x2="36" y2="90"/><line x1="52" y1="80" x2="52" y2="90"/>
+                        <line x1="68" y1="80" x2="68" y2="90"/><line x1="84" y1="80" x2="84" y2="90"/>
+                        <line x1="100" y1="80" x2="100" y2="90"/><line x1="116" y1="80" x2="116" y2="90"/>
+                        <line x1="36" y1="80" x2="36" y2="90"/><line x1="52" y1="80" x2="52" y2="90"/>
+                    </g>
+                    <!-- CPU label -->
+                    <text x="80" y="44" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#06b6d4">CPU</text>
+                    <text x="80" y="60" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#94a3b8">(pins here)</text>
+                    <!-- Socket label -->
+                    <text x="80" y="175" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#475569">Socket (holes)</text>
+
+                    <!-- Red pulsing glow on CPU (fragile part — pins on CPU) -->
+                    <rect x="20" y="20" width="120" height="60" rx="4" fill="none" stroke="#ef4444" stroke-width="2" opacity="0">
+                        <animate attributeName="opacity" values="0;0.8;0" dur="1.6s" repeatCount="indefinite"/>
+                    </rect>
+                </svg>
+                <div class="diagram-panel-label">PGA &mdash; Pins on CPU</div>
+            </div>
+
+            <!-- LGA panel: pins on socket -->
+            <div class="diagram-panel">
+                <svg width="160" height="180" viewBox="0 0 160 180" aria-label="LGA socket: pins on socket" role="img">
+                    <!-- Socket body -->
+                    <rect x="20" y="90" width="120" height="80" rx="4" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                    <!-- Socket pins (short vertical lines inside socket body) -->
+                    <g stroke="#c9a83a" stroke-width="1.2">
+                        <line x1="36" y1="90" x2="36" y2="100"/><line x1="52" y1="90" x2="52" y2="100"/>
+                        <line x1="68" y1="90" x2="68" y2="100"/><line x1="84" y1="90" x2="84" y2="100"/>
+                        <line x1="100" y1="90" x2="100" y2="100"/><line x1="116" y1="90" x2="116" y2="100"/>
+                        <line x1="36" y1="106" x2="36" y2="116"/><line x1="52" y1="106" x2="52" y2="116"/>
+                        <line x1="68" y1="106" x2="68" y2="116"/><line x1="84" y1="106" x2="84" y2="116"/>
+                        <line x1="100" y1="106" x2="100" y2="116"/><line x1="116" y1="106" x2="116" y2="116"/>
+                        <line x1="36" y1="122" x2="36" y2="132"/><line x1="52" y1="122" x2="52" y2="132"/>
+                        <line x1="68" y1="122" x2="68" y2="132"/><line x1="84" y1="122" x2="84" y2="132"/>
+                        <line x1="100" y1="122" x2="100" y2="132"/><line x1="116" y1="122" x2="116" y2="132"/>
+                        <line x1="36" y1="138" x2="36" y2="148"/><line x1="52" y1="138" x2="52" y2="148"/>
+                        <line x1="68" y1="138" x2="68" y2="148"/><line x1="84" y1="138" x2="84" y2="148"/>
+                        <line x1="100" y1="138" x2="100" y2="148"/><line x1="116" y1="138" x2="116" y2="148"/>
+                    </g>
+                    <!-- CPU chip body above socket -->
+                    <rect x="20" y="20" width="120" height="60" rx="4" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                    <!-- Flat contact pads on CPU underside (small filled squares) -->
+                    <g fill="#94a3b8">
+                        <rect x="33" y="76" width="6" height="4" rx="1"/><rect x="49" y="76" width="6" height="4" rx="1"/>
+                        <rect x="65" y="76" width="6" height="4" rx="1"/><rect x="81" y="76" width="6" height="4" rx="1"/>
+                        <rect x="97" y="76" width="6" height="4" rx="1"/><rect x="113" y="76" width="6" height="4" rx="1"/>
+                    </g>
+                    <!-- CPU label -->
+                    <text x="80" y="44" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#c9a83a">CPU</text>
+                    <text x="80" y="60" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#94a3b8">(flat pads)</text>
+                    <!-- Socket label -->
+                    <text x="80" y="175" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" fill="#c9a83a">Socket (pins here)</text>
+
+                    <!-- Red pulsing glow on socket (fragile part — pins on socket/motherboard) -->
+                    <rect x="20" y="90" width="120" height="80" rx="4" fill="none" stroke="#ef4444" stroke-width="2" opacity="0">
+                        <animate attributeName="opacity" values="0;0.8;0" dur="1.6s" begin="0.8s" repeatCount="indefinite"/>
+                    </rect>
+                </svg>
+                <div class="diagram-panel-label">LGA &mdash; Pins on Socket</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Focus</div>
+            On A+ exams: PGA = pins on CPU (AMD legacy AM4 and earlier), LGA = pins on socket (Intel always, AMD AM5+). The question may describe a bent-pin scenario and ask which component is damaged. PGA = bent CPU. LGA = bent socket (motherboard).
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Installation Rule</div>
+            CPUs drop straight down into LGA sockets &mdash; no lateral force. Any resistance means misalignment. Both PGA and LGA sockets have a triangle alignment mark on the CPU and socket corner to ensure correct orientation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — COMMON CPU SOCKETS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 24</div>
+        <div class="slide-title">Common <span class="accent">CPU Sockets</span></div>
+        <div class="slide-subtitle">Current and exam-relevant socket designations for Intel and AMD platforms.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Socket</th><th>Type</th><th>Manufacturer</th><th>Compatible CPUs</th><th>Note</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>LGA 1700</strong></td><td>LGA</td><td>Intel</td><td>12th&ndash;14th Gen Core (Alder Lake, Raptor Lake)</td><td>Current mainstream Intel</td></tr>
+                <tr><td><strong>LGA 1200</strong></td><td>LGA</td><td>Intel</td><td>10th&ndash;11th Gen Core (Comet Lake, Rocket Lake)</td><td>Previous gen</td></tr>
+                <tr><td><strong>AM5</strong></td><td>LGA</td><td>AMD</td><td>Ryzen 7000 series (Zen 4)</td><td>AMD's first LGA socket</td></tr>
+                <tr><td><strong>AM4</strong></td><td>PGA</td><td>AMD</td><td>Ryzen 1000&ndash;5000 (Zen&ndash;Zen 3)</td><td>Longest-lived socket platform</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Socket Compatibility Rule</div>
+                A CPU must match the board's socket exactly. LGA 1700 and LGA 1200 are not interchangeable despite both being Intel LGA. Always verify socket before purchasing a CPU or motherboard upgrade.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Why AM4 Matters</div>
+                AMD's AM4 platform spanned 5 CPU generations (2017&ndash;2022). Many organizations still run AM4 systems. Recognizing AM4 as PGA (pins on CPU) is frequently tested.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — PROCESSOR ARCHITECTURE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 24</div>
+        <div class="slide-title">Processor <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">x86, x64, and ARM &mdash; instruction sets that determine what software can run.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">x86 (32-bit)</div>
+                <div class="card-desc">Original Intel instruction set architecture. Supports up to 4 GB of RAM (32-bit address space). Still found on some embedded and industrial systems. A 64-bit OS cannot run natively on x86-only hardware. 32-bit applications can run on 64-bit OSes (via WoW64 on Windows).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">x64 (AMD64 / Intel 64)</div>
+                <div class="card-desc">64-bit extension of x86 developed by AMD, later adopted by Intel. Supports terabytes of RAM. All modern desktop and laptop CPUs are x64. Runs both 32-bit and 64-bit software. Required for Windows 11. The A+ exam refers to this as x64 or 64-bit architecture.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ARM (RISC)</div>
+                <div class="card-desc">Reduced Instruction Set Computing architecture. Lower power consumption than x86/x64. Dominant in smartphones, tablets, and embedded devices. Increasingly present in laptops (Apple M-series, Qualcomm Snapdragon X). Native ARM software is required; x86/x64 apps run only via emulation with performance penalty.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">A+ Exam Context</div>
+            Know that 32-bit OSes are limited to ~4 GB RAM and cannot natively run 64-bit applications. 64-bit OSes can run 32-bit apps. ARM apps do not run natively on x86 without emulation. Compatibility issues between these architectures appear in A+ troubleshooting scenarios.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — PROCESSOR CONCEPTS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 24</div>
+        <div class="slide-title">Processor <span class="accent">Concepts</span></div>
+        <div class="slide-subtitle">Multicore, hyper-threading, cache hierarchy, clock speed, and TDP.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Multicore</div>
+                <div class="card-desc">Multiple independent processing cores on one physical chip. Each core can execute instructions independently. A quad-core CPU has 4 real cores. Improves multitasking and parallel workloads. OS sees each core as a logical processor.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hyper-Threading / SMT</div>
+                <div class="card-desc">Intel: Hyper-Threading (HT). AMD: Simultaneous Multithreading (SMT). One physical core handles two instruction threads by reusing idle execution units. A 4-core CPU with HT appears as 8 logical processors in Task Manager. Improves throughput on multithreaded workloads by 20-30%.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cache Levels</div>
+                <div class="card-desc">L1: Smallest (32&ndash;64 KB per core), fastest, on-die. L2: Larger (256 KB&ndash;2 MB per core), slightly slower. L3: Shared across all cores (8&ndash;64+ MB), slowest of the three but far faster than RAM. Cache hit = data found without going to RAM. Cache miss = expensive RAM access.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Clock Speed &amp; Boost</div>
+                <div class="card-desc">Base clock: guaranteed sustained speed. Boost/Turbo clock: short-burst maximum speed when thermal and power headroom allow. Measured in GHz. Higher clock = more instructions per second on the same architecture. Cross-architecture clock comparisons are not meaningful.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">TDP &mdash; Thermal Design Power</div>
+                <div class="card-desc">The maximum heat a cooling solution must dissipate under sustained load. Measured in watts. A 65W TDP CPU requires a cooler rated for at least 65W. Exceeding TDP causes thermal throttling &mdash; the CPU reduces clock speed to shed heat. TDP also roughly indicates power consumption.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — VIRTUALIZATION & SECURITY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 24</div>
+        <div class="slide-title">Virtualization <span class="accent">&amp; Security Features</span></div>
+        <div class="slide-subtitle">Hardware-assisted virtualization, TPM, and integrated graphics on the CPU die.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">VT-x / AMD-V</div>
+                <div class="card-desc">Intel VT-x (Virtualization Technology) and AMD-V are hardware extensions that allow the CPU to assist hypervisors (VMware, Hyper-V, VirtualBox). Must be enabled in UEFI. Without it, 64-bit VMs cannot run in most hypervisors. Present on all modern desktop CPUs but may be disabled by default in UEFI.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">TPM &mdash; Trusted Platform Module</div>
+                <div class="card-desc">Dedicated security chip (or firmware module on modern CPUs) that stores encryption keys, certificates, and hashes. Used by BitLocker, Windows Hello, and Secure Boot. TPM 2.0 is required for Windows 11. Can be a discrete chip (dTPM) or CPU firmware implementation (fTPM/PTT).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Integrated GPU (iGPU)</div>
+                <div class="card-desc">Many CPUs include a graphics processor on the same die. Intel calls it Intel UHD/Iris Xe Graphics. AMD calls it Radeon Vega/RDNA Graphics. Sufficient for office work, video playback, and basic display output. Does not compete with discrete GPUs for gaming or GPU compute. Useful for diagnostics when a discrete GPU fails.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A help-desk ticket: "I cannot create a VM in Hyper-V on my new workstation." First check: is VT-x/AMD-V enabled in UEFI? Many OEM boards ship with it disabled. One UEFI change, reboot, VM creation succeeds. Knowing this saves an unnecessary hardware escalation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — DDR GENERATIONS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 24</div>
+        <div class="slide-title">RAM: <span class="accent">DDR Generations</span></div>
+        <div class="slide-subtitle">Double Data Rate generations &mdash; not interchangeable despite similar pin counts.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Type</th><th>Desktop Pins</th><th>Voltage</th><th>Speed Range</th><th>Max per Module</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>DDR3</strong></td><td>240</td><td>1.5V (1.35V low)</td><td>800&ndash;2133 MT/s</td><td>8 GB</td></tr>
+                <tr><td><strong>DDR4</strong></td><td>288</td><td>1.2V (1.05V low)</td><td>2133&ndash;3200+ MT/s</td><td>64 GB</td></tr>
+                <tr><td><strong>DDR5</strong></td><td>288</td><td>1.1V</td><td>4800&ndash;6400+ MT/s</td><td>128 GB</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-red">
+                <div class="box-label">Not Interchangeable</div>
+                DDR3, DDR4, and DDR5 all use different notch (key) positions to prevent cross-generation installation. DDR4 and DDR5 both have 288 pins but are NOT compatible &mdash; different notch location, different voltage, different electrical signaling. A DDR5 stick physically cannot insert into a DDR4 slot.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">DDR5 Architecture Change</div>
+                DDR5 moved the voltage regulator from the motherboard to the DIMM itself. DDR5 also introduced two independent 32-bit sub-channels per module, effectively doubling internal bandwidth compared to DDR4's single 64-bit channel, even at the same MT/s rating.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — FORM FACTORS & CHANNELS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 24</div>
+        <div class="slide-title">RAM: <span class="accent">Form Factors &amp; Channels</span></div>
+        <div class="slide-subtitle">DIMM vs. SO-DIMM, memory channels, and ECC for servers.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">DIMM (Desktop)</div>
+                <div class="card-desc">Dual Inline Memory Module. Full-length slot. DDR4 DIMM: 288 pins. DDR3 DIMM: 240 pins. Used in desktops, workstations, and servers. Multiple DIMMs per channel slot. Standard height allows heatspreaders for overclocking kits.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SO-DIMM (Laptop)</div>
+                <div class="card-desc">Small Outline DIMM. Half the length of a standard DIMM. DDR4 SO-DIMM: 260 pins. DDR5 SO-DIMM: 262 pins. Used in laptops, mini PCs, and some NUC-style systems. Same electrical spec as its full-size counterpart &mdash; just a different physical form factor.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Memory Channels</div>
+                <div class="card-desc">Single: one module, one data path. Dual: two matched modules in paired slots (e.g., A2 + B2), nearly 2x bandwidth. Quad: four matched modules, server-class boards. Install matching capacity sticks in the color-coded paired slots per the manual for dual-channel. Mismatched = single-channel fallback.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">ECC Memory</div>
+            Error-Correcting Code memory adds extra bits per byte to detect and correct single-bit errors in real time. Required for servers and workstations handling financial or medical data. Standard consumer motherboards do not support ECC. ECC modules are physically compatible with non-ECC slots but the ECC function will not operate without chipset and BIOS support.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — BIOS VS UEFI ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 24</div>
+        <div class="slide-title">BIOS <span class="accent">vs. UEFI</span></div>
+        <div class="slide-subtitle">Firmware that initializes hardware and hands off to the OS bootloader.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Legacy BIOS</div>
+                <div class="card-desc">16-bit real mode firmware. Uses MBR (Master Boot Record) partition scheme. Hard limit: 2 TB drives (MBR addressing). Text-based interface navigated with arrow keys. Slow POST. No support for GUID Partition Table (GPT). Mouse input not supported. Common on systems manufactured before ~2012.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">UEFI</div>
+                <div class="card-desc">Unified Extensible Firmware Interface. 32/64-bit mode. Uses GPT (GUID Partition Table). No 2 TB limit &mdash; supports drives up to 9.4 ZB theoretically. Graphical interface with mouse support. Faster POST via parallel hardware initialization. Supports Secure Boot. Network stack for firmware updates over LAN. Required for Windows 11.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Feature</th><th>Legacy BIOS</th><th>UEFI</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Bit mode</td><td>16-bit</td><td>32/64-bit</td></tr>
+                <tr><td>Partition table</td><td>MBR</td><td>GPT</td></tr>
+                <tr><td>Max drive size</td><td>2 TB</td><td>9.4 ZB</td></tr>
+                <tr><td>Secure Boot</td><td>No</td><td>Yes</td></tr>
+                <tr><td>Boot time</td><td>Slow</td><td>Fast</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — BIOS/UEFI SETTINGS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 24</div>
+        <div class="slide-title">BIOS/UEFI <span class="accent">Settings</span></div>
+        <div class="slide-subtitle">Key configuration options every A+ technician must know.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Boot Order</div>
+                <div class="card-desc">Determines which device the system attempts to boot from first. Common options: NVMe SSD, SATA HDD, USB drive, optical, network (PXE). Set USB first when imaging or reinstalling. Set internal drive first for normal operation. An incorrect boot order causes "OS not found" errors.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Secure Boot</div>
+                <div class="card-desc">UEFI feature that only loads bootloaders signed with trusted keys (Microsoft, distro keys). Prevents rootkits from hijacking the boot process. Must be enabled for Windows 11 compliance. May need to be disabled when installing Linux or running unsigned bootable media. Keys stored in UEFI firmware.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Fan Control &amp; Monitoring</div>
+                <div class="card-desc">Fan headers can be set to DC (voltage-controlled) or PWM (pulse-width modulation) modes. Temperature thresholds and fan curves configurable. H/W Monitor page shows real-time CPU temp, voltages, and fan RPM. Useful for diagnosing overheating before loading the OS.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">XMP / DOCP</div>
+                <div class="card-desc">eXtreme Memory Profile (Intel) / DOCP (AMD). Enables RAM to run at its rated speed rather than default JEDEC speed. Without XMP, a DDR4-3200 kit runs at 2133 MHz. Enable XMP in UEFI to unlock full rated speed. May require a reboot stability test.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Virtualization &amp; TPM</div>
+                <div class="card-desc">Intel VT-x / AMD-V: enable before creating VMs. TPM: enable (fTPM on AMD, PTT on Intel) for BitLocker and Windows 11 compliance. Both disabled by default on many OEM boards. A+ exam may describe symptoms of these being disabled and ask for the fix.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — CMOS BATTERY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 24</div>
+        <div class="slide-title">CMOS <span class="accent">Battery</span></div>
+        <div class="slide-subtitle">The coin cell that keeps your BIOS alive when the system is unplugged.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Purpose</div>
+                <div class="card-desc">CMOS (Complementary Metal-Oxide Semiconductor) is a small area of memory on the motherboard that stores BIOS/UEFI settings: date/time, boot order, fan curves, overclocking profiles, and hardware enable/disable flags. The CR2032 coin cell battery provides continuous power to CMOS when the system is off or unplugged. Without it, CMOS loses its settings at every power cycle.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CR2032 Battery</div>
+                <div class="card-desc">Standard 3V lithium coin cell, 20mm diameter, 3.2mm thick. Lasts 3&ndash;10 years depending on system usage patterns. Located on the motherboard in a small retention clip, usually near the PCIe x16 slot. Replacement cost: under $2. Replacement procedure: power off, remove AC, swap battery, reenter BIOS settings.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="box box-red">
+                <div class="box-label">Symptoms of Dead CMOS Battery</div>
+                System time resets to a default date (often 2000 or 2002) after power loss. BIOS settings do not persist between boots. "CMOS checksum error" or "CMOS battery low" POST warning. System may prompt to enter SETUP on every boot.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Clearing CMOS</div>
+                Used when a forgotten BIOS password or a failed overclock prevents the system from booting. Method 1: remove the CMOS battery for 30 seconds. Method 2: move the CLRTCMOS jumper to the clear position for 10 seconds. Method 3: use a dedicated BIOS reset button (present on high-end boards). All methods reset BIOS to factory defaults.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — COOLING SYSTEMS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 24</div>
+        <div class="slide-title">Cooling <span class="accent">Systems</span></div>
+        <div class="slide-subtitle">Air, liquid, and passive cooling &mdash; thermal paste bridges the gap.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Air Cooling</div>
+                <div class="card-desc">Heat sink + fan (HSF) combination. Heat spreads from the CPU IHS (Integrated Heat Spreader) through the heat sink base into copper heat pipes, then to aluminum fins where a fan moves air over them. Most common cooling type. Low cost, easy to maintain. Works for TDPs up to ~200W with high-end tower coolers. Loud under load.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Liquid / AIO Cooling</div>
+                <div class="card-desc">All-In-One (AIO) liquid cooler: CPU water block, pump, tubes, radiator. Coolant absorbs heat from the CPU block, pumps to the radiator, fans dissipate heat to the air. Better thermal performance per noise level than air at comparable price. Higher cost, more failure points (pump, fittings, coolant). Custom loops add even more capacity and complexity.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Passive Cooling</div>
+                <div class="card-desc">No fan. Heat sink only. Silent operation. Limited to low-TDP CPUs (under 15W typically). Used in industrial PCs, embedded systems, and some NUC-style mini PCs. Relies entirely on convection. Adequate ventilation around the case is critical. Any airflow restriction causes thermal shutdown.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Thermal Paste</div>
+            Applied between the CPU IHS and the heat sink base. Fills microscopic surface imperfections that would otherwise trap air (air is a thermal insulator). Must be reapplied whenever the cooler is removed. Old dried paste has much higher thermal resistance. Common compounds: silicone-based (non-conductive, easy clean), liquid metal (best performance, electrically conductive &mdash; use with caution).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — AIRFLOW ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 24</div>
+        <div class="slide-title">Case <span class="accent">Airflow</span></div>
+        <div class="slide-subtitle">Intake, exhaust, pressure balance, and why dust filters matter.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Positive Pressure</div>
+                <div class="card-desc">More intake CFM than exhaust CFM. Air is forced out through all case gaps, preventing dust from entering through unfiltered openings. Reduces dust buildup inside the case. Slightly higher operating temperatures than neutral/negative pressure due to less aggressive exhaust. Best for dusty environments with good dust filters on intake fans.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Negative Pressure</div>
+                <div class="card-desc">More exhaust CFM than intake CFM. Air is pulled in through all case gaps, including unfiltered openings &mdash; dust accumulates faster. Can achieve slightly lower temperatures on components directly in the exhaust path. Requires more frequent cleaning. Avoid in workshop or industrial environments with heavy particulate contamination.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="box box-green">
+                <div class="box-label">Standard Fan Placement</div>
+                Front / bottom: intake (cool ambient air in). Rear / top: exhaust (hot air out). PSU: usually exhausts through the rear. CPU cooler fan: pushes toward rear exhaust fan. This creates a front-to-rear airflow channel that efficiently moves heat out of the case.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">Common Airflow Mistakes</div>
+                Fan installed backwards (arrows on frame indicate airflow direction). Intake and exhaust fans on the same side creating recirculation. No cable management blocking airflow path. GPU exhaust pointing into hard drive bay. All of these cause hotspots and early component failure.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — EXAM PRACTICE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 24</div>
+        <div class="slide-title">Exam Practice: <span class="accent">Quick Questions</span></div>
+        <div class="slide-subtitle">Six A+ style scenario questions &mdash; answers in gold. Cover them first.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">A technician installs new RAM but the system runs slower than expected with two identical 16 GB sticks. Most likely cause? &mdash; <strong style="color:#c9a83a;">Sticks installed in same-color slots (A1+A2) instead of paired slots (A1+B1) &mdash; running single-channel instead of dual-channel.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">After a power outage the system boots with the wrong date and prompts for BIOS setup every time. What should the technician replace? &mdash; <strong style="color:#c9a83a;">CMOS battery (CR2032).</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">A user bought a new Intel 14th Gen CPU for their existing board. It will not fit. The board has an AM4 socket. What is the issue? &mdash; <strong style="color:#c9a83a;">Socket incompatibility. Intel 14th Gen requires LGA 1700. AM4 is AMD PGA. Requires a new motherboard.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">A technician enables Hyper-V on a Windows 11 Pro workstation but virtual machines fail to create. What setting is likely disabled? &mdash; <strong style="color:#c9a83a;">VT-x / AMD-V (hardware virtualization) in UEFI.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">A Mini-ITX board is ordered for an upgrade. The existing Micro-ATX case is available. Will the board fit? &mdash; <strong style="color:#c9a83a;">Yes. Micro-ATX cases support Mini-ITX. Smaller form factors fit in larger cases (not the reverse).</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">A PCIe x1 network card is installed in an open PCIe x16 slot. Will it function? &mdash; <strong style="color:#c9a83a;">Yes. Up-plugging is supported. The card runs at x1 speed regardless of slot size.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 24</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Chapter 1 terms organized by category.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Motherboard &amp; Slots</div>
+                <div class="card-desc">
+                    <strong>ATX/Micro-ATX/Mini-ITX</strong> &mdash; form factor standards<br>
+                    <strong>PCH</strong> &mdash; Platform Controller Hub (modern Southbridge)<br>
+                    <strong>PCIe x1/x4/x8/x16</strong> &mdash; expansion slot widths<br>
+                    <strong>M.2</strong> &mdash; compact NVMe/SATA storage slot<br>
+                    <strong>24-pin ATX</strong> &mdash; main board power connector<br>
+                    <strong>EPS 4/8-pin</strong> &mdash; CPU supplemental power
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CPU &amp; Sockets</div>
+                <div class="card-desc">
+                    <strong>PGA</strong> &mdash; Pin Grid Array, pins on CPU (AMD AM4)<br>
+                    <strong>LGA</strong> &mdash; Land Grid Array, pins on socket (Intel, AMD AM5)<br>
+                    <strong>SMT / HT</strong> &mdash; simultaneous multithreading / hyper-threading<br>
+                    <strong>TDP</strong> &mdash; Thermal Design Power (watts)<br>
+                    <strong>VT-x / AMD-V</strong> &mdash; hardware virtualization extensions<br>
+                    <strong>IHS</strong> &mdash; Integrated Heat Spreader (CPU lid)
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Memory &amp; Firmware</div>
+                <div class="card-desc">
+                    <strong>DIMM / SO-DIMM</strong> &mdash; desktop / laptop memory module form<br>
+                    <strong>DDR4 / DDR5</strong> &mdash; current RAM generations, 288 pins each<br>
+                    <strong>ECC</strong> &mdash; Error-Correcting Code memory (servers)<br>
+                    <strong>UEFI</strong> &mdash; modern firmware replacing legacy BIOS<br>
+                    <strong>Secure Boot</strong> &mdash; signed bootloader verification in UEFI<br>
+                    <strong>CMOS / CR2032</strong> &mdash; settings storage + coin cell battery
                 </div>
             </div>
         </div>
     </div>
+</section>
 
-    <script>
-        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
-        // Answer key stored in Firestore quiz_keys/aplus-core1-ch01
-        const QUIZ_ID = 'aplus-core1-ch01';
-        const quizQuestions = [
-            {
-                q: "Which motherboard form factor is the largest?",
-                options: ["Micro-ATX", "Mini-ITX", "ATX", "Nano-ITX"]
-            },
-            {
-                q: "What does PCIe x16 typically connect?",
-                options: ["Sound cards", "Graphics cards", "Network cards", "USB hubs"]
-            },
-            {
-                q: "Which socket type has pins on the motherboard?",
-                options: ["PGA", "LGA", "ZIF", "DIP"]
-            },
-            {
-                q: "DDR4 desktop memory has how many pins?",
-                options: ["184", "240", "260", "288"]
-            },
-            {
-                q: "What maintains BIOS settings when the computer is off?",
-                options: ["CMOS battery", "SRAM", "Flash memory", "Cache"]
-            },
-            {
-                q: "Which chip handles communication between CPU and memory in traditional designs?",
-                options: ["Southbridge", "Northbridge", "PCH", "GPU"]
-            },
-            {
-                q: "What is the purpose of thermal paste?",
-                options: ["Insulate the CPU", "Improve heat transfer", "Reduce electricity", "Protect from ESD"]
-            },
-            {
-                q: "Which technology allows one CPU core to handle two threads?",
-                options: ["Multicore", "Hyper-Threading", "Overclocking", "Throttling"]
-            },
-            {
-                q: "ECC memory is primarily used in:",
-                options: ["Gaming PCs", "Laptops", "Servers and workstations", "Tablets"]
-            },
-            {
-                q: "What is the main advantage of UEFI over BIOS?",
-                options: ["Lower cost", "Supports drives over 2TB", "Uses less power", "Simpler interface"]
-            },
-            {
-                q: "Which connector provides the main power to the motherboard?",
-                options: ["4-pin Molex", "SATA power", "24-pin ATX", "8-pin EPS"]
-            },
-            {
-                q: "What does TPM stand for?",
-                options: ["Thermal Processing Module", "Trusted Platform Module", "Total Power Management", "Transfer Protocol Manager"]
-            },
-            {
-                q: "Which DDR generation has the lowest voltage?",
-                options: ["DDR3 (1.5V)", "DDR4 (1.2V)", "DDR5 (1.1V)", "DDR2 (1.8V)"]
-            },
-            {
-                q: "What is 'up-plugging' in PCIe?",
-                options: ["Overclocking the slot", "Using a smaller card in a larger slot", "Adding more lanes", "Hot-swapping cards"]
-            },
-            {
-                q: "Which architecture is used in most mobile devices?",
-                options: ["x86", "x64", "ARM", "MIPS"]
-            }
-        ];
+<!-- ==================== SLIDE 24 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 24 &mdash; Chapter 1 Complete</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways from Motherboards, Processors &amp; Memory.</div>
 
-        let userAnswers = new Array(quizQuestions.length).fill(null);
-        let quizSubmitted = false;
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">1</div>
+                <div class="fact-text"><strong>Form factor</strong> determines physical compatibility with the case. ATX &gt; Micro-ATX &gt; Mini-ITX in size. Smaller boards fit in larger cases.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">2</div>
+                <div class="fact-text"><strong>PCIe</strong> replaced PCI as the expansion slot standard. Up-plugging is supported (smaller card in larger slot). Lane count determines bandwidth, not slot shape alone.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">3</div>
+                <div class="fact-text"><strong>CPU sockets</strong> are generation and manufacturer specific. PGA has pins on the CPU (AMD AM4). LGA has pins on the socket (Intel, AMD AM5). Never cross-install.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">4</div>
+                <div class="fact-text"><strong>DDR generations</strong> are not interchangeable. DDR3 (240 pins), DDR4 (288 pins), DDR5 (288 pins, different notch). Lower voltage = each newer generation.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">5</div>
+                <div class="fact-text"><strong>UEFI</strong> replaced legacy BIOS. Supports GPT, Secure Boot, drives over 2 TB, graphical interface. Required for Windows 11 with TPM 2.0.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">6</div>
+                <div class="fact-text"><strong>CMOS battery (CR2032)</strong> failure causes date/time reset and lost BIOS settings. Clear CMOS by removing battery or using the CLRTCMOS jumper to reset a locked BIOS.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">7</div>
+                <div class="fact-text"><strong>VT-x / AMD-V</strong> must be enabled in UEFI before hypervisors (Hyper-V, VMware) can run 64-bit VMs. Disabled by default on many OEM boards.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">8</div>
+                <div class="fact-text"><strong>Airflow:</strong> front/bottom intake, rear/top exhaust. Positive pressure reduces dust buildup. Thermal paste must be reapplied every time the CPU cooler is removed.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        // Tab Navigation
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../../index.html" class="nav-btn back-btn" aria-label="Back to Core 1 hub">Back to Core 1</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 24</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark chapter complete">Mark Complete</button>
+</nav>
 
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.section).classList.add('active');
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 24;
+    let current = 1;
 
-                // Load quiz if switching to quiz tab
-                if (tab.dataset.section === 'quiz' && document.getElementById('mainQuiz').innerHTML === '') {
-                    loadQuiz();
-                }
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
 
-                updateProgress();
-            });
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
+
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
+
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to Core 1 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-ch01-motherboards', {
+            returnUrl: '../../index.html'
         });
-
-        // Accordion
-        function toggleAccordion(header) {
-            const item = header.parentElement;
-            item.classList.toggle('open');
-        }
-
-        // Form Factor Interactive
-        const formFactorData = {
-            atx: {
-                name: "ATX (Advanced Technology Extended)",
-                desc: "The standard for full-size desktop motherboards since 1995. Offers maximum expansion capability.",
-                slots: "Typically 7 expansion slots, 4 RAM slots, multiple SATA and M.2 connectors."
-            },
-            matx: {
-                name: "Micro-ATX",
-                desc: "A smaller version of ATX, backward compatible with ATX cases and power supplies.",
-                slots: "Typically 4 expansion slots, 2-4 RAM slots. Good balance of size and expandability."
-            },
-            itx: {
-                name: "Mini-ITX",
-                desc: "Designed for small form factor builds. Very compact but limited expansion.",
-                slots: "Usually 1 PCIe x16 slot, 2 RAM slots. Perfect for HTPCs and compact builds."
-            }
-        };
-
-        function showFormFactor(type) {
-            const info = formFactorData[type];
-            document.getElementById('ffName').textContent = info.name;
-            document.getElementById('ffDesc').textContent = info.desc;
-            document.getElementById('ffSlots').textContent = info.slots;
-            document.getElementById('formFactorInfo').style.display = 'block';
-
-            document.querySelectorAll('#formFactorGrid .compare-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-        }
-
-        // Socket Game
-        const socketAnswers = {
-            0: 'intel', // LGA 1700
-            1: 'amd',   // AM5
-            2: 'amd',   // AM4
-            3: 'intel'  // LGA 1200
-        };
-
-        function checkSocket(element, answer) {
-            const question = element.parentElement.parentElement;
-            const questionIndex = Array.from(document.querySelectorAll('#socketGame .quiz-question')).indexOf(question);
-            const correctAnswer = socketAnswers[questionIndex];
-
-            // Clear previous selections
-            question.querySelectorAll('li').forEach(li => {
-                li.classList.remove('selected', 'correct', 'incorrect');
-            });
-
-            if (answer === correctAnswer) {
-                element.classList.add('correct');
-            } else {
-                element.classList.add('incorrect');
-                // Show correct answer
-                const options = question.querySelectorAll('li');
-                options.forEach(opt => {
-                    if ((correctAnswer === 'intel' && opt.textContent === 'Intel') ||
-                        (correctAnswer === 'amd' && opt.textContent === 'AMD')) {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
-
-        // Main Quiz
-        function loadQuiz() {
-            const container = document.getElementById('mainQuiz');
-            container.innerHTML = '';
-
-            quizQuestions.forEach((q, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.className = 'quiz-question';
-                questionDiv.innerHTML = `
-                    <h4><span class="q-number">${index + 1}</span> ${q.q}</h4>
-                    <ul class="quiz-options">
-                        ${q.options.map((opt, optIndex) => `
-                            <li onclick="selectAnswer(${index}, ${optIndex}, this)">${opt}</li>
-                        `).join('')}
-                    </ul>
-                    <div class="quiz-feedback" id="feedback-${index}"></div>
-                `;
-                container.appendChild(questionDiv);
-            });
-
-            document.getElementById('submitQuiz').style.display = 'block';
-        }
-
-        function selectAnswer(questionIndex, optionIndex, element) {
-            if (quizSubmitted) return;
-
-            userAnswers[questionIndex] = optionIndex;
-
-            // Clear previous selection
-            element.parentElement.querySelectorAll('li').forEach(li => {
-                li.classList.remove('selected');
-            });
-            element.classList.add('selected');
-        }
-
-        /**
-         * submitQuiz — Server-side graded (QC-21)
-         *
-         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
-         * The server looks up quiz_keys/aplus-core1-ch01 in Firestore, compares answers,
-         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
-         *
-         * Falls back to a "grading unavailable" message if Firebase isn't loaded
-         * (e.g. offline mode or SDK failure).
-         */
-        async function submitQuiz() {
-            // Check if all questions answered
-            if (userAnswers.includes(null)) {
-                alert('Please answer all questions before submitting.');
-                return;
-            }
-
-            quizSubmitted = true;
-            const submitBtn = document.getElementById('submitQuiz');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Grading...';
-
-            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
-            const answerMap = {};
-            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
-
-            let score = 0;
-            let results = null;
-
-            try {
-                // Call server-side grading via FirebaseAuth bridge
-                if (typeof FirebaseAuth !== 'undefined') {
-                    await FirebaseAuth.waitForAuth();
-                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
-                        quizId: QUIZ_ID,
-                        answers: answerMap
-                    });
-                    results = response.data.results;
-                    score = response.data.score;
-                }
-            } catch (e) {
-                console.warn('Server grading failed, showing submission without grading:', e.message);
-            }
-
-            // Render results
-            quizQuestions.forEach((q, index) => {
-                const options = document.querySelectorAll(`#mainQuiz .quiz-question:nth-child(${index + 1}) li`);
-                const feedback = document.getElementById(`feedback-${index}`);
-                const isCorrect = results ? results[index].correct : null;
-
-                options.forEach((opt, optIndex) => {
-                    opt.classList.remove('selected');
-                    // When server grades, we only know right/wrong — highlight the user's pick
-                    if (optIndex === userAnswers[index]) {
-                        opt.classList.add(isCorrect ? 'correct' : 'incorrect');
-                    }
-                });
-
-                if (isCorrect === true) {
-                    feedback.textContent = '✓ Correct!';
-                    feedback.className = 'quiz-feedback show correct';
-                } else if (isCorrect === false) {
-                    feedback.textContent = '✗ Incorrect.';
-                    feedback.className = 'quiz-feedback show incorrect';
-                } else {
-                    feedback.textContent = 'Grading unavailable — try again when online.';
-                    feedback.className = 'quiz-feedback show';
-                }
-            });
-
-            // Show results
-            submitBtn.style.display = 'none';
-            document.getElementById('quizResults').style.display = 'block';
-            document.getElementById('finalScore').textContent = score;
-
-            const percentage = (score / quizQuestions.length) * 100;
-            let message = '';
-            if (percentage >= 90) message = 'Excellent! You have mastered this chapter!';
-            else if (percentage >= 70) message = 'Good job! Review the topics you missed.';
-            else if (percentage >= 50) message = 'Keep studying. Review the Learn section again.';
-            else message = 'Needs improvement. Re-read the chapter before retrying.';
-
-            document.getElementById('scoreMessage').textContent = message;
-
-            // Save progress
-            saveProgress(score);
-        }
-
-        function resetQuiz() {
-            quizSubmitted = false;
-            userAnswers = new Array(quizQuestions.length).fill(null);
-            document.getElementById('quizResults').style.display = 'none';
-            loadQuiz();
-        }
-
-        // Progress tracking
-        function updateProgress() {
-            const sections = ['learn', 'interactive', 'labs', 'quiz'];
-            const visited = JSON.parse(localStorage.getItem('ch01-visited') || '[]');
-
-            const activeSection = document.querySelector('.nav-tab.active').dataset.section;
-            if (!visited.includes(activeSection)) {
-                visited.push(activeSection);
-                localStorage.setItem('ch01-visited', JSON.stringify(visited));
-            }
-
-            const progress = (visited.length / sections.length) * 100;
-            document.getElementById('chapterProgress').style.width = progress + '%';
-            document.getElementById('progressText').textContent =
-                `${visited.length} of ${sections.length} sections visited`;
-        }
-
-        function saveProgress(quizScore) {
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
-            progress.ch01 = {
-                completed: quizScore >= 11, // 70% to pass
-                quizScore: quizScore,
-                lastAttempt: new Date().toISOString()
-            };
-            localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
-
-            // Mark chapter as completed if passed
-            if (quizScore >= 11) {
-                progress.ch01.completed = true;
-                localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
-            }
-        }
-
-        // Initialize
-        updateProgress();
-    </script>
+    }
+</script>
 </body>
 </html>

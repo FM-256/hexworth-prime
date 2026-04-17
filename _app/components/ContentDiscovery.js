@@ -1210,12 +1210,15 @@ const ContentDiscovery = (function() {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                const rawHref = module.href || module.path || '';
+                const housePrefix = currentHouse ? 'houses/' + currentHouse + '/' : '';
+                const fullHref = rawHref.startsWith('houses/') || rawHref.startsWith('/') ? rawHref : housePrefix + rawHref;
                 const meta = {
                     title: module.title,
                     house: currentHouse || '',
                     icon: module.icon || '',
                     type: (module.components && module.components[0]) || '',
-                    href: module.href || module.path || ''
+                    href: fullHref
                 };
                 const nowFavorited = FavoritesManager.toggle(module.id, meta);
                 btn.classList.toggle('favorited', nowFavorited);

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3: Network Defense + PKI | Principles of Information Security</title>
+    <style>
+        :root {
+            --bg: #090910;
+            --bg-card: #12121e;
+            --bg-option: #161625;
+            --blue: #3b82f6;
+            --blue-dim: rgba(59, 130, 246, 0.15);
+            --text: #e2e8f0;
+            --text-muted: #8892a8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #0f1628 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--blue-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--blue), var(--success));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label { font-size: 0.85rem; color: var(--blue); font-weight: 600; white-space: nowrap; }
+
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num { font-size: 0.8rem; color: var(--blue); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+
+        .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option:hover { border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05); }
+        .option.selected { border-color: var(--blue); background: rgba(59, 130, 246, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--blue);
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: var(--blue);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .next-btn:hover { background: var(--blue); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 { color: var(--blue); font-size: 1.4rem; margin-bottom: 1rem; }
+
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+        .results-btns a, .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-retry { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: var(--blue); }
+        .btn-retry:hover { background: var(--blue); color: #fff; }
+        .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Infosec Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 3: Network Defense + PKI</h1>
+            <p class="subtitle">Firewalls, IDS/IPS, VPNs, TLS, certificates, and public key infrastructure</p>
+            <div class="meta">
+                <span>Week 3</span>
+                <span>15 Questions</span>
+                <span>SY0-701: 3.0, 4.0, 5.0</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Infosec Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var questions = [
+            {
+                q: "A stateful firewall differs from a stateless packet filter because it:",
+                opts: [
+                    "Blocks all inbound traffic by default",
+                    "Tracks the state of active connections and allows only packets belonging to established sessions",
+                    "Inspects application-layer content for malware signatures",
+                    "Operates at Layer 7 of the OSI model"
+                ],
+                ans: 1,
+                exp: "A stateful firewall maintains a connection state table and only allows packets that are part of an established, legitimate session. Stateless filters inspect each packet in isolation against rules."
+            },
+            {
+                q: "Which device detects suspicious network traffic and generates alerts but does not actively block the traffic?",
+                opts: ["IPS", "WAF", "IDS", "UTM"],
+                ans: 2,
+                exp: "An IDS (Intrusion Detection System) passively monitors and alerts. An IPS (Intrusion Prevention System) actively blocks threats inline. Both are important layers of network defense."
+            },
+            {
+                q: "A next-generation firewall (NGFW) extends traditional firewall capabilities by adding:",
+                opts: [
+                    "Static routing and VLAN support",
+                    "Deep packet inspection, application awareness, and integrated IPS",
+                    "Layer 2 switching and port mirroring",
+                    "DHCP and DNS proxy services"
+                ],
+                ans: 1,
+                exp: "NGFWs incorporate deep packet inspection (DPI), application-layer visibility, user identity tracking, and integrated IPS/IDS -- capabilities absent in traditional stateful firewalls."
+            },
+            {
+                q: "Which VPN protocol encapsulates traffic in IPSec and is considered the most secure for site-to-site connections?",
+                opts: ["PPTP", "L2TP/IPSec", "SSL/TLS VPN", "WireGuard"],
+                ans: 1,
+                exp: "L2TP/IPSec pairs L2TP tunneling with IPSec encryption/authentication, providing strong security for site-to-site VPNs. PPTP is deprecated. SSL VPNs are common for remote access."
+            },
+            {
+                q: "In TLS, the server presents a digital certificate to the client. What is the client verifying when it checks the certificate?",
+                opts: [
+                    "That the server's IP address matches its hostname",
+                    "That the certificate was signed by a trusted Certificate Authority and has not expired",
+                    "That the server supports at least TLS 1.0",
+                    "That the server's public key matches its private key"
+                ],
+                ans: 1,
+                exp: "The client verifies the certificate chain (trusted CA signature), validity period, and that the hostname matches. This prevents impersonation. Revocation is checked via CRL or OCSP."
+            },
+            {
+                q: "What is a Certificate Authority (CA) in a PKI?",
+                opts: [
+                    "A hardware device that generates encryption keys",
+                    "A trusted entity that issues, signs, and revokes digital certificates",
+                    "A protocol for distributing public keys over a network",
+                    "A server that stores encrypted private keys"
+                ],
+                ans: 1,
+                exp: "A CA is the trust anchor in a PKI. It verifies the identity of certificate requestors and signs certificates with its private key, allowing others to verify them using the CA's public key."
+            },
+            {
+                q: "A CDC operations center needs to ensure field teams can securely access internal biosurveillance databases over the public internet. The BEST solution is:",
+                opts: ["Port forwarding on the perimeter router", "A VPN with strong encryption and MFA", "SFTP with password authentication only", "An open web portal with CAPTCHA"],
+                ans: 1,
+                exp: "A VPN with strong encryption (AES-256) and multi-factor authentication provides confidentiality, integrity, and strong identity verification for remote access to sensitive infrastructure."
+            },
+            {
+                q: "Which protocol is used to check whether a certificate has been revoked in real time without downloading the full CRL?",
+                opts: ["LDAP", "OCSP", "SCEP", "CMP"],
+                ans: 1,
+                exp: "OCSP (Online Certificate Status Protocol) allows a client to query a responder in real time for the revocation status of a specific certificate, unlike CRL which requires downloading a full list."
+            },
+            {
+                q: "What type of IDS/IPS detection method creates a baseline of normal traffic and alerts on deviations from that baseline?",
+                opts: ["Signature-based detection", "Anomaly-based detection", "Policy-based detection", "Heuristic-based detection"],
+                ans: 1,
+                exp: "Anomaly-based detection builds a statistical model of normal behavior and flags deviations. It can detect novel attacks but has higher false positive rates than signature-based detection."
+            },
+            {
+                q: "A network administrator deploys a honeypot in the DMZ. What is the primary purpose of this device?",
+                opts: [
+                    "To serve as a backup DNS server",
+                    "To attract and study attacker behavior while logging their techniques",
+                    "To load-balance traffic across web servers",
+                    "To terminate VPN tunnels from remote employees"
+                ],
+                ans: 1,
+                exp: "A honeypot is a decoy system designed to attract attackers, divert them from real targets, and gather intelligence about their TTPs (Tactics, Techniques, and Procedures)."
+            },
+            {
+                q: "Which network security zone is designed to host public-facing services (web, email, DNS) while isolating them from the internal network?",
+                opts: ["VLAN", "DMZ (Demilitarized Zone)", "Intranet", "Air-gapped network"],
+                ans: 1,
+                exp: "A DMZ sits between the internet and the internal network, typically protected by two firewalls. Public services run here, limiting the blast radius if they are compromised."
+            },
+            {
+                q: "TLS 1.3 improves on TLS 1.2 by:",
+                opts: [
+                    "Adding support for MD5 cipher suites",
+                    "Reducing the handshake to one round-trip and removing weak cipher suites",
+                    "Requiring certificates signed with SHA-1",
+                    "Enabling plaintext fallback for compatibility with older clients"
+                ],
+                ans: 1,
+                exp: "TLS 1.3 reduces handshake latency (1-RTT, with 0-RTT resumption), removes all legacy and weak cipher suites (RC4, DES, 3DES, MD5, SHA-1), and mandates forward secrecy."
+            },
+            {
+                q: "What is the purpose of a Web Application Firewall (WAF)?",
+                opts: [
+                    "To filter network-layer traffic based on IP addresses and ports",
+                    "To inspect and filter HTTP/HTTPS application traffic to protect against web attacks like SQLi and XSS",
+                    "To monitor and control employee internet browsing",
+                    "To encrypt web traffic between the client and server"
+                ],
+                ans: 1,
+                exp: "A WAF inspects HTTP/HTTPS traffic at Layer 7, blocking application-layer attacks such as SQL injection, cross-site scripting (XSS), and CSRF that network firewalls cannot detect."
+            },
+            {
+                q: "Network segmentation reduces risk by:",
+                opts: [
+                    "Encrypting all data stored on network devices",
+                    "Dividing the network into isolated zones so that a breach in one zone cannot freely spread to others",
+                    "Requiring all devices to use static IP addresses",
+                    "Centralizing all traffic through a single inspection point"
+                ],
+                ans: 1,
+                exp: "Segmentation limits lateral movement. If an attacker compromises one segment (e.g., a guest Wi-Fi zone), firewalls and ACLs prevent them from reaching sensitive segments like the corporate LAN."
+            },
+            {
+                q: "Which field in a digital certificate binds the certificate to a specific server or domain name?",
+                opts: ["Serial Number", "Subject Alternative Name (SAN) / Common Name (CN)", "Key Usage", "Issuer"],
+                ans: 1,
+                exp: "The Subject (Common Name) and Subject Alternative Name fields specify the domain(s) the certificate is valid for. Browsers reject certificates if the hostname does not match these fields."
+            }
+        ];
+
+        /* ── Quiz Engine State ──
+           Aligned to Security+ SY0-701 domains 3.0 (Security Architecture), 4.0 (Security Operations), 5.0 (Cryptography/PKI). */
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct! ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) {
+                scoreBig.className = 'score-big';
+            } else if (pct >= 60) {
+                scoreBig.className = 'score-big mid';
+            } else {
+                scoreBig.className = 'score-big low';
+            }
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding! You have a strong command of network defense and PKI concepts.';
+            else if (pct >= 70) msg = 'Solid work. Review firewall types and certificate management before the final.';
+            else if (pct >= 50) msg = 'Good effort. Revisit IDS vs. IPS, VPN protocols, and the role of CAs in PKI.';
+            else msg = 'Keep studying. Review Week 3 materials on network security and PKI, then retake the quiz.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('shield', 'pis-w3-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

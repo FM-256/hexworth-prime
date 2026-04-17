@@ -2,1820 +2,1205 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Access Control -->
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <!-- Progress & Achievements -->
+    <script src="../../../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 11: Troubleshooting Methodology | CompTIA A+ Core 1</title>
+    <title>Chapter 11: Troubleshooting Methodology | A+ Core 1</title>
     <style>
-        :root {
-            --primary: #e74c3c;
-            --primary-dark: #c0392b;
-            --secondary: #3498db;
-            --accent: #f39c12;
-            --success: #27ae60;
-            --warning: #e67e22;
-            --danger: #c0392b;
-            --dark: #1a1a2e;
-            --darker: #0f0f1a;
-            --light: #ecf0f1;
-            --gray: #34495e;
-            --card-bg: rgba(255, 255, 255, 0.05);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            color: var(--light);
-            min-height: 100vh;
-            line-height: 1.6;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .chapter-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        /* Header */
-        .chapter-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 2rem;
-            background: var(--card-bg);
-            border-radius: 15px;
-            border: 1px solid rgba(231, 76, 60, 0.3);
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .chapter-header h1 {
-            font-size: 2.2rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .chapter-header .subtitle {
-            color: #aaa;
-            font-size: 1.1rem;
-        }
-
-        .exam-objective {
-            display: inline-block;
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid var(--primary);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-        }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--secondary);
-            text-decoration: none;
-            margin-bottom: 1rem;
-            transition: color 0.3s;
-        }
-
-        .back-link:hover {
-            color: var(--primary);
-        }
-
-        /* Tab Navigation */
-        .tab-navigation {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .tab-btn {
-            padding: 0.8rem 1.5rem;
-            background: var(--card-bg);
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: var(--light);
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 1rem;
-        }
-
-        .tab-btn:hover {
-            background: rgba(231, 76, 60, 0.2);
-            border-color: var(--primary);
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-color: var(--primary);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Content Cards */
-        .content-section {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .content-section h2 {
-            color: var(--primary);
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .content-section h3 {
-            color: var(--accent);
-            margin: 1.5rem 0 1rem;
-        }
-
-        .content-section h4 {
-            color: var(--secondary);
-            margin: 1rem 0 0.5rem;
-        }
-
-        .content-section p {
-            margin-bottom: 1rem;
-            color: #ccc;
-        }
-
-        .content-section ul, .content-section ol {
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .content-section li {
-            margin-bottom: 0.5rem;
-            color: #bbb;
-        }
-
-        /* Highlight Boxes */
-        .highlight-box {
-            background: rgba(231, 76, 60, 0.1);
-            border-left: 4px solid var(--primary);
-            padding: 1rem 1.5rem;
-            margin: 1.5rem 0;
-            border-radius: 0 10px 10px 0;
-        }
-
-        .highlight-box.warning {
-            background: rgba(230, 126, 34, 0.1);
-            border-left-color: var(--warning);
-        }
-
-        .highlight-box.info {
-            background: rgba(52, 152, 219, 0.1);
-            border-left-color: var(--secondary);
-        }
-
-        .highlight-box.success {
-            background: rgba(39, 174, 96, 0.1);
-            border-left-color: var(--success);
-        }
-
-        .highlight-box strong {
-            color: var(--light);
-        }
-
-        /* Mnemonic Box */
-        .mnemonic-box {
-            background: linear-gradient(135deg, rgba(155, 89, 182, 0.2), rgba(142, 68, 173, 0.1));
-            border: 2px solid #9b59b6;
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-            text-align: center;
-        }
-
-        .mnemonic-box .mnemonic-title {
-            color: #9b59b6;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-
-        .mnemonic-box .mnemonic-text {
-            font-size: 1.3rem;
-            color: var(--light);
-            font-weight: bold;
-        }
-
-        .mnemonic-box .mnemonic-meaning {
-            color: #aaa;
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
-        }
-
-        /* Step Cards */
-        .step-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .step-card {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            padding: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-        }
-
-        .step-card .step-number {
-            position: absolute;
-            top: -15px;
-            left: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-
-        .step-card h4 {
-            color: var(--accent);
-            margin-top: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .step-card ul {
-            margin-left: 1rem;
-            font-size: 0.9rem;
-        }
-
-        /* Symptom Table */
-        .symptom-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-        }
-
-        .symptom-table th, .symptom-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .symptom-table th {
-            background: rgba(231, 76, 60, 0.2);
-            color: var(--primary);
-        }
-
-        .symptom-table tr:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .symptom-table td:first-child {
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        /* Interactive Styles */
-        .interactive-container {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(52, 152, 219, 0.3);
-        }
-
-        .interactive-container h3 {
-            color: var(--secondary);
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        /* Drag and Drop Sequencer */
-        .sequencer-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .drag-item {
-            background: rgba(52, 152, 219, 0.2);
-            border: 2px solid var(--secondary);
-            border-radius: 10px;
-            padding: 1rem;
-            cursor: grab;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            transition: all 0.3s;
-        }
-
-        .drag-item:active {
-            cursor: grabbing;
-        }
-
-        .drag-item:hover {
-            background: rgba(52, 152, 219, 0.3);
-            transform: translateX(5px);
-        }
-
-        .drag-item.dragging {
-            opacity: 0.5;
-            background: rgba(231, 76, 60, 0.3);
-        }
-
-        .drag-item .drag-handle {
-            color: var(--secondary);
-            font-size: 1.2rem;
-        }
-
-        .drag-item .step-label {
-            color: var(--light);
-            flex: 1;
-        }
-
-        .drag-item .slot-number {
-            background: var(--secondary);
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        .drag-item.correct {
-            background: rgba(39, 174, 96, 0.3);
-            border-color: var(--success);
-        }
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-flex; align-items: center;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        /* ── STEP LIST ── */
+        .step-list { display: flex; flex-direction: column; gap: 7px; }
+        .step-row {
+            display: flex; gap: 12px; align-items: flex-start;
+            background: rgba(255,255,255,0.03); border-radius: 6px; padding: 9px 12px;
+            border-left: 3px solid #c9a83a;
+        }
+        .step-num {
+            font-size: 0.78rem; font-weight: 800; color: #c9a83a;
+            min-width: 20px; text-align: center; flex-shrink: 0; padding-top: 1px;
+        }
+        .step-body { flex: 1; font-size: 0.84rem; color: #cbd5e1; line-height: 1.4; }
+        .step-body strong { color: #f1f5f9; }
+
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
 
-        .drag-item.incorrect {
-            background: rgba(231, 76, 60, 0.3);
-            border-color: var(--danger);
-        }
-
-        /* Matcher Game */
-        .matcher-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .matcher-column h4 {
-            text-align: center;
-            color: var(--accent);
-            margin-bottom: 1rem;
-        }
-
-        .matcher-item {
-            background: rgba(243, 156, 18, 0.2);
-            border: 2px solid var(--accent);
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-
-        .matcher-item:hover {
-            background: rgba(243, 156, 18, 0.3);
-        }
-
-        .matcher-item.selected {
-            background: rgba(52, 152, 219, 0.3);
-            border-color: var(--secondary);
-        }
-
-        .matcher-item.matched {
-            background: rgba(39, 174, 96, 0.3);
-            border-color: var(--success);
-            cursor: default;
-        }
-
-        .matcher-item.wrong {
-            animation: shake 0.5s;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-
-        /* Choice Quiz */
-        .quiz-question {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .quiz-question p {
-            color: var(--light);
-            margin-bottom: 1rem;
-            font-weight: bold;
-        }
-
-        .quiz-options {
-            display: grid;
-            gap: 0.5rem;
-        }
-
-        .quiz-option {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 0.8rem 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .quiz-option:hover {
-            background: rgba(52, 152, 219, 0.2);
-            border-color: var(--secondary);
-        }
-
-        .quiz-option.selected {
-            background: rgba(52, 152, 219, 0.3);
-            border-color: var(--secondary);
-        }
-
-        .quiz-option.correct {
-            background: rgba(39, 174, 96, 0.3);
-            border-color: var(--success);
-        }
-
-        .quiz-option.incorrect {
-            background: rgba(231, 76, 60, 0.3);
-            border-color: var(--danger);
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 0.8rem 2rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s;
-            margin: 0.5rem;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, var(--secondary), #2980b9);
-            color: white;
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
 
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, var(--success), #1e8449);
-            color: white;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Score Display */
-        .score-display {
-            text-align: center;
-            padding: 1.5rem;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            margin-top: 1rem;
-        }
-
-        .score-display .score {
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--accent);
-        }
-
-        .score-display.passed .score {
-            color: var(--success);
-        }
-
-        .score-display.failed .score {
-            color: var(--danger);
-        }
-
-        /* Labs Section */
-        .lab-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .lab-card {
-            background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(39, 174, 96, 0.05));
-            border: 1px solid var(--success);
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-decoration: none;
-            color: var(--light);
-            transition: all 0.3s;
-        }
-
-        .lab-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.2);
-        }
-
-        .lab-card h4 {
-            color: var(--success);
-            margin-bottom: 0.5rem;
-        }
-
-        .lab-card p {
-            color: #aaa;
-            font-size: 0.9rem;
-        }
-
-        /* Quiz Section */
-        .quiz-container {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 2rem;
-            border: 1px solid rgba(243, 156, 18, 0.3);
-        }
-
-        .quiz-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .quiz-progress {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 20px;
-            padding: 0.5rem 1rem;
-        }
-
-        .quiz-question-container {
-            margin-bottom: 2rem;
-        }
-
-        .quiz-nav {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .chapter-container {
-                padding: 1rem;
-            }
-
-            .chapter-header h1 {
-                font-size: 1.6rem;
-            }
-
-            .tab-btn {
-                padding: 0.6rem 1rem;
-                font-size: 0.9rem;
-            }
-
-            .content-section {
-                padding: 1.5rem;
-            }
-
-            .step-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .matcher-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .symptom-table {
-                font-size: 0.85rem;
-            }
-
-            .symptom-table th, .symptom-table td {
-                padding: 0.5rem;
-            }
-        }
+        /* ── SVG DIAGRAM STYLES ── */
+        .svg-diagram { display: flex; justify-content: center; align-items: center; margin: 4px 0; }
+        .svg-diagram svg { max-width: 100%; height: auto; }
     </style>
 </head>
 <body>
-    <div class="chapter-container">
-        <a href="../../index.html" class="back-link">
-            <span>&#8592;</span> Back to Core 1 Overview
-        </a>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Chapter 11: Troubleshooting Methodology</h1>
 
-        <header class="chapter-header">
-            <h1>Chapter 11: Troubleshooting Methodology and Resolving Core Hardware Problems</h1>
-            <p class="subtitle">Master the systematic approach to diagnosing and fixing hardware issues</p>
-            <div class="exam-objective">Exam Objectives: 5.1, 5.2</div>
-        </header>
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:4.76%"></div>
 
-        <nav class="tab-navigation">
-            <button class="tab-btn active" data-tab="learn">Learn</button>
-            <button class="tab-btn" data-tab="interactive">Interactive</button>
-            <button class="tab-btn" data-tab="labs">Labs</button>
-            <button class="tab-btn" data-tab="quiz">Quiz</button>
-        </nav>
-
-        <!-- LEARN TAB -->
-        <div id="learn" class="tab-content active">
-
-            <!-- Section 1: 6-Step Troubleshooting Methodology -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 1: The 6-Step Troubleshooting Methodology</h2>
-
-                <div class="highlight-box">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> EXAM ALERT:</strong> The 6-step troubleshooting methodology is one of the MOST TESTED topics on the CompTIA A+ exam. You must know each step AND the correct order. Expect scenario questions like "What should you do FIRST?"
-                </div>
-
-                <p>CompTIA defines a specific best practice methodology for resolving problems. This systematic approach ensures consistent, professional troubleshooting that protects both the technician and the organization.</p>
-
-                <div class="mnemonic-box">
-                    <div class="mnemonic-title"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Memory Aid: "I ETEVD"</div>
-                    <div class="mnemonic-text">Identify &rarr; Establish &rarr; Test &rarr; Establish &rarr; Verify &rarr; Document</div>
-                    <div class="mnemonic-meaning">"I Eat Tacos Every Very Day"</div>
-                </div>
-
-                <div class="step-grid">
-                    <div class="step-card">
-                        <span class="step-number">1</span>
-                        <h3>Identify the Problem</h3>
-                        <ul>
-                            <li>Question the user about changes</li>
-                            <li>Perform backups before making changes</li>
-                            <li>Inquire about environmental/infrastructure changes</li>
-                            <li>Review system and application logs</li>
-                        </ul>
-                    </div>
-
-                    <div class="step-card">
-                        <span class="step-number">2</span>
-                        <h4>Establish a Theory of Probable Cause</h4>
-                        <ul>
-                            <li>Question the obvious first</li>
-                            <li>Consider multiple possibilities</li>
-                            <li>Conduct external or internal research</li>
-                            <li>Eliminate possibilities systematically</li>
-                        </ul>
-                    </div>
-
-                    <div class="step-card">
-                        <span class="step-number">3</span>
-                        <h4>Test the Theory to Determine Cause</h4>
-                        <ul>
-                            <li>If confirmed: determine next steps</li>
-                            <li>If not confirmed: re-establish new theory</li>
-                            <li>Escalate if beyond your expertise</li>
-                            <li>Continue testing until root cause found</li>
-                        </ul>
-                    </div>
-
-                    <div class="step-card">
-                        <span class="step-number">4</span>
-                        <h4>Establish a Plan of Action</h4>
-                        <ul>
-                            <li>Create a resolution plan</li>
-                            <li>Implement the solution</li>
-                            <li>Refer to vendor instructions</li>
-                            <li>Consider impact on other systems</li>
-                        </ul>
-                    </div>
-
-                    <div class="step-card">
-                        <span class="step-number">5</span>
-                        <h4>Verify Full System Functionality</h4>
-                        <ul>
-                            <li>Test the fix thoroughly</li>
-                            <li>Implement preventive measures</li>
-                            <li>Ensure no new problems created</li>
-                            <li>Confirm user satisfaction</li>
-                        </ul>
-                    </div>
-
-                    <div class="step-card">
-                        <span class="step-number">6</span>
-                        <h4>Document Findings, Actions, and Outcomes</h4>
-                        <ul>
-                            <li>Record the problem symptoms</li>
-                            <li>Document steps taken</li>
-                            <li>Note the resolution</li>
-                            <li>Update knowledge base</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="highlight-box warning">
-                    <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039; Always Consider:</strong> Corporate policies, procedures, and impacts BEFORE implementing changes. You may need management approval for certain actions. Never violate company policy even if you know the fix!
-                </div>
-
-                <h3>Pre-Troubleshooting Best Practices</h3>
-                <ul>
-                    <li><strong>Create a backup</strong> - Always protect user data before making changes</li>
-                    <li><strong>Prioritize tasks</strong> - Address critical issues first</li>
-                    <li><strong>Document the process</strong> - Keep detailed records throughout</li>
-                    <li><strong>Consider corporate policies</strong> - Follow company procedures and get approvals</li>
-                </ul>
-            </section>
-
-            <!-- Section 2: Common Hardware Symptoms -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039; Section 2: Common Hardware Symptoms</h2>
-
-                <p>Recognizing hardware symptoms is crucial for efficient troubleshooting. The exam tests your ability to identify what component is likely failing based on specific symptoms.</p>
-
-                <table class="symptom-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Symptom</th>
-                            <th scope="col">Likely Cause</th>
-                            <th scope="col">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>POST Beeps</td>
-                            <td>Hardware failure (CPU, RAM, Video)</td>
-                            <td>Look up beep codes in documentation</td>
-                        </tr>
-                        <tr>
-                            <td>BSOD / Pinwheel</td>
-                            <td>RAM, drivers, or OS corruption</td>
-                            <td>Note error code, test RAM</td>
-                        </tr>
-                        <tr>
-                            <td>Black Screen</td>
-                            <td>Video card, monitor, or power issue</td>
-                            <td>Check connections, test with different monitor</td>
-                        </tr>
-                        <tr>
-                            <td>No Power</td>
-                            <td>PSU, power cable, or outlet</td>
-                            <td>Try different cable/outlet, test PSU</td>
-                        </tr>
-                        <tr>
-                            <td>Sluggish Performance</td>
-                            <td>Low RAM, HDD failing, malware</td>
-                            <td>Check Task Manager, run diagnostics</td>
-                        </tr>
-                        <tr>
-                            <td>Overheating</td>
-                            <td>Dust, failed fans, thermal paste</td>
-                            <td>Clean system, check fans, reapply paste</td>
-                        </tr>
-                        <tr>
-                            <td>Burning Smell</td>
-                            <td>PSU or motherboard failure</td>
-                            <td>SHUT DOWN IMMEDIATELY</td>
-                        </tr>
-                        <tr>
-                            <td>Intermittent Shutdown</td>
-                            <td>Overheating, RAM, or PSU</td>
-                            <td>Monitor temps, test components</td>
-                        </tr>
-                        <tr>
-                            <td>Grinding Noise</td>
-                            <td>HDD failure imminent</td>
-                            <td>BACKUP DATA IMMEDIATELY</td>
-                        </tr>
-                        <tr>
-                            <td>Capacitor Swelling</td>
-                            <td>Motherboard failure</td>
-                            <td>Replace motherboard</td>
-                        </tr>
-                        <tr>
-                            <td>Inaccurate Date/Time</td>
-                            <td>CMOS battery dead</td>
-                            <td>Replace CR2032 battery</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="highlight-box">
-                    <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Immediate Shutdown Required:</strong> If you encounter burning smell, smoke, electrical sparks, or grinding/scraping noises from an HDD, shut down the system IMMEDIATELY. These are signs of imminent hardware failure that can cause further damage or data loss.
-                </div>
-            </section>
-
-            <!-- Section 3: POST and BIOS/UEFI Problems -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 3: POST and BIOS/UEFI Problems</h2>
-
-                <h3>Power-On Self-Test (POST)</h3>
-                <p>When a computer starts, the BIOS/UEFI runs POST to check essential hardware:</p>
-                <ul>
-                    <li><strong>CPU</strong> - Processor functionality</li>
-                    <li><strong>RAM</strong> - Memory integrity</li>
-                    <li><strong>Video Card</strong> - Display capability</li>
-                    <li><strong>Other hardware</strong> - Keyboard, storage, etc.</li>
-                </ul>
-
-                <h3>Beep Codes</h3>
-                <div class="highlight-box info">
-                    <strong><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> One beep is GOOD!</strong> A single beep during POST typically indicates successful hardware initialization. Multiple beeps indicate a problem - the pattern tells you what's wrong.
-                </div>
-
-                <p>Beep codes vary by BIOS manufacturer (AMI, Award, Phoenix). Always look up codes in the motherboard documentation.</p>
-
-                <h4>Common Beep Code Patterns:</h4>
-                <ul>
-                    <li><strong>1 short beep</strong> - System OK (normal)</li>
-                    <li><strong>Continuous beeping</strong> - RAM not detected or faulty</li>
-                    <li><strong>1 long, 2-3 short</strong> - Video card issue</li>
-                    <li><strong>No beep + no display</strong> - CPU or motherboard failure</li>
-                </ul>
-
-                <h3>POST Cards</h3>
-                <p>POST diagnostic cards plug into a PCI/PCIe slot or USB port and display two-digit codes indicating what component failed during POST. Commonly used in server environments.</p>
-
-                <h3>Common BIOS/UEFI Issues</h3>
-                <ul>
-                    <li><strong>Out-of-date BIOS</strong> - May cause compatibility issues; update by "flashing"</li>
-                    <li><strong>Losing settings</strong> - CMOS battery (CR2032) needs replacement</li>
-                    <li><strong>Boot sequence problems</strong> - Check boot order in BIOS setup</li>
-                    <li><strong>Secure Boot issues</strong> - May block unsigned operating systems</li>
-                </ul>
-
-                <div class="highlight-box warning">
-                    <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039; BIOS Flash Warning:</strong> Updating (flashing) BIOS is risky. A failed flash can brick the motherboard. Only update BIOS if necessary, ensure stable power (use UPS), and follow manufacturer instructions exactly.
-                </div>
-            </section>
-
-            <!-- Section 4: Motherboard & CPU Troubleshooting -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-battery.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 4: Motherboard & CPU Troubleshooting</h2>
-
-                <h3>I/O Port and Cable Problems</h3>
-                <p>When a port or device isn't working, follow this systematic approach:</p>
-                <ol>
-                    <li>Check cable connections (reseat cables)</li>
-                    <li>Inspect cables and ports for broken/bent pins</li>
-                    <li>Verify port is not disabled in Device Manager</li>
-                    <li>Check if port is disabled in BIOS settings</li>
-                    <li>Try replacing the cable</li>
-                    <li>Use a loopback plug to test port functionality</li>
-                </ol>
-
-                <h3>Distended (Swollen) Capacitors</h3>
-                <div class="highlight-box">
-                    <strong><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Visual Inspection:</strong> Capacitors should have flat tops. If they're bulging, leaking, or have a domed top, the motherboard is failing and should be replaced. Do NOT attempt to repair capacitors unless you have specialized training - they can hold a lethal charge!
-                </div>
-
-                <h3>CPU Problems</h3>
-                <ul>
-                    <li><strong>Overheating</strong> - Check thermal paste, heat sink, and fan</li>
-                    <li><strong>Overclocking issues</strong> - Reset to default speeds in BIOS</li>
-                    <li><strong>Incompatibility</strong> - Verify CPU is on motherboard's compatibility list</li>
-                    <li><strong>Bent pins</strong> - PGA sockets can have bent pins; inspect carefully</li>
-                </ul>
-
-                <h3>Indicator Lights</h3>
-                <p>Modern motherboards have diagnostic LEDs:</p>
-                <ul>
-                    <li><strong>Green</strong> - System OK or power present</li>
-                    <li><strong>Red</strong> - Error or failure detected</li>
-                    <li><strong>Amber/Orange</strong> - Warning or standby state</li>
-                </ul>
-            </section>
-
-            <!-- Section 5: Memory (RAM) Issues -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 5: Memory (RAM) Issues</h2>
-
-                <p>RAM problems are among the most difficult to diagnose because they often manifest as software issues rather than obvious hardware failures.</p>
-
-                <h3>Common RAM Failure Symptoms</h3>
-                <ul>
-                    <li><strong>Blue Screen of Death (BSOD)</strong> - Windows crash screen</li>
-                    <li><strong>Spinning Pinwheel</strong> - macOS crash indicator</li>
-                    <li><strong>General Protection Faults (GPFs)</strong> - Memory access errors</li>
-                    <li><strong>Random system lockups</strong> - Computer freezes unexpectedly</li>
-                    <li><strong>Unexpected reboots</strong> - System restarts without warning</li>
-                    <li><strong>Application crashes</strong> - Programs close unexpectedly</li>
-                </ul>
-
-                <div class="highlight-box info">
-                    <strong><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Pro Tip:</strong> When you see a BSOD or memory error, write down the memory address shown in the error message. This can help identify which RAM module is failing.
-                </div>
-
-                <h3>RAM Troubleshooting Steps</h3>
-                <ol>
-                    <li>Run built-in Windows Memory Diagnostic (mdsched.exe)</li>
-                    <li>Use third-party tools like MemTest86</li>
-                    <li>Test modules one at a time to isolate faulty stick</li>
-                    <li>Try RAM in different slots</li>
-                    <li>Clean RAM contacts with isopropyl alcohol</li>
-                    <li>Verify RAM compatibility with motherboard</li>
-                </ol>
-
-                <h3>RAM Considerations</h3>
-                <ul>
-                    <li>Ensure you're using matching RAM (same speed, timing, voltage)</li>
-                    <li>Check maximum supported capacity in motherboard specs</li>
-                    <li>Populate channels correctly for dual/quad channel operation</li>
-                    <li>ECC RAM requires motherboard/CPU support</li>
-                </ul>
-            </section>
-
-            <!-- Section 6: Power Supply Problems -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 6: Power Supply Problems</h2>
-
-                <h3>No Power Symptoms</h3>
-                <ul>
-                    <li>System completely dead - no lights, no fans</li>
-                    <li>First check: Is it plugged in? Is the outlet working?</li>
-                    <li>Try a different power cable</li>
-                    <li>Check the PSU switch on the back (if present)</li>
-                </ul>
-
-                <h3>Fan Spins But No Boot</h3>
-                <p>If the PSU fan spins but the system doesn't POST:</p>
-                <ul>
-                    <li>Could be a motherboard issue (not getting proper power signals)</li>
-                    <li>Check all power connections (24-pin, 8-pin CPU)</li>
-                    <li>The PSU may be partially failed</li>
-                    <li>Test with a PSU tester or known-good PSU</li>
-                </ul>
-
-                <h3>Excess Power / Voltage Issues</h3>
-                <div class="highlight-box warning">
-                    <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039; 110V vs 220V:</strong> Some older PSUs have a voltage selector switch. If set incorrectly (220V in a 110V country or vice versa), you can damage components or cause fire. Most modern PSUs auto-sense voltage.
-                </div>
-
-                <h3>Warning Signs</h3>
-                <ul>
-                    <li><strong>Electrical sparks</strong> - Shut down immediately</li>
-                    <li><strong>Smoke or burning smell</strong> - Disconnect power NOW</li>
-                    <li><strong>Fire</strong> - Unplug and use appropriate extinguisher (not water!)</li>
-                    <li><strong>Intermittent power</strong> - PSU may be failing under load</li>
-                </ul>
-
-                <h3>Testing Power Supply</h3>
-                <ul>
-                    <li>Use a multimeter to check voltage rails (+3.3V, +5V, +12V)</li>
-                    <li>Use a dedicated PSU tester</li>
-                    <li>Swap with a known-good PSU</li>
-                    <li>Check voltages under load, not just idle</li>
-                </ul>
-            </section>
-
-            <!-- Section 7: Cooling System Issues -->
-            <section class="content-section">
-                <h2>&#128168; Section 7: Cooling System Issues</h2>
-
-                <h3>Symptoms of Cooling Problems</h3>
-                <p>If a system works for a few minutes then locks up or shuts down, cooling is likely the issue.</p>
-
-                <h3>Air Cooling Checklist</h3>
-                <ul>
-                    <li><strong>CPU Fan</strong> - Spinning? Clean? Properly connected?</li>
-                    <li><strong>Case Fans</strong> - Intake and exhaust functioning?</li>
-                    <li><strong>Heat Sinks</strong> - Properly seated? Thermal paste applied correctly?</li>
-                    <li><strong>Expansion Slot Covers</strong> - All empty slots covered to maintain airflow?</li>
-                    <li><strong>Case Sealed</strong> - Panels in place for proper air channeling?</li>
-                    <li><strong>Dust Buildup</strong> - Clean vents, fans, and heat sinks regularly</li>
-                </ul>
-
-                <div class="highlight-box info">
-                    <strong>&#127751; Airflow Direction:</strong> Proper airflow typically means cool air in from the front/bottom, hot air out the back/top. Ensure fans are oriented correctly - most fans have arrows indicating airflow direction.
-                </div>
-
-                <h3>Liquid Cooling Issues</h3>
-                <p>Liquid cooling systems (AIO or custom loops) have unique failure modes:</p>
-                <ul>
-                    <li><strong>Pump Failure</strong> - No coolant circulation; CPU overheats quickly</li>
-                    <li><strong>Pump Obstruction</strong> - Air bubbles or debris blocking flow</li>
-                    <li><strong>Leaks</strong> - Coolant escaping; can short circuit components</li>
-                    <li><strong>Radiator blockage</strong> - Dust buildup reduces heat dissipation</li>
-                </ul>
-
-                <div class="highlight-box warning">
-                    <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039; Liquid Cooling Leaks:</strong> If you detect a coolant leak, shut down the system immediately and do not power on until the leak is fixed and all components are completely dry. Liquid + electricity = disaster.
-                </div>
-
-                <h3>Monitoring Tools</h3>
-                <p>Use software like SpeedFan, HWMonitor, or Core Temp to monitor temperatures. Most CPUs should stay under 80°C under load.</p>
-            </section>
-
-            <!-- Section 8: Diagnostic Tools & Best Practices -->
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Section 8: Diagnostic Tools & Best Practices</h2>
-
-                <h3>Hardware Diagnostic Tools</h3>
-                <ul>
-                    <li><strong>Multimeter</strong> - Test power supply voltages, continuity</li>
-                    <li><strong>POST Card</strong> - Diagnose boot failures via error codes</li>
-                    <li><strong>Loopback Plug</strong> - Test serial/parallel port functionality</li>
-                    <li><strong>Cable Tester</strong> - Verify network cable integrity</li>
-                    <li><strong>PSU Tester</strong> - Quick power supply verification</li>
-                </ul>
-
-                <h3>Software Diagnostic Tools</h3>
-                <ul>
-                    <li><strong>Windows Memory Diagnostic</strong> - Built-in RAM tester (mdsched.exe)</li>
-                    <li><strong>MemTest86</strong> - Comprehensive bootable RAM tester</li>
-                    <li><strong>CrystalDiskInfo</strong> - HDD/SSD S.M.A.R.T. status</li>
-                    <li><strong>Event Viewer</strong> - Windows system and application logs</li>
-                    <li><strong>Device Manager</strong> - Hardware status and driver issues</li>
-                    <li><strong>SpeedFan/HWMonitor</strong> - Temperature and voltage monitoring</li>
-                </ul>
-
-                <h3>Best Practices Summary</h3>
-                <div class="highlight-box success">
-                    <strong><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Key Takeaways:</strong>
-                    <ul style="margin-top: 0.5rem;">
-                        <li>Always follow the 6-step methodology in order</li>
-                        <li>Back up data BEFORE making changes</li>
-                        <li>Document everything - even failed attempts</li>
-                        <li>When in doubt, escalate to a senior technician</li>
-                        <li>Never skip the verification step</li>
-                        <li>Consider corporate policy before acting</li>
-                    </ul>
-                </div>
-
-                <h3>Common Troubleshooting Mistakes</h3>
-                <ul>
-                    <li>Jumping to conclusions without gathering information</li>
-                    <li>Not questioning the user about recent changes</li>
-                    <li>Making changes without backing up first</li>
-                    <li>Forgetting to document the resolution</li>
-                    <li>Not verifying the fix actually worked</li>
-                    <li>Ignoring corporate policies and procedures</li>
-                </ul>
-            </section>
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 1 &mdash; 220-1101 &nbsp;|&nbsp; Objectives 5.1, 5.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Chapter 11:<br>
+                <span class="accent">Troubleshooting Methodology</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                The systematic, six-step approach to diagnosing and resolving hardware problems. CompTIA's defined methodology is one of the most tested topics on the A+ exam.
+            </div>
         </div>
+        <div class="title-meta-row">
+            <span>21 Slides</span>
+            <span>Objectives 5.1 &amp; 5.2</span>
+            <span>6-Step Process &bull; POST &bull; RAM &bull; PSU &bull; Cooling</span>
+            <span>Exam 220-1101</span>
+        </div>
+    </div>
+</section>
 
-        <!-- INTERACTIVE TAB -->
-        <div id="interactive" class="tab-content">
+<!-- ==================== SLIDE 2 — WHY METHODOLOGY MATTERS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 21</div>
+        <div class="slide-title">Why <span class="accent">Methodology Matters</span></div>
+        <div class="slide-subtitle">Random guessing wastes time, risks data loss, and violates policy. Structure solves problems faster.</div>
 
-            <!-- Interactive 1: 6-Step Sequencer -->
-            <div class="interactive-container">
-                <h3><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Interactive 1: 6-Step Troubleshooting Sequencer</h3>
-                <p style="text-align: center; color: #aaa; margin-bottom: 1.5rem;">
-                    Drag and drop the steps into the correct order (1-6). This is EXAM CRITICAL!
-                </p>
-
-                <div id="sequencer-container" class="sequencer-container">
-                    <!-- Items will be populated by JavaScript -->
-                </div>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <button class="btn btn-primary" onclick="checkSequence()">Check Order</button>
-                    <button class="btn btn-secondary" onclick="resetSequencer()">Reset</button>
-                </div>
-
-                <div id="sequencer-result" class="score-display" style="display: none;"></div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Consistency</div>
+                <div class="card-desc">A defined process produces repeatable results regardless of who performs the work. A junior tech following the methodology correctly will outperform an experienced tech who guesses &mdash; because guessing creates new problems while chasing the original one.</div>
             </div>
-
-            <!-- Interactive 2: Symptom-to-Component Matcher -->
-            <div class="interactive-container">
-                <h3><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Interactive 2: Symptom to Component Matcher</h3>
-                <p style="text-align: center; color: #aaa; margin-bottom: 1.5rem;">
-                    Click a symptom, then click the most likely faulty component. Match all 6 pairs!
-                </p>
-
-                <div class="matcher-grid">
-                    <div class="matcher-column" id="symptoms-column">
-                        <h4>Symptoms</h4>
-                        <!-- Populated by JavaScript -->
-                    </div>
-                    <div class="matcher-column" id="components-column">
-                        <h4>Likely Component</h4>
-                        <!-- Populated by JavaScript -->
-                    </div>
-                </div>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <button class="btn btn-secondary" onclick="resetMatcher()">Reset</button>
-                </div>
-
-                <div id="matcher-score" class="score-display">
-                    Matches: <span class="score">0 / 6</span>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Protection</div>
+                <div class="card-desc">The methodology requires backups before changes, documentation throughout, and policy review before acting. These steps protect the user's data, protect the technician legally, and ensure corporate compliance is never violated even during urgent repairs.</div>
             </div>
-
-            <!-- Interactive 3: Diagnostic Sound Quiz -->
-            <div class="interactive-container">
-                <h3><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Interactive 3: What's That Sound?</h3>
-                <p style="text-align: center; color: #aaa; margin-bottom: 1.5rem;">
-                    Identify what hardware issue each sound indicates.
-                </p>
-
-                <div id="sound-quiz-container">
-                    <!-- Populated by JavaScript -->
-                </div>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <button class="btn btn-primary" onclick="checkSoundQuiz()">Check Answers</button>
-                    <button class="btn btn-secondary" onclick="resetSoundQuiz()">Reset</button>
-                </div>
-
-                <div id="sound-quiz-result" class="score-display" style="display: none;"></div>
+            <div class="card c-green">
+                <div class="card-label">Escalation Path</div>
+                <div class="card-desc">When testing confirms the issue is beyond your expertise, the methodology tells you to escalate &mdash; not guess further. Knowing when to stop is as valuable as knowing how to fix. Escalation is not failure; it is correct process execution.</div>
             </div>
         </div>
 
-        <!-- LABS TAB -->
-        <div id="labs" class="tab-content">
-            <section class="content-section">
-                <h2><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hands-On Labs</h2>
-                <p>Practice your troubleshooting skills with these interactive labs:</p>
+        <div class="scenario-strip">
+            A technician skips the backup step and directly reinstalls Windows to fix a BSOD. The user's documents were not in the default location. Data is gone. The fix is correct but the method failed. The 6-step methodology exists because "just fixing it" has a cost when it goes wrong.
+        </div>
+    </div>
+</section>
 
-                <div class="lab-grid">
-                    <a href="../../labs/forge-troubleshooting-flowchart.lab.html" class="lab-card">
-                        <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Troubleshooting Flowchart Lab</h3>
-                        <p>Practice the 6-step methodology with real-world scenarios. Make decisions and see the outcomes.</p>
-                    </a>
+<!-- ==================== SLIDE 3 — 6 STEPS OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 21</div>
+        <div class="slide-title">The <span class="accent">6-Step Methodology</span></div>
+        <div class="slide-subtitle">CompTIA's defined order. Scenario questions will test whether you know what comes FIRST.</div>
 
-                    <a href="../../labs/forge-post-beep-codes.lab.html" class="lab-card">
-                        <h4><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> POST Beep Codes Lab</h4>
-                        <p>Listen to beep patterns and identify the hardware failure. Test your diagnostic skills.</p>
-                    </a>
-
-                    <a href="../../labs/forge-hardware-diagnosis.lab.html" class="lab-card">
-                        <h4><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Hardware Diagnosis Simulator</h4>
-                        <p>Diagnose virtual hardware problems using symptoms, logs, and diagnostic tools.</p>
-                    </a>
-
-                    <a href="../../labs/forge-psu-connectors.lab.html" class="lab-card">
-                        <h4><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> PSU & Power Lab</h4>
-                        <p>Review from Chapter 2: Identify power connectors and troubleshoot power issues.</p>
-                    </a>
-                </div>
-            </section>
+        <div class="step-list">
+            <div class="step-row">
+                <div class="step-num">1</div>
+                <div class="step-body"><strong>Identify the Problem</strong> &mdash; Question the user, gather information, review logs, perform backups before any changes.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">2</div>
+                <div class="step-body"><strong>Establish a Theory of Probable Cause</strong> &mdash; Question the obvious first. Consider multiple possibilities. Research internally and externally.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">3</div>
+                <div class="step-body"><strong>Test the Theory to Determine Cause</strong> &mdash; Confirm or disprove the theory. If not confirmed, re-establish a new theory or escalate.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">4</div>
+                <div class="step-body"><strong>Establish a Plan of Action and Implement</strong> &mdash; Create a resolution plan. Consider impact on other systems. Execute with vendor guidance.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">5</div>
+                <div class="step-body"><strong>Verify Full System Functionality</strong> &mdash; Test the fix thoroughly. Implement preventive measures. Confirm user satisfaction.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">6</div>
+                <div class="step-body"><strong>Document Findings, Actions, and Outcomes</strong> &mdash; Record the problem, steps taken, and resolution. Update the knowledge base.</div>
+            </div>
         </div>
 
-        <!-- QUIZ TAB -->
-        <div id="quiz" class="tab-content">
-            <div class="quiz-container">
-                <div class="quiz-header">
-                    <h2><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Chapter 11 Quiz</h2>
-                    <div class="quiz-progress">
-                        Question <span id="current-question">1</span> of <span id="total-questions">15</span>
-                    </div>
-                </div>
+        <div class="box box-gold">
+            <div class="box-label">Memory Aid</div>
+            "I Eat Tacos Every Very Day" &mdash; Identify, Establish theory, Test theory, Establish plan, Verify, Document
+        </div>
 
-                <div id="quiz-question-container" class="quiz-question-container">
-                    <!-- Questions populated by JavaScript -->
-                </div>
+        <!-- SVG: 6-step troubleshooting methodology flowchart -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 700 72" width="700" height="72" xmlns="http://www.w3.org/2000/svg" aria-label="CompTIA 6-step troubleshooting methodology flowchart">
+                <!-- Step boxes — 6 inline boxes with connecting arrows -->
+                <!-- Step 1 -->
+                <rect x="5" y="12" width="92" height="36" rx="4" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.1s" fill="freeze" />
+                </rect>
+                <text x="51" y="27" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.1s" fill="freeze" />1. Identify
+                </text>
+                <text x="51" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Problem + Backup</text>
 
-                <div class="quiz-nav">
-                    <button id="prev-btn" class="btn btn-secondary" onclick="prevQuestion()" disabled>Previous</button>
-                    <button id="next-btn" class="btn btn-primary" onclick="nextQuestion()">Next</button>
-                    <button id="submit-btn" class="btn btn-success" onclick="submitQuiz()" style="display: none;">Submit Quiz</button>
-                </div>
+                <!-- Arrow 1-2 -->
+                <path d="M97 30 L112 30" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#tsa1)">
+                    <animate attributeName="opacity" values="0;1" dur="0.2s" begin="0.4s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="tsa1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#c9a83a" />
+                    </marker>
+                </defs>
 
-                <div id="quiz-result" class="score-display" style="display: none;"></div>
+                <!-- Step 2 -->
+                <rect x="112" y="12" width="92" height="36" rx="4" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze" />
+                </rect>
+                <text x="158" y="27" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze" />2. Theory
+                </text>
+                <text x="158" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Probable cause</text>
+
+                <!-- Arrow 2-3 -->
+                <path d="M204 30 L219 30" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#tsa2)">
+                    <animate attributeName="opacity" values="0;1" dur="0.2s" begin="0.8s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="tsa2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#06b6d4" />
+                    </marker>
+                </defs>
+
+                <!-- Step 3 -->
+                <rect x="219" y="12" width="92" height="36" rx="4" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.9s" fill="freeze" />
+                </rect>
+                <text x="265" y="27" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.9s" fill="freeze" />3. Test
+                </text>
+                <text x="265" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Confirm or revise</text>
+
+                <!-- Arrow 3-4 -->
+                <path d="M311 30 L326 30" stroke="#3ab577" stroke-width="1.5" marker-end="url(#tsa3)">
+                    <animate attributeName="opacity" values="0;1" dur="0.2s" begin="1.2s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="tsa3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#3ab577" />
+                    </marker>
+                </defs>
+
+                <!-- Step 4 -->
+                <rect x="326" y="12" width="92" height="36" rx="4" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.3s" fill="freeze" />
+                </rect>
+                <text x="372" y="27" font-size="9" fill="#8b5cf6" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.3s" fill="freeze" />4. Plan
+                </text>
+                <text x="372" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Establish + execute</text>
+
+                <!-- Arrow 4-5 -->
+                <path d="M418 30 L433 30" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#tsa4)">
+                    <animate attributeName="opacity" values="0;1" dur="0.2s" begin="1.6s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="tsa4" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#8b5cf6" />
+                    </marker>
+                </defs>
+
+                <!-- Step 5 -->
+                <rect x="433" y="12" width="92" height="36" rx="4" fill="rgba(251,146,60,0.12)" stroke="#f97316" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.7s" fill="freeze" />
+                </rect>
+                <text x="479" y="27" font-size="9" fill="#f97316" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.7s" fill="freeze" />5. Verify
+                </text>
+                <text x="479" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Full functionality</text>
+
+                <!-- Arrow 5-6 -->
+                <path d="M525 30 L540 30" stroke="#f97316" stroke-width="1.5" marker-end="url(#tsa5)">
+                    <animate attributeName="opacity" values="0;1" dur="0.2s" begin="2.0s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="tsa5" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#f97316" />
+                    </marker>
+                </defs>
+
+                <!-- Step 6 -->
+                <rect x="540" y="12" width="92" height="36" rx="4" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="2">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.1s" fill="freeze" />
+                    <animate attributeName="stroke-width" values="1.5;2.5;1.5" dur="1.5s" begin="2.5s" repeatCount="indefinite" />
+                </rect>
+                <text x="586" y="27" font-size="9" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.1s" fill="freeze" />6. Document
+                </text>
+                <text x="586" y="41" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Never skip this</text>
+
+                <!-- Bottom: re-theory loop indicator -->
+                <text x="265" y="62" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">If Step 3 fails: return to Step 2 with a new theory or escalate</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — STEP 1: IDENTIFY ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 21</div>
+        <div class="slide-title">Step 1: <span class="accent">Identify the Problem</span></div>
+        <div class="slide-subtitle">Gather information before touching anything. The first question is always: what changed?</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Question the User</div>
+                <div class="card-desc">Ask open-ended questions first: "What were you doing when this started?" Then specific: "Has anything changed recently &mdash; new software, hardware, updates?" Users often know the cause without realizing it. Never make them feel blamed; just gather facts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Review Logs &amp; Environment</div>
+                <div class="card-desc">Check Windows Event Viewer, application error logs, and system logs for timestamps that correlate with the problem. Ask about environmental changes: power outages, office moves, temperature changes, new equipment nearby. Infrastructure changes by another team often cause symptoms.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Backup First</div>
+                <div class="card-desc">Before making any changes, create a backup of critical data. This is non-negotiable even when time pressure is high. A failed repair that destroys data is far worse than a delayed repair. Document what was backed up, where, and when.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Alert</div>
+            Scenario: "A user's PC won't boot after a Windows update last night. What should you do FIRST?" &mdash; Identify the problem by questioning the user and reviewing update logs. Backup comes before any repair attempt.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — STEPS 2 AND 3 ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 21</div>
+        <div class="slide-title">Steps 2 &amp; 3: <span class="accent">Theory and Testing</span></div>
+        <div class="slide-subtitle">Form the most likely explanation, then prove or disprove it with a controlled test.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Step 2 &mdash; Establish Theory</div>
+                <div class="card-desc">Start with the simplest, most obvious explanation. Is it plugged in? Is the cable seated? Is the service running? Avoid complex theories until simple ones are ruled out. Consider multiple possibilities simultaneously, then rank by probability. Research manufacturer documentation, known issues databases, and forums if needed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 3 &mdash; Test the Theory</div>
+                <div class="card-desc">Make one change at a time. If the theory is confirmed &mdash; the change fixes the problem &mdash; proceed to Step 4. If not confirmed, re-establish a new theory and test again. If you exhaust your theories or the problem exceeds your expertise, escalate to a senior technician or specialist rather than continuing to guess.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Principle</div>
+            Change one variable at a time. If you swap RAM and update drivers simultaneously and the problem goes away, you do not know which action fixed it. This makes future troubleshooting of the same symptom harder, not easier.
+        </div>
+
+        <div class="scenario-strip">
+            Theory: "The monitor is getting no signal because the PCIe cable to the GPU came loose." Test: Power off, reseat the cable, power on. Result: No change &mdash; still no signal. New theory required. Now check if iGPU output works, which would point to a GPU failure rather than a cable issue.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — STEPS 4, 5, 6 ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 21</div>
+        <div class="slide-title">Steps 4, 5 &amp; 6: <span class="accent">Plan, Verify, Document</span></div>
+        <div class="slide-subtitle">Executing the fix is only one-third of the final phase &mdash; verification and documentation are equally required.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Step 4 &mdash; Plan of Action</div>
+                <div class="card-desc">Before implementing, consider: Does this fix require management approval? Will it affect other users or systems? Are vendor instructions required? What is the rollback plan if it fails? Corporate policy may prohibit certain actions without change control sign-off. Never bypass policy even if you know the fix.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 5 &mdash; Verify</div>
+                <div class="card-desc">Test that the original problem is resolved. Run the affected application, reproduce the previous scenario, and confirm the symptom is gone. Check for new problems introduced by the fix &mdash; a common exam scenario. Ask the user to confirm the system works for their workflow, not just your test.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Step 6 &mdash; Document</div>
+                <div class="card-desc">Record: exact symptoms reported, all steps taken (including failed attempts), root cause identified, resolution applied, and outcome. Update the knowledge base or ticketing system. Documentation builds organizational knowledge, enables future troubleshooting, and provides a record if the issue recurs.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Never Skip</div>
+            Documentation is the step most skipped under time pressure. The A+ exam treats it as mandatory. "The technician fixed the problem but did not document it" is always the wrong answer in scenario questions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — HARDWARE SYMPTOMS TABLE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 21</div>
+        <div class="slide-title">Common <span class="accent">Hardware Symptoms</span></div>
+        <div class="slide-subtitle">Map symptoms to likely components. The exam presents symptoms and asks you to identify probable cause.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Symptom</th>
+                    <th>Likely Cause</th>
+                    <th>Immediate Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>POST beep codes</strong></td><td>CPU, RAM, or video card failure</td><td>Look up beep pattern in motherboard documentation</td></tr>
+                <tr><td><strong>BSOD / spinning pinwheel</strong></td><td>RAM failure, driver error, OS corruption</td><td>Note error code; test RAM with MemTest86</td></tr>
+                <tr><td><strong>Black screen at boot</strong></td><td>Video card, monitor, or power issue</td><td>Check cable, test with different monitor</td></tr>
+                <tr><td><strong>No power at all</strong></td><td>PSU, power cable, outlet</td><td>Try different outlet and cable; test PSU</td></tr>
+                <tr><td><strong>Intermittent shutdown</strong></td><td>Overheating, failing RAM, PSU</td><td>Monitor temps; test components individually</td></tr>
+                <tr><td><strong>Grinding noise</strong></td><td>HDD mechanical failure imminent</td><td>Back up data immediately; replace drive</td></tr>
+                <tr><td><strong>Burning smell</strong></td><td>PSU or motherboard failure</td><td>Shut down immediately; do not power on</td></tr>
+                <tr><td><strong>Inaccurate date/time</strong></td><td>Dead CMOS battery (CR2032)</td><td>Replace coin cell battery</td></tr>
+                <tr><td><strong>Capacitor swelling</strong></td><td>Motherboard failure</td><td>Replace motherboard</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — IMMEDIATE SHUTDOWN SCENARIOS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 21</div>
+        <div class="slide-title">Immediate <span class="accent">Shutdown Required</span></div>
+        <div class="slide-subtitle">Some symptoms demand power-off before any other action. Delay causes irreversible damage.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Burning Smell or Smoke</div>
+                <div class="card-desc">Indicates active component failure generating heat beyond design limits. Most commonly PSU or motherboard. Shut down immediately and disconnect from mains. Do not power on again until the failed component is identified and replaced. Never ignore a burning smell and hope it resolves.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Electrical Sparks or Arcing</div>
+                <div class="card-desc">Short circuit in progress. Can cause fire, destroy connected components, and risk personal safety. Shut down and disconnect power immediately. If there is fire, use a Class C (electrical) extinguisher &mdash; never water. Report the incident per company safety procedures.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Grinding or Clicking From HDD</div>
+                <div class="card-desc">Read/write heads are physically contacting platters or the motor is failing. Data loss is imminent, not eventual. Do not run defragmentation or disk utilities &mdash; this accelerates failure. Back up immediately using the most direct method available (cloning or file copy), then replace the drive.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Swollen Battery (Mobile)</div>
+                <div class="card-desc">Lithium battery undergoing thermal runaway or chemical decomposition. The battery is a fire and explosion hazard. Stop using the device immediately. Do not charge it. Do not puncture or compress the battery. Transport to an electronics recycling facility for safe disposal. This applies to laptops and phones.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Safety Rule</div>
+            When in doubt, power off first and investigate second. A few minutes of downtime is recoverable. A fire or data loss from continued operation is not.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — POST AND BIOS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 21</div>
+        <div class="slide-title">POST and <span class="accent">BIOS/UEFI Problems</span></div>
+        <div class="slide-subtitle">Power-On Self-Test runs every boot and signals failure via beeps, codes, or frozen screens.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What POST Tests</div>
+                <div class="card-desc">On every power cycle the BIOS/UEFI runs POST to verify CPU functionality, RAM integrity, video card presence, keyboard detection, and storage detection. A successful POST results in one short beep (on most systems) and handoff to the bootloader. POST failure halts the boot process.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Beep Codes</div>
+                <div class="card-desc">Codes vary by BIOS manufacturer (AMI, Award, Phoenix). Always consult the motherboard manual. Common patterns: 1 short = OK; continuous beeping = RAM not seated; 1 long + 2-3 short = video card issue; no beep + no display = CPU or motherboard failure. POST cards (PCI/USB) display two-digit codes when beeps are absent.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">BIOS/UEFI Issues</div>
+                <div class="card-desc">Out-of-date BIOS can cause hardware compatibility failures. Update by flashing &mdash; but only when necessary and with stable power (use a UPS). A failed flash can permanently brick the board. Lost settings after shutdown indicate a dead CR2032 CMOS battery. Boot order misconfiguration causes "no bootable device" errors.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Alert</div>
+            "One beep is GOOD." A single short beep at boot means POST passed. Multiple beeps or continuous beeping indicate hardware failure. Know that beep code patterns differ between BIOS vendors &mdash; always reference the specific board's documentation.
+        </div>
+
+        <!-- SVG: POST diagnostic decision tree -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 700 110" width="700" height="110" xmlns="http://www.w3.org/2000/svg" aria-label="POST diagnostic decision tree">
+                <!-- Power On node -->
+                <rect x="280" y="5" width="140" height="28" rx="4" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.1s" fill="freeze" />
+                </rect>
+                <text x="350" y="23" font-size="10" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.1s" fill="freeze" />Power On
+                </text>
+
+                <!-- Arrow down to POST -->
+                <path d="M350 33 L350 47" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#psta1)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.4s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="psta1" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto">
+                        <path d="M0,0 L7,0 L3.5,7 z" fill="#c9a83a" />
+                    </marker>
+                </defs>
+
+                <!-- POST decision diamond -->
+                <polygon points="350,47 420,66 350,85 280,66" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.5s" fill="freeze" />
+                </polygon>
+                <text x="350" y="63" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.5s" fill="freeze" />POST Beep?
+                </text>
+                <text x="350" y="75" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Hardware check</text>
+
+                <!-- YES branch (1 short beep = good) -->
+                <path d="M420 66 L510 66" stroke="#3ab577" stroke-width="1.5" marker-end="url(#psta2)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.9s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="psta2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#3ab577" />
+                    </marker>
+                </defs>
+                <text x="465" y="60" font-size="8" fill="#3ab577" font-family="Segoe UI,sans-serif" text-anchor="middle">YES (1 short)</text>
+                <rect x="510" y="52" width="130" height="28" rx="4" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.0s" fill="freeze" />
+                </rect>
+                <text x="575" y="70" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif" text-anchor="middle">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.0s" fill="freeze" />Boot to OS
+                </text>
+
+                <!-- NO branch — multiple beeps -->
+                <path d="M280 66 L190 66" stroke="#ef4444" stroke-width="1.5" marker-end="url(#psta3)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.9s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="psta3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#ef4444" />
+                    </marker>
+                </defs>
+                <text x="235" y="60" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif" text-anchor="middle">NO / Multiple</text>
+                <!-- Beep type sub-branches -->
+                <rect x="60" y="52" width="130" height="28" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.0s" fill="freeze" />
+                </rect>
+                <text x="125" y="63" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif" text-anchor="middle">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.0s" fill="freeze" />Continuous: RAM
+                </text>
+                <text x="125" y="75" font-size="8" fill="#ef4444" font-family="Segoe UI,sans-serif" text-anchor="middle">1L+2S: Video Card</text>
+
+                <!-- No beep branch (drops down) -->
+                <path d="M350 85 L350 98" stroke="#475569" stroke-width="1.5" marker-end="url(#psta4)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.3s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="psta4" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto">
+                        <path d="M0,0 L7,0 L3.5,7 z" fill="#475569" />
+                    </marker>
+                </defs>
+                <rect x="270" y="98" width="160" height="11" rx="2" fill="rgba(255,255,255,0.03)" stroke="#475569" stroke-width="1" />
+                <text x="350" y="107" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">No beep + no display: CPU / Motherboard</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — MOTHERBOARD AND CPU TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 21</div>
+        <div class="slide-title">Motherboard &amp; <span class="accent">CPU Troubleshooting</span></div>
+        <div class="slide-subtitle">Port failures, swollen capacitors, overheating, and diagnostic LED indicators.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">I/O Port Failures</div>
+                <div class="card-desc">Systematic approach: reseat cables; inspect for bent or broken pins; verify the port is enabled in Device Manager; check if disabled in BIOS; replace cable; use a loopback plug to test port functionality in isolation. Loopback plugs connect transmit to receive and confirm the port itself is working, separate from the device.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Swollen Capacitors</div>
+                <div class="card-desc">Capacitors on a healthy board have flat tops. Bulging, leaking, or domed-top capacitors indicate the motherboard is failing. Replace the board &mdash; do not attempt capacitor repair without specialized training. Capacitors store lethal charge even after power-off. This is a visual inspection finding that leads directly to board replacement.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">CPU Problems</div>
+                <div class="card-desc">Overheating is the most common CPU issue: check thermal paste application, heat sink seating, and fan operation. Overclocking instability: reset to default speeds in BIOS. Incompatibility: verify CPU is on the motherboard's qualified vendor list (QVL). Bent pins on PGA sockets (AMD AM4): inspect carefully; bent pins can often be straightened with a fine tool.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Diagnostic LEDs</div>
+                <div class="card-desc">Many modern motherboards have onboard diagnostic LEDs or two-digit debug displays. Green typically means system OK or standby power present. Red indicates a detected error. Amber or orange often indicates a warning state or USB power issue. Consult the board manual for the specific LED meaning &mdash; implementations vary by manufacturer.</div>
             </div>
         </div>
     </div>
+</section>
 
-    <script>
-        // Tab Navigation
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById(btn.dataset.tab).classList.add('active');
-            });
+<!-- ==================== SLIDE 11 — RAM TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 21</div>
+        <div class="slide-title">RAM <span class="accent">Troubleshooting</span></div>
+        <div class="slide-subtitle">Memory failures disguise themselves as software problems &mdash; BSOD, random crashes, application errors.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Failure Symptoms</div>
+                <div class="card-desc">Blue Screen of Death (Windows) or spinning pinwheel crash (macOS). General Protection Faults. Random system lockups or unexpected reboots. Application crashes with no clear pattern. Corrupted files after write operations. The symptom appears to be software but RAM is the actual cause because software uses memory addresses that return incorrect data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Diagnostic Tools</div>
+                <div class="card-desc">Windows Memory Diagnostic (mdsched.exe): built-in, runs at next reboot, basic test. MemTest86: bootable, comprehensive, the gold standard for RAM testing. Run for at least one full pass. Test one module at a time to isolate the failing stick. Try known-good RAM in the same slot to rule out a slot fault vs. a stick fault.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <div class="step-num">1</div>
+                <div class="step-body">Run Windows Memory Diagnostic (mdsched.exe) or MemTest86 to confirm RAM is the issue.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">2</div>
+                <div class="step-body">Test modules one at a time. Remove all but one stick, boot, and test. Rotate through each module.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">3</div>
+                <div class="step-body">Try the suspected bad stick in a different slot to distinguish slot failure from module failure.</div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">4</div>
+                <div class="step-body">Verify RAM compatibility: matching speeds, timings, and voltage. Check motherboard QVL list.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — PSU TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 21</div>
+        <div class="slide-title">Power Supply <span class="accent">Troubleshooting</span></div>
+        <div class="slide-subtitle">PSU failures range from total dead-system to intermittent crashes under load.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">No Power at All</div>
+                <div class="card-desc">Verify the obvious first: is it plugged in? Is the outlet live (test with another device)? Is the rear PSU switch set to I (on)? Try a different power cable. If still no power, the PSU may be failed. Test with a known-good PSU or a dedicated PSU tester tool that validates all voltage rails.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Fan Spins But No Boot</div>
+                <div class="card-desc">Standby voltage (+5VSB) works but main rails may not be within spec. Check all power connectors: 24-pin ATX main, 8-pin EPS CPU power, PCIe power to GPU. A partially failed PSU that cannot deliver adequate power on the +12V rail will spin the fan but fail to POST. Use a multimeter or PSU tester under load.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Voltage Rails</div>
+                <div class="card-desc">PSU outputs: +3.3V, +5V, +12V, and &ndash;12V. Test under load, not idle. Voltages more than 5% out of spec indicate PSU degradation. The +12V rail is most critical &mdash; it powers CPU and GPU. An underpowered +12V causes instability, crashes under load, and intermittent shutdowns that appear as software or thermal issues.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Voltage Selector Warning</div>
+            Some older PSUs have a 110V / 220V selector switch on the rear. If set incorrectly for your region, you risk damaging connected hardware or causing fire. Most modern PSUs auto-detect input voltage (universal input). Verify before using any older or refurbished PSU.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — COOLING SYSTEM ISSUES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 21</div>
+        <div class="slide-title">Cooling System <span class="accent">Issues</span></div>
+        <div class="slide-subtitle">A system that works for minutes then locks up or shuts down is almost always a thermal problem.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Air Cooling Checklist</div>
+                <div class="card-desc">CPU fan spinning and connected to the correct header. Case fans oriented correctly &mdash; front/bottom intake, rear/top exhaust. Heat sinks fully seated with correct thermal paste application. All empty PCIe slot covers installed (missing covers disrupt airflow channeling). Case side panel in place. Dust buildup cleaned from fans, heat sinks, and intake vents.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Liquid Cooling Issues</div>
+                <div class="card-desc">AIO or custom loop failures: pump failure causes rapid CPU overheat with no airflow sound; air bubbles in the loop reduce flow and create noise; leaks will short-circuit components &mdash; shut down immediately if liquid is detected. Radiator dust buildup reduces heat dissipation. Monitor coolant temperature in software; most AIO controllers report pump and coolant temp.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Monitoring Tools</div>
+            Use SpeedFan, HWMonitor, or Core Temp to monitor real-time temperatures. CPU temperatures above 90&deg;C under load indicate a cooling problem. Most modern CPUs throttle (reduce clock speed) to protect themselves before hitting a thermal shutdown at approximately 95&ndash;100&deg;C. Throttling presents as sudden performance degradation under sustained load.
+        </div>
+
+        <div class="scenario-strip">
+            A workstation reboots randomly after 10&ndash;15 minutes of use but works fine sitting idle. Thermal shutdown. Check CPU temps under load using HWMonitor. If CPU hits 95&deg;C, the heat sink is unseated or thermal paste has dried out. Reseating with fresh paste resolves the issue 80% of the time.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — HARDWARE DIAGNOSTIC TOOLS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 21</div>
+        <div class="slide-title">Hardware <span class="accent">Diagnostic Tools</span></div>
+        <div class="slide-subtitle">Know the purpose of each tool. The exam tests tool selection as frequently as symptom diagnosis.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Multimeter</div>
+                <div class="card-desc">Tests DC voltages on PSU rails (+3.3V, +5V, +12V), AC outlet voltage, cable continuity, and resistance. Use for PSU testing under load and for verifying outlet voltage before connecting sensitive equipment. Must be set to correct measurement type; incorrect setting can damage the meter.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">POST Card</div>
+                <div class="card-desc">Plugs into a PCI/PCIe slot or USB port and displays two-digit hexadecimal codes indicating which hardware initialization phase failed during POST. Essential in server environments where no speaker is present for beep codes. Decode using BIOS vendor documentation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Loopback Plug</div>
+                <div class="card-desc">Connects transmit pins to receive pins on serial, parallel, or USB ports. The port sends data to itself. If the loopback test succeeds, the port is functional and the problem is external. Available for RJ-45 (network loopback), DB-9 serial, and USB. Used to confirm NIC functionality independent of the network.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">PSU Tester</div>
+                <div class="card-desc">Connects to the 24-pin ATX connector and displays all voltage rail readings without requiring a motherboard. Quick pass/fail verification. Cannot test under load, so a PSU that passes the tester may still fail when the system draws full power.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MemTest86</div>
+                <div class="card-desc">Bootable RAM testing tool. Runs independently of the OS. Performs multiple test patterns (reading, writing, and comparing data) across all RAM addresses. The most reliable software diagnostic for RAM failure. A single error in any test pass indicates faulty RAM.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CrystalDiskInfo</div>
+                <div class="card-desc">Reads S.M.A.R.T. data from HDDs and SSDs. Displays health status, reallocated sector count, uncorrectable errors, and temperature. A drive showing yellow (caution) or red (bad) S.M.A.R.T. status should be replaced immediately regardless of whether it is currently functioning.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — SOFTWARE DIAGNOSTIC TOOLS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 21</div>
+        <div class="slide-title">Software <span class="accent">Diagnostic Tools</span></div>
+        <div class="slide-subtitle">Built-in Windows utilities and third-party tools for diagnosing hardware from within the OS.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>Location / Access</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Windows Memory Diagnostic</strong></td><td>mdsched.exe; runs at reboot</td><td>Basic RAM test built into Windows</td></tr>
+                <tr><td><strong>Event Viewer</strong></td><td>eventvwr.msc</td><td>System, application, and security logs with timestamps</td></tr>
+                <tr><td><strong>Device Manager</strong></td><td>devmgmt.msc</td><td>Hardware status, driver issues, disabled ports (yellow bang = error)</td></tr>
+                <tr><td><strong>CHKDSK</strong></td><td>Command Prompt: chkdsk /f /r</td><td>Scan and repair file system errors and bad sectors on HDD/SSD</td></tr>
+                <tr><td><strong>Task Manager</strong></td><td>Ctrl+Shift+Esc or Taskmgr</td><td>CPU, RAM, disk, and network utilization; identify resource hogs</td></tr>
+                <tr><td><strong>HWMonitor / SpeedFan</strong></td><td>Third-party download</td><td>Real-time voltage, temperature, and fan speed monitoring</td></tr>
+                <tr><td><strong>CrystalDiskInfo</strong></td><td>Third-party download</td><td>S.M.A.R.T. drive health status and detailed metrics</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Device Manager shows a yellow exclamation mark next to any hardware with a driver error or conflict. This is always one of the first checks after a hardware installation or OS upgrade. A red X means the device is disabled.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — CORPORATE POLICY AND ESCALATION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 21</div>
+        <div class="slide-title">Corporate Policy &amp; <span class="accent">Escalation</span></div>
+        <div class="slide-subtitle">Policy compliance is part of the methodology, not separate from it. Escalation is correct process, not failure.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Policy Compliance</div>
+                <div class="card-desc">Before implementing any fix, review corporate policies and procedures. Some changes require change management approval, supervisor sign-off, or a maintenance window. You may know exactly how to fix the problem but be prohibited from acting without authorization. Violating policy to fix a problem faster is always wrong &mdash; even if the fix works.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Escalate</div>
+                <div class="card-desc">Escalate when: the issue is beyond your skill level; required tools or access are unavailable; the fix requires permissions you do not have; multiple failed theories with no resolution; or the system scope is too large for a single technician. Document what you found and what you tried before escalating &mdash; this information speeds resolution by the receiving technician.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Pre-Change Checklist</div>
+            Before implementing any solution: backup created? &mdash; policy reviewed? &mdash; approval obtained if required? &mdash; rollback plan defined? &mdash; change window scheduled if needed? &mdash; user notified of expected downtime? Checking these before acting prevents the fix from creating a larger problem.
+        </div>
+
+        <div class="scenario-strip">
+            A technician diagnoses a failed NIC and knows the fix is to replace it. However, the system is a production server requiring a change control ticket and a scheduled maintenance window. The correct answer is to open the ticket, schedule the window, and wait &mdash; not to replace the NIC now because it is technically simple.
+        </div>
+
+        <!-- SVG: Escalation flowchart Tier 1 → Tier 2 → Tier 3 → Vendor -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 700 82" width="700" height="82" xmlns="http://www.w3.org/2000/svg" aria-label="Escalation flowchart Tier 1 to Vendor">
+                <!-- Tier 1 -->
+                <rect x="10" y="16" width="130" height="46" rx="4" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.1s" fill="freeze" />
+                </rect>
+                <text x="75" y="34" font-size="10" fill="#06b6d4" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.1s" fill="freeze" />Tier 1
+                </text>
+                <text x="75" y="48" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Help Desk /</text>
+                <text x="75" y="58" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Field Technician</text>
+
+                <!-- Arrow T1 → T2 (with escalation trigger) -->
+                <path d="M140 39 L190 39" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#esca1)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="esca1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#c9a83a" />
+                    </marker>
+                </defs>
+                <text x="165" y="33" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle">Unresolved</text>
+                <text x="165" y="53" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">+ document</text>
+
+                <!-- Tier 2 -->
+                <rect x="190" y="16" width="130" height="46" rx="4" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.6s" fill="freeze" />
+                </rect>
+                <text x="255" y="34" font-size="10" fill="#3ab577" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.6s" fill="freeze" />Tier 2
+                </text>
+                <text x="255" y="48" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Systems Admin /</text>
+                <text x="255" y="58" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Senior Tech</text>
+
+                <!-- Arrow T2 → T3 -->
+                <path d="M320 39 L370 39" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#esca2)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.0s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="esca2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#c9a83a" />
+                    </marker>
+                </defs>
+                <text x="345" y="33" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle">Unresolved</text>
+                <text x="345" y="53" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">+ document</text>
+
+                <!-- Tier 3 -->
+                <rect x="370" y="16" width="130" height="46" rx="4" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1.1s" fill="freeze" />
+                </rect>
+                <text x="435" y="34" font-size="10" fill="#8b5cf6" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1.1s" fill="freeze" />Tier 3
+                </text>
+                <text x="435" y="48" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Engineers /</text>
+                <text x="435" y="58" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Specialists</text>
+
+                <!-- Arrow T3 → Vendor -->
+                <path d="M500 39 L550 39" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#esca3)">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.5s" fill="freeze" />
+                </path>
+                <defs>
+                    <marker id="esca3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L7,3 z" fill="#c9a83a" />
+                    </marker>
+                </defs>
+                <text x="525" y="33" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle">Hardware or</text>
+                <text x="525" y="53" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">vendor bug</text>
+
+                <!-- Vendor -->
+                <rect x="550" y="16" width="130" height="46" rx="4" fill="rgba(201,168,58,0.18)" stroke="#c9a83a" stroke-width="2">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1.6s" fill="freeze" />
+                </rect>
+                <text x="615" y="34" font-size="10" fill="#c9a83a" font-family="Segoe UI,sans-serif" text-anchor="middle" font-weight="700">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1.6s" fill="freeze" />Vendor
+                </text>
+                <text x="615" y="48" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">Mfr Support /</text>
+                <text x="615" y="58" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" text-anchor="middle">OEM Warranty</text>
+
+                <!-- Bottom note -->
+                <text x="350" y="76" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle">Document findings at EACH tier before passing up — receiving tech needs context</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — COMMON TROUBLESHOOTING MISTAKES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 21</div>
+        <div class="slide-title">Common <span class="accent">Mistakes to Avoid</span></div>
+        <div class="slide-subtitle">The exam presents these as wrong answers in scenarios. Know what not to do.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Jumping to Conclusions</div>
+                <div class="card-desc">Assuming the cause without gathering information. Example: immediately replacing the RAM because BSOD appeared, without running any diagnostic to confirm RAM is actually the issue. The symptom could be caused by multiple components. Gather data first.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Not Questioning the User</div>
+                <div class="card-desc">Skipping the user interview eliminates the fastest path to root cause identification. Users often introduced the problem themselves &mdash; installed software, changed a setting, dropped the device. They rarely volunteer this information; you must ask specifically about recent changes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">No Backup Before Changes</div>
+                <div class="card-desc">Making changes &mdash; especially OS-level changes &mdash; without first backing up data. If the repair fails or causes data loss, there is no recovery path. A backup that takes 20 minutes to create could save days of data recovery or client relationship repair.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Skipping Verification</div>
+                <div class="card-desc">Declaring a problem "fixed" after applying the solution without testing that the original symptom is resolved. The fix may have resolved one issue while introducing another. Always reproduce the original scenario to confirm resolution before closing the ticket.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">No Documentation</div>
+                <div class="card-desc">Not recording what was found, what was done, and what the outcome was. The next technician who encounters the same issue cannot benefit from your work. The client cannot reference what was done. Audit trails are lost. Documentation is not optional.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Ignoring Policy</div>
+                <div class="card-desc">Acting outside corporate procedures, even with good intentions and correct technical knowledge. Policy violations can result in termination, legal liability, or security incidents. Always check whether approval is required before acting, regardless of technical confidence.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — PRACTICE SCENARIO 1 ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 21</div>
+        <div class="slide-title">Practice <span class="accent">Scenarios</span></div>
+        <div class="slide-subtitle">Apply the methodology. Identify what step applies and what the correct action is.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <div class="step-num">S1</div>
+                <div class="step-body"><strong>Scenario:</strong> A user reports their PC randomly reboots. They mentioned they installed a new GPU last week. What do you do FIRST? &mdash; <strong style="color:#c9a83a;">Step 1 &mdash; Identify. Question the user about what changed. Review Event Viewer for critical errors. Back up data before any repair action.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S2</div>
+                <div class="step-body"><strong>Scenario:</strong> You replaced the PSU and the system still randomly reboots. What should you do? &mdash; <strong style="color:#c9a83a;">Step 3 &mdash; Theory was not confirmed. Establish a new theory. Test RAM with MemTest86. Check CPU temps under load. Do not keep replacing components blindly.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S3</div>
+                <div class="step-body"><strong>Scenario:</strong> You fixed the problem but the client calls back next week with the same issue. What likely went wrong? &mdash; <strong style="color:#c9a83a;">Step 5 &mdash; Verification was incomplete. The root cause was not fully resolved, or preventive measures were not implemented after the fix.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S4</div>
+                <div class="step-body"><strong>Scenario:</strong> You smell something burning from a tower PC while helping a user. What is the FIRST action? &mdash; <strong style="color:#c9a83a;">Shut down the system immediately. Do not run additional diagnostics. A burning smell indicates active component failure and potential fire risk.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S5</div>
+                <div class="step-body"><strong>Scenario:</strong> After fixing a network issue, a user says everything works now. Is the process complete? &mdash; <strong style="color:#c9a83a;">No. Step 6 &mdash; Document the problem, root cause, steps taken, and resolution. The process is not complete until documentation is written.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — PRACTICE SCENARIO 2 ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 21</div>
+        <div class="slide-title">More <span class="accent">Exam Scenarios</span></div>
+        <div class="slide-subtitle">POST, beep codes, and physical symptoms mapped to correct diagnostic responses.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <div class="step-num">S6</div>
+                <div class="step-body"><strong>Scenario:</strong> A PC powers on but there is no display and three short beeps are heard. What should you check first? &mdash; <strong style="color:#c9a83a;">Look up the beep code in the motherboard documentation. Three short beeps is often a RAM error (AMI BIOS). Reseat RAM modules or test individually.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S7</div>
+                <div class="step-body"><strong>Scenario:</strong> After every shutdown, the system loses BIOS settings and the clock resets to January 2000. What is the likely cause? &mdash; <strong style="color:#c9a83a;">Dead CMOS battery (CR2032). Replace the coin cell battery on the motherboard. Settings will persist after replacement.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S8</div>
+                <div class="step-body"><strong>Scenario:</strong> A laptop screen shows a dark, barely visible image. An external monitor works fine. What is the probable cause? &mdash; <strong style="color:#c9a83a;">Failing LCD backlight or inverter (on CCFL-lit displays). The panel itself is functional but not illuminated. Replace the backlight or entire LCD assembly.</strong></div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">S9</div>
+                <div class="step-body"><strong>Scenario:</strong> CHKDSK reports bad sectors on a 2-year-old HDD that is still functioning. What action is correct? &mdash; <strong style="color:#c9a83a;">Back up the drive immediately and replace it. Bad sectors indicate physical degradation. A functioning drive with bad sectors is in the process of failing, not a stable device to continue using.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 21</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Chapter 11 terms organized by topic area.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Methodology Terms</div>
+                <div class="card-desc">
+                    <strong>POST</strong> &mdash; Power-On Self-Test, runs at every boot<br>
+                    <strong>Beep code</strong> &mdash; auditory POST error indicator<br>
+                    <strong>Escalation</strong> &mdash; transferring issue to a higher-level technician<br>
+                    <strong>Change control</strong> &mdash; approval process for system modifications<br>
+                    <strong>Knowledge base</strong> &mdash; documented repository of known issues and fixes<br>
+                    <strong>Loopback plug</strong> &mdash; port self-test adapter (TX connects to RX)
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hardware Failure Terms</div>
+                <div class="card-desc">
+                    <strong>BSOD</strong> &mdash; Blue Screen of Death (Windows stop error)<br>
+                    <strong>GPF</strong> &mdash; General Protection Fault (memory access error)<br>
+                    <strong>Capacitor swelling</strong> &mdash; physical sign of motherboard failure<br>
+                    <strong>Thermal throttling</strong> &mdash; CPU reducing speed to shed heat<br>
+                    <strong>CMOS battery (CR2032)</strong> &mdash; maintains BIOS settings when powered off<br>
+                    <strong>S.M.A.R.T.</strong> &mdash; Self-Monitoring, Analysis, and Reporting Technology
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Diagnostic Tools</div>
+                <div class="card-desc">
+                    <strong>MemTest86</strong> &mdash; bootable comprehensive RAM tester<br>
+                    <strong>mdsched.exe</strong> &mdash; Windows Memory Diagnostic tool<br>
+                    <strong>eventvwr.msc</strong> &mdash; Windows Event Viewer<br>
+                    <strong>devmgmt.msc</strong> &mdash; Device Manager<br>
+                    <strong>CrystalDiskInfo</strong> &mdash; S.M.A.R.T. drive health viewer<br>
+                    <strong>HWMonitor</strong> &mdash; temperature, voltage, and fan monitoring
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 21 &mdash; Chapter 11 Complete</div>
+        <div class="slide-title">Chapter 11 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways from Troubleshooting Methodology.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">1</div>
+                <div class="fact-text"><strong>The 6-step methodology order is fixed:</strong> Identify &rarr; Establish theory &rarr; Test theory &rarr; Establish plan &rarr; Verify &rarr; Document. Steps cannot be skipped or reordered.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">2</div>
+                <div class="fact-text"><strong>Backup before any change.</strong> Creating a backup is part of Step 1. It is never optional, regardless of time pressure or perceived simplicity of the repair.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">3</div>
+                <div class="fact-text"><strong>Change one variable at a time.</strong> Multiple simultaneous changes prevent root cause identification and make future troubleshooting harder.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">4</div>
+                <div class="fact-text"><strong>Burning smell, smoke, sparks, grinding HDD, and swollen batteries</strong> all require immediate power-off before any diagnostic work. Safety before troubleshooting.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">5</div>
+                <div class="fact-text"><strong>One short beep at POST = success.</strong> Continuous beeping = RAM. 1 long + 2-3 short = video. No beep + no display = CPU or motherboard. Always reference the specific board's documentation.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">6</div>
+                <div class="fact-text"><strong>RAM failures mimic software problems:</strong> BSOD, random crashes, app freezes. When software explanations are exhausted, test RAM with MemTest86.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">7</div>
+                <div class="fact-text"><strong>Corporate policy compliance is part of the methodology.</strong> Always check whether approval is required before implementing any fix, even a technically simple one.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">8</div>
+                <div class="fact-text"><strong>Documentation is never optional.</strong> The process is not complete until findings, actions, and outcomes are recorded. An undocumented fix is an incomplete fix.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../../index.html" class="nav-btn back-btn" aria-label="Back to Core 1 hub">Back to Core 1</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 21</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark chapter complete">Mark Complete</button>
+</nav>
+
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 21;
+    let current = 1;
+
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
+
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
+
+        /* Restart SVG animations on the newly visible slide */
+        next.querySelectorAll('animate').forEach(function(a) {
+            a.beginElement();
         });
 
-        // ==================== INTERACTIVE 1: 6-Step Sequencer ====================
-        const troubleshootingSteps = [
-            { id: 1, text: "Identify the problem" },
-            { id: 2, text: "Establish a theory of probable cause" },
-            { id: 3, text: "Test the theory to determine cause" },
-            { id: 4, text: "Establish a plan of action and implement the solution" },
-            { id: 5, text: "Verify full system functionality" },
-            { id: 6, text: "Document findings, actions, and outcomes" }
-        ];
-
-        let draggedItem = null;
-
-        function shuffleArray(array) {
-            const arr = [...array];
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-            return arr;
-        }
-
-        function initSequencer() {
-            const container = document.getElementById('sequencer-container');
-            const shuffled = shuffleArray(troubleshootingSteps);
-
-            container.innerHTML = shuffled.map((step, index) => `
-                <div class="drag-item" draggable="true" data-id="${step.id}">
-                    <span class="slot-number">${index + 1}</span>
-                    <span class="drag-handle"><img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
-                    <span class="step-label">${step.text}</span>
-                </div>
-            `).join('');
-
-            // Add drag event listeners
-            container.querySelectorAll('.drag-item').forEach(item => {
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('drop', handleDrop);
-            });
-        }
-
-        function handleDragStart(e) {
-            draggedItem = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            draggedItem = null;
-            updateSlotNumbers();
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            if (draggedItem !== this) {
-                const container = document.getElementById('sequencer-container');
-                const items = [...container.querySelectorAll('.drag-item')];
-                const draggedIndex = items.indexOf(draggedItem);
-                const targetIndex = items.indexOf(this);
-
-                if (draggedIndex < targetIndex) {
-                    this.parentNode.insertBefore(draggedItem, this.nextSibling);
-                } else {
-                    this.parentNode.insertBefore(draggedItem, this);
-                }
-            }
-        }
-
-        function updateSlotNumbers() {
-            const items = document.querySelectorAll('#sequencer-container .drag-item');
-            items.forEach((item, index) => {
-                item.querySelector('.slot-number').textContent = index + 1;
-            });
-        }
-
-        function checkSequence() {
-            const items = document.querySelectorAll('#sequencer-container .drag-item');
-            let correct = 0;
-
-            items.forEach((item, index) => {
-                const stepId = parseInt(item.dataset.id);
-                const expectedPosition = index + 1;
-
-                item.classList.remove('correct', 'incorrect');
-
-                if (stepId === expectedPosition) {
-                    item.classList.add('correct');
-                    correct++;
-                } else {
-                    item.classList.add('incorrect');
-                }
-            });
-
-            const resultDiv = document.getElementById('sequencer-result');
-            resultDiv.style.display = 'block';
-
-            if (correct === 6) {
-                resultDiv.className = 'score-display passed';
-                resultDiv.innerHTML = `<span class="score">Perfect! 6/6</span><br>You've mastered the troubleshooting methodology!`;
-            } else {
-                resultDiv.className = 'score-display failed';
-                resultDiv.innerHTML = `<span class="score">${correct}/6 Correct</span><br>Review the order and try again. This is critical for the exam!`;
-            }
-        }
-
-        function resetSequencer() {
-            document.getElementById('sequencer-result').style.display = 'none';
-            initSequencer();
-        }
-
-        // ==================== INTERACTIVE 2: Symptom-Component Matcher ====================
-        const matcherPairs = [
-            { symptom: "Clicking noise from case", component: "HDD Failure" },
-            { symptom: "System loses date/time", component: "CMOS Battery" },
-            { symptom: "Multiple beeps at POST", component: "RAM or Video Card" },
-            { symptom: "Bulging capacitors", component: "Motherboard" },
-            { symptom: "Burning smell", component: "Power Supply" },
-            { symptom: "Works then locks up", component: "Overheating/Cooling" }
-        ];
-
-        let selectedSymptom = null;
-        let matchedPairs = 0;
-
-        function initMatcher() {
-            const symptomsCol = document.getElementById('symptoms-column');
-            const componentsCol = document.getElementById('components-column');
-
-            const shuffledSymptoms = shuffleArray(matcherPairs);
-            const shuffledComponents = shuffleArray(matcherPairs.map(p => p.component));
-
-            symptomsCol.innerHTML = '<h4>Symptoms</h4>' + shuffledSymptoms.map(pair => `
-                <div class="matcher-item symptom-item" data-symptom="${pair.symptom}" data-answer="${pair.component}">
-                    ${pair.symptom}
-                </div>
-            `).join('');
-
-            componentsCol.innerHTML = '<h4>Likely Component</h4>' + shuffledComponents.map(comp => `
-                <div class="matcher-item component-item" data-component="${comp}">
-                    ${comp}
-                </div>
-            `).join('');
-
-            // Add click listeners
-            document.querySelectorAll('.symptom-item').forEach(item => {
-                item.addEventListener('click', () => selectSymptom(item));
-            });
-
-            document.querySelectorAll('.component-item').forEach(item => {
-                item.addEventListener('click', () => selectComponent(item));
-            });
-
-            matchedPairs = 0;
-            updateMatcherScore();
-        }
-
-        function selectSymptom(item) {
-            if (item.classList.contains('matched')) return;
-
-            document.querySelectorAll('.symptom-item').forEach(i => i.classList.remove('selected'));
-            item.classList.add('selected');
-            selectedSymptom = item;
-        }
-
-        function selectComponent(item) {
-            if (!selectedSymptom || item.classList.contains('matched')) return;
-
-            const correctAnswer = selectedSymptom.dataset.answer;
-            const selectedComponent = item.dataset.component;
-
-            if (correctAnswer === selectedComponent) {
-                selectedSymptom.classList.remove('selected');
-                selectedSymptom.classList.add('matched');
-                item.classList.add('matched');
-                matchedPairs++;
-                updateMatcherScore();
-                selectedSymptom = null;
-
-                if (matchedPairs === 6) {
-                    document.getElementById('matcher-score').classList.add('passed');
-                }
-            } else {
-                item.classList.add('wrong');
-                setTimeout(() => item.classList.remove('wrong'), 500);
-            }
-        }
-
-        function updateMatcherScore() {
-            document.querySelector('#matcher-score .score').textContent = `${matchedPairs} / 6`;
-        }
-
-        function resetMatcher() {
-            selectedSymptom = null;
-            document.getElementById('matcher-score').classList.remove('passed');
-            initMatcher();
-        }
-
-        // ==================== INTERACTIVE 3: Sound Quiz ====================
-        const soundQuestions = [
-            {
-                question: "You hear a whining/high-pitched noise from inside the case. What's most likely the cause?",
-                options: ["HDD failure", "Fan issue", "Power supply overload", "RAM error"],
-                correct: 1
-            },
-            {
-                question: "A clicking sound comes from the computer, followed by the system not booting. What failed?",
-                options: ["CPU", "RAM", "Hard Drive", "Power Supply"],
-                correct: 2
-            },
-            {
-                question: "The system beeps continuously on startup. What should you check first?",
-                options: ["Power supply", "RAM", "Video card", "CPU cooler"],
-                correct: 1
-            },
-            {
-                question: "You hear a grinding/scraping noise. What should you do FIRST?",
-                options: ["Run diagnostics", "Check Device Manager", "Back up data immediately", "Reseat cables"],
-                correct: 2
-            },
-            {
-                question: "The computer makes a single short beep during POST. What does this indicate?",
-                options: ["Memory error", "Video error", "Normal - system OK", "CPU failure"],
-                correct: 2
-            }
-        ];
-
-        let soundQuizAnswers = {};
-
-        function initSoundQuiz() {
-            const container = document.getElementById('sound-quiz-container');
-
-            container.innerHTML = soundQuestions.map((q, index) => `
-                <div class="quiz-question" data-question="${index}">
-                    <p>${index + 1}. ${q.question}</p>
-                    <div class="quiz-options">
-                        ${q.options.map((opt, optIndex) => `
-                            <div class="quiz-option" data-option="${optIndex}" onclick="selectSoundAnswer(${index}, ${optIndex})">
-                                ${opt}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
-
-            soundQuizAnswers = {};
-        }
-
-        function selectSoundAnswer(questionIndex, optionIndex) {
-            const question = document.querySelector(`.quiz-question[data-question="${questionIndex}"]`);
-            question.querySelectorAll('.quiz-option').forEach(opt => opt.classList.remove('selected'));
-            question.querySelector(`[data-option="${optionIndex}"]`).classList.add('selected');
-            soundQuizAnswers[questionIndex] = optionIndex;
-        }
-
-        function checkSoundQuiz() {
-            let correct = 0;
-
-            soundQuestions.forEach((q, index) => {
-                const question = document.querySelector(`.quiz-question[data-question="${index}"]`);
-                question.querySelectorAll('.quiz-option').forEach(opt => {
-                    opt.classList.remove('correct', 'incorrect');
-                });
-
-                const correctOpt = question.querySelector(`[data-option="${q.correct}"]`);
-                correctOpt.classList.add('correct');
-
-                if (soundQuizAnswers[index] === q.correct) {
-                    correct++;
-                } else if (soundQuizAnswers[index] !== undefined) {
-                    question.querySelector(`[data-option="${soundQuizAnswers[index]}"]`).classList.add('incorrect');
-                }
-            });
-
-            const resultDiv = document.getElementById('sound-quiz-result');
-            resultDiv.style.display = 'block';
-
-            if (correct >= 4) {
-                resultDiv.className = 'score-display passed';
-                resultDiv.innerHTML = `<span class="score">${correct}/5 Correct</span><br>Great diagnostic skills!`;
-            } else {
-                resultDiv.className = 'score-display failed';
-                resultDiv.innerHTML = `<span class="score">${correct}/5 Correct</span><br>Review the symptoms and try again.`;
-            }
-        }
-
-        function resetSoundQuiz() {
-            document.getElementById('sound-quiz-result').style.display = 'none';
-            initSoundQuiz();
-        }
-
-        // ==================== CHAPTER QUIZ ====================
-        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
-        // Answer key stored in Firestore quiz_keys/aplus-core1-ch11
-        const QUIZ_ID = 'aplus-core1-ch11';
-        const quizQuestions = [
-            {
-                question: "According to the CompTIA troubleshooting methodology, what should you do FIRST when resolving a problem?",
-                options: [
-                    "Establish a theory of probable cause",
-                    "Identify the problem",
-                    "Test the theory",
-                    "Document the findings"
-                ]
-            },
-            {
-                question: "A user reports their computer won't turn on. After identifying the problem, what is the NEXT step?",
-                options: [
-                    "Replace the power supply",
-                    "Test the theory to determine cause",
-                    "Establish a theory of probable cause",
-                    "Document findings"
-                ]
-            },
-            {
-                question: "What should you always do BEFORE making changes to resolve a computer problem?",
-                options: [
-                    "Update the BIOS",
-                    "Run antivirus scan",
-                    "Create a backup",
-                    "Reinstall the operating system"
-                ]
-            },
-            {
-                question: "During POST, a computer produces one short beep. What does this typically indicate?",
-                options: [
-                    "Memory error",
-                    "Video card failure",
-                    "Successful POST - system OK",
-                    "CPU failure"
-                ]
-            },
-            {
-                question: "A user's computer keeps resetting to the wrong date and time. What is the most likely cause?",
-                options: [
-                    "Failed hard drive",
-                    "Dead CMOS battery",
-                    "Corrupted BIOS",
-                    "Faulty RAM"
-                ]
-            },
-            {
-                question: "You smell something burning coming from inside a computer case. What should you do FIRST?",
-                options: [
-                    "Open the case to investigate",
-                    "Run hardware diagnostics",
-                    "Shut down and disconnect power immediately",
-                    "Check the event logs"
-                ]
-            },
-            {
-                question: "A computer works fine for a few minutes, then suddenly locks up. After cooling down, it works again. What is the most likely cause?",
-                options: [
-                    "Failing hard drive",
-                    "Bad RAM",
-                    "Overheating/cooling issue",
-                    "Corrupted operating system"
-                ]
-            },
-            {
-                question: "What tool would you use to test if a serial port is functioning correctly?",
-                options: [
-                    "Multimeter",
-                    "POST card",
-                    "Loopback plug",
-                    "Cable tester"
-                ]
-            },
-            {
-                question: "A motherboard shows bulging capacitors. What action should be taken?",
-                options: [
-                    "Replace the capacitors",
-                    "Replace the motherboard",
-                    "Add more cooling",
-                    "Update the BIOS"
-                ]
-            },
-            {
-                question: "You hear a clicking noise coming from a computer. What component is most likely failing?",
-                options: [
-                    "Power supply fan",
-                    "CPU cooler",
-                    "Hard disk drive",
-                    "Optical drive"
-                ]
-            },
-            {
-                question: "What is the LAST step in the CompTIA troubleshooting methodology?",
-                options: [
-                    "Verify full system functionality",
-                    "Implement preventive measures",
-                    "Document findings, actions, and outcomes",
-                    "Establish a plan of action"
-                ]
-            },
-            {
-                question: "A computer's PSU fan spins but the system doesn't boot. What could this indicate?",
-                options: [
-                    "Normal operation",
-                    "Motherboard or power connection issue",
-                    "Hard drive failure",
-                    "RAM is working correctly"
-                ]
-            },
-            {
-                question: "RAM problems often manifest as which of the following?",
-                options: [
-                    "No power to the system",
-                    "Clicking sounds",
-                    "Blue Screen of Death (BSOD)",
-                    "Burning smell"
-                ]
-            },
-            {
-                question: "If your theory about the cause of a problem is NOT confirmed after testing, what should you do?",
-                options: [
-                    "Implement the solution anyway",
-                    "Document that the problem cannot be fixed",
-                    "Re-establish a new theory or escalate",
-                    "Skip to verifying functionality"
-                ]
-            },
-            {
-                question: "What should you always consider BEFORE implementing changes according to the troubleshooting methodology?",
-                options: [
-                    "Whether you have the right tools",
-                    "Corporate policies, procedures, and impacts",
-                    "If the user can afford repairs",
-                    "Your lunch break schedule"
-                ]
-            }
-        ];
-
-        let currentQuestionIndex = 0;
-        let userAnswers = {};
-
-        function initQuiz() {
-            document.getElementById('total-questions').textContent = quizQuestions.length;
-            showQuestion(0);
-        }
-
-        function showQuestion(index) {
-            const q = quizQuestions[index];
-            const container = document.getElementById('quiz-question-container');
-
-            container.innerHTML = `
-                <div class="quiz-question">
-                    <p>${index + 1}. ${q.question}</p>
-                    <div class="quiz-options">
-                        ${q.options.map((opt, i) => `
-                            <div class="quiz-option ${userAnswers[index] === i ? 'selected' : ''}"
-                                 onclick="selectAnswer(${i})">
-                                ${opt}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('current-question').textContent = index + 1;
-            document.getElementById('prev-btn').disabled = index === 0;
-
-            if (index === quizQuestions.length - 1) {
-                document.getElementById('next-btn').style.display = 'none';
-                document.getElementById('submit-btn').style.display = 'inline-block';
-            } else {
-                document.getElementById('next-btn').style.display = 'inline-block';
-                document.getElementById('submit-btn').style.display = 'none';
-            }
-        }
-
-        function selectAnswer(optionIndex) {
-            userAnswers[currentQuestionIndex] = optionIndex;
-            document.querySelectorAll('#quiz-question-container .quiz-option').forEach((opt, i) => {
-                opt.classList.toggle('selected', i === optionIndex);
-            });
-        }
-
-        function nextQuestion() {
-            if (currentQuestionIndex < quizQuestions.length - 1) {
-                currentQuestionIndex++;
-                showQuestion(currentQuestionIndex);
-            }
-        }
-
-        function prevQuestion() {
-            if (currentQuestionIndex > 0) {
-                currentQuestionIndex--;
-                showQuestion(currentQuestionIndex);
-            }
-        }
-
-        /**
-         * submitQuiz — Server-side graded (QC-21)
-         *
-         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
-         * The server looks up quiz_keys/aplus-core1-ch11 in Firestore, compares answers,
-         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
-         *
-         * Falls back to a "grading unavailable" message if Firebase isn't loaded
-         * (e.g. offline mode or SDK failure).
-         */
-        async function submitQuiz() {
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Grading...';
-
-            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
-            const answerMap = {};
-            Object.keys(userAnswers).forEach(key => { answerMap[String(key)] = userAnswers[key]; });
-
-            let score = 0;
-            let percentage = 0;
-            let passed = false;
-
-            try {
-                if (typeof FirebaseAuth !== 'undefined') {
-                    await FirebaseAuth.waitForAuth();
-                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
-                        quizId: QUIZ_ID,
-                        answers: answerMap
-                    });
-                    score = response.data.score;
-                    percentage = Math.round((score / quizQuestions.length) * 100);
-                    passed = percentage >= 70;
-                }
-            } catch (e) {
-                console.warn('Server grading failed, showing submission without grading:', e.message);
-            }
-
-            const resultDiv = document.getElementById('quiz-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = `score-display ${passed ? 'passed' : 'failed'}`;
-
-            resultDiv.innerHTML = `
-                <span class="score">${score}/${quizQuestions.length} (${percentage}%)</span>
-                <br>
-                ${passed ?
-                    '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Congratulations! You passed! You understand the troubleshooting methodology.' :
-                    '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> You need 70% to pass. Review the 6-step methodology and try again.'
-                }
-                <br><br>
-                <button class="btn btn-secondary" onclick="retakeQuiz()">Retake Quiz</button>
-                <a href="../ch12-hw-network-troubleshooting/index.html" class="btn btn-primary" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 12 — HW/Network Troubleshooting &rsaquo;</a>
-            `;
-
-            // Save progress
-            saveProgress(passed, percentage);
-        }
-
-        function retakeQuiz() {
-            currentQuestionIndex = 0;
-            userAnswers = {};
-            document.getElementById('quiz-result').style.display = 'none';
-            showQuestion(0);
-        }
-
-        function saveProgress(passed, percentage) {
-            try {
-                const progressKey = 'aplus-core1-progress';
-                let progress = JSON.parse(localStorage.getItem(progressKey) || '{}');
-
-                progress.ch11 = {
-                    completed: passed,
-                    score: percentage,
-                    lastAttempt: new Date().toISOString()
-                };
-
-                localStorage.setItem(progressKey, JSON.stringify(progress));
-            } catch (e) {
-                /* silently ignore */
-            }
-        }
-
-        // Initialize everything on load
-        document.addEventListener('DOMContentLoaded', () => {
-            initSequencer();
-            initMatcher();
-            initSoundQuiz();
-            initQuiz();
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
+
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to Core 1 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-ch11-troubleshooting', {
+            returnUrl: '../../index.html'
         });
-    </script>
+    }
+</script>
 </body>
 </html>

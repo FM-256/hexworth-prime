@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side exam grading -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALA Midterm Exam | Advanced Linux Administration</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0f1a;
+    --card: #1a1a12;
+    --ink: #e8e4d0;
+    --muted: #9a9070;
+    --accent: #c9a83a;
+    --accent2: #e8c040;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(201, 168, 58, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #1a1400 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.30);
+  }
+
+  .exam-info {
+    background: rgba(26, 26, 18, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 {
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .exam-info ul {
+    list-style: none;
+    color: var(--muted);
+  }
+
+  .exam-info li { padding: 4px 0; }
+
+  .exam-info li::before {
+    content: ">> ";
+    color: var(--accent);
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.96);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .question {
+    background: rgba(26, 26, 18, 0.85);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.0rem;
+    flex: 1;
+    line-height: 1.6;
+  }
+
+  .question p code {
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(201, 168, 58, 0.10);
+    border: 1px solid rgba(201, 168, 58, 0.20);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--accent2);
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+    white-space: nowrap;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.08);
+    border-color: rgba(201, 168, 58, 0.25);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a00;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(26, 26, 18, 0.96);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--ink);
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .score-circle.pass {
+    border-color: var(--accent);
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+
+  .score-circle.fail {
+    border-color: var(--bad);
+    box-shadow: 0 0 40px rgba(255, 71, 87, 0.4);
+  }
+
+  .score-percent {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .score-circle.pass .score-percent { color: var(--accent); }
+  .score-circle.fail .score-percent { color: var(--bad); }
+
+  .score-fraction {
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .result-msg {
+    font-size: 1.1rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass {
+    background: rgba(201, 168, 58, 0.10);
+    color: var(--accent2);
+    border: 1px solid rgba(201, 168, 58, 0.35);
+  }
+
+  .result-msg.fail {
+    background: rgba(255, 71, 87, 0.10);
+    color: var(--bad);
+    border: 1px solid var(--bad);
+  }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.12), rgba(232, 192, 64, 0.08));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 {
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a00;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 8px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Advanced Linux Hub</a>
+  <span class="brand">Hexworth Prime // Matrix</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/25 answered</span>
+  <span class="timer" id="timer">45:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>ALA Midterm Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CTS4321C</span>
+      <span class="tag">25 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">45 Minutes</span>
+      <span class="tag">Weeks 1-2 (Obj 1-4)</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers Weeks 1 and 2: CLI Operations, systemd, Networking, Hardening, and Package Management</li>
+      <li>You need 70% (18/25) to pass and unlock Week 3</li>
+      <li>Timer starts when the page loads. Submit before time expires.</li>
+      <li>Review your answers before submitting. One attempt only.</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Midterm</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Advanced Linux Administration // CTS4321C // <a href="../index.html">Matrix House</a>
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function
+// Answer key stored in Firestore quiz_keys/matrix-ala-midterm
+const QUIZ_ID = 'matrix-ala-midterm';
+
+/* ── Exam questions: Weeks 1-2, Objectives 1-4 ── */
+const examData = [
+  // Objective 1: Advanced CLI Operations
+  {q: "An operator needs to run a 3-hour backup job over SSH that must survive a disconnection. Which command correctly starts the job immune to hangup signals?", a: ["nohup rsync -av /data/ backup@10.0.1.100:/backup/ &", "rsync -av /data/ backup@10.0.1.100:/backup/ --no-hangup", "ssh backup@10.0.1.100 rsync -av /data/ /backup/ --daemon", "screen -d rsync -av /data/ backup@10.0.1.100:/backup/"]},
+  {q: "What is the behavioral difference between running commands inside `(cd /etc && cat hosts)` versus `{ cd /etc && cat hosts; }` in a Bash session?", a: ["The subshell version creates a temporary user; the command group does not", "The subshell version does not change the current shell's directory; the command group does", "Command groups run faster because they do not fork a child process", "There is no behavioral difference in a non-interactive shell"]},
+  {q: "An operator uses `find /var/log -name '*.log' -mtime +30 -exec gzip {} \\;`. Each file is gzipped separately. Which replacement compresses all files in a single gzip process?", a: ["find /var/log -name '*.log' -mtime +30 | xargs gzip", "find /var/log -name '*.log' -mtime +30 -exec gzip --all {} \\;", "gzip $(find /var/log -name '*.log' -mtime +30)", "find /var/log -name '*.log' -mtime +30 -execdir gzip {} \\;"]},
+  // Objective 2: systemd and Networking
+  {q: "An operator creates a custom systemd unit file at `/etc/systemd/system/grid-monitor.service`. After saving it, the unit is not recognized by systemctl. What step was omitted?", a: ["The file must be made executable with chmod +x", "systemctl daemon-reload must be run to reload the unit file index", "The unit file must be symlinked into /lib/systemd/system/", "systemd only reads unit files that begin with a capital letter"]},
+  {q: "Which `journalctl` command displays logs from the current boot for the ssh service, with the most recent entries shown first?", a: ["journalctl -b 0 -u ssh.service --reverse", "journalctl -b -u ssh.service -r", "journalctl -fu ssh.service --boot-only", "journalctl --recent -u ssh.service"]},
+  {q: "An Ubuntu 22.04 server uses Netplan. An operator adds a static IP but after running `netplan apply` the old DHCP-assigned IP is still active on the interface. What is the most likely cause?", a: ["Netplan requires a full reboot to replace DHCP leases with static configuration", "The YAML file has incorrect indentation, causing the configuration to be silently ignored", "networkd-wait-online.service must be restarted before changes take effect", "Static IP changes in Netplan require the interface to be taken down manually first"]},
+  {q: "What does `ss -tnp state established` display?", a: ["All TCP sockets in any state, filtered to show only established connections", "Only established TCP connections with the associated process name and PID", "UDP connections in the established pseudostate", "Established connections sorted by the time they were created"]},
+  {q: "An operator needs to verify which gateway the kernel would use to reach 8.8.8.8, without sending any traffic. Which command is correct?", a: ["traceroute --dry-run 8.8.8.8", "ip route get 8.8.8.8", "ping -c 0 8.8.8.8", "route show destination 8.8.8.8"]},
+  {q: "Which Netplan directive correctly configures interface `eth0` with a static IP of 10.0.1.50/24 and gateway 10.0.1.1 on Ubuntu 22.04?", a: ["eth0:\n  dhcp4: no\n  addresses: [10.0.1.50/24]\n  gateway4: 10.0.1.1", "eth0:\n  dhcp4: no\n  addresses: [10.0.1.50/24]\n  routes:\n    - to: default\n      via: 10.0.1.1", "eth0:\n  static: true\n  ip: 10.0.1.50/24\n  gw: 10.0.1.1", "eth0:\n  dhcp4: false\n  ipv4: 10.0.1.50\n  mask: 24\n  route: 10.0.1.1"]},
+  {q: "An operator runs `tcpdump -i eth0 -w capture.pcap port 443 and host 10.0.1.100`. What traffic does this capture?", a: ["All traffic on port 443 from any host on eth0", "HTTPS traffic specifically to or from 10.0.1.100 on eth0", "All traffic from 10.0.1.100 and all traffic on port 443, as two separate filters", "Encrypted traffic only (port 443) going to the default gateway at 10.0.1.100"]},
+
+  // Objective 3: Host Hardening
+  {q: "An operator wants to lock down SSH so that only members of the `ops` group can log in. Which `sshd_config` directive enforces this?", a: ["AllowUsers @ops", "AllowGroups ops", "PermitGroups ops", "RestrictUsers group=ops"]},
+  {q: "Which command verifies that a UFW rule allowing port 22 is actually present in the active iptables ruleset, not just in UFW's configuration?", a: ["ufw status verbose", "iptables -L INPUT -n --line-numbers | grep 22", "ufw show rules", "iptables -S | grep ufw"]},
+  {q: "An operator configures `fail2ban` with `maxretry = 3` and `bantime = 600`. An attacker attempts 2 failed SSH logins from 10.0.1.200, then stops for 20 minutes, then attempts 1 more failed login. Is the IP banned?", a: ["Yes, because the total failed attempts exceed 2", "No, because the attempts did not occur within the findtime window", "Yes, because fail2ban counts total historical failures per IP", "No, because fail2ban only applies to password authentication, not key-based attempts"]},
+  {q: "What is the purpose of `pam_tally2` (or `pam_faillock` on Ubuntu 22.04) in the PAM stack?", a: ["It enforces password complexity requirements during password changes", "It tracks failed login attempts and locks accounts after a configured threshold", "It sets session resource limits for authenticated users", "It logs all PAM authentication events to syslog"]},
+  {q: "An operator runs ClamAV in daemon mode with `clamd`. Which command correctly submits a file for scanning via the daemon rather than spawning a new scanner process?", a: ["clamscan --daemon /suspect/file.bin", "clamdscan /suspect/file.bin", "clamd --scan /suspect/file.bin", "freshclam --scan /suspect/file.bin"]},
+
+  // Objective 4: Package Management
+  {q: "An operator needs to install a specific version of nginx (1.18.0) on Ubuntu 22.04. Which command pins that version and prevents automatic upgrades?", a: ["apt install nginx=1.18.0 && apt-mark hold nginx", "apt install nginx:1.18.0 --no-upgrade", "apt install nginx --version 1.18.0 --pin", "apt install nginx/1.18.0 && apt lock nginx"]},
+  {q: "After compiling a tool from source and running `sudo make install`, the operator finds the binary was installed to `/usr/local/bin/`. Which command registers this installation with the system so `man` pages and `which` work correctly?", a: ["ldconfig && mandb", "update-alternatives --install /usr/bin/tool tool /usr/local/bin/tool 100", "dpkg --register /usr/local/bin/tool", "make install automatically handles all registration; no extra step is needed"]},
+  {q: "An operator adds a third-party repository but `apt update` fails with `W: GPG error: ... NO_PUBKEY ABCD1234`. Which command imports the missing key using the modern Ubuntu 22.04 method?", a: ["apt-key add - < pubkey.gpg", "curl -fsSL https://repo.example.com/pubkey.gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/example.gpg", "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ABCD1234", "echo 'trusted=yes' >> /etc/apt/sources.list.d/example.list"]},
+  {q: "Which command shows the full dependency chain for the `openssh-server` package before installing it?", a: ["apt show openssh-server --deps", "apt-cache depends openssh-server", "apt install --dry-run openssh-server", "dpkg --info openssh-server"]},
+  {q: "An operator runs `./configure && make && sudo make install` to compile a tool. The `./configure` step fails with `checking for libssl... not found`. What is the correct fix on Ubuntu 22.04?", a: ["sudo apt install openssl", "sudo apt install libssl-dev", "sudo ldconfig --add openssl", "sudo apt install ssl-cert"]},
+
+  // Mixed Objectives: scenario questions
+  {q: "A cell is rejecting SSH connections with 'Connection refused'. The operator confirms sshd is running with `systemctl status ssh`. Which diagnostic command most efficiently identifies whether the firewall is the cause?", a: ["ping -c 3 localhost", "ss -tlnp | grep :22", "iptables -L INPUT -n | grep DROP", "telnet localhost 22"]},
+  {q: "An operator creates a systemd drop-in override for `ssh.service` to add `Environment=DEBUG=1`. After running `systemctl daemon-reload && systemctl restart ssh`, the variable is not present in the process environment. What is the most likely error?", a: ["Drop-in files must be placed in /etc/systemd/system/ssh.service.d/ with a .conf extension", "Environment variables cannot be set via systemd drop-in files", "systemctl restart does not re-read drop-in files; a full system reboot is required", "The Environment directive only works in Type=oneshot units"]},
+  {q: "Which command sequence correctly hardens an Ubuntu 22.04 system immediately after installation to address the most common attack vectors?", a: ["passwd root && chmod 700 /root && iptables -F", "apt update && apt upgrade -y && ufw enable && ufw allow 22/tcp && apt install fail2ban -y", "systemctl disable --now avahi-daemon cups bluetooth && apt autoremove", "Both B and C represent correct hardening steps that should both be performed"]},
+  {q: "An operator uses `nmap -sV 10.0.1.50` to scan a cell and discovers port 23 (Telnet) is open. What is the most appropriate immediate action?", a: ["Verify the port is needed, then add a UFW rule to restrict access to authorized IPs only", "Immediately block port 23 with iptables -A INPUT -p tcp --dport 23 -j DROP", "Disable the Telnet service, verify it is not required, and replace it with SSH if needed", "Document the finding and schedule a maintenance window to address it in the next sprint"]},
+  {q: "After a security incident, an operator reviews the `/var/log/auth.log` file and sees thousands of failed SSH attempts from a single IP. fail2ban is installed and running. Why might the IP not have been banned?", a: ["fail2ban only monitors /var/log/secure, not /var/log/auth.log on Ubuntu", "The sshd jail may be disabled or configured with a findtime longer than the attack window", "fail2ban requires manual approval before banning external IP addresses", "Ubuntu 22.04 uses journald exclusively and fail2ban cannot read auth.log"]},
+];
+
+// Shuffle helper
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Render all questions
+const container = document.getElementById('questions');
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement('div');
+  div.classList.add('question');
+  div.setAttribute('data-q', i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q.replace(/`([^`]+)`/g, '<code>$1</code>')}</p>
+    </div>
+  `;
+
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  container.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 45 minutes
+let timeLeft = 45 * 60;
+const timerEl = document.getElementById('timer');
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled position back to original examData index for server
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark correct/incorrect selections based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_matrix_ala_midterm_passed', 'true');
+    localStorage.setItem('hexworth_matrix_ala_midterm_score', percent);
+    localStorage.setItem('hexworth_matrix_ala_midterm_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Midterm Cleared' : 'Insufficient Score'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Midterm passed. Weeks 1 and 2 objectives verified. Week 3 is now unlocked.'
+        : `You need 70% (18/25) to pass. You scored ${score}/25. Review Week 1 and Week 2 modules and attempt again.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>Week 3 Unlocked: Sector Authority</h3>
+        <p>You have demonstrated competency in CLI operations, systemd, networking, hardening, and package management.</p>
+        <a href="../quizzes/ala-w3.quiz.html" class="btn-continue">Begin Week 3 Quiz</a>
+        <a href="../index.html" class="btn-continue">Return to ALA Hub</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../index.html" class="btn-continue">Review Week 1-2 Modules</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+  // Record completion via ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('matrix', 'ala-midterm', score);
+  }
+}
+</script>
+</body>
+</html>

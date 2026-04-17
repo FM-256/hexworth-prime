@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIS-12: Network Security Architecture | Principles of Information Security</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060810;
+            --bg-card:    #0a1018;
+            --accent:     #3b82f6;
+            --accent-dim: rgba(59, 130, 246, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Sticky header */
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+
+        .ne-badge {
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        /* Main content */
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        /* Objectives panel */
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* SY0-701 objective badge */
+        .obj-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content sections */
+        .ne-section { margin-bottom: 35px; }
+
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        /* Tables */
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: top;
+        }
+        .ne-table tr:hover td { background: rgba(59, 130, 246, 0.04); }
+
+        /* Card grid */
+        .ne-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .ne-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Callout boxes (lore context, tips) */
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        /* Breach / case study callout */
+        .ne-breach {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 16px 0;
+        }
+        .ne-breach strong {
+            color: #f87171;
+            display: block;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .ne-breach p { color: #fca5a5; font-size: 0.875rem; }
+
+        /* Inline code */
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        /* Takeaways */
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li {
+            padding: 5px 0;
+            padding-left: 24px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        /* Quiz section */
+        .ne-quiz {
+            background: var(--accent-dim);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 12px;
+            padding: 28px 24px;
+            margin-top: 32px;
+            margin-bottom: 20px;
+        }
+
+        .ne-quiz-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ne-quiz-header h3 { font-size: 1rem; color: var(--accent); letter-spacing: 0.5px; margin-bottom: 3px; }
+        .ne-quiz-header p { font-size: 0.78rem; color: var(--text-secondary); }
+
+        .question-block { margin-bottom: 24px; }
+
+        .question-num {
+            color: var(--accent);
+            font-size: 0.72rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .question-text {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            line-height: 1.65;
+        }
+
+        .options-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+        .option-item { display: flex; align-items: flex-start; gap: 10px; }
+        .option-item input[type="radio"] {
+            margin-top: 3px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+        .option-item label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1.55;
+        }
+        .option-item label:hover { color: var(--text-primary); }
+
+        .quiz-submit-area {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #quizSubmitBtn {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 11px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #quizSubmitBtn:hover:not(:disabled) { background: #2563eb; }
+        #quizSubmitBtn:disabled { opacity: 0.45; cursor: default; }
+
+        .quiz-status-msg { font-size: 0.78rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+
+        .quiz-result {
+            display: none;
+            text-align: center;
+            padding: 24px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .quiz-result.pass {
+            display: block;
+            background: rgba(16, 185, 129, 0.07);
+            border: 1px solid rgba(16, 185, 129, 0.30);
+        }
+        .quiz-result.fail {
+            display: block;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .result-score { font-size: 2.2rem; font-weight: 700; margin-bottom: 6px; }
+        .quiz-result.pass .result-score { color: #34d399; }
+        .quiz-result.fail .result-score { color: #f87171; }
+
+        .result-label { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+        .quiz-result.pass .result-label { color: #6ee7b7; }
+        .quiz-result.fail .result-label { color: #fca5a5; }
+
+        .result-msg { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; }
+
+        .retry-btn {
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, 0.40);
+            color: #f87171;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            padding: 8px 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        /* Completion */
+        .ne-complete {
+            text-align: center;
+            padding: 30px 20px 40px;
+        }
+        #completeBtn {
+            background: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+            transition: all 0.2s;
+        }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+        #completeBtn.is-done { background: #16a34a; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 700px) {
+            .ne-card-grid { grid-template-columns: 1fr; }
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-12: Network Security Architecture</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PIS-12</span>
+            <h1>Network Security Architecture</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Infosec</a> / PIS-12
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives <span class="obj-badge">SY0-701: 3.1, 3.2</span></h2>
+            <ul>
+                <li>Differentiate stateless, stateful, and next-generation firewall capabilities by inspection depth</li>
+                <li>Explain DMZ design and the two-firewall perimeter model</li>
+                <li>Distinguish IPSec tunnel mode from SSL/TLS VPN use cases</li>
+                <li>Apply VLAN segmentation, Zero Trust Architecture, and micro-segmentation concepts</li>
+                <li>Identify the correct network control for scenario-based exam questions</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            <p>"Designing the facility's containment barriers. A single flat network is a single failure point -- one breach and every lab is exposed. The architecture team builds walls between walls: containment barriers that assume the inner layer will eventually fail and ensure the outer layer holds regardless. Every firewall rule, every segment boundary, every VPN tunnel is a decision about what can talk to what, and what cannot."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Firewalls: Stateless, Stateful, and Next-Generation</h2>
+            <p class="ne-text">A firewall enforces an access control policy between network segments by inspecting and filtering traffic. SY0-701 Objective 3.2 requires you to differentiate firewall types by inspection depth and capability. The three primary types appear on the exam in scenario format.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Firewall Type</th>
+                        <th>Inspection Level</th>
+                        <th>Key Capability</th>
+                        <th>Limitation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Stateless (Packet Filter)</td>
+                        <td>Layer 3/4 headers only</td>
+                        <td>Filters by source IP, destination IP, port, protocol. Fast and low-overhead.</td>
+                        <td>No session awareness. Cannot distinguish a new connection from an ongoing one. Easily bypassed with crafted packets.</td>
+                    </tr>
+                    <tr>
+                        <td>Stateful</td>
+                        <td>Layer 3/4 + session state</td>
+                        <td>Tracks TCP connection state (SYN, ESTABLISHED, FIN). Blocks packets that do not belong to a known session. Standard for perimeter firewalls.</td>
+                        <td>Cannot inspect application-layer content. Legitimate-looking traffic (HTTP, DNS) passes unchallenged.</td>
+                    </tr>
+                    <tr>
+                        <td>Next-Generation (NGFW)</td>
+                        <td>Layer 7 (application layer)</td>
+                        <td>Deep packet inspection, application identification, SSL/TLS inspection, integrated IPS, user identity awareness, URL filtering. Can block specific apps even on permitted ports.</td>
+                        <td>Higher cost and processing overhead. Requires SSL inspection certificates for HTTPS traffic. Misconfiguration can break legitimate applications.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="ne-text">A <span class="ne-inline-code">DMZ</span> (demilitarized zone) is a network segment between the external internet and the internal trusted network. Public-facing servers (web, email, DNS) are placed in the DMZ. A firewall on the external side allows internet traffic to the DMZ. A second firewall on the internal side allows only specific, necessary traffic from DMZ to internal. This two-firewall DMZ architecture is the standard perimeter design.</p>
+            <p class="ne-text"><span class="ne-inline-code">NAT</span> (Network Address Translation) maps private IP addresses to public IP addresses. It provides implicit obscurity by hiding the internal address space from external networks, but NAT is not a security control -- it does not inspect or filter traffic. Do not confuse NAT with a firewall on the exam.</p>
+            <div class="ne-breach">
+                <strong>Real-World: Target Breach (2013)</strong>
+                <p>Attackers compromised the HVAC vendor's network, which had direct access to Target's corporate network. No firewall segmentation existed between the vendor access zone and the payment card network. A properly implemented DMZ and segmentation policy would have contained the breach to the vendor's access path.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">VPN Technologies: IPSec and SSL/TLS</h2>
+            <p class="ne-text">A Virtual Private Network creates an encrypted tunnel over an untrusted network. SY0-701 Objective 3.1 requires you to distinguish VPN types by protocol and use case. The two major VPN protocol families tested are IPSec and SSL/TLS-based VPNs.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>VPN Type</th>
+                        <th>Protocol</th>
+                        <th>Use Case</th>
+                        <th>Exam Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>IPSec (Tunnel Mode)</td>
+                        <td>IKE for key exchange, ESP for encryption (AES-256), AH for integrity</td>
+                        <td>Site-to-site VPN between offices or data centers. Full network layer encryption.</td>
+                        <td>Tunnel mode encapsulates the entire original IP packet inside a new IP packet. Transport mode only encrypts the payload. Tunnel mode is the site-to-site standard.</td>
+                    </tr>
+                    <tr>
+                        <td>SSL/TLS VPN</td>
+                        <td>TLS (operates over HTTPS, port 443)</td>
+                        <td>Remote access VPN for individual users. Clientless (browser-based) or thin-client. Traverses firewalls easily since it uses port 443.</td>
+                        <td>Does not require pre-installed VPN client software in clientless mode. Preferred when users are on managed or unmanaged devices.</td>
+                    </tr>
+                    <tr>
+                        <td>Split Tunneling</td>
+                        <td>Either protocol</td>
+                        <td>Routes only organization traffic through the VPN; internet traffic goes direct. Reduces VPN load.</td>
+                        <td>Security risk: internet traffic is not inspected by corporate controls while connected. Full tunneling forces all traffic through the VPN for inspection.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>Field teams connecting to the facility from external locations use an SSL VPN on port 443. Traffic from their workstations arrives at the DMZ tunnel terminator, is decrypted, then re-inspected by the NGFW before reaching the internal network. Split tunneling is disabled -- all traffic routes through the facility perimeter.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Network Segmentation, Zero Trust, and Micro-Segmentation</h2>
+            <p class="ne-text">Network segmentation divides a flat network into isolated zones, limiting lateral movement in the event of a breach. SY0-701 Objective 3.1 tests segmentation concepts including VLANs, zero trust architecture, and micro-segmentation.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">VLAN segmentation</strong> uses Layer 2 virtual LANs to separate network traffic at the switch level. A VLAN-segmented network contains: a user VLAN, a server VLAN, a management VLAN, a guest VLAN, and potentially an IoT VLAN. Inter-VLAN routing is controlled by a Layer 3 switch or router with ACLs, creating choke points for traffic between zones.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Zero Trust Architecture (ZTA)</strong> operates on the principle of "never trust, always verify." Traditional perimeter security assumes that anything inside the network is safe. Zero trust eliminates that assumption entirely. Every access request is authenticated, authorized, and continuously validated regardless of whether the source is internal or external. Core components: identity verification (MFA), device health checks, least-privilege access, and continuous session monitoring.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Micro-segmentation</strong> extends zero trust to the workload level. Rather than segmenting at the network perimeter, micro-segmentation applies policy at the individual workload, container, or virtual machine. Even within the same VLAN, workloads cannot communicate unless policy explicitly permits it. Software-defined perimeter (SDP) implements this via identity-based policy enforcement rather than network topology.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Concept</th>
+                        <th>Granularity</th>
+                        <th>Lateral Movement Prevention</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>VLAN segmentation</td>
+                        <td>Network zone level</td>
+                        <td>Limits movement between major zones (user vs server vs management)</td>
+                    </tr>
+                    <tr>
+                        <td>Zero Trust Architecture</td>
+                        <td>Session / identity level</td>
+                        <td>Every access request verified; no implicit trust from network location</td>
+                    </tr>
+                    <tr>
+                        <td>Micro-segmentation</td>
+                        <td>Workload / container level</td>
+                        <td>Stops lateral movement even between hosts on the same VLAN</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The containment facility implements zero trust for all specimen handling systems. Lab technician workstations cannot communicate with specimen databases directly -- every access request goes through an identity-aware proxy that validates clearance level, device health, and time-of-day policy before granting access. A compromised technician workstation cannot reach the vault directly.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">SD-WAN and Network Architecture Exam Scenarios</h2>
+            <p class="ne-text"><strong style="color:var(--accent)">SD-WAN</strong> (Software-Defined Wide Area Network) abstracts the WAN connectivity layer, allowing traffic to be dynamically routed across multiple transport options (MPLS, broadband, LTE) based on application policy. SD-WAN centralizes management, reduces reliance on expensive MPLS circuits, and enables consistent security policy across distributed locations. From a security perspective, SD-WAN introduces encryption between sites and enables application-aware routing, but also expands the attack surface through its centralized control plane.</p>
+            <p class="ne-text">SY0-701 Objective 3.2 presents network architecture scenarios and asks you to identify the appropriate control. Key exam patterns to recognize:</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Correct Answer</th>
+                        <th>Why</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Attacker moves from compromised web server to internal database</td>
+                        <td>Network segmentation / DMZ with second firewall</td>
+                        <td>The web server and database should be in separate zones with firewall rules preventing direct access</td>
+                    </tr>
+                    <tr>
+                        <td>Remote employee needs secure access to internal resources</td>
+                        <td>SSL/TLS VPN (or IPSec remote access)</td>
+                        <td>Encrypted tunnel authenticates the user and encrypts traffic over the untrusted internet</td>
+                    </tr>
+                    <tr>
+                        <td>Organization wants to block specific applications (Zoom, Dropbox) regardless of port</td>
+                        <td>Next-Generation Firewall (NGFW)</td>
+                        <td>Stateful firewalls filter by port; NGFW identifies applications by behavior and content</td>
+                    </tr>
+                    <tr>
+                        <td>Company implements "never trust, always verify" policy for all internal resources</td>
+                        <td>Zero Trust Architecture</td>
+                        <td>Zero trust eliminates implicit trust based on network location; every session verified</td>
+                    </tr>
+                    <tr>
+                        <td>Two branch offices need encrypted connectivity between their local networks</td>
+                        <td>IPSec VPN tunnel mode (site-to-site)</td>
+                        <td>Site-to-site IPSec in tunnel mode encrypts entire IP packets between the two network gateways</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility's satellite labs communicate with the main campus over IPSec VPN tunnels in full tunnel mode. SD-WAN routes routine data (environmental sensors, status telemetry) over cheaper broadband links and reserves the encrypted MPLS circuit for high-priority specimen transfer data. Traffic policy is enforced centrally and pushed to all sites simultaneously.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>NGFW operates at Layer 7 and can identify applications by behavior -- stateful firewalls only track TCP session state, not application content</li>
+                <li>NAT hides internal IP addresses but is not a security control -- it does not inspect or filter traffic</li>
+                <li>IPSec tunnel mode encrypts the entire original packet (site-to-site); transport mode encrypts only the payload</li>
+                <li>SSL/TLS VPN operates over port 443 and traverses most firewalls without additional rule changes</li>
+                <li>Zero Trust requires every access request to be verified regardless of network location -- no implicit trust from being on the internal LAN</li>
+                <li>Micro-segmentation extends zero trust to individual workloads, stopping lateral movement within the same VLAN</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <div class="question-block">
+                    <span class="question-num">Question 1 of 5</span>
+                    <p class="question-text">An organization wants to block specific cloud storage applications that use port 443, regardless of which port they use. Blocking port 443 on a stateful firewall would break HTTPS traffic. Which firewall capability is BEST suited to identify and block specific applications by behavior?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">Stateless packet filter with updated ACLs</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">Next-Generation Firewall (NGFW) with application identification</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">NAT with port address translation</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Stateful firewall with deep port inspection</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 2 of 5</span>
+                    <p class="question-text">A company places its public-facing web servers between two firewalls: one connected to the internet and one connected to the internal corporate network. What is this architecture called?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">Zero trust network access</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">Demilitarized zone (DMZ)</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">Virtual LAN (VLAN)</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">Micro-segmentation</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 3 of 5</span>
+                    <p class="question-text">A remote employee working from a coffee shop needs to securely access internal corporate resources. The organization wants to minimize firewall rule exceptions and ensure the connection works from most networks. Which VPN solution is MOST appropriate?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">IPSec tunnel mode site-to-site VPN</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">SSL/TLS VPN on port 443</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">Split tunneling with direct internet access</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">IPSec transport mode</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 4 of 5</span>
+                    <p class="question-text">An attacker has compromised a workstation on the user VLAN. The organization uses VLAN segmentation but has misconfigured inter-VLAN routing to allow full access between all VLANs. The attacker accesses the server VLAN and exfiltrates data. Which principle would have BEST limited this lateral movement?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">Deploying a stateless packet filter at the internet perimeter</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">Implementing ACLs on inter-VLAN routing to enforce least-privilege access between segments</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">Replacing all switches with routers</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">Adding more VLANs to the user segment</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 5 of 5</span>
+                    <p class="question-text">An organization adopts a security model that requires every user and device to be authenticated and authorized before accessing any resource, regardless of whether they are on the corporate network or outside it. Implicit trust based on network location is eliminated. Which architecture does this describe?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">Defense in depth</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">Zero Trust Architecture</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">SD-WAN</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">Stateful firewall with session tracking</label></li>
+                    </ul>
+                </div>
+
+                <div class="quiz-submit-area">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span class="quiz-status-msg" id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <div class="quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn" disabled>Pass the quiz to complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* Module constants */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-12';
+        const QUIZ_ID      = 'pis-12-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) { answerMap[String(i)] = selections[i]; }
+            }
+            var score = 0, percentage = 0, passed = false;
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: answerMap });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-12] Server grading failed:', e.message);
+            }
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.disabled = true; });
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Network architecture containment barriers confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+            if (passed) { markComplete(score); } else { document.getElementById('retryBtn').style.display = 'inline-block'; }
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.checked = false; r.disabled = false; });
+            document.getElementById('quizResult').className = 'quiz-result';
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+        }
+
+        /* Restore completed state on load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+            }
+        })();
+    </script>
+</body>
+</html>

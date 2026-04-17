@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Architecture &amp; Segmentation | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Network Architecture &amp; Segmentation | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-09 &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; SY0-701: 3.1, 3.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Network Architecture<br>
+                <span class="accent">&amp; Segmentation</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Firewalls &nbsp;&bull;&nbsp; DMZ &nbsp;&bull;&nbsp; NAT &nbsp;&bull;&nbsp; VPN &nbsp;&bull;&nbsp; Zero Trust &nbsp;&bull;&nbsp; SD-WAN
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Delta. The facility's outer perimeter has been mapped by an unknown reconnaissance unit. Division Command needs to know: which zones are isolated, which traffic is inspected, and whether the inter-sector tunnels are encrypted. Network architecture is not just topology -- it is the physical expression of your security policy.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-09</span>
+            <span>Week 3 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY NETWORK ARCHITECTURE MATTERS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Why <span class="accent">Network Architecture</span> Matters</div>
+        <div class="slide-subtitle">The structure of your network determines the blast radius of every breach. Good architecture limits lateral movement before an attacker arrives.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Architecture Is Policy Made Physical</div>
+                <div class="card-desc">Every firewall rule, every VLAN boundary, every NAT translation is a security decision rendered in infrastructure. The network enforces policy automatically, without relying on human behavior. A flat network with no segmentation means a single compromised host can reach everything.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Lateral Movement Is the Real Threat</div>
+                <div class="card-desc">Most successful breaches begin with a single compromised endpoint. The damage is caused by lateral movement -- the attacker's ability to pivot from that foothold to high-value targets. Segmentation limits how far that pivot can reach. Without it, one phishing click can expose the entire domain.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Compliance Requires Defined Zones</div>
+                <div class="card-desc">PCI DSS mandates cardholder data environment isolation. HIPAA requires protected health information to be logically separated from general business systems. Regulatory compliance is often the forcing function that drives organizations to implement proper network architecture.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The SY0-701 Perspective</div>
+            Network architecture appears across Domain 3.1 (Security Architecture) and 3.2 (Security Infrastructure). Exam questions focus on identifying the correct placement of controls -- where does the firewall go, what belongs in the DMZ, when do you use NAT versus a proxy. Topology decisions are always justified by security requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — FIREWALL FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Firewall <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">A firewall enforces access control policy at network boundaries by inspecting and filtering traffic.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Packet Filtering (Stateless)</div>
+                <div class="card-desc">Examines each packet independently. Decisions based on source IP, destination IP, source port, destination port, and protocol. Fast and simple. Cannot track connection state -- cannot distinguish a TCP SYN from mid-stream data. ACL-based. Legacy technology still common in routers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stateful Inspection</div>
+                <div class="card-desc">Tracks the state of active connections in a state table. Knows whether a packet belongs to an established session, is part of a new connection, or is invalid. Can block unsolicited inbound packets even if the port is technically allowed. The standard for enterprise firewalls since the 1990s.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Next-Generation Firewall (NGFW)</div>
+                <div class="card-desc">Combines stateful inspection with deep packet inspection (DPI), application-layer awareness, intrusion prevention, TLS inspection, user-identity integration, and threat intelligence feeds. Can identify and block applications regardless of port. Palo Alto, Fortinet, and Cisco Firepower are market leaders.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Exam Distinction</div>
+            Stateless firewalls filter per-packet with no session context. Stateful firewalls track connection state and can block unsolicited packets. NGFWs add application awareness and DPI. SY0-701 expects you to know which type addresses which threat and the tradeoffs in performance versus inspection depth.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — FIREWALL RULE LOGIC ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Firewall <span class="accent">Rule Logic</span></div>
+        <div class="slide-subtitle">Rules are evaluated top-to-bottom. The first match wins. An implicit deny-all at the bottom rejects unmatched traffic.</div>
+
+        <div class="code-block"><span class="cm"># Simplified firewall ACL -- evaluated in order</span>
+<span class="kw">PERMIT</span>  TCP   10.0.1.0/24  -->  10.0.2.10  port 443   <span class="cm"># Allow HTTPS to web server</span>
+<span class="kw">PERMIT</span>  TCP   10.0.3.5     -->  10.0.2.20  port 1433  <span class="cm"># Allow DB app server to SQL</span>
+<span class="kw">PERMIT</span>  ICMP  10.0.0.0/8   -->  any                   <span class="cm"># Allow internal ping</span>
+<span class="kw">DENY</span>    any   any          -->  10.0.2.20  port 1433  <span class="cm"># Block all other SQL access</span>
+<span class="kw">DENY</span>    any   any          -->  any                   <span class="cm"># Implicit deny-all (catch-all)</span></span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Implicit Deny</div>
+                <div class="card-desc">Any traffic not explicitly permitted by a rule is denied. This is the foundational principle -- default deny is security. Default allow (only blocking what is explicitly listed) inverts the model and is almost always wrong for production firewalls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Rule Ordering Matters</div>
+                <div class="card-desc">A PERMIT rule placed above a DENY for the same traffic causes the traffic to pass. Overly broad rules placed first can accidentally permit traffic that later specific rules would block. Rule audits must check for shadowed rules -- rules that can never be reached because a broader rule above them matches first.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Ingress vs. Egress Filtering</div>
+                <div class="card-desc">Ingress filtering blocks unauthorized inbound traffic. Egress filtering blocks unauthorized outbound traffic -- often overlooked. Malware C2 callbacks, data exfiltration, and DNS tunneling all require outbound connections. Egress filtering catches malware that has already executed on internal hosts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Fail-Closed vs. Fail-Open</div>
+                <div class="card-desc">Fail-closed: if the firewall crashes, all traffic is blocked. Fail-open: if the firewall crashes, traffic passes unrestricted. Fail-closed is the secure default for security appliances. Fail-open is sometimes used for high-availability systems where downtime is unacceptable -- requires separate risk acceptance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — DMZ ARCHITECTURE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">The <span class="accent">DMZ</span> Architecture</div>
+        <div class="slide-subtitle">A demilitarized zone is a network segment that sits between the internet and the internal trusted network, hosting publicly accessible services.</div>
+
+        <div class="scenario-strip">
+            The facility's public-facing specimen catalog must be accessible to approved researchers worldwide, but the specimen database holding classified containment protocols must never be directly reachable from the internet. The DMZ is the airlock between public access and sensitive internal systems.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Goes in the DMZ</div>
+                <div class="card-desc">Web servers, mail relay servers, DNS servers, reverse proxies, public-facing APIs, VPN concentrators, and jump hosts. Any service that must accept connections from untrusted networks belongs in the DMZ -- not directly on the internal network.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Dual-Firewall Architecture</div>
+                <div class="card-desc">An outer firewall separates the internet from the DMZ. An inner firewall separates the DMZ from the internal network. An attacker who compromises a DMZ host must breach a second firewall to reach internal systems. Defense in depth at the network layer.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Single-Firewall DMZ Risk</div>
+                <div class="card-desc">Some architectures use a single firewall with three interfaces: WAN, DMZ, LAN. This is simpler and cheaper but introduces a single point of failure. If the firewall is compromised, both the DMZ and internal network are exposed simultaneously. Two-firewall designs avoid this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Traffic Flow Rules</div>
+                <div class="card-desc">Internet to DMZ: allowed for specific services (HTTP/443, SMTP/25). DMZ to internal: strictly limited -- only specific back-end connections required by DMZ services. Internal to DMZ: typically allowed for management. Internet to internal: never directly. This asymmetry is the entire point.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — NAT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Network Address Translation <span class="accent">(NAT)</span></div>
+        <div class="slide-subtitle">NAT rewrites IP address information in packet headers as traffic passes through a routing device. Originally designed to conserve IPv4 addresses, it provides a secondary security benefit.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Static NAT (SNAT)</div>
+                <div class="card-desc">One-to-one mapping between a private IP and a public IP. A DMZ web server at 192.168.1.10 is reachable at the public IP 203.0.113.50. Traffic arriving at the public IP is translated to the private IP. Used for servers that must be reachable from the internet with a consistent address.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Dynamic NAT</div>
+                <div class="card-desc">A pool of public IPs is shared by internal hosts. When an internal host initiates outbound traffic, it is assigned a public IP from the pool for the session duration. No consistent address -- not suitable for servers. Requires that the pool is large enough to support simultaneous sessions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PAT / NAT Overload</div>
+                <div class="card-desc">Port Address Translation maps multiple internal hosts to a single public IP using unique source port numbers. The translation table tracks (private IP, private port) to (public IP, public port) mappings. This is how home routers work. Enables hundreds of hosts to share one IP address simultaneously.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">NAT as a Security Benefit</div>
+            NAT hides internal IP addressing from external observers. Unsolicited inbound packets are dropped because there is no existing translation entry to route them to an internal host. However, NAT is not a firewall -- it is a translation mechanism. It does not inspect traffic content. Do not rely on NAT alone for security.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — VPN FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">VPN <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">A Virtual Private Network creates an encrypted tunnel across an untrusted network, allowing secure communication as if the endpoints were directly connected.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Site-to-Site VPN</div>
+                <div class="card-desc">Connects two networks permanently. A VPN gateway at each site encrypts all traffic between the networks. Remote offices connect to headquarters as if on the same LAN. Configured once, maintained automatically. Uses IPSec in most enterprise deployments. Branch-to-HQ and multi-site connectivity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Remote Access VPN</div>
+                <div class="card-desc">Connects individual clients to a corporate network. The VPN client on the user's device establishes an encrypted tunnel to the VPN concentrator. The user appears to have an internal IP address. Enables remote work while maintaining network security policy. SSL/TLS VPN or IPSec client-based.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Split Tunneling</div>
+                <div class="card-desc">When split tunneling is enabled, only traffic destined for the corporate network goes through the VPN. Internet traffic goes directly to the ISP. Reduces load on the VPN gateway. Security risk: internet traffic from the remote device bypasses corporate web filtering and DLP. Generally disabled in high-security environments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Always-On VPN</div>
+                <div class="card-desc">The VPN connects automatically whenever the device is not on the corporate network. The user cannot bypass it. All traffic passes through corporate security controls regardless of location. Enforces DLP, web filtering, and threat prevention for remote workers identically to office workers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — IPSEC ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">IPSec <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">IPSec is a suite of protocols that provides authentication, integrity, and encryption at the network layer (Layer 3). It is the dominant VPN protocol for site-to-site tunnels.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AH -- Authentication Header</div>
+                <div class="card-desc">Provides authentication and integrity for the entire IP packet including headers. Does not provide encryption -- the payload is readable. AH uses HMAC to sign packet content. Cannot traverse NAT because NAT modifies IP headers and breaks the AH signature. Rarely used alone in modern deployments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ESP -- Encapsulating Security Payload</div>
+                <div class="card-desc">Provides encryption, authentication, and integrity for the payload (and optionally headers). ESP is the component used in practice for VPN tunnels. Can traverse NAT with NAT-T (NAT Traversal) which wraps ESP in UDP port 4500. Provides confidentiality that AH alone cannot provide.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IKE -- Internet Key Exchange</div>
+                <div class="card-desc">The key management protocol for IPSec. Phase 1 establishes the ISAKMP security association for the control channel (DH key exchange, authentication). Phase 2 establishes the IPSec security associations for data channels. IKEv2 is faster, more reliable, and supports MOBIKE for mobile clients.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:0;">
+            <div class="card c-red">
+                <div class="card-label">Tunnel Mode vs. Transport Mode</div>
+                <div class="card-desc">Tunnel mode encapsulates the entire original packet inside a new IP packet -- used for gateway-to-gateway VPNs. Transport mode encrypts only the payload, preserving the original IP headers -- used for host-to-host communication. Site-to-site VPNs always use tunnel mode.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Perfect Forward Secrecy (PFS)</div>
+                <div class="card-desc">Each session uses a unique ephemeral DH key pair. If the long-term key is compromised, past sessions cannot be decrypted. PFS is a recommended IPSec configuration option. Without PFS, compromising the private key allows decryption of all previously captured sessions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — SSL/TLS VPN ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">SSL/TLS <span class="accent">VPN</span></div>
+        <div class="slide-subtitle">TLS-based VPNs use the same protocol as HTTPS, making them firewall-friendly and easier to deploy for remote access than IPSec.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How TLS VPN Works</div>
+                <div class="card-desc">Traffic is encapsulated inside TLS (port 443). Because it looks like HTTPS, it passes through nearly all firewalls and proxies without special configuration. The VPN concentrator terminates TLS and forwards decrypted traffic to internal resources. Clientless web portal or full tunnel client modes available.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Clientless Mode</div>
+                <div class="card-desc">Access via a standard web browser -- no installed software. Users authenticate to a web portal and access specific applications through the browser. Limited to web-based applications and protocols that can be proxied through the portal. Useful for contractor access or unmanaged devices.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Full Tunnel Client</div>
+                <div class="card-desc">A lightweight client application creates a TLS tunnel that carries all IP traffic. Provides the same functionality as IPSec client VPN. The client can enforce pre-connection health checks (patch level, AV status) before granting access. Cisco AnyConnect, Palo Alto GlobalProtect, and Fortinet FortiClient are common implementations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IPSec vs. TLS VPN</div>
+                <div class="card-desc">IPSec: network-layer, more configuration, used for site-to-site, may be blocked by strict firewalls. TLS VPN: application-layer, easier deployment, firewall-friendly, better for remote access. Both provide strong encryption. IPSec is preferred for permanent tunnel performance; TLS is preferred for remote user flexibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — NETWORK SEGMENTATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Network <span class="accent">Segmentation</span></div>
+        <div class="slide-subtitle">Dividing a network into isolated zones limits the blast radius of any single compromise. Segmentation is the most effective architectural control against lateral movement.</div>
+
+        <div class="scenario-strip">
+            When Containment Wing C was breached, the attacker's movement was stopped at the VLAN boundary before reaching the specimen archive. The firewall rule permitting only HTTPS from Wing C to the archive server blocked the lateral pivot attempt entirely. Segmentation made the difference between a single-wing incident and a full facility compromise.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Physical Segmentation</div>
+                <div class="card-desc">Separate physical network infrastructure for different security domains. Air-gapped networks with no logical path between them. Maximum isolation. Used in classified government and industrial control environments where the value of the data justifies the operational complexity and cost.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">VLAN Segmentation</div>
+                <div class="card-desc">Virtual LANs create logical isolation on shared physical infrastructure. Devices in different VLANs cannot communicate without passing through a router or Layer 3 switch -- where firewall rules are applied. Standard enterprise segmentation. Cost-effective. VLANs should be treated as a first layer, not the only layer.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Common Segmentation Zones</div>
+                <div class="card-desc">User workstations, servers, IoT/OT, PCI cardholder data environment, development, production, management, and DMZ. Each zone has different trust levels, different access policies, and different monitoring requirements. Zone design should follow data sensitivity and regulatory requirements.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">VLAN Hopping Attack</div>
+            Double tagging or switch spoofing can allow attackers to send traffic across VLAN boundaries. Mitigate by disabling trunk negotiation on access ports, using a native VLAN that carries no user traffic, and ensuring trunk ports only carry explicitly allowed VLANs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — MICRO-SEGMENTATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Micro-<span class="accent">Segmentation</span></div>
+        <div class="slide-subtitle">Micro-segmentation extends segmentation down to the individual workload level. Each workload communicates only with the specific workloads it needs to -- nothing more.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">East-West Traffic Problem</div>
+                <div class="card-desc">Traditional firewalls inspect north-south traffic (entering and leaving the network). East-west traffic (lateral movement between servers within the same zone) was historically trusted and uninspected. In a breach scenario, the attacker moves east-west -- from web server to database to domain controller. Micro-segmentation addresses east-west.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Policy is applied at the individual workload (VM, container, or host) level rather than at the network perimeter. Each workload has a defined list of other workloads it can communicate with and on which ports. Traffic between workloads in the same VLAN is still inspected and filtered. Implemented via host-based firewalls, SDN, or service mesh.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Software-Defined Networking (SDN)</div>
+                <div class="card-desc">Separates the control plane (decisions about where traffic goes) from the data plane (the forwarding of packets). A central controller manages the entire network's policy. Micro-segmentation policies can be pushed instantly to thousands of workloads. VMware NSX and Cisco ACI are common enterprise SDN platforms.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Benefits vs. Traditional Segmentation</div>
+                <div class="card-desc">Granular control at the workload level rather than network zone level. Policy follows the workload when it moves (VM migration, container rescheduling). East-west traffic is inspected. Breach containment is dramatically improved. Complexity increases -- requires mature security operations to manage policy at scale.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — ZERO TRUST NETWORK ACCESS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Zero Trust <span class="accent">Network Access</span></div>
+        <div class="slide-subtitle">ZTNA replaces VPN and network-level access with per-application, identity-verified, posture-assessed access control.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Core Principle</div>
+                <div class="card-desc">No implicit trust based on network location. Being "on the corporate network" does not grant access. Every access request is evaluated against identity (who), device posture (how), and policy (what). Access is granted per-application, not per-network. Trust is earned dynamically, not assumed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why Traditional VPN Fails</div>
+                <div class="card-desc">VPN grants network-level access. Once a user connects, they often have broad lateral reach. A compromised VPN credential gives an attacker the same access as the legitimate user -- which may include dozens of internal systems. VPN also struggles with performance for globally distributed workforces and cloud resources.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ZTNA Architecture</div>
+                <div class="card-desc">A ZTNA broker sits between users and applications. Users connect to the broker, authenticate, and have device posture evaluated. The broker grants access only to specific applications the policy permits -- not to the underlying network. The application's real network location is never exposed to the user. Zscaler Private Access, Cloudflare Access, and similar platforms.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">NIST SP 800-207 Zero Trust Tenets (Key Exam Points)</div>
+            All resources are accessed securely regardless of location. Access to resources is on a per-session, per-request basis. Access is determined dynamically by policy. All asset security posture is monitored and evaluated continuously. Authentication and authorization are dynamic and strictly enforced before access is granted.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — SD-WAN ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Software-Defined <span class="accent">WAN (SD-WAN)</span></div>
+        <div class="slide-subtitle">SD-WAN abstracts the WAN from the underlying transport, enabling intelligent routing across multiple connection types and reducing dependency on expensive MPLS circuits.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What SD-WAN Replaces</div>
+                <div class="card-desc">Traditional WAN used dedicated MPLS circuits from carrier networks. Expensive, inflexible, long provisioning times. SD-WAN uses commodity internet connections (broadband, LTE, 5G) with intelligent overlay routing. Traffic is sent over the best available path based on real-time performance metrics.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Security Implications</div>
+                <div class="card-desc">SD-WAN traffic traverses the public internet. All traffic must be encrypted. SD-WAN appliances include built-in IPSec tunneling. Many enterprise SD-WAN solutions integrate with cloud security services (SASE model) to inspect traffic at cloud PoPs before it reaches branch sites or the internet. Visibility into branch traffic improves.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SASE -- Secure Access Service Edge</div>
+                <div class="card-desc">Combines SD-WAN networking with cloud-delivered security services: CASB, SWG (Secure Web Gateway), ZTNA, FWaaS (Firewall as a Service). The security stack moves to the cloud edge closest to the user. Eliminates the need to backhaul branch internet traffic through the data center for inspection. Gartner-defined architecture adopted broadly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exam Relevance</div>
+                <div class="card-desc">SY0-701 tests SD-WAN as a network architecture decision with security trade-offs. Key points: SD-WAN requires encryption because it uses public internet, SASE integrates security into the WAN fabric, and SD-WAN improves performance for cloud-first organizations where traditional MPLS backhauling creates latency.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — PROXY SERVERS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Proxy <span class="accent">Servers</span></div>
+        <div class="slide-subtitle">A proxy sits between clients and servers, forwarding requests on the client's behalf. Proxies provide inspection, caching, filtering, and anonymization capabilities.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Forward Proxy</div>
+                <div class="card-desc">Sits between internal clients and the internet. Clients send requests to the proxy, which fetches the content and returns it. Enables content filtering, web category blocking, malware scanning of downloads, caching of frequently accessed content, and logging of all web activity. Users' internal IPs are hidden from destination servers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reverse Proxy</div>
+                <div class="card-desc">Sits in front of internal servers, receiving requests from external clients. The external client sees only the proxy's IP. The proxy forwards requests to appropriate backend servers. Enables load balancing, TLS offloading, web application firewall (WAF) functionality, and protects server infrastructure from direct exposure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transparent vs. Explicit Proxy</div>
+                <div class="card-desc">Transparent proxy: clients are not configured to use it -- traffic is intercepted at the network level. No client configuration needed. Explicit proxy: clients are configured with the proxy address. Users or Group Policy pushes proxy settings. Transparent proxies can be bypassed by encrypted protocols that the proxy cannot intercept without TLS inspection.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">TLS Inspection (SSL Bump)</div>
+            To inspect HTTPS traffic, the proxy performs a man-in-the-middle: it terminates the TLS connection from the client using a corporate CA certificate, inspects the decrypted content, and re-encrypts to the destination. Requires deploying the corporate CA certificate as a trusted root on all managed clients. Legal and privacy considerations apply.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — LOAD BALANCERS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Load Balancers <span class="accent">&amp; High Availability</span></div>
+        <div class="slide-subtitle">Load balancers distribute traffic across multiple servers to prevent any single server from becoming a bottleneck or point of failure.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Layer 4 Load Balancing</div>
+                <div class="card-desc">Distributes traffic based on transport-layer information (IP address and port). Does not inspect application content. Faster and simpler. Decisions are made using round-robin, least-connections, or source-IP hash algorithms. Cannot make routing decisions based on URL path or cookie values.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer 7 Load Balancing</div>
+                <div class="card-desc">Inspects application content (HTTP headers, URL paths, cookies) to make routing decisions. Can route /api requests to API servers and /static requests to CDN-backed servers. Enables A/B testing, canary deployments, and content-aware routing. Requires more processing but enables sophisticated traffic management.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Benefits</div>
+                <div class="card-desc">Load balancers with WAF functionality inspect HTTP traffic for SQLi, XSS, and other attacks before requests reach servers. They absorb volumetric DDoS attacks by distributing load and dropping malformed packets. TLS termination at the load balancer reduces certificate management complexity for backend servers.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Active/Active vs. Active/Passive</div>
+                <div class="card-desc">Active/active: both nodes handle traffic simultaneously. Higher throughput. Active/passive: one node handles traffic; the other is standby. Simpler failover logic. For firewalls and security appliances, active/active requires stateful session synchronization between nodes to prevent connection drops during failover.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — IDS AND IPS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">IDS <span class="accent">and IPS</span></div>
+        <div class="slide-subtitle">Intrusion Detection Systems detect and alert on suspicious traffic. Intrusion Prevention Systems detect and actively block it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NIDS -- Network IDS</div>
+                <div class="card-desc">Passive monitoring device connected to a mirror port (SPAN port) or tap. Analyzes a copy of traffic -- never the live traffic stream. Cannot block traffic (passive mode). Generates alerts. Placement matters: inside the firewall sees post-filter traffic; outside sees everything. Does not impact traffic flow regardless of load.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NIPS -- Network IPS</div>
+                <div class="card-desc">Inline device -- all traffic passes through it. Can block, drop, or modify packets in real time. If the IPS is overwhelmed or fails, traffic may be blocked (fail-closed) or pass uninspected (fail-open). Performance is critical. NGFWs include integrated IPS functionality, reducing the need for standalone IPS appliances.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Signature vs. Anomaly Detection</div>
+                <div class="card-desc">Signature: matches known attack patterns. Fast. Cannot detect unknown (zero-day) attacks. Requires frequent signature updates. Anomaly: establishes a baseline of normal behavior and alerts on deviations. Can detect novel attacks. Higher false positive rate -- requires tuning. Behavior-based detection is increasingly common in NGFW and EDR platforms.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">False Positives and Tuning</div>
+                <div class="card-desc">False positive: legitimate traffic flagged as malicious. False negative: malicious traffic not detected. IDS/IPS tuning balances sensitivity. High sensitivity catches more attacks but generates noise that overwhelms analysts. Low sensitivity reduces false positives but increases false negatives. Tuning is an ongoing operational task, not a one-time setup.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — HONEYPOTS AND DECEPTION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Honeypots <span class="accent">&amp; Deception Technology</span></div>
+        <div class="slide-subtitle">Deception technology lures attackers into interacting with fake systems, revealing their presence and methods without exposing real assets.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Honeypot</div>
+                <div class="card-desc">A system designed to attract attackers. It looks like a legitimate, valuable target but contains no real data. Any interaction with a honeypot is automatically suspicious -- legitimate users have no reason to access it. Provides early warning of internal reconnaissance, lateral movement, and credential stuffing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Honeynet</div>
+                <div class="card-desc">A network of honeypot systems designed to simulate an entire environment. Can include fake web servers, databases, domain controllers, and file shares. Provides rich intelligence about attacker behavior, tool usage, and TTPs. More resource-intensive than a single honeypot but provides vastly better intelligence.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Honeytoken</div>
+                <div class="card-desc">A fake credential, document, or data record embedded among real ones. If the honeytoken is used or accessed, an attacker has stolen credentials or accessed a file share. No false positives -- any use of a honeytoken is definitively malicious. Easy to deploy as fake AWS keys, fake AD accounts, or fake documents with beaconing links.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Legal and Ethical Considerations</div>
+            Honeypots must be isolated from production systems to prevent attackers who compromise the honeypot from pivoting to real systems. Entrapment is not a legal defense, but honeypots are legal -- they do not compel anyone to attack. Any evidence collected must follow chain of custody procedures to be admissible.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — JUMP SERVERS AND BASTION HOSTS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Jump Servers <span class="accent">&amp; Bastion Hosts</span></div>
+        <div class="slide-subtitle">A bastion host is a hardened system at the network perimeter used as the sole entry point for administrative access to systems in protected zones.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Architecture Purpose</div>
+                <div class="card-desc">Administrators must authenticate to the bastion host before accessing systems in the DMZ or internal network. Direct administrative access (RDP, SSH) to servers from admin workstations is blocked at the firewall. All administrative sessions are funneled through one hardened, monitored chokepoint.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Session Recording</div>
+                <div class="card-desc">Every administrative session through the jump server can be recorded -- keystrokes, screen capture, commands executed. Provides complete audit trail of privileged activity. Enables post-incident forensics. Supports insider threat detection. Required by many compliance frameworks for privileged access management (PAM).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hardening Requirements</div>
+                <div class="card-desc">Minimal installed software. MFA required for all access. No direct internet access. All access logged to a remote, tamper-evident log server. Regular patch cadence. Firewall rules allow only management protocols (SSH port 22, RDP port 3389) from the jump server to target hosts. No user workloads run on the jump server.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Single Point of Failure Risk</div>
+                <div class="card-desc">A compromised jump server provides administrative access to all connected systems. Protect it with the highest security controls in the environment. MFA, privileged identity management, session time limits, and anomaly-based behavioral monitoring are all appropriate. Some organizations deploy separate jump servers per security zone.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — PORT SECURITY AND 802.1X ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Port Security <span class="accent">&amp; 802.1X</span></div>
+        <div class="slide-subtitle">Network Access Control (NAC) ensures that only authorized, compliant devices can connect to the network infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">802.1X Port Authentication</div>
+                <div class="card-desc">IEEE standard for port-based Network Access Control. Three parties: Supplicant (client device), Authenticator (network switch or AP), Authentication Server (RADIUS). The switch blocks all traffic until the device authenticates to the RADIUS server via EAP. An unauthorized device plugged into a port cannot communicate even if physically connected.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Switch Port Security</div>
+                <div class="card-desc">Limits the number of MAC addresses allowed on a switch port. If a new MAC appears beyond the limit, the port shuts down (shutdown mode), restricts the traffic (restrict mode), or drops the frame (protect mode). Prevents rogue hubs, switches, and unauthorized devices from connecting to the wired network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network Access Control (NAC)</div>
+                <div class="card-desc">Broader than 802.1X -- evaluates device health before granting network access. Checks for OS patch level, AV signature currency, disk encryption status, and approved software inventory. Non-compliant devices are placed in a remediation VLAN with limited access until they pass health checks. Enforces security posture as a network access prerequisite.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">DHCP Snooping and ARP Inspection</div>
+            DHCP snooping prevents rogue DHCP servers from handing out addresses on your network by only trusting DHCP responses from designated uplink ports. Dynamic ARP Inspection (DAI) validates ARP packets against the DHCP snooping binding table, preventing ARP poisoning and man-in-the-middle attacks at Layer 2.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — OUT-OF-BAND MANAGEMENT ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Out-of-Band <span class="accent">Management</span></div>
+        <div class="slide-subtitle">A dedicated management network separated from production traffic ensures administrative access is available even when the production network is compromised or unavailable.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">In-Band vs. Out-of-Band</div>
+                <div class="card-desc">In-band management: administrative traffic uses the same network paths as production traffic. An attacker who compromises the network can observe or intercept management sessions. Out-of-band: a separate management network, physically or logically isolated, carries only device management traffic. Used for routers, switches, firewalls, and servers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IPMI, iDRAC, iLO</div>
+                <div class="card-desc">Baseboard Management Controllers (BMC) provide out-of-band access to server hardware independent of the OS. iDRAC (Dell), iLO (HPE), IPMI (standard). Allow power cycling, BIOS access, KVM-over-IP, and OS reinstallation without physical access. Must be on a dedicated management VLAN -- BMCs have historically had critical vulnerabilities and default credentials.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Console Servers</div>
+                <div class="card-desc">A console server (serial concentrator) aggregates the serial console ports of all network devices. Provides emergency access when network connectivity fails. Accessible via dedicated OOB network or cellular modem. Critical for data center management when the production network is the subject of an incident.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Security Requirements</div>
+                <div class="card-desc">Out-of-band network must be as secure as the most sensitive resource it manages. Default BMC credentials must be changed immediately. OOB network traffic should be encrypted. Access should be limited to jump server connections only. BMC firmware should be patched -- IPMI vulnerabilities (CVE-2013-4786 Cipher Zero) have been critical for years and remain unpatched on legacy hardware.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — IPv6 SECURITY CONSIDERATIONS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">IPv6 <span class="accent">Security Considerations</span></div>
+        <div class="slide-subtitle">IPv6 introduces new security challenges that existing IPv4-focused controls may not address. Many enterprise environments run dual-stack, creating risk from the IPv6 side being under-managed.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Dual-Stack Risk</div>
+                <div class="card-desc">Many modern operating systems enable IPv6 by default even when the organization has not deployed IPv6 infrastructure. Firewalls and IDS/IPS rules that only filter IPv4 will miss IPv6 traffic entirely. An attacker can use IPv6 tunneling to bypass IPv4-only controls. Audit all security controls for dual-stack coverage.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Rogue Router Advertisements</div>
+                <div class="card-desc">IPv6 uses Router Advertisement (RA) messages for autoconfiguration. A rogue RA can redirect all IPv6 traffic to an attacker-controlled gateway. IPv6 RA Guard on switches filters unauthorized RAs from non-router ports. Similar to DHCP snooping but for IPv6. Often overlooked in security configurations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IPv6 Tunneling Attacks</div>
+                <div class="card-desc">IPv6 can be tunneled inside IPv4 (6to4, Teredo, ISATAP) to traverse IPv4 networks. These tunnels can bypass IPv4 firewalls and IDS rules. An attacker who controls a Teredo relay can receive IPv6 traffic from a target machine that has no direct IPv6 connectivity. Disable automatic tunneling protocols on managed hosts unless explicitly required.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Firewall Rule Parity</div>
+            Every IPv4 security rule must have an IPv6 equivalent. This includes both perimeter rules and host-based firewall rules. If you block SMB on IPv4 but not IPv6, an attacker with IPv6 access can use SMB. IPv6 address space (2^128 addresses) makes traditional network scanning less effective but does not eliminate the attack surface.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — NETWORK MONITORING ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Network <span class="accent">Monitoring and Visibility</span></div>
+        <div class="slide-subtitle">You cannot defend what you cannot see. Network monitoring provides the visibility required to detect anomalies, track assets, and investigate incidents.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NetFlow / IPFIX</div>
+                <div class="card-desc">Flow records capture metadata about network conversations: source IP, destination IP, ports, protocol, byte counts, and timestamps. No packet payload. Lightweight. Enables traffic analysis, bandwidth accounting, and behavioral anomaly detection at scale. Identify unusual traffic volumes, port scanning, and exfiltration patterns without full packet capture.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Full Packet Capture (PCAP)</div>
+                <div class="card-desc">Captures the complete network traffic including payloads. Provides complete forensic evidence for incident investigation. Extremely storage-intensive -- even 1 Gbps of traffic generates terabytes per hour. Typically deployed only on critical chokepoints (DMZ, internet egress) with short retention windows or triggered by alert conditions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SNMP Monitoring</div>
+                <div class="card-desc">Simple Network Management Protocol allows polling network devices for operational metrics: interface utilization, error counters, CPU and memory. SNMPv1 and v2c use community strings (shared secrets) in cleartext -- security risk. SNMPv3 adds authentication and encryption. Limit SNMP access to the management network only. Community string "public" must never be used in production.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Syslog and Log Management</div>
+                <div class="card-desc">All network devices, servers, and security appliances should ship logs to a central syslog server or SIEM. Centralization prevents local log tampering. Logs from network devices provide authentication records, configuration changes, and traffic anomalies. Retention periods are driven by compliance requirements (PCI DSS: 1 year minimum).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — COMMON NETWORK ATTACKS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Common <span class="accent">Network Attacks</span></div>
+        <div class="slide-subtitle">SY0-701 requires knowledge of how specific attacks work, which layer they target, and which controls prevent them.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>ARP Poisoning:</strong> Attacker sends gratuitous ARP replies associating their MAC with the gateway's IP. Traffic intended for the gateway is sent to the attacker. Mitigation: Dynamic ARP Inspection (DAI).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>DNS Poisoning / Spoofing:</strong> Attacker injects false DNS records, redirecting victims to malicious IPs. Mitigation: DNSSEC validates DNS responses with digital signatures.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>MAC Flooding:</strong> Attacker floods a switch's MAC address table with fake entries. Switch enters fail-open mode and broadcasts all frames. Mitigation: port security limiting MAC count per port.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>VLAN Hopping:</strong> Double-tagged frames or switch spoofing allows traffic to cross VLAN boundaries. Mitigation: disable auto-trunking, use dedicated native VLAN with no user traffic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>DHCP Starvation:</strong> Attacker floods DHCP requests, exhausting the address pool. Legitimate clients cannot get addresses. Mitigation: DHCP snooping with rate limiting per port.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>SYN Flood:</strong> Attacker sends many TCP SYNs with spoofed source IPs. Server exhausts half-open connection table waiting for ACKs that never arrive. Mitigation: SYN cookies, firewall rate limiting.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><strong>BGP Hijacking:</strong> Attacker or misconfigured router announces routes for IP prefixes they do not own. Traffic is redirected to the attacker. Mitigation: RPKI (Resource Public Key Infrastructure) route origin validation.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — SECURE NETWORK DESIGN PRINCIPLES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Secure Network <span class="accent">Design Principles</span></div>
+        <div class="slide-subtitle">Architectural principles that apply universally to network security design, regardless of the specific technology stack.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Defense in Depth</div>
+                <div class="card-desc">Multiple independent security controls. An attacker who bypasses the perimeter firewall still faces NGFW, IPS, network segmentation, host-based firewall, and endpoint detection. No single control failure results in a complete compromise. Each layer buys time for detection and response.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Principle of Least Functionality</div>
+                <div class="card-desc">Network devices should only perform their required function. A switch should not run a DHCP server unless it is designated to do so. Routers should not provide wireless access unless designed for that role. Unnecessary services on network infrastructure expand the attack surface without providing value.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network Resilience</div>
+                <div class="card-desc">Redundant paths, redundant ISP connections, and redundant hardware ensure availability when components fail. Single points of failure in the network are availability risks. Spanning Tree Protocol prevents loops but can itself be attacked -- BPDUGuard limits STP manipulation. ECMP and link aggregation for path redundancy.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Separation of Duties at Network Level</div>
+                <div class="card-desc">Different teams should manage different network zones. The team managing the production server VLAN should not manage the management network VLAN. Insider threat controls require that no single administrator has unchecked control over an entire critical path. Documented change management prevents unauthorized configuration changes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — WIRELESS NETWORK SECURITY INTRODUCTION ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Wireless Security <span class="accent">Foundations</span></div>
+        <div class="slide-subtitle">Wireless networks extend the network perimeter into the physical environment. Signal propagation does not respect building walls or property boundaries.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">WEP -- Do Not Use</div>
+                <div class="card-desc">Wired Equivalent Privacy, introduced 1999. Broken by statistical attack using captured IVs in minutes. RC4 stream cipher misuse created cryptographic weaknesses that cannot be patched by configuration. No circumstance justifies using WEP. If you see WEP on the exam, it is always the wrong answer for security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">WPA2 -- Current Minimum</div>
+                <div class="card-desc">Wi-Fi Protected Access 2, mandatory since 2004. AES-CCMP encryption. WPA2-Personal uses a Pre-Shared Key (PSK) -- vulnerable to offline dictionary attacks if the PSK is weak or captured during the four-way handshake. WPA2-Enterprise uses 802.1X/RADIUS for per-user authentication. Enterprise mode is required for corporate deployments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">WPA3 -- Current Best Practice</div>
+                <div class="card-desc">Introduced 2018. WPA3-Personal uses SAE (Simultaneous Authentication of Equals) replacing PSK -- eliminates offline dictionary attacks. WPA3-Enterprise uses 192-bit cryptographic suite for high-security environments. Management Frame Protection (MFP) prevents deauthentication attacks. Forward secrecy prevents retroactive decryption of captured traffic.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Guest Network Isolation</div>
+            Guest wireless networks must be isolated from the corporate network via firewall. Guests should reach the internet only. Guest VLAN should not be able to reach any internal RFC 1918 addresses. Client isolation prevents guest devices from communicating with each other on the same SSID.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — NETWORK ARCHITECTURE IN THE CLOUD ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Network Architecture <span class="accent">in the Cloud</span></div>
+        <div class="slide-subtitle">Cloud environments implement familiar network concepts (subnets, firewalls, routing) via software-defined constructs managed through APIs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Virtual Private Cloud (VPC)</div>
+                <div class="card-desc">An isolated virtual network within a public cloud environment. AWS VPC, Azure VNet, GCP VPC. Contains subnets, route tables, internet gateways, and security groups. Provides network isolation equivalent to a private data center network. Multiple VPCs can be peered but are not connected by default.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Security Groups and NACLs</div>
+                <div class="card-desc">AWS Security Groups: stateful virtual firewalls attached to instances. Allow rules only -- implicit deny. NACL (Network Access Control List): stateless subnet-level filtering with explicit allow and deny rules. Both are required for comprehensive cloud network security. Security groups control instance-to-instance traffic; NACLs control subnet boundaries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transit Gateway and Peering</div>
+                <div class="card-desc">Transit Gateway allows hub-and-spoke connectivity between multiple VPCs and on-premises networks. VPC Peering connects two specific VPCs directly. Both require explicit route table entries and security group rules -- connectivity is never automatic. Security architecture must account for inter-VPC traffic inspection requirements.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Private Link and Endpoint Services</div>
+                <div class="card-desc">VPC Endpoints allow access to AWS services (S3, DynamoDB, etc.) over the private AWS network rather than the internet. Eliminates the need for internet gateway or NAT gateway for service access. Reduces exposure. PrivateLink enables access to third-party SaaS services via private IP addresses within the VPC.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — NETWORK ARCHITECTURE FOR COMPLIANCE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Network Architecture <span class="accent">&amp; Compliance</span></div>
+        <div class="slide-subtitle">Regulatory frameworks mandate specific network controls. Architecture decisions must align with applicable compliance requirements from the design phase.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">PCI DSS Network Requirements</div>
+                <div class="card-desc">Cardholder Data Environment (CDE) must be isolated from all other networks with firewalls. All inbound and outbound CDE traffic must pass through documented firewall rules. No direct internet access to CDE. All non-console administrative access must be encrypted. Network diagrams must document all CDE connections and be reviewed quarterly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIPAA Network Requirements</div>
+                <div class="card-desc">Covered entities must implement technical safeguards to control access to PHI on networks. Encryption of PHI in transit is an addressable (strongly recommended) implementation specification. Access controls, audit controls, and transmission security are required. The specific technology is not mandated -- documentation of the decision and its rationale is.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CMMC and FedRAMP</div>
+                <div class="card-desc">CMMC Level 2 (DoD contractors) requires network protection, controlled access, and audit and accountability controls aligned with NIST SP 800-171. FedRAMP governs cloud services for federal agencies -- requires approved cloud providers with specific network controls. Network segmentation of CUI (Controlled Unclassified Information) is mandatory.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Documentation Requirement</div>
+            All compliance frameworks require documented network architecture diagrams. Current, accurate diagrams must show all network zones, firewall boundaries, data flows, and system connections. Undocumented connections are a finding in any audit. Architecture documentation is a control, not just an administrative artifact.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — NETWORK SEGMENTATION IN OT/ICS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">OT/ICS Network <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Operational Technology and Industrial Control Systems require network segmentation approaches that prioritize availability and safety alongside security.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Purdue Model</div>
+                <div class="card-desc">Hierarchical reference model for ICS networks. Level 0: physical process. Level 1: intelligent devices (PLCs, RTUs). Level 2: process control systems. Level 3: manufacturing operations. Level 3.5: DMZ. Level 4: business systems. Level 5: enterprise. Traffic is only permitted to flow through defined gateways between levels -- not laterally within a level and not directly between non-adjacent levels.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT/OT Convergence Risk</div>
+                <div class="card-desc">Modern ICS increasingly connects to IT networks and the internet for remote monitoring, data analytics, and vendor support. This IT/OT convergence destroys the air gap that historically protected OT systems. Protocols like Modbus, DNP3, and BACnet were not designed with security in mind. Connecting them to IT networks exposes them to threats they cannot withstand.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Diodes</div>
+                <div class="card-desc">One-way data transfer devices that physically enforce unidirectional communication. Data flows from OT to IT for monitoring -- no traffic can flow in the reverse direction. Hardware-enforced -- cannot be misconfigured. Used in critical infrastructure (power plants, water treatment) where any inbound network connection to OT is unacceptable regardless of software controls.</span></div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Safety vs. Security Tension</div>
+                <div class="card-desc">In OT, fail-closed (drop all traffic) may be the wrong security response -- shutting down a safety system because of a network anomaly could be more dangerous than the attack it was preventing. Security controls in OT must never create safety risks. Every control must be reviewed by both security and safety engineering teams before deployment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — NETWORK HARDENING ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Network Device <span class="accent">Hardening</span></div>
+        <div class="slide-subtitle">Network infrastructure devices are high-value targets. Hardening reduces the attack surface of routers, switches, and firewalls themselves.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Change default credentials:</strong> Default usernames and passwords on all network devices must be changed immediately on deployment. Shodan catalogs millions of devices accessible with default credentials.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Disable unused services:</strong> Telnet, HTTP management, CDP/LLDP on external interfaces, finger, and small services (echo, chargen) should be disabled on all devices.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Use encrypted management protocols:</strong> SSH v2 instead of Telnet, HTTPS instead of HTTP, SNMPv3 instead of v1/v2c. All management traffic must be encrypted.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Management ACLs:</strong> Restrict management plane access to authorized management station IP addresses only. No device should accept SSH connections from any IP address.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Control plane policing:</strong> Rate-limit traffic destined to the device's CPU. BGP, OSPF, and ICMP floods targeting the control plane can disable routing without touching the data plane.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Firmware currency:</strong> Network device firmware contains critical vulnerabilities. Establish a patch cadence and track vendor security advisories. Many organizations leave network device firmware unchanged for years -- a known attacker target.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><strong>Configuration backup and integrity:</strong> Network device configurations must be backed up securely and integrity-checked. An attacker who modifies a router configuration and removes the evidence has effectively backdoored the infrastructure silently.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — SCENARIO ANALYSIS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Scenario <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Apply network architecture knowledge to realistic scenarios. Identify the correct architecture decision and its justification.</div>
+
+        <div class="scenario-strip">
+            The facility's perimeter analysis team has identified three architectural weaknesses. For each scenario, identify the specific control that addresses the risk and the SY0-701 domain it falls under.
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A web server in the same VLAN as the domain controller is compromised. The attacker moves to the domain controller within minutes. <strong>(Missing: network segmentation. Web servers and domain controllers must be in separate VLANs with firewall rules between them. SY0-701: 3.2)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Remote workers' VPN client allows all internet traffic to bypass the corporate proxy, exposing a malware-infected laptop to the internet without DLP controls. <strong>(Split tunneling enabled. Should use full tunnel VPN or always-on VPN to route all traffic through corporate security stack. SY0-701: 3.1)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">An administrator SSHs directly from her workstation to a production database server. There is no record of commands executed. <strong>(Missing: jump server with session recording. All privileged access must go through PAM/bastion with full session recording. SY0-701: 4.1)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An attacker plugs a laptop into an empty conference room Ethernet port and receives a DHCP address on the production VLAN. <strong>(Missing: 802.1X NAC. All switch ports must require authentication before granting network access. SY0-701: 3.2)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A BGP misconfiguration at an upstream provider causes a major internet service's traffic to route through an adversary's network for 90 minutes. <strong>(BGP hijacking. Mitigation: RPKI route origin validation. Not fully preventable by victim -- requires coordination with upstream providers. SY0-701: 3.2)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — COMPARISON TABLE: FIREWALL TYPES ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Firewall Type <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Exam questions often require distinguishing firewall types by capability, inspection depth, and use case.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Stateless Packet Filter</div>
+                <div class="card-desc">Inspects each packet independently. Layer 3/4. No session state. Very fast -- minimal latency. Cannot distinguish solicited from unsolicited traffic. No application awareness. Used in router ACLs and as a first filter at high-speed network boundaries. Cannot prevent SYN flood, fragmentation attacks, or application-layer exploits.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stateful Inspection Firewall</div>
+                <div class="card-desc">Tracks TCP/UDP session state. Allows return traffic for established connections. Blocks unsolicited inbound packets. Layer 3/4. No application awareness. Cannot inspect encrypted content. Cannot identify application based on port misuse (e.g., malware using port 80). Standard for network perimeter but insufficient as the only control.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Application-Layer (Proxy) Firewall</div>
+                <div class="card-desc">Full Layer 7 inspection. Terminates and re-initiates connections -- true application proxy. Can understand HTTP, FTP, DNS semantics and block malformed requests. High latency compared to stateful. Cannot handle all protocols -- limited to those with proxy implementations. Excellent for web, DNS, and email traffic inspection.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top:0;">
+            <div class="card c-purple">
+                <div class="card-label">Next-Generation Firewall</div>
+                <div class="card-desc">Combines stateful inspection, application identification (App-ID), user-identity integration, IPS, URL filtering, TLS inspection, sandboxing, and threat intelligence. Inspects traffic regardless of port -- identifies applications by behavior. Performance has improved to the point where NGFW is the standard for enterprise perimeters.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Web Application Firewall (WAF)</div>
+                <div class="card-desc">Specialized for protecting web applications. Inspects HTTP/HTTPS traffic for OWASP Top 10 attack patterns (SQLi, XSS, CSRF). Positive model (allow only known-good requests) or negative model (block known-bad). Deployed in front of web servers in the DMZ. Not a replacement for secure coding -- a compensating control.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Unified Threat Management (UTM)</div>
+                <div class="card-desc">All-in-one security appliance combining firewall, IPS, antivirus, URL filtering, VPN, and sometimes email security. Common in SMB environments where dedicated appliances are too costly. Single vendor dependency. Not recommended for high-throughput enterprise environments where each function benefits from dedicated hardware.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — VPNS AND ZERO TRUST COMPARISON ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">VPN vs. <span class="accent">Zero Trust</span> Architecture</div>
+        <div class="slide-subtitle">Understanding when to use VPN versus ZTNA and the architectural trade-offs of each model.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">VPN Strengths</div>
+                <div class="card-desc">Mature, well-understood technology. Encrypted network-level tunnel. Supports all protocols and applications. Works for site-to-site connectivity. Widely supported by all operating systems. Client-based enforcement of security policies possible with modern VPN clients. Appropriate for use cases requiring full network access (e.g., administrators, developers needing SSH to all servers).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">VPN Weaknesses</div>
+                <div class="card-desc">Grants network-level access -- broad lateral reach once connected. Credential theft gives attacker the same access as the user. Performance degrades with global workforce. Difficult to enforce per-application access policies. Does not assess device health post-connection. VPN concentrators are high-value targets (Pulse Secure CVE-2019-11510, Citrix CVE-2019-19781 were actively exploited).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ZTNA Strengths</div>
+                <div class="card-desc">Per-application, per-session access control. Continuously validates identity and device posture. Eliminates broad network access grants. Application infrastructure is never exposed to users -- they connect to the broker, not the network. Works well for cloud-hosted applications where VPN adds unnecessary latency.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ZTNA Limitations</div>
+                <div class="card-desc">More complex to configure and maintain. Requires application inventory and policy definition for every resource. Not all applications are ZTNA-compatible without agent or proxy. Some legacy protocols cannot be tunneled. Not suitable for replacing site-to-site VPN for branch connectivity -- different use case. Hybrid environments use both.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — SY0-701 SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Apply network architecture and segmentation concepts to exam-style performance-based questions.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">An organization must allow external customers to reach its web servers while protecting the internal database. Which architecture should be implemented? <strong>(DMZ -- web servers in DMZ, database on internal network. Outer firewall allows 443 to DMZ. Inner firewall allows only specific DB port from web server to database.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A branch office needs secure, permanent connectivity to headquarters. Network administrators should be able to manage both sites from one location. Which VPN type is most appropriate? <strong>(Site-to-site IPSec VPN in tunnel mode. Permanent encrypted tunnel between gateways, not per-user.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A firewall is configured to drop all traffic if a hardware failure occurs. What is this behavior called? <strong>(Fail-closed / fail-secure. The safe state for security appliances is to block all traffic on failure.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An IDS is deployed on a SPAN port. An attacker exploits a vulnerability. The IDS generates an alert but no traffic is blocked. Why? <strong>(IDS is passive -- it monitors a copy of traffic. It cannot block. An IPS in inline mode would be needed to block.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">An attacker inside the network sends ARP replies claiming the gateway's IP maps to the attacker's MAC. Which Layer 2 control prevents this? <strong>(Dynamic ARP Inspection (DAI) validates ARP against the DHCP snooping binding table and drops illegitimate ARP replies.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before the next module. Written exercises require justified answers, not single-word responses.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Draw a network diagram for a small financial organization with an internal network, a DMZ hosting a web server and email relay, and internet connectivity. Label all firewalls, VLANs, and indicate which traffic flows are permitted between zones.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">For a 200-person organization with 3 branch offices and 40% remote workers: specify whether you would use site-to-site IPSec, client-based SSL VPN, or ZTNA for each group of users. Justify each choice with specific security and operational reasoning.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Explain the difference between VLAN segmentation and micro-segmentation. Describe a scenario where VLAN segmentation alone is insufficient and micro-segmentation is required. What technology would implement micro-segmentation in a VMware vSphere environment?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A NGFW policy permits TCP port 443 from any source to the web server in the DMZ, but blocks all traffic from the DMZ to the internal network. A new web application feature requires the web server to query an internal API on port 8443. Draft the minimum additional firewall rule and justify why it is scoped narrowly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Compare the security posture of an organization using WPA2-Personal on their corporate wireless network versus WPA3-Enterprise with certificate-based 802.1X authentication. What specific attacks does each configuration prevent or remain vulnerable to?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Network architecture is the physical instantiation of security policy. Every topology decision has a security consequence.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            The structure of the network determines the blast radius of every breach. Segmentation, firewall placement, VPN architecture, and zero trust controls do not prevent all attacks -- they constrain the damage when attacks succeed. Design for failure.
+        </div>
+
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Stateless firewalls filter per packet. Stateful firewalls track session state. NGFWs add application awareness, DPI, and integrated IPS. Each offers increasing capability at increasing cost.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">DMZ hosts publicly accessible services between two firewalls. Web servers, email relays, and DNS belong in the DMZ. The internal database never belongs in the DMZ.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">IPSec uses AH for integrity without encryption and ESP for both. Site-to-site VPNs use tunnel mode. IKEv2 is the current key exchange standard.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">NAT hides internal addressing but is not a firewall. Do not use NAT as a substitute for proper access control rules.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Micro-segmentation controls east-west traffic within the same VLAN. VLAN segmentation controls traffic between VLANs. Both are needed in modern environments.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">ZTNA grants per-application, per-session access. VPN grants per-network access. ZTNA is architecturally superior for remote access but does not replace site-to-site VPN.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">IDS is passive (alerts only). IPS is inline (can block). A SPAN port IDS cannot stop an attack; an inline IPS can. NGFWs include integrated IPS.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">802.1X blocks all switch port access until the device authenticates. DHCP snooping prevents rogue DHCP servers. DAI prevents ARP poisoning. All three are Layer 2 security controls.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">SD-WAN uses commodity internet links with intelligent overlay routing. All traffic must be encrypted. SASE integrates SD-WAN with cloud-delivered security (CASB, ZTNA, FWaaS).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">WPA3-Personal uses SAE, eliminating offline dictionary attacks against the PSK. WPA3-Enterprise requires 802.1X/RADIUS with per-user certificates. WEP is never acceptable.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w3-network-arch', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

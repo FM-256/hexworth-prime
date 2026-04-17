@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principles of Information Security // CIS2350C</title>
+
+    <style>
+        /* ── CSS Custom Properties: Shield House palette ── */
+        :root {
+            --shield-primary:   #3b82f6;
+            --shield-secondary: #60a5fa;
+            --shield-accent:    #93c5fd;
+            --shield-glow:      rgba(59, 130, 246, 0.3);
+            --shield-bg:        rgba(59, 130, 246, 0.05);
+            --shield-border:    rgba(59, 130, 246, 0.25);
+            --shield-dark:      #1e3a5f;
+            --shield-darker:    #0d1f35;
+            --bg-main:          #060810;
+            --bg-deep:          #04060c;
+            --bg-card:          #090d18;
+            --bg-card-hover:    #0d1422;
+            --text-primary:     #dde8f8;
+            --text-secondary:   #7ca4cc;
+            --text-muted:       #3d5a7a;
+            --border-color:     rgba(59, 130, 246, 0.12);
+            --border-hover:     rgba(59, 130, 246, 0.35);
+            --success:          #3b82f6;
+            --danger:           #ef4444;
+            --danger-border:    rgba(239, 68, 68, 0.30);
+            --danger-bg:        rgba(239, 68, 68, 0.06);
+            --danger-hover-bg:  rgba(239, 68, 68, 0.12);
+            --shadow-md:        0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:        0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:      0 0 28px rgba(59, 130, 246, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Shield house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--shield-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--shield-accent);
+            border-color: var(--border-hover);
+            background: rgba(59, 130, 246, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            filter: hue-rotate(210deg) saturate(2);
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--shield-darker) 0%, #0e1e40 50%, var(--shield-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--shield-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Containment grid pattern: subtle repeating lines with blue tint */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        /* Hazard stripe overlay: diagonal blue bands for containment aesthetic */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 18px,
+                rgba(59, 130, 246, 0.018) 18px,
+                rgba(59, 130, 246, 0.018) 20px
+            );
+            pointer-events: none;
+        }
+
+        /* Course number pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.40);
+            color: var(--shield-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--shield-accent);
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 26px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--shield-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--shield-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-secondary), var(--shield-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Week Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Week 0 gets a slightly different treatment: refresher, not a mission week */
+        .week-card.week-zero {
+            border-color: rgba(59, 130, 246, 0.08);
+            opacity: 0.85;
+        }
+
+        .week-card.week-zero:hover {
+            opacity: 1;
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Week number badge */
+        .week-num {
+            background: linear-gradient(135deg, var(--shield-dark), var(--shield-secondary));
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-num.week-zero-num {
+            background: linear-gradient(135deg, #0e1e35, #1a2e4d);
+            color: var(--text-secondary);
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--shield-accent);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--shield-secondary);
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(59, 130, 246, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when week is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 4200px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(59, 130, 246, 0.06);
+        }
+
+        /* ── Per-week progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Week Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.04), rgba(59, 130, 246, 0.01));
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--shield-primary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── Subsection labels inside a week ── */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(61, 90, 122, 0.20);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-module::before        { background: var(--shield-secondary); }
+        .subsection-label.label-lab::before          { background: #ef4444; }
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+        .subsection-label.label-exam::before         { background: #f97316; }
+
+        /* ── Content type badges (Slides / Quiz / Midterm / Final) ── */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        .badge-exam {
+            background: rgba(249, 115, 22, 0.12);
+            color: #fb923c;
+            border: 1px solid rgba(249, 115, 22, 0.30);
+        }
+
+        /* Exam card: orange border accent to stand out */
+        .exam-card {
+            border-color: rgba(249, 115, 22, 0.35) !important;
+            background: rgba(249, 115, 22, 0.04) !important;
+        }
+
+        .exam-card:hover {
+            border-color: rgba(249, 115, 22, 0.60) !important;
+            background: rgba(249, 115, 22, 0.09) !important;
+        }
+
+        /* ── Content link cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(59, 130, 246, 0.02);
+            border: 1px solid rgba(59, 130, 246, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(59, 130, 246, 0.07);
+            border-color: rgba(59, 130, 246, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Module card completed state */
+        .content-card.is-complete {
+            border-color: rgba(59, 130, 246, 0.30);
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        /* Module ID badge: left side */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--shield-secondary);
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Module icon */
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+            filter: hue-rotate(210deg) saturate(2) brightness(1.2);
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Security+ objective pill: shows domain/objective code */
+        .obj-pill {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--shield-secondary);
+            background: rgba(59, 130, 246, 0.06);
+            border: 1px solid rgba(59, 130, 246, 0.14);
+            padding: 2px 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Blue checkmark: hidden until is-complete class is applied */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(210deg) saturate(3);
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Lab cards: distinct from module cards ── */
+        /* Red/danger accent, pulsing hover effect */
+        .lab-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: var(--danger-hover-bg);
+            border-color: rgba(239, 68, 68, 0.55);
+            transform: translateX(3px);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+        }
+
+        /* Pulse animation on hover to signal interactive challenge */
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(239, 68, 68, 0.35); }
+        }
+
+        .lab-card:hover {
+            animation: pulse-border 1.4s ease infinite;
+        }
+
+        .lab-card.is-complete {
+            border-color: rgba(59, 130, 246, 0.30);
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        /* Lab ID badge */
+        .lab-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .lab-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.80;
+        }
+
+        /* Duration + flag count badge on lab cards */
+        .lab-stats {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .lab-stat-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.20);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Flag count badge: slightly brighter */
+        .flag-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.22);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Checkmark for completed lab cards */
+        .lab-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(210deg) saturate(3);
+        }
+
+        .lab-card.is-complete .lab-check {
+            opacity: 1;
+        }
+
+        /* ── Course info block (bottom) ── */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 26px;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--shield-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .objectives-list li::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--shield-primary);
+            flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Locked week state ── */
+        .week-card.locked {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .week-card.locked .week-header {
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .lock-msg {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 6px 22px;
+            font-style: italic;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+            .obj-pill { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Principles of Information Security, CIS2350C Course Hub, Shield House</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar: course label + single exit point ── -->
+        <div class="top-bar">
+            <span class="course-label">CIS2350C // Shield House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Shield Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CIS2350C</span>
+            <h2>Principles of Information Security</h2>
+            <p class="subtitle">Every protocol exists because something got out once.</p>
+
+            <!-- Course stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">5</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">26</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">12</div>
+                    <div class="label">Labs</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">33</div>
+                    <div class="label">Flags</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">SY0-701</div>
+                    <div class="label">Security+</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <!-- JS fills this from ModuleProgress after DOM is ready -->
+        <div class="progress-section">
+            <h3>Containment Status: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Learning Path ── -->
+        <div class="section-heading">Containment Path</div>
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 0: Facility Orientation (Refresher)
+        ════════════════════════════════════════════ -->
+        <div class="week-card week-zero" id="wk0">
+            <div class="week-header" onclick="toggleWeek('wk0')">
+                <div class="week-header-left">
+                    <div class="week-num week-zero-num">0</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Facility Orientation: Refresher</div>
+                        <div class="week-sub">WEEK 0 // REFRESHER</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Refresher</span>
+                            <span class="item-count-tag">5 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 0 Progress</span>
+                            <span id="wk0-progress-text">0 / 5</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk0-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">ORIENTATION // REFRESHER</div>
+                        <div class="week-overview-desc">
+                            Welcome to Hexworth Containment. Before you enter any lab, you learn the rules that keep everyone alive.
+                        </div>
+                    </div>
+
+                    <!-- Refresher modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Refresher Modules</div>
+                        <div class="content-grid">
+
+                            <a href="pis-r1.html" class="content-card" data-module="pis-r1">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-R1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Facility Overview</div>
+                                    <div class="card-sub">CIA triad, security terminology</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-r2.html" class="content-card" data-module="pis-r2">
+                                <img src="../../../assets/images/icons/icon-target.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-R2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Threat Landscape Briefing</div>
+                                    <div class="card-sub">Threat actors, motivations</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-r3.html" class="content-card" data-module="pis-r3">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-R3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Foundations</div>
+                                    <div class="card-sub">OSI, TCP/IP review</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-r4.html" class="content-card" data-module="pis-r4">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-R4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Operating System Foundations</div>
+                                    <div class="card-sub">Windows/Linux security basics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-r5.html" class="content-card" data-module="pis-r5">
+                                <img src="../../../assets/images/icons/icon-brain.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-R5</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security Mindset</div>
+                                    <div class="card-sub">Risk vs threat vs vulnerability</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk0 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 1: BSL-1: Fundamentals + Threat Management
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">BSL-1: Fundamentals + Threat Management</div>
+                        <div class="week-sub">WEEK 1 // BSL-1 // DOMAINS 1.0, 2.0</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">1.0</span>
+                            <span class="obj-tag">2.0</span>
+                            <span class="item-count-tag">6 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 9</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">BSL-1 // DOMAINS 1.0, 2.0</div>
+                        <div class="week-overview-desc">
+                            Before you build the walls, you must understand what breaks them.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="pis-01.html" class="content-card" data-module="pis-01">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-01</span>
+                                <div class="card-info">
+                                    <div class="card-title">Containment Integrity Assurance</div>
+                                    <div class="card-sub">CIA triad, AAA, non-repudiation</div>
+                                </div>
+                                <span class="obj-pill">1.1, 1.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-02.html" class="content-card" data-module="pis-02">
+                                <img src="../../../assets/images/icons/icon-controls.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-02</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security Controls</div>
+                                    <div class="card-sub">Technical/admin/physical, preventive/detective/corrective</div>
+                                </div>
+                                <span class="obj-pill">1.1, 1.3</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-03.html" class="content-card" data-module="pis-03">
+                                <img src="../../../assets/images/icons/icon-target.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-03</span>
+                                <div class="card-info">
+                                    <div class="card-title">Threat Actors and Vectors</div>
+                                    <div class="card-sub">Nation-state, insider, APT, supply chain</div>
+                                </div>
+                                <span class="obj-pill">2.1, 2.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-04.html" class="content-card" data-module="pis-04">
+                                <img src="../../../assets/images/icons/icon-fishhook.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-04</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Engineering</div>
+                                    <div class="card-sub">Phishing, vishing, pretexting, tailgating</div>
+                                </div>
+                                <span class="obj-pill">2.1, 2.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-05.html" class="content-card" data-module="pis-05">
+                                <img src="../../../assets/images/icons/icon-virus.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-05</span>
+                                <div class="card-info">
+                                    <div class="card-title">Malware Taxonomy</div>
+                                    <div class="card-sub">Viruses, worms, trojans, ransomware, rootkits</div>
+                                </div>
+                                <span class="obj-pill">2.3, 2.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-06.html" class="content-card" data-module="pis-06">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-06</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Domains 1.0, 2.0</div>
+                                </div>
+                                <span class="obj-pill">1.1-1.4, 2.1-2.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/pis-l01-specimen-classification/index.html"
+                               class="lab-card" data-module="pis-l01">
+                                <img src="../../../assets/images/icons/icon-virus.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 01</span>
+                                <div class="card-info">
+                                    <div class="card-title">Specimen Classification</div>
+                                    <div class="card-sub">Identify and classify threat samples. Catalog each specimen and extract your flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l02-human-vector-drill/index.html"
+                               class="lab-card" data-module="pis-l02">
+                                <img src="../../../assets/images/icons/icon-fishhook.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 02</span>
+                                <div class="card-info">
+                                    <div class="card-title">Human Vector Drill</div>
+                                    <div class="card-sub">Analyze phishing artifacts and social engineering scenarios. Identify the attack and recover the flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l03-outbreak-intelligence/index.html"
+                               class="lab-card" data-module="pis-l03">
+                                <img src="../../../assets/images/icons/icon-magnifier.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 03</span>
+                                <div class="card-info">
+                                    <div class="card-title">Outbreak Intelligence</div>
+                                    <div class="card-sub">Trace the origin and spread of a simulated outbreak. Build the threat actor profile.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/pis-w1-cia-triad.presentation.html"
+                               class="content-card" data-module="pis-w1-cia-triad">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">CIA Triad and Security Fundamentals</div>
+                                    <div class="card-sub">Confidentiality, integrity, availability, AAA</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w1-security-controls.presentation.html"
+                               class="content-card" data-module="pis-w1-security-controls">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security Controls</div>
+                                    <div class="card-sub">Technical, administrative, physical controls</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w1-threat-actors.presentation.html"
+                               class="content-card" data-module="pis-w1-threat-actors">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Threat Actors and Vectors</div>
+                                    <div class="card-sub">Nation-state, insider, APT, supply chain</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w1-social-engineering.presentation.html"
+                               class="content-card" data-module="pis-w1-social-engineering">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Social Engineering</div>
+                                    <div class="card-sub">Phishing, vishing, pretexting, tailgating</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w1-malware.presentation.html"
+                               class="content-card" data-module="pis-w1-malware">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P5</span>
+                                <div class="card-info">
+                                    <div class="card-title">Malware Taxonomy</div>
+                                    <div class="card-sub">Viruses, worms, trojans, ransomware, rootkits</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/pis-w1.quiz.html"
+                               class="content-card" data-module="pis-w1-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Quiz</div>
+                                    <div class="card-sub">CIA triad, controls, threat actors, social engineering, malware</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk1 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 2: BSL-2: Active Threats + Crypto
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">BSL-2: Active Threats + Crypto</div>
+                        <div class="week-sub">WEEK 2 // BSL-2 // DOMAINS 2.0, 3.0</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">2.0</span>
+                            <span class="obj-tag">3.0</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">BSL-2 // DOMAINS 2.0, 3.0</div>
+                        <div class="week-overview-desc">
+                            The outer wall stops the many. The vault protects what matters.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="pis-07.html" class="content-card" data-module="pis-07">
+                                <img src="../../../assets/images/icons/icon-syringe.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-07</span>
+                                <div class="card-info">
+                                    <div class="card-title">Application Attacks</div>
+                                    <div class="card-sub">SQLi, XSS, CSRF, buffer overflow</div>
+                                </div>
+                                <span class="obj-pill">2.3, 2.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-08.html" class="content-card" data-module="pis-08">
+                                <img src="../../../assets/images/icons/icon-lightning.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-08</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network-Based Attacks</div>
+                                    <div class="card-sub">DoS, MITM, ARP spoofing, DNS poisoning</div>
+                                </div>
+                                <span class="obj-pill">2.4, 4.1</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-09.html" class="content-card" data-module="pis-09">
+                                <img src="../../../assets/images/icons/icon-mobile.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-09</span>
+                                <div class="card-info">
+                                    <div class="card-title">Device Security</div>
+                                    <div class="card-sub">MDM, BYOD, IoT, SCADA/ICS</div>
+                                </div>
+                                <span class="obj-pill">3.1, 3.3</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-10.html" class="content-card" data-module="pis-10">
+                                <img src="../../../assets/images/icons/icon-key.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-10</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cryptography Fundamentals</div>
+                                    <div class="card-sub">Symmetric, asymmetric, hashing, AES, RSA</div>
+                                </div>
+                                <span class="obj-pill">1.4, 5.1</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-11.html" class="content-card" data-module="pis-11">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-11</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Domains 2.0, 3.0</div>
+                                </div>
+                                <span class="obj-pill">2.3-2.5, 3.1, 3.3, 1.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/pis-l04-injection-vector/index.html"
+                               class="lab-card" data-module="pis-l04">
+                                <img src="../../../assets/images/icons/icon-syringe.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 04</span>
+                                <div class="card-info">
+                                    <div class="card-title">Injection Vector</div>
+                                    <div class="card-sub">A vulnerable application is live. Identify the injection point and extract the flags before the window closes.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l05-field-equipment-audit/index.html"
+                               class="lab-card" data-module="pis-l05">
+                                <img src="../../../assets/images/icons/icon-mobile.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 05</span>
+                                <div class="card-info">
+                                    <div class="card-title">Field Equipment Audit</div>
+                                    <div class="card-sub">Review device inventory for policy violations. Identify non-compliant endpoints and flag each finding.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l06-vault-seal-operations/index.html"
+                               class="lab-card" data-module="pis-l06">
+                                <img src="../../../assets/images/icons/icon-key.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 06</span>
+                                <div class="card-info">
+                                    <div class="card-title">Vault Seal Operations</div>
+                                    <div class="card-sub">Configure encryption and verify seal integrity. Each correct operation yields a flag.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/pis-w2-app-attacks.presentation.html"
+                               class="content-card" data-module="pis-w2-app-attacks">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Application Attacks</div>
+                                    <div class="card-sub">SQLi, XSS, CSRF, buffer overflow</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w2-network-attacks.presentation.html"
+                               class="content-card" data-module="pis-w2-network-attacks">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network-Based Attacks</div>
+                                    <div class="card-sub">DoS, MITM, ARP spoofing, DNS poisoning</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w2-device-security.presentation.html"
+                               class="content-card" data-module="pis-w2-device-security">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Device Security</div>
+                                    <div class="card-sub">MDM, BYOD, IoT, SCADA/ICS</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w2-cryptography.presentation.html"
+                               class="content-card" data-module="pis-w2-cryptography">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cryptography Fundamentals</div>
+                                    <div class="card-sub">Symmetric, asymmetric, hashing, AES, RSA</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/pis-w2.quiz.html"
+                               class="content-card" data-module="pis-w2-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Quiz</div>
+                                    <div class="card-sub">App attacks, network attacks, device security, cryptography</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Midterm Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Midterm Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/pis-midterm.exam.html"
+                               class="content-card exam-card" data-module="pis-midterm">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">MIDTERM</span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">Covers Weeks 1 and 2: Domains 1.0, 2.0, 3.0</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Midterm</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk2 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 3: BSL-3: Network Defense + PKI
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">BSL-3: Network Defense + PKI</div>
+                        <div class="week-sub">WEEK 3 // BSL-3 // DOMAINS 3.0, 4.0</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">3.0</span>
+                            <span class="obj-tag">4.0</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">BSL-3 // DOMAINS 3.0, 4.0</div>
+                        <div class="week-overview-desc">
+                            If Lab 3 is compromised, Lab 4 must not fall. Segment. Isolate. Contain.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="pis-12.html" class="content-card" data-module="pis-12">
+                                <img src="../../../assets/images/icons/icon-firewall.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-12</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Security Architecture</div>
+                                    <div class="card-sub">Firewalls, DMZ, VPN, zero trust</div>
+                                </div>
+                                <span class="obj-pill">3.1, 3.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-13.html" class="content-card" data-module="pis-13">
+                                <img src="../../../assets/images/icons/icon-antenna.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-13</span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless and Cloud Security</div>
+                                    <div class="card-sub">WPA3, RADIUS, cloud models</div>
+                                </div>
+                                <span class="obj-pill">3.1, 3.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-14.html" class="content-card" data-module="pis-14">
+                                <img src="../../../assets/images/icons/icon-padlock.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-14</span>
+                                <div class="card-info">
+                                    <div class="card-title">PKI and Certificate Management</div>
+                                    <div class="card-sub">CA hierarchy, CSR, CRL, OCSP</div>
+                                </div>
+                                <span class="obj-pill">5.1, 5.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-15.html" class="content-card" data-module="pis-15">
+                                <img src="../../../assets/images/icons/icon-radar.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-15</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security Operations</div>
+                                    <div class="card-sub">SIEM, IDS/IPS, vuln scanning, threat hunting</div>
+                                </div>
+                                <span class="obj-pill">4.1, 4.2, 4.5</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-16.html" class="content-card" data-module="pis-16">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-16</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Domains 3.0, 4.0</div>
+                                </div>
+                                <span class="obj-pill">3.1-3.2, 4.1-4.2, 4.5, 5.1-5.2</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/pis-l07-lab-isolation-protocol/index.html"
+                               class="lab-card" data-module="pis-l07">
+                                <img src="../../../assets/images/icons/icon-firewall.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 07</span>
+                                <div class="card-info">
+                                    <div class="card-title">Lab Isolation Protocol</div>
+                                    <div class="card-sub">Segment a compromised network zone. Configure firewall rules and extract containment flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l08-clearance-forge/index.html"
+                               class="lab-card" data-module="pis-l08">
+                                <img src="../../../assets/images/icons/icon-padlock.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 08</span>
+                                <div class="card-info">
+                                    <div class="card-title">Clearance Forge</div>
+                                    <div class="card-sub">Build a PKI chain from scratch. Issue certs, configure trust, and verify each seal for flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l09-outbreak-detection/index.html"
+                               class="lab-card" data-module="pis-l09">
+                                <img src="../../../assets/images/icons/icon-radar.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 09</span>
+                                <div class="card-info">
+                                    <div class="card-title">Outbreak Detection</div>
+                                    <div class="card-sub">Ingest SIEM alerts and isolate the anomalous pattern. Confirm each detection with a flag submission.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/pis-w3-network-architecture.presentation.html"
+                               class="content-card" data-module="pis-w3-network-architecture">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Security Architecture</div>
+                                    <div class="card-sub">Firewalls, DMZ, VPN, zero trust</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w3-wireless-cloud.presentation.html"
+                               class="content-card" data-module="pis-w3-wireless-cloud">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Wireless and Cloud Security</div>
+                                    <div class="card-sub">WPA3, RADIUS, cloud models and controls</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w3-pki.presentation.html"
+                               class="content-card" data-module="pis-w3-pki">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">PKI and Certificate Management</div>
+                                    <div class="card-sub">CA hierarchy, CSR, CRL, OCSP</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w3-security-operations.presentation.html"
+                               class="content-card" data-module="pis-w3-security-operations">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security Operations</div>
+                                    <div class="card-sub">SIEM, IDS/IPS, vulnerability scanning, threat hunting</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/pis-w3.quiz.html"
+                               class="content-card" data-module="pis-w3-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Quiz</div>
+                                    <div class="card-sub">Network architecture, wireless/cloud, PKI, security operations</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk3 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 4: BSL-4: Maximum Containment
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">BSL-4: Maximum Containment</div>
+                        <div class="week-sub">WEEK 4 // BSL-4 // DOMAINS 4.0, 5.0</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">4.0</span>
+                            <span class="obj-tag">5.0</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">BSL-4 // DOMAINS 4.0, 5.0</div>
+                        <div class="week-overview-desc">
+                            BSL-4 requires two-person integrity. No one enters alone.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="pis-17.html" class="content-card" data-module="pis-17">
+                                <img src="../../../assets/images/icons/icon-idcard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-17</span>
+                                <div class="card-info">
+                                    <div class="card-title">Authentication and Access Control</div>
+                                    <div class="card-sub">MFA, SSO, SAML, Kerberos, biometrics</div>
+                                </div>
+                                <span class="obj-pill">5.3, 5.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-18.html" class="content-card" data-module="pis-18">
+                                <img src="../../../assets/images/icons/icon-users.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-18</span>
+                                <div class="card-info">
+                                    <div class="card-title">Identity and Account Management</div>
+                                    <div class="card-sub">Least privilege, RBAC, ABAC, PAM</div>
+                                </div>
+                                <span class="obj-pill">5.3, 5.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-19.html" class="content-card" data-module="pis-19">
+                                <img src="../../../assets/images/icons/icon-scales.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-19</span>
+                                <div class="card-info">
+                                    <div class="card-title">Risk Management and Governance</div>
+                                    <div class="card-sub">NIST, ISO 27001, GDPR, HIPAA</div>
+                                </div>
+                                <span class="obj-pill">5.0</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-20.html" class="content-card" data-module="pis-20">
+                                <img src="../../../assets/images/icons/icon-siren.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-20</span>
+                                <div class="card-info">
+                                    <div class="card-title">Incident Response and Recovery</div>
+                                    <div class="card-sub">IR lifecycle, forensics, BCP/DR</div>
+                                </div>
+                                <span class="obj-pill">4.3, 4.4</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="pis-21.html" class="content-card" data-module="pis-21">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">PIS-21</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Assessment</div>
+                                    <div class="card-sub">Comprehensive facility inspection: all domains</div>
+                                </div>
+                                <span class="obj-pill">1.0-5.0</span>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/pis-l10-dual-integrity-access/index.html"
+                               class="lab-card" data-module="pis-l10">
+                                <img src="../../../assets/images/icons/icon-idcard.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 10</span>
+                                <div class="card-info">
+                                    <div class="card-title">Dual-Integrity Access</div>
+                                    <div class="card-sub">Enforce two-person authentication controls. Validate each gate and collect flags on successful verification.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l11-containment-breach/index.html"
+                               class="lab-card" data-module="pis-l11">
+                                <img src="../../../assets/images/icons/icon-siren.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 11</span>
+                                <div class="card-info">
+                                    <div class="card-title">Containment Breach</div>
+                                    <div class="card-sub">A BSL-4 zone has been breached. Execute the IR playbook, contain the incident, and recover your flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/pis-l12-full-facility-inspection/index.html"
+                               class="lab-card" data-module="pis-l12">
+                                <img src="../../../assets/images/icons/icon-skull-crossbones.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 12</span>
+                                <div class="card-info">
+                                    <div class="card-title">Full Facility Inspection: Capstone</div>
+                                    <div class="card-sub">Every domain. One facility. Assess, remediate, document, and capture four critical flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">4 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/pis-w4-authentication.presentation.html"
+                               class="content-card" data-module="pis-w4-authentication">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Authentication and Access Control</div>
+                                    <div class="card-sub">MFA, SSO, SAML, Kerberos, biometrics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w4-identity-management.presentation.html"
+                               class="content-card" data-module="pis-w4-identity-management">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Identity and Account Management</div>
+                                    <div class="card-sub">Least privilege, RBAC, ABAC, PAM</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w4-risk-governance.presentation.html"
+                               class="content-card" data-module="pis-w4-risk-governance">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Risk Management and Governance</div>
+                                    <div class="card-sub">NIST, ISO 27001, GDPR, HIPAA</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/pis-w4-incident-response.presentation.html"
+                               class="content-card" data-module="pis-w4-incident-response">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Incident Response and Recovery</div>
+                                    <div class="card-sub">IR lifecycle, forensics, BCP/DR</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/pis-w4.quiz.html"
+                               class="content-card" data-module="pis-w4-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 4 Quiz</div>
+                                    <div class="card-sub">Authentication, identity management, risk governance, incident response</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Final Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Final Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/pis-final.exam.html"
+                               class="content-card exam-card" data-module="pis-final">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">FINAL</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">Comprehensive: all domains, SY0-701 alignment</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Final</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk4 -->
+
+
+        <!-- ── Course Objectives Block ── -->
+        <div class="course-info-block">
+            <h3>Course Objectives</h3>
+            <ul class="objectives-list">
+                <li>Apply the CIA triad, AAA framework, and core security control categories to real-world scenarios</li>
+                <li>Classify threat actors, attack vectors, and malware types across CompTIA SY0-701 domains 1.0 and 2.0</li>
+                <li>Identify and analyze application and network-based attacks including injection, spoofing, and DoS</li>
+                <li>Implement cryptographic controls including symmetric and asymmetric encryption, hashing, and PKI</li>
+                <li>Design network security architecture using firewalls, DMZ, VPNs, and zero trust principles</li>
+                <li>Configure and interpret SIEM alerts, IDS/IPS events, and vulnerability scan output</li>
+                <li>Apply authentication mechanisms including MFA, SAML, Kerberos, and biometric controls</li>
+                <li>Evaluate risk management frameworks including NIST, ISO 27001, GDPR, and HIPAA requirements</li>
+                <li>Execute an incident response lifecycle from detection through recovery and documentation</li>
+            </ul>
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            House of the Shield // Principles of Information Security // CIS2350C
+            <div class="footer-sub">Every protocol exists because something got out once.</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a week card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ────────────────────────────────────────
+        // Supports links like index.html#wk2 to jump directly to that week.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#wk[0-4]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card && !card.classList.contains('locked')) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ─────────────────────────────────────────────
+        // Runs after DOM is ready so all [data-module] elements exist.
+        // Uses ModuleProgress.isCompleted('shield', moduleId) to check state.
+        // Highlights completed cards, fills per-week bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module IDs, grouped by week card ID.
+            // Total: 5 + 15 + 14 + 13 + 14 = 61 items (includes presentations, quizzes, exams).
+            var weeks = {
+                wk0: [
+                    'pis-r1',
+                    'pis-r2',
+                    'pis-r3',
+                    'pis-r4',
+                    'pis-r5'
+                ],
+                wk1: [
+                    'pis-01',
+                    'pis-02',
+                    'pis-03',
+                    'pis-04',
+                    'pis-05',
+                    'pis-06',
+                    'pis-l01',
+                    'pis-l02',
+                    'pis-l03',
+                    'pis-w1-cia-triad',
+                    'pis-w1-security-controls',
+                    'pis-w1-threat-actors',
+                    'pis-w1-social-engineering',
+                    'pis-w1-malware',
+                    'pis-w1-quiz'
+                ],
+                wk2: [
+                    'pis-07',
+                    'pis-08',
+                    'pis-09',
+                    'pis-10',
+                    'pis-11',
+                    'pis-l04',
+                    'pis-l05',
+                    'pis-l06',
+                    'pis-w2-app-attacks',
+                    'pis-w2-network-attacks',
+                    'pis-w2-device-security',
+                    'pis-w2-cryptography',
+                    'pis-w2-quiz',
+                    'pis-midterm'
+                ],
+                wk3: [
+                    'pis-12',
+                    'pis-13',
+                    'pis-14',
+                    'pis-15',
+                    'pis-16',
+                    'pis-l07',
+                    'pis-l08',
+                    'pis-l09',
+                    'pis-w3-network-architecture',
+                    'pis-w3-wireless-cloud',
+                    'pis-w3-pki',
+                    'pis-w3-security-operations',
+                    'pis-w3-quiz'
+                ],
+                wk4: [
+                    'pis-17',
+                    'pis-18',
+                    'pis-19',
+                    'pis-20',
+                    'pis-21',
+                    'pis-l10',
+                    'pis-l11',
+                    'pis-l12',
+                    'pis-w4-authentication',
+                    'pis-w4-identity-management',
+                    'pis-w4-risk-governance',
+                    'pis-w4-incident-response',
+                    'pis-w4-quiz',
+                    'pis-final'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each week: check completions, mark cards, update bars
+            Object.keys(weeks).forEach(function (weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('shield', moduleId)) {
+                        completed++;
+
+                        // Highlight the card via data-module attribute lookup
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-week progress bar and text counter
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/TrailHunter.js"></script>
+
+    <!-- Shield Bot (Aminos AI) -->
+    <script src="https://platform.aminos.ai/w/chat_plugin.js" data-bot-id="8115"></script>
+
+</body>
+</html>

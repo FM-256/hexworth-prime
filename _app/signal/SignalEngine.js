@@ -381,7 +381,13 @@ const SignalEngine = (() => {
                               onerror="this.onerror=null;this.src='${_basePath}assets/images/icons/icon-memory.webp'">` : '';
         }).join('');
 
+        // Favorites
+        const hasFav = typeof FavoritesManager !== 'undefined';
+        const isFav = hasFav && FavoritesManager.isFavorite(sec.id);
+        const favHtml = hasFav ? `<button class="se-fav-btn${isFav ? ' favorited' : ''}" data-sec-id="${sec.id}">${isFav ? '\u2665' : '\u2661'}</button>` : '';
+
         card.innerHTML = `
+            ${favHtml}
             <div class="se-card-top">
                 <img class="se-card-icon" src="${_icon(sec.icon)}" alt="" width="36" height="36">
                 <div class="se-card-badge">${stats.total} projects</div>
@@ -395,6 +401,24 @@ const SignalEngine = (() => {
                 </div>
                 <span class="se-card-pct">${stats.pct}%</span>
             </div>`;
+
+        // Wire up favorite button
+        const favBtn = card.querySelector('.se-fav-btn');
+        if (favBtn) {
+            favBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const meta = {
+                    title: sec.name,
+                    house: 'signal',
+                    type: 'signal-section',
+                    href: 'signal/sections/' + sec.id + '/index.html'
+                };
+                const nowFav = FavoritesManager.toggle(sec.id, meta);
+                favBtn.classList.toggle('favorited', nowFav);
+                favBtn.textContent = nowFav ? '\u2665' : '\u2661';
+            });
+        }
 
         return card;
     }
@@ -869,11 +893,21 @@ a { color: inherit; text-decoration: none; }
 /* Section grid */
 .se-section-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 8px; }
 .se-section-card {
+    position: relative;
     display: block; padding: 20px; border-radius: 12px;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     transition: all 0.25s;
 }
+/* Favorite heart button */
+.se-fav-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; font-size: 1.2rem;
+    cursor: pointer; opacity: 0.3; transition: all 0.2s;
+    padding: 2px 4px; line-height: 1; z-index: 2; color: #e0e0e0;
+}
+.se-fav-btn:hover { opacity: 0.8; transform: scale(1.2); }
+.se-fav-btn.favorited { opacity: 1; color: #ef4444; }
 .se-section-card:hover {
     background: rgba(255,255,255,0.05);
     border-color: var(--section-color, ${PRIMARY});

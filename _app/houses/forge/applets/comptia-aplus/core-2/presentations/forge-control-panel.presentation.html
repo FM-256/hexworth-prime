@@ -4,1468 +4,1033 @@
     <meta charset="UTF-8">
     <!-- Access Control -->
     <script src="../../../../../../components/AccessGuard.js"></script>
-    <script>
-        AccessGuard.require('sorted');
-    </script>
+    <script>AccessGuard.require('sorted');</script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Windows Control Panel - House of the Forge</title>
+    <title>Windows Control Panel | A+ Core 2</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0d0d12 0%, #1a1520 50%, #0d0d12 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #c4b5d4;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        /* Header */
-        .presentation-header {
-            padding: 20px 40px;
-            background: rgba(10, 10, 15, 0.9);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 6px;
-            color: #a78bfa;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: rgba(139, 92, 246, 0.2);
-            border-color: rgba(139, 92, 246, 0.5);
-        }
-
-        .house-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            color: #8b7a9e;
-            letter-spacing: 0.1em;
-        }
-
-        .house-badge-icon {
-            font-size: 1.2rem;
-        }
-
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .progress-bar {
-            width: 150px;
-            height: 4px;
-            background: rgba(139, 92, 246, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            font-size: 0.75rem;
-            color: #6b5b7e;
-        }
-
-        /* Slide Container */
-        .slides-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
+        /* ── SLIDE SYSTEM ── */
         .slide {
-            display: none;
-            animation: fadeIn 0.5s ease;
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
         }
-
         .slide.active {
-            display: block;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        /* Slide Styles */
-        .slide-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-            text-align: center;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .slide-subtitle {
-            font-size: 1.1rem;
-            color: #8b7a9e;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover {
-            border-color: rgba(139, 92, 246, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .card-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-        }
-
-        .card-description {
-            font-size: 0.9rem;
-            color: #8b7a9e;
-            line-height: 1.6;
-        }
-
-        /* Category Cards */
-        .category-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .category-card:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.15);
-        }
-
-        .category-card.system { border-top: 3px solid #60a5fa; }
-        .category-card.network { border-top: 3px solid #34d399; }
-        .category-card.hardware { border-top: 3px solid #f59e0b; }
-        .category-card.programs { border-top: 3px solid #ec4899; }
-
-        .category-name {
-            font-size: 1.3rem;
-            color: #e8d5f5;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .category-description {
-            font-size: 0.9rem;
-            color: #8b7a9e;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        .category-features {
-            text-align: left;
-            font-size: 0.85rem;
-            color: #8b7a9e;
-            list-style: none;
-        }
-
-        .category-features li {
-            margin: 6px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .category-features li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #8b5cf6;
-        }
-
-        /* Comparison Table */
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
-            font-size: 0.9rem;
-        }
-
-        .comparison-table th {
-            background: rgba(139, 92, 246, 0.15);
-            padding: 15px;
-            text-align: left;
-            color: #e8d5f5;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-        }
-
-        .comparison-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-            color: #a89aba;
-        }
-
-        .comparison-table tr:hover td {
-            background: rgba(139, 92, 246, 0.05);
-        }
-
-        .feature-yes { color: #34d399; }
-        .feature-no { color: #6b5b7e; }
-        .feature-limited { color: #f59e0b; }
-
-        /* Interactive Elements */
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            padding: 30px;
-            margin: 30px 0;
-        }
-
-        .scenario-title {
-            font-size: 1.1rem;
-            color: #a78bfa;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .scenario-content {
-            font-size: 0.95rem;
-            color: #c4b5d4;
-            line-height: 1.7;
-        }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 15px 20px;
-            margin: 10px 0;
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            color: #c4b5d4;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        .quiz-option:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            background: rgba(139, 92, 246, 0.1);
-        }
-
-        .quiz-option.correct {
-            border-color: #34d399;
-            background: rgba(52, 211, 153, 0.1);
-        }
-
-        .quiz-option.incorrect {
-            border-color: #f87171;
-            background: rgba(248, 113, 113, 0.1);
-        }
-
-        .feedback {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        .feedback.correct {
-            background: rgba(52, 211, 153, 0.1);
-            border: 1px solid rgba(52, 211, 153, 0.3);
-            color: #34d399;
-            display: block;
-        }
-
-        .feedback.incorrect {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-            color: #f87171;
-            display: block;
-        }
-
-        /* Key Points */
-        .key-points {
-            background: rgba(20, 15, 30, 0.6);
-            border-left: 3px solid #a78bfa;
-            padding: 20px 25px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 {
-            color: #a78bfa;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
-            letter-spacing: 0.05em;
-        }
-
-        .key-points ul {
-            list-style: none;
-        }
-
-        .key-points li {
-            padding: 8px 0;
-            padding-left: 25px;
-            position: relative;
-            color: #c4b5d4;
-            font-size: 0.9rem;
-        }
-
-        .key-points li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #8b5cf6;
-        }
-
-        /* Navigation */
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(139, 92, 246, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 30px;
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 8px;
-            color: #a78bfa;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-block;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover {
-            background: rgba(139, 92, 246, 0.25);
-            border-color: rgba(139, 92, 246, 0.5);
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            border: none;
-            color: white;
-        }
+        /* ── LAYOUT HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
 
-        .nav-btn.primary:hover {
-            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.3);
-        }
-
-        .slide-dots {
-            display: flex;
-            gap: 8px;
-        }
-
-        .slide-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(139, 92, 246, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .slide-dot.active {
-            background: #a78bfa;
-            transform: scale(1.2);
-        }
-
-        /* Path Visual */
-        .path-visual {
-            background: rgba(20, 15, 30, 0.4);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: #a78bfa;
-        }
-
-        .path-visual strong {
-            color: #e8d5f5;
-        }
-
-        /* Method boxes */
-        .method-box {
-            background: rgba(20, 15, 30, 0.4);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin: 15px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-        }
-
-        .method-label {
-            color: #a78bfa;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .method-command {
-            color: #34d399;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px 12px;
-            border-radius: 4px;
-            display: inline-block;
-            margin-top: 5px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .presentation-header {
-                flex-direction: column;
-                gap: 15px;
-                padding: 15px 20px;
-            }
-
-            .slide-title {
-                font-size: 1.8rem;
-            }
-
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .comparison-table {
-                font-size: 0.8rem;
-            }
-
-            .slide-nav {
-                flex-direction: column;
-                gap: 20px;
-            }
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .layout-split { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">← Back</a>
-            <div class="house-badge">
-                <span class="house-badge-icon"><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Windows Control Panel</h1>
+
+<!-- Gold progress bar -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 2 &mdash; 220-1102 &nbsp;|&nbsp; Domain 1.3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Windows<br>
+                <span class="accent">Control Panel</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                The legacy administrative hub for Windows. Still essential for advanced configuration, device management, and tasks not yet migrated to Settings.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 10</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>Domain 1.3</span>
+            <span>System &bull; Network &bull; Devices &bull; Admin Tools</span>
+            <span>Exam 220-1102</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Windows Control Panel</h1>
-            <p class="slide-subtitle">The legacy powerhouse that still runs Windows</p>
+<!-- ==================== SLIDE 2 — WHAT IS CONTROL PANEL ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">What Is <span class="accent">Control Panel?</span></div>
+        <div class="slide-subtitle">The original Windows configuration hub, present since Windows 1.0 (1985). Still ships in all Windows 10 and 11 versions.</div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-controls.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h2 class="card-title">What Is Control Panel?</h2>
-                    <p class="card-description">Control Panel has been Windows' primary configuration interface since Windows 1.0 (1985). While Microsoft is migrating to the Settings app, Control Panel remains essential for advanced system administration.</p>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">History</div>
+                <div class="card-desc">Control Panel has been the central configuration interface for every Windows version. Microsoft has been migrating features to the Settings app since Windows 8, but full replacement has not happened. CP will likely remain for the foreseeable future.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Methods</div>
+                <div class="card-desc">Win + R, type control. Search "Control Panel" in Start. Run: control.exe. Direct applet access: control appwiz.cpl (Programs), control sysdm.cpl (System Properties), control inetcpl.cpl (Internet Options).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">View Modes</div>
+                <div class="card-desc">Category view (default): groups into 8 categories. Large Icons and Small Icons view: flat list of all ~50 applets. Technicians often switch to icon view for faster direct access without navigating categories.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why Still Matters</div>
+            A+ 220-1102 explicitly tests Control Panel alongside Settings. Advanced tasks like BitLocker (Home users), credential management, Internet Explorer options, legacy network adapter configuration, and Administrative Tools are still CP-only or CP-primary.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CONTROL PANEL CATEGORY MAP (SVG) ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">Control Panel <span class="accent">Category Map</span></div>
+        <div class="slide-subtitle">Eight top-level categories in Category view. Each opens a group of related applets.</div>
+
+        <!-- SVG: 4x2 grid of category tiles with labels -->
+        <div class="diagram-center">
+            <svg width="860" height="260" viewBox="0 0 860 260" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Control Panel category map">
+
+                <!-- Row 1 — 4 tiles -->
+                <!-- Tile 1: System and Security -->
+                <rect x="10"  y="10" width="195" height="110" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="107" y="38" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#c9a83a">System and Security</text>
+                <text x="107" y="55" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Action Center, Firewall</text>
+                <text x="107" y="68" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Windows Update, BitLocker</text>
+                <text x="107" y="81" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Admin Tools, Power</text>
+                <text x="107" y="94" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">sysdm.cpl  &bull;  wf.msc</text>
+                <text x="107" y="108" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="8.5" fill="#c9a83a" opacity="0.7">MOST EXAM CONTENT</text>
+
+                <!-- Tile 2: Network and Internet -->
+                <rect x="220" y="10" width="195" height="110" rx="8" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="317" y="38" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Network and Internet</text>
+                <text x="317" y="55" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Network and Sharing Center</text>
+                <text x="317" y="68" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Change adapter settings</text>
+                <text x="317" y="81" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Internet Options</text>
+                <text x="317" y="94" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">ncpa.cpl  &bull;  inetcpl.cpl</text>
+
+                <!-- Tile 3: Hardware and Sound -->
+                <rect x="430" y="10" width="195" height="110" rx="8" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="527" y="38" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#3ab577">Hardware and Sound</text>
+                <text x="527" y="55" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Devices and Printers</text>
+                <text x="527" y="68" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Device Manager</text>
+                <text x="527" y="81" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Sound  &bull;  Power Options</text>
+                <text x="527" y="94" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">devmgmt.msc  &bull;  mmsys.cpl</text>
+
+                <!-- Tile 4: Programs -->
+                <rect x="640" y="10" width="210" height="110" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="745" y="38" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#ef4444">Programs</text>
+                <text x="745" y="55" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Programs and Features</text>
+                <text x="745" y="68" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Turn Windows features on/off</text>
+                <text x="745" y="81" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Default programs</text>
+                <text x="745" y="94" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">appwiz.cpl</text>
+
+                <!-- Row 2 — 4 tiles -->
+                <!-- Tile 5: User Accounts -->
+                <rect x="10"  y="138" width="195" height="110" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="107" y="166" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#c9a83a">User Accounts</text>
+                <text x="107" y="183" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Manage accounts</text>
+                <text x="107" y="196" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Credential Manager</text>
+                <text x="107" y="209" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Change UAC settings</text>
+                <text x="107" y="222" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">netplwiz  &bull;  credwiz</text>
+
+                <!-- Tile 6: Appearance and Personalization -->
+                <rect x="220" y="138" width="195" height="110" rx="8" fill="rgba(96,165,250,0.07)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="317" y="162" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#60a5fa">Appearance &amp;</text>
+                <text x="317" y="176" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#60a5fa">Personalization</text>
+                <text x="317" y="193" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">File Explorer Options</text>
+                <text x="317" y="206" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Fonts  &bull;  Taskbar</text>
+                <text x="317" y="219" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Display (legacy DPI)</text>
+
+                <!-- Tile 7: Clock and Region -->
+                <rect x="430" y="138" width="195" height="110" rx="8" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="527" y="166" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#3ab577">Clock and Region</text>
+                <text x="527" y="183" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Date and Time</text>
+                <text x="527" y="196" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Region (intl.cpl)</text>
+                <text x="527" y="209" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Additional clocks</text>
+                <text x="527" y="222" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#475569">timedate.cpl  &bull;  intl.cpl</text>
+
+                <!-- Tile 8: Ease of Access -->
+                <rect x="640" y="138" width="210" height="110" rx="8" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="745" y="166" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Ease of Access</text>
+                <text x="745" y="183" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Ease of Access Center</text>
+                <text x="745" y="196" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">Speech Recognition</text>
+                <text x="745" y="209" text-anchor="middle" font-family="'Segoe UI', sans-serif" font-size="9" fill="#64748b">(Mirrors Settings Accessibility)</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SYSTEM AND SECURITY ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">System <span class="accent">&amp; Security</span></div>
+        <div class="slide-subtitle">The most exam-dense category: firewall, BitLocker, Admin Tools, System Properties.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">System Properties</div>
+                <div class="card-desc">sysdm.cpl opens the 5-tab dialog: General, Computer Name, Hardware (Device Manager), Advanced (Performance, User Profiles, Startup/Recovery), System Protection (System Restore), Remote (RDP). Critical for exam scenarios.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Defender Firewall</div>
+                <div class="card-desc">Allow an app through firewall, create inbound/outbound rules, toggle on/off per network profile (Domain, Private, Public). Advanced Settings opens wf.msc for rule-based configuration.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">BitLocker Drive Encryption</div>
+                <div class="card-desc">Enable/disable full-disk encryption on OS and data drives. Requires TPM 1.2+ for OS drive without PIN, or PIN/USB startup key without TPM. Recovery key management. Pro/Enterprise only on workstations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Action Center (Security &amp; Maintenance)</div>
+                <div class="card-desc">Centralized status for Antivirus, Firewall, Windows Update, SmartScreen, UAC settings, and backup. Yellow flag = warning, red X = critical. Was renamed Security and Maintenance in Win 10.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Administrative Tools</div>
+                <div class="card-desc">Shortcut folder to: Computer Management, Event Viewer, Services, Task Scheduler, Performance Monitor, Resource Monitor, Local Security Policy, Component Services, ODBC Data Sources.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Power Options</div>
+                <div class="card-desc">Full power plan management: edit plan settings (screen and sleep timers), create custom plan, choose what closing lid or pressing power button does. The only place to access High Performance plan on most systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — NETWORK AND INTERNET ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Network <span class="accent">&amp; Internet</span></div>
+        <div class="slide-subtitle">Network and Sharing Center, adapter settings, and Internet Options.</div>
+
+        <!-- SVG: Network connection flow — NIC to Adapter to Protocol stack to Internet -->
+        <div class="diagram-center">
+            <svg width="740" height="80" viewBox="0 0 740 80" aria-label="Network connection flow: Physical NIC to Adapter Settings to IP Protocol Stack to Gateway to Internet" role="img">
+                <defs>
+                    <marker id="nc-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#475569"/></marker>
+                </defs>
+                <!-- Boxes -->
+                <rect x="5" y="18" width="110" height="44" rx="5" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="60" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">Physical NIC</text>
+                <text x="60" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Hardware</text>
+
+                <rect x="145" y="18" width="120" height="44" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="205" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">ncpa.cpl</text>
+                <text x="205" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Adapter Settings</text>
+
+                <rect x="295" y="18" width="140" height="44" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="365" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">IPv4 / DNS / DHCP</text>
+                <text x="365" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Protocol Stack</text>
+
+                <rect x="465" y="18" width="110" height="44" rx="5" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="520" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a78bfa">Default Gateway</text>
+                <text x="520" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Router</text>
+
+                <rect x="605" y="18" width="130" height="44" rx="5" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="670" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#60a5fa">Internet / LAN</text>
+                <text x="670" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Destination</text>
+
+                <!-- Connecting arrows with animated packet -->
+                <line x1="115" y1="40" x2="143" y2="40" stroke="#334155" stroke-width="1.5" marker-end="url(#nc-arr)"/>
+                <line x1="265" y1="40" x2="293" y2="40" stroke="#334155" stroke-width="1.5" marker-end="url(#nc-arr)"/>
+                <line x1="435" y1="40" x2="463" y2="40" stroke="#334155" stroke-width="1.5" marker-end="url(#nc-arr)"/>
+                <line x1="575" y1="40" x2="603" y2="40" stroke="#334155" stroke-width="1.5" marker-end="url(#nc-arr)"/>
+                <!-- Animated packet -->
+                <circle r="5" fill="#c9a83a" opacity="0.85">
+                    <animateMotion dur="3s" repeatCount="indefinite" path="M 60,40 L 205,40 L 365,40 L 520,40 L 670,40"/>
+                </circle>
+            </svg>
+        </div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Network and Sharing Center</div>
+                    <div class="card-desc">View active connections, change network profile (Private/Public/Domain), set up new connection, troubleshoot. Access adapter properties from here. Key path for static IP assignment: Change Adapter Settings &rarr; adapter &rarr; Properties &rarr; IPv4.</div>
                 </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Why It Still Matters</h3>
-                    <p class="card-description">Many critical administrative tools exist ONLY in Control Panel. Device Manager, advanced network settings, administrative tools, and power options all require Control Panel knowledge.</p>
+                <div class="card c-cyan">
+                    <div class="card-label">Change Adapter Settings</div>
+                    <div class="card-desc">ncpa.cpl lists all network adapters. Right-click &rarr; Properties for IPv4/IPv6 addressing, DNS, binding order. Right-click &rarr; Disable/Enable to cycle adapter. Right-click &rarr; Diagnose to run built-in repair.</div>
                 </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">What You'll Learn</h3>
-                    <p class="card-description">How to navigate Control Panel efficiently, access critical system tools, understand view modes, and know when to use Control Panel vs. Settings for optimal system management.</p>
+                <div class="card c-green">
+                    <div class="card-label">HomeGroup (Legacy)</div>
+                    <div class="card-desc">HomeGroup was removed in Windows 10 version 1803. Replaced by network sharing via workgroup or domain. If a question mentions HomeGroup it is testing legacy knowledge or a pre-1803 system.</div>
                 </div>
             </div>
-
-            <div class="key-points">
-                <h4>KEY TAKEAWAY</h4>
-                <ul>
-                    <li>Control Panel is <strong>legacy</strong> but NOT obsolete</li>
-                    <li>Many advanced features ONLY accessible through Control Panel</li>
-                    <li>IT professionals must master both Control Panel and Settings</li>
-                </ul>
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Internet Options (inetcpl.cpl)</div>
+                    <div class="card-desc">7 tabs: General, Security, Privacy, Content, Connections, Programs, Advanced. Controls IE and legacy Edge settings. Still used to configure: proxy, SSL/TLS cipher settings, trusted sites, pop-up blocker, certificate management.</div>
                 </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: Accessing Control Panel -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">Accessing Control Panel</h2>
-            <p class="slide-subtitle">Multiple methods for quick access</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-keyboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Method 1: Run Dialog</h3>
-                    <p class="card-description">
-                        <strong>Fastest method for professionals:</strong>
-                    </p>
-                    <div class="method-box">
-                        <div class="method-label">Press Win + R, then type:</div>
-                        <div class="method-command">control</div>
-                    </div>
-                    <p class="card-description" style="margin-top: 15px;">
-                        Pro tip: You can jump directly to specific applets using commands like <code style="color: #34d399;">ncpa.cpl</code> (Network Connections) or <code style="color: #34d399;">devmgmt.msc</code> (Device Manager).
-                    </p>
+                <div class="box box-cyan">
+                    <div class="box-label">Exam Path: Static IP</div>
+                    Control Panel &rarr; Network and Internet &rarr; Network and Sharing Center &rarr; Change adapter settings &rarr; right-click adapter &rarr; Properties &rarr; Internet Protocol Version 4 &rarr; Use the following IP address.
                 </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Method 2: Search</h3>
-                    <p class="card-description">
-                        <strong>User-friendly method:</strong>
-                    </p>
-                    <div class="method-box">
-                        <div class="method-label">Press Win key, then search:</div>
-                        <div class="method-command">Control Panel</div>
-                    </div>
-                    <p class="card-description" style="margin-top: 15px;">
-                        You can also search for specific Control Panel items like "Device Manager" or "Power Options" and Windows will take you directly there.
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Method 3: From Settings</h3>
-                    <p class="card-description">
-                        <strong>Modern transition path:</strong><br><br>
-                        Some Settings pages include links to Control Panel for advanced options. Look for "Additional settings" or "Advanced options" links at the bottom of Settings pages.
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-mouse.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Method 4: Right-Click Menu</h3>
-                    <p class="card-description">
-                        <strong>Context-specific access:</strong><br><br>
-                        Right-click on This PC → Properties → Advanced system settings<br>
-                        Right-click network icon → Network and Sharing Center
-                    </p>
+                <div class="scenario-strip">
+                    Ticket: User cannot connect after IP conflict. Open ncpa.cpl, right-click adapter, Properties, IPv4. Check if set to static. If so, verify address is outside DHCP pool. Release/Renew if switching to DHCP: ipconfig /release and /renew.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>PRO SHORTCUTS</h4>
-                <ul>
-                    <li><strong>control</strong> - Opens Control Panel</li>
-                    <li><strong>ncpa.cpl</strong> - Network Connections</li>
-                    <li><strong>devmgmt.msc</strong> - Device Manager</li>
-                    <li><strong>appwiz.cpl</strong> - Programs and Features</li>
-                    <li><strong>powercfg.cpl</strong> - Power Options</li>
-                </ul>
+<!-- ==================== SLIDE 6 — HARDWARE AND SOUND ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Hardware <span class="accent">&amp; Sound</span></div>
+        <div class="slide-subtitle">Device Manager, Devices and Printers, Sound applet, and Power Options.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Device Manager (devmgmt.msc)</div>
+                <div class="card-desc">Tree view of all hardware devices. Yellow exclamation = driver error. Red X = disabled device. Down arrow = driver disabled by user. Update, roll back, disable, uninstall drivers. View hidden devices (View &rarr; Show hidden devices) to find ghost devices.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: View Modes -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">Category View vs Icon View</h2>
-            <p class="slide-subtitle">Understanding Control Panel's two interfaces</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Category View (Default)</h3>
-                    <p class="card-description">
-                        <strong>Organized by functional groups:</strong><br>
-                        • System and Security<br>
-                        • Network and Internet<br>
-                        • Hardware and Sound<br>
-                        • Programs<br>
-                        • User Accounts<br>
-                        • Appearance and Personalization<br>
-                        • Clock and Region<br>
-                        • Ease of Access
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-square-filled.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Small Icons View</h3>
-                    <p class="card-description">
-                        <strong>Alphabetical list of all applets:</strong><br><br>
-                        Shows every Control Panel item as individual icons in alphabetical order. Preferred by IT professionals who know exactly what they're looking for.
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon">⬛</div>
-                    <h3 class="card-title">Large Icons View</h3>
-                    <p class="card-description">
-                        <strong>Same as Small Icons, bigger:</strong><br><br>
-                        Identical to Small Icons but with larger icons for better visibility. Useful for accessibility or training scenarios.
-                    </p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Devices and Printers</div>
+                <div class="card-desc">GUI view of connected peripherals. Right-click printer for: Set as default, Printing preferences, Printer properties, Troubleshoot. Add printer wizard launches here. Useful for basic printer management without WMI or PowerShell.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Which View Should You Use?</div>
-                <div class="scenario-content">
-                    <p><strong>Category View:</strong> Best for beginners or when browsing for related settings. Groups logical items together (e.g., all network settings in one place).</p>
-                    <p style="margin: 15px 0;"><strong>Icon View:</strong> Best for experienced users who know the exact applet name. Faster navigation when you know what you're looking for.</p>
-                    <p style="color: #34d399;"><strong>IT Professional Recommendation:</strong> Learn Icon View. It's faster once you memorize the key applets, and it's consistent across Windows versions.</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Sound (mmsys.cpl)</div>
+                <div class="card-desc">4 tabs: Playback, Recording, Sounds, Communications. Set default playback and recording devices. Configure exclusive mode, sample rate, bit depth. Communications tab auto-lowers other audio when Windows detects a call.</div>
             </div>
-
-            <div class="path-visual">
-                <strong>Change View:</strong> Click "View by:" dropdown in top-right of Control Panel
+            <div class="card c-gold">
+                <div class="card-label">Power Options (powercfg.cpl)</div>
+                <div class="card-desc">Balanced (default), Power Saver, High Performance, and custom plans. Edit plan: screen off and sleep timers. Change plan settings for lid close, power button, sleep button. Always available; balanced is the exam default. High Performance disables sleep.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: System and Security -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">System and Security</h2>
-            <p class="slide-subtitle">Core system configuration and protection</p>
-
-            <div class="content-grid">
-                <div class="category-card system">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Windows Defender Firewall</h3>
-                    <p class="category-description">Control inbound and outbound network traffic with Windows' built-in firewall</p>
-                    <ul class="category-features">
-                        <li>Turn firewall on/off per network type</li>
-                        <li>Allow apps through firewall</li>
-                        <li>Advanced security settings (wf.msc)</li>
-                        <li>Inbound/outbound rules</li>
-                        <li>Notification settings</li>
-                    </ul>
-                </div>
-
-                <div class="category-card system">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> System</h3>
-                    <p class="category-description">View system information and access advanced settings</p>
-                    <ul class="category-features">
-                        <li>Computer name, domain, workgroup</li>
-                        <li>Device specifications (CPU, RAM)</li>
-                        <li>Windows activation status</li>
-                        <li>Remote Desktop settings</li>
-                        <li>Advanced system settings</li>
-                    </ul>
-                </div>
-
-                <div class="category-card system">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-battery.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Power Options</h3>
-                    <p class="category-description">Configure power plans and sleep/hibernation settings</p>
-                    <ul class="category-features">
-                        <li>Balanced, Power saver, High performance</li>
-                        <li>Custom power plan creation</li>
-                        <li>Sleep and hibernation timers</li>
-                        <li>Power button behavior</li>
-                        <li>Advanced power settings (processor, display)</li>
-                    </ul>
-                </div>
-
-                <div class="category-card system">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Backup and Restore</h3>
-                    <p class="category-description">Legacy backup tools (File History preferred)</p>
-                    <ul class="category-features">
-                        <li>System image backup</li>
-                        <li>Create recovery drive</li>
-                        <li>System restore configuration</li>
-                        <li>Previous versions of files</li>
-                        <li>Restore from backup</li>
-                    </ul>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Display (Legacy)</div>
+                <div class="card-desc">Links to Screen Resolution and Display settings. Mostly replaced by Settings &rarr; Display in Win 10/11. Still appears in Control Panel for consistency. ClearType Text Tuner accessible here.</div>
             </div>
-
-            <div class="key-points">
-                <h4>CRITICAL TOOLS</h4>
-                <ul>
-                    <li><strong>System Properties:</strong> Access via System → Advanced system settings</li>
-                    <li><strong>Environment Variables:</strong> In System Properties → Advanced tab</li>
-                    <li><strong>Advanced Firewall:</strong> Run <code>wf.msc</code> for granular control</li>
-                    <li><strong>Power Plans:</strong> More detailed than Settings app</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">AutoPlay</div>
+                <div class="card-desc">Configures automatic media handling for removable drives, cameras, and discs. Set per media type: ask, open folder, run program, import. Disabling AutoPlay is a security hardening step to prevent AutoRun-style attacks.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 7 — PROGRAMS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title"><span class="accent">Programs</span></div>
+        <div class="slide-subtitle">Programs and Features, Windows features, and default programs.</div>
 
-        <!-- Slide 5: Network and Internet -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Network and Internet</h2>
-            <p class="slide-subtitle">Advanced networking configuration</p>
-
-            <div class="content-grid">
-                <div class="category-card network">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Network and Sharing Center</h3>
-                    <p class="category-description">Central hub for network configuration and troubleshooting</p>
-                    <ul class="category-features">
-                        <li>View active networks</li>
-                        <li>Change adapter settings (ncpa.cpl)</li>
-                        <li>Advanced sharing settings</li>
-                        <li>Network map (Home/Work networks)</li>
-                        <li>Troubleshoot network problems</li>
-                    </ul>
-                </div>
-
-                <div class="category-card network">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Network Connections</h3>
-                    <p class="category-description">Direct access to adapter properties (ncpa.cpl)</p>
-                    <ul class="category-features">
-                        <li>Configure static IP addresses</li>
-                        <li>Custom DNS servers</li>
-                        <li>Enable/disable IPv6</li>
-                        <li>Network adapter properties</li>
-                        <li>Bridge connections</li>
-                    </ul>
-                </div>
-
-                <div class="category-card network">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Internet Options</h3>
-                    <p class="category-description">Browser settings and security zones (inetcpl.cpl)</p>
-                    <ul class="category-features">
-                        <li>Security zones (Internet, Trusted, Restricted)</li>
-                        <li>Privacy and cookie settings</li>
-                        <li>Proxy server configuration</li>
-                        <li>Certificate management</li>
-                        <li>Clear browsing data</li>
-                    </ul>
-                </div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Programs and Features (appwiz.cpl)</div>
+                <div class="card-desc">Complete list of installed applications with publisher, install date, size, and version. Uninstall, Change (repair), or modify. View installed updates under "View installed updates." Sort by date for recently installed malware identification. Still works for Win32 apps that Settings cannot fully uninstall.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Why Control Panel for Networking?</div>
-                <div class="scenario-content">
-                    <p>The Settings app provides basic network configuration, but IT professionals need Control Panel for:</p>
-                    <ul style="margin: 15px 0 0 20px; color: #a89aba;">
-                        <li><strong>Static IP configuration:</strong> Precise control over IP, subnet, gateway, DNS</li>
-                        <li><strong>Protocol management:</strong> Enable/disable IPv6, configure QoS</li>
-                        <li><strong>Advanced adapter settings:</strong> Speed/duplex, power management, VLAN</li>
-                        <li><strong>Network bridging:</strong> Combine multiple adapters</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #34d399;"><strong>Bottom line:</strong> Settings handles Wi-Fi and basic Ethernet. Control Panel handles everything else.</p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Turn Windows Features On or Off</div>
+                <div class="card-desc">Check/uncheck Windows components: Hyper-V, Windows Sandbox, Internet Information Services (IIS), Telnet Client, TFTP Client, Windows Subsystem for Linux, .NET Framework versions, Print and Document Services. Requires restart for most changes.</div>
             </div>
-
-            <div class="path-visual">
-                <strong>Quick Access:</strong> Win + R → ncpa.cpl (Network Connections) | inetcpl.cpl (Internet Options)
+            <div class="card c-green">
+                <div class="card-label">Default Programs</div>
+                <div class="card-desc">Set Default Programs (per application, claim all associations). Associate a file type or protocol. Change AutoPlay settings. In Win 10/11, this mostly redirects to Settings &rarr; Apps &rarr; Default Apps for modern apps.</div>
             </div>
+            <div class="card c-gold">
+                <div class="card-label">View Installed Updates</div>
+                <div class="card-desc">Programs and Features &rarr; View installed updates. Shows individual Windows Updates with KB numbers and install dates. Right-click &rarr; Uninstall to remove a specific update. Used when rolling back a problematic patch without using System Restore.</div>
+            </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
+        <div class="box box-red">
+            <div class="box-label">Malware Removal Workflow</div>
+            Suspect software installed? Appwiz.cpl &rarr; sort by Install Date (descending) to identify recently added programs. Note publisher. If publisher is unknown or the program was installed without user knowledge, uninstall and scan with AV.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — USER ACCOUNTS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">User <span class="accent">Accounts</span></div>
+        <div class="slide-subtitle">Account management, UAC settings, and Credential Manager.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Manage Accounts</div>
+                <div class="card-desc">Create, delete, and change account type (Standard or Administrator). Change password (for other accounts as admin). Change account picture. In domain environments, use Computer Management &rarr; Local Users and Groups (lusrmgr.msc) instead.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">User Account Control (UAC)</div>
+                <div class="card-desc">Slider with 4 levels: Always notify &rarr; Notify only for app changes &rarr; Notify only without dimming &rarr; Never notify (off). Default is second level. Never notify disables UAC entirely, a security risk. Change UAC settings requires admin privileges.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Credential Manager</div>
+                <div class="card-desc">Stores Windows credentials (network shares, domain) and certificate-based credentials. Web Credentials: Internet Explorer and Edge legacy. Windows Credentials: UNC paths, RDP sessions, mapped drives. Used to update stored passwords when domain password changes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">netplwiz</div>
+                <div class="card-desc">Run netplwiz for advanced user account settings. Toggle "Users must enter a username and password to use this computer" for auto-login configuration. Useful for kiosk-type setups. Requires UAC elevation. Not accessible from Settings app directly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Account Type Differences</div>
+                <div class="card-desc">Administrator: unrestricted, can install software, change system settings, access all files. Standard User: limited, UAC prompts for elevation, cannot change system settings. Guest account disabled by default in Win 10/11.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Microsoft vs. Local Account</div>
+                <div class="card-desc">Local: no sync, no OneDrive auto-setup, no Microsoft Store sign-in without separate account. Microsoft: syncs settings, enables BitLocker recovery through Microsoft account, required for some features. Both can be admin or standard.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — INTERNET OPTIONS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Internet <span class="accent">Options</span></div>
+        <div class="slide-subtitle">inetcpl.cpl — 7 tabs that every technician must know cold.</div>
+
+        <table class="slide-table">
+            <thead><tr><th>Tab</th><th>Key Settings</th><th>Exam Relevance</th></tr></thead>
+            <tbody>
+                <tr><td><strong>General</strong></td><td>Home page, browsing history, appearance, tabs behavior</td><td>Reset IE settings, clear history</td></tr>
+                <tr><td><strong>Security</strong></td><td>Internet, Intranet, Trusted Sites, Restricted Sites zones; security level slider</td><td>Add sites to Trusted Zone for enterprise apps</td></tr>
+                <tr><td><strong>Privacy</strong></td><td>Cookie policy, pop-up blocker, InPrivate browsing settings</td><td>Unblock pop-ups for specific sites</td></tr>
+                <tr><td><strong>Content</strong></td><td>SSL certificate management, AutoComplete, content advisor</td><td>View/export/import certificates</td></tr>
+                <tr><td><strong>Connections</strong></td><td>Dial-up connections, LAN settings (proxy), VPN</td><td>Configure proxy: LAN Settings button</td></tr>
+                <tr><td><strong>Programs</strong></td><td>Default browser, HTML editor, add-ons</td><td>Manage browser add-ons</td></tr>
+                <tr><td><strong>Advanced</strong></td><td>SSL/TLS versions, security options, graphics acceleration, browsing settings</td><td>Enable TLS 1.2/1.3, disable SSLv3</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Proxy Configuration Path</div>
+            Internet Options &rarr; Connections tab &rarr; LAN Settings button &rarr; Check "Use a proxy server" &rarr; Enter IP and port. This also configures the proxy for legacy Edge and many enterprise applications that use the system proxy setting.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — ADMINISTRATIVE TOOLS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Administrative <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">The MMC snap-in launcher hub. Every tool here is also accessible by direct .msc command.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Computer Management (compmgmt.msc)</div>
+                <div class="card-desc">All-in-one: System Tools (Event Viewer, Task Scheduler, Device Manager, Disk Management), Storage, Services and Applications. The single most-used admin console on a Windows PC for A+ work.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Event Viewer (eventvwr.msc)</div>
+                <div class="card-desc">Windows Logs: Application (app events), Security (logon/logoff, privilege use), System (driver, hardware, service events), Setup. Custom Views for filtered queries. Subscriptions for remote log collection.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Services (services.msc)</div>
+                <div class="card-desc">Start, stop, pause, restart services. Set startup type: Automatic, Automatic (Delayed Start), Manual, Disabled. Recovery tab defines action on first/second/subsequent failure. Dependencies tab shows inter-service requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Task Scheduler (taskschd.msc)</div>
+                <div class="card-desc">Create and manage scheduled tasks. Triggers: on schedule, at logon, on event, at startup, on idle. Actions: run program, send email (deprecated), display message (deprecated). Used for maintenance scripts and monitoring.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Local Security Policy (secpol.msc)</div>
+                <div class="card-desc">Account Policies (password policy, lockout policy), Local Policies (audit policy, user rights, security options), Windows Firewall rules, Software Restriction. Not available on Home editions — only Pro/Enterprise.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Disk Management (diskmgmt.msc)</div>
+                <div class="card-desc">Create, delete, format, extend, shrink volumes. Convert MBR to GPT (with data loss). Initialize new disks. Change drive letters. Mark partition active. View disk status (Healthy, Failed, Unallocated, Foreign). Critical for storage troubleshooting.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — DEVICE MANAGER DEEP DIVE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">Device Manager <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">devmgmt.msc — the primary tool for hardware and driver troubleshooting.</div>
+
+        <!-- SVG: Device Manager device tree — category hierarchy with status indicators -->
+        <div class="diagram-center">
+            <svg width="520" height="165" viewBox="0 0 520 165" aria-label="Device Manager tree: categories with status indicators for normal, warning, error, disabled" role="img">
+                <!-- Root -->
+                <rect x="180" y="4" width="160" height="28" rx="4" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="260" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">COMPUTER</text>
+                <!-- Trunk line -->
+                <line x1="260" y1="32" x2="260" y2="50" stroke="#334155" stroke-width="1.5"/>
+                <line x1="80" y1="50" x2="440" y2="50" stroke="#334155" stroke-width="1.5"/>
+                <!-- Category branches -->
+                <!-- Display Adapters -->
+                <line x1="100" y1="50" x2="100" y2="72" stroke="#334155" stroke-width="1.2"/>
+                <rect x="30" y="72" width="140" height="26" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.2"/>
+                <text x="100" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4">Display Adapters</text>
+                <!-- Child: OK -->
+                <line x1="100" y1="98" x2="100" y2="115" stroke="#1e293b" stroke-width="1"/>
+                <rect x="30" y="115" width="140" height="22" rx="3" fill="rgba(0,0,0,0.2)" stroke="#1e293b" stroke-width="1"/>
+                <circle cx="50" cy="126" r="5" fill="rgba(58,181,119,0.4)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="57" y="130" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577">OK</text>
+                <text x="100" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#64748b">GPU — normal</text>
+
+                <!-- Network Adapters -->
+                <line x1="220" y1="50" x2="220" y2="72" stroke="#334155" stroke-width="1.2"/>
+                <rect x="150" y="72" width="140" height="26" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="220" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577">Network Adapters</text>
+                <!-- Child: Warning -->
+                <line x1="220" y1="98" x2="220" y2="115" stroke="#1e293b" stroke-width="1"/>
+                <rect x="150" y="115" width="140" height="22" rx="3" fill="rgba(0,0,0,0.2)" stroke="#1e293b" stroke-width="1"/>
+                <text x="172" y="130" font-family="Segoe UI,sans-serif" font-size="10" font-weight="900" fill="#eab308">!</text>
+                <text x="220" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#eab308">WiFi — Code 10</text>
+                <animate attributeName="opacity" values="1;0.5;1" dur="1.5s" repeatCount="indefinite"/>
+
+                <!-- Unknown Device -->
+                <line x1="340" y1="50" x2="340" y2="72" stroke="#334155" stroke-width="1.2"/>
+                <rect x="270" y="72" width="140" height="26" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="340" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">Other Devices</text>
+                <!-- Child: Unknown -->
+                <line x1="340" y1="98" x2="340" y2="115" stroke="#1e293b" stroke-width="1"/>
+                <rect x="270" y="115" width="140" height="22" rx="3" fill="rgba(0,0,0,0.2)" stroke="#1e293b" stroke-width="1"/>
+                <text x="292" y="130" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">?</text>
+                <text x="340" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">Unknown — no driver</text>
+
+                <!-- USB Controllers - Disabled -->
+                <line x1="420" y1="50" x2="420" y2="72" stroke="#334155" stroke-width="1.2"/>
+                <rect x="385" y="72" width="120" height="26" rx="4" fill="rgba(100,116,139,0.1)" stroke="#475569" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <text x="445" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#475569">USB</text>
+                <!-- Child: Disabled -->
+                <line x1="445" y1="98" x2="445" y2="115" stroke="#1e293b" stroke-width="1"/>
+                <rect x="385" y="115" width="120" height="22" rx="3" fill="rgba(0,0,0,0.2)" stroke="#1e293b" stroke-width="1"/>
+                <text x="407" y="130" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">v</text>
+                <text x="445" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Hub — disabled</text>
+            </svg>
+        </div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">Error Indicators</div>
+                    <div class="card-desc">Yellow exclamation (!): driver error or conflict. Red X: device disabled. Down arrow: manually disabled. No indicator: working correctly. Code 43: hardware reported a problem (common for USB devices). Code 10: device cannot start.</div>
                 </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Hardware and Sound -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Hardware and Sound</h2>
-            <p class="slide-subtitle">Device configuration and driver management</p>
-
-            <div class="content-grid">
-                <div class="category-card hardware">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Device Manager</h3>
-                    <p class="category-description">THE essential tool for hardware troubleshooting</p>
-                    <ul class="category-features">
-                        <li>View all installed hardware</li>
-                        <li>Update, rollback, disable drivers</li>
-                        <li>Identify hardware conflicts (yellow warnings)</li>
-                        <li>Uninstall devices</li>
-                        <li>Scan for hardware changes</li>
-                    </ul>
+                <div class="card c-cyan">
+                    <div class="card-label">Driver Operations</div>
+                    <div class="card-desc">Update driver (search online or browse locally). Roll back driver (reverts to previous version — one level only). Disable: stops device without uninstalling. Uninstall device: removes driver; Windows may reinstall on reboot. Delete driver software: removes package from store.</div>
                 </div>
-
-                <div class="category-card hardware">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Sound</h3>
-                    <p class="category-description">Advanced audio device configuration</p>
-                    <ul class="category-features">
-                        <li>Set default playback/recording devices</li>
-                        <li>Device properties and enhancements</li>
-                        <li>Sound scheme configuration</li>
-                        <li>Communications tab (auto-ducking)</li>
-                        <li>Advanced audio format settings</li>
-                    </ul>
-                </div>
-
-                <div class="category-card hardware">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-printer.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Devices and Printers</h3>
-                    <p class="category-description">Manage connected devices and peripherals</p>
-                    <ul class="category-features">
-                        <li>Add/remove printers</li>
-                        <li>Set default printer</li>
-                        <li>Printer properties and preferences</li>
-                        <li>View device properties</li>
-                        <li>Troubleshoot device issues</li>
-                    </ul>
-                </div>
-
-                <div class="category-card hardware">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> AutoPlay</h3>
-                    <p class="category-description">Configure automatic actions for removable media</p>
-                    <ul class="category-features">
-                        <li>Set default actions for USB drives</li>
-                        <li>Media card behavior (camera, phone)</li>
-                        <li>DVD/CD autoplay settings</li>
-                        <li>Per-device-type configuration</li>
-                        <li>Disable AutoPlay entirely (security)</li>
-                    </ul>
+                <div class="card c-green">
+                    <div class="card-label">View Options</div>
+                    <div class="card-desc">View &rarr; Show hidden devices: reveals non-present hardware (ghost devices from disconnected drives or old NICs). View &rarr; Devices by connection: shows PCI/USB topology. View &rarr; Resources by type: IRQ, I/O, DMA assignments.</div>
                 </div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Device Manager: Your Best Friend</div>
-                <div class="scenario-content">
-                    <p><strong>Common troubleshooting tasks in Device Manager:</strong></p>
-                    <ul style="margin: 15px 0 0 20px; color: #a89aba; line-height: 1.8;">
-                        <li><strong>Yellow triangle:</strong> Driver problem or hardware conflict</li>
-                        <li><strong>Red X:</strong> Device is disabled</li>
-                        <li><strong>Down arrow:</strong> Device manually disabled</li>
-                        <li><strong>Update driver:</strong> Install newer driver from manufacturer</li>
-                        <li><strong>Rollback driver:</strong> Revert to previous working driver</li>
-                        <li><strong>Uninstall device:</strong> Remove and re-detect hardware</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #f59e0b;"><strong>Pro tip:</strong> After driver issues, uninstall the device, reboot, let Windows detect and reinstall it fresh.</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <table class="slide-table">
+                    <thead><tr><th>Error Code</th><th>Meaning</th><th>Common Fix</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Code 1</strong></td><td>Not configured</td><td>Reinstall driver</td></tr>
+                        <tr><td><strong>Code 10</strong></td><td>Cannot start</td><td>Update/reinstall driver</td></tr>
+                        <tr><td><strong>Code 22</strong></td><td>Device disabled</td><td>Enable in Device Manager</td></tr>
+                        <tr><td><strong>Code 28</strong></td><td>No driver</td><td>Install driver</td></tr>
+                        <tr><td><strong>Code 43</strong></td><td>Hardware failure</td><td>Replace device or reinstall USB drivers</td></tr>
+                        <tr><td><strong>Code 45</strong></td><td>Not connected</td><td>Reconnect or clear ghost device</td></tr>
+                    </tbody>
+                </table>
+                <div class="box box-gold">
+                    <div class="box-label">Driver Signing</div>
+                    Windows 64-bit requires digitally signed drivers. Unsigned driver installs fail without disabling Secure Boot / enabling Test Mode. In enterprise, use WHQL-certified drivers for stability.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="path-visual">
-                <strong>Quick Access:</strong> Win + R → devmgmt.msc (Device Manager) | mmsys.cpl (Sound)
+<!-- ==================== SLIDE 12 — PROGRAMS AND FEATURES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Programs <span class="accent">&amp; Features</span></div>
+        <div class="slide-subtitle">Uninstall, repair, and manage installed software and Windows components.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Uninstall a Program</div>
+                <div class="card-desc">Select program, click Uninstall. Some programs offer Uninstall, Change (repair/modify), or Repair. If Uninstall fails, use vendor removal tool or Microsoft's "Microsoft Support and Recovery Assistant." Residual files may remain in Program Files.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Programs & User Accounts -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Programs & User Accounts</h2>
-            <p class="slide-subtitle">Application management and account security</p>
-
-            <div class="content-grid">
-                <div class="category-card programs">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Programs and Features</h3>
-                    <p class="category-description">Uninstall or change traditional desktop programs</p>
-                    <ul class="category-features">
-                        <li>Uninstall desktop applications</li>
-                        <li>Change or repair installations</li>
-                        <li>View installed updates</li>
-                        <li>Turn Windows features on/off</li>
-                        <li>View program install dates and sizes</li>
-                    </ul>
-                </div>
-
-                <div class="category-card programs">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Default Programs</h3>
-                    <p class="category-description">Control file associations and protocols</p>
-                    <ul class="category-features">
-                        <li>Set default programs</li>
-                        <li>Associate file type with program</li>
-                        <li>Set protocol defaults (http, mailto)</li>
-                        <li>Set defaults by file extension</li>
-                        <li>AutoPlay defaults</li>
-                    </ul>
-                </div>
-
-                <div class="category-card">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> User Accounts</h3>
-                    <p class="category-description">Manage local user accounts and passwords</p>
-                    <ul class="category-features">
-                        <li>Create/delete local accounts</li>
-                        <li>Change account type (Admin/Standard)</li>
-                        <li>Change account password</li>
-                        <li>Manage User Account Control (UAC)</li>
-                        <li>Configure Family Safety</li>
-                    </ul>
-                </div>
-
-                <div class="category-card">
-                    <h3 class="category-name"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Credential Manager</h3>
-                    <p class="category-description">Store and manage saved credentials</p>
-                    <ul class="category-features">
-                        <li>Web credentials (passwords)</li>
-                        <li>Windows credentials (network shares)</li>
-                        <li>Certificate-based credentials</li>
-                        <li>Remove saved passwords</li>
-                        <li>Backup/restore credentials</li>
-                    </ul>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">View Installed Updates</div>
+                <div class="card-desc">Left panel link. Lists all installed Windows Update KB articles. Sort by "Installed On" to find recent updates. Right-click &rarr; Uninstall to remove. Cannot remove security-only packages or cumulative updates on Win 10/11 (some are protected).</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Programs and Features vs Settings</div>
-                <div class="scenario-content">
-                    <p><strong>Settings → Apps → Installed apps</strong> shows both Store apps and desktop programs in one unified list (modern approach).</p>
-                    <p style="margin: 15px 0;"><strong>Control Panel → Programs and Features</strong> shows ONLY traditional desktop programs and provides more detailed information (install date, size, publisher).</p>
-                    <p style="color: #34d399;"><strong>When to use Programs and Features:</strong> When you need to access Windows Features on/off, view update history, or repair an installation (not available in Settings).</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Turn Windows Features On or Off</div>
+                <div class="card-desc">Checkboxes for optional Windows components. Checked = installed, cleared = removed (not deleted, can be re-added). Half-filled = partially installed. Examples: IIS, Hyper-V, WSL, Telnet Client, SNMP, DirectPlay (legacy gaming), XPS Viewer.</div>
             </div>
-
-            <div class="path-visual">
-                <strong>Quick Access:</strong> Win + R → appwiz.cpl (Programs and Features)
+            <div class="card c-gold">
+                <div class="card-label">Exam Windows Features</div>
+                <div class="card-desc">Telnet Client: test port connectivity (telnet host port). TFTP Client: file transfer to network devices. IIS: local web server for development. Hyper-V: requires Pro/Enterprise + hardware virtualization. WSL: Linux environment in Windows.</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
+        <div class="box box-cyan">
+            <div class="box-label">Telnet as a Diagnostic Tool</div>
+            telnet smtp.domain.com 25 — if it connects, port 25 is open. If it hangs or refuses, the port is blocked by firewall or the service is down. Telnet Client must be installed first via Windows Features. In Win 10/11, Test-NetConnection (PowerShell) is the modern alternative.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — CREDENTIAL MANAGER ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Credential <span class="accent">Manager</span></div>
+        <div class="slide-subtitle">Stored authentication tokens for network resources, RDP, mapped drives, and web.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Windows Credentials</div>
+                <div class="card-desc">Stores credentials for: network shares (\\server\share), RDP sessions, HomeGroup (legacy), certificate-based authentication. Username, domain, and encrypted password stored per resource. Edit or remove when password changes to prevent repeated auth failures.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Certificate-Based Credentials</div>
+                <div class="card-desc">X.509 certificate credentials for smart card or certificate-based authentication. Linked to specific certificates in the certificate store. Used in high-security environments where password auth is insufficient.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Web Credentials</div>
+                <div class="card-desc">Stores credentials saved by Internet Explorer and legacy Microsoft Edge. Modern Edge uses its own credential store. Synced with Microsoft Account if enabled. Can be a privacy concern — exported or scraped by credential-harvesting malware.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Backup and Restore</div>
+                <div class="card-desc">Back up credentials to an encrypted .crd file. Restore to another PC or after OS reinstall. Useful in enterprise migrations where mapped drive credentials need to move with user profiles. Password required for decrypt.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Ticket: "User gets repeated password prompts when opening mapped drive after password change." Solution: Control Panel &rarr; Credential Manager &rarr; Windows Credentials &rarr; find the network resource entry &rarr; Edit &rarr; update password. No further prompts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — FILE EXPLORER OPTIONS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">File Explorer <span class="accent">Options</span></div>
+        <div class="slide-subtitle">Formerly "Folder Options" — controls how File Explorer displays files and folders.</div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">General Tab</div>
+                    <div class="card-desc">Open File Explorer to: Quick Access or This PC. Browse folders: open each in same or new window. Click items: single-click (IE style) or double-click (default). Privacy: show recent files and folders in Quick Access.</div>
                 </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Administrative Tools -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Administrative Tools</h2>
-            <p class="slide-subtitle">Advanced system management utilities</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Services (services.msc)</h3>
-                    <p class="card-description">
-                        <strong>Manage Windows background services:</strong><br>
-                        • Start, stop, restart services<br>
-                        • Configure startup type (Automatic, Manual, Disabled)<br>
-                        • Set service dependencies<br>
-                        • Configure recovery actions on failure<br>
-                        • Log on credentials for services
-                    </p>
+                <div class="card c-cyan">
+                    <div class="card-label">View Tab</div>
+                    <div class="card-desc">Key toggles: Show hidden files/folders/drives. Hide extensions for known file types (default on — security risk, enables double extension attacks). Hide protected operating system files. Show full path in title bar. Separate process for each window.</div>
                 </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Event Viewer (eventvwr.msc)</h3>
-                    <p class="card-description">
-                        <strong>View system, security, and application logs:</strong><br>
-                        • Troubleshoot errors and warnings<br>
-                        • Track security events (login attempts)<br>
-                        • Monitor application crashes<br>
-                        • Create custom views and filters<br>
-                        • Export logs for analysis
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Task Scheduler (taskschd.msc)</h3>
-                    <p class="card-description">
-                        <strong>Automate tasks and scripts:</strong><br>
-                        • Schedule program execution<br>
-                        • Trigger on events (login, startup, idle)<br>
-                        • Run with elevated privileges<br>
-                        • Configure conditions (AC power, idle time)<br>
-                        • View Windows scheduled tasks
-                    </p>
-                </div>
-
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Other Critical Tools</h3>
-                    <p class="card-description">
-                        <strong>Additional administrative utilities:</strong><br>
-                        • <strong>Computer Management:</strong> Unified console<br>
-                        • <strong>Disk Management:</strong> Partition drives<br>
-                        • <strong>Performance Monitor:</strong> System metrics<br>
-                        • <strong>Resource Monitor:</strong> Real-time usage<br>
-                        • <strong>Local Security Policy:</strong> Security settings
-                    </p>
+                <div class="card c-green">
+                    <div class="card-label">Search Tab</div>
+                    <div class="card-desc">Index settings, search non-indexed locations. "Don't use the index when searching" for real-time but slower searches. Include system directories and compressed files in search.</div>
                 </div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Real-World: Troubleshooting with Administrative Tools</div>
-                <div class="scenario-content">
-                    <p><strong>Scenario:</strong> A service keeps crashing on startup. How do you diagnose it?</p>
-                    <ol style="margin: 15px 0 0 20px; color: #a89aba; line-height: 1.8;">
-                        <li><strong>Event Viewer:</strong> Check Application and System logs for error events related to the service</li>
-                        <li><strong>Services:</strong> Verify service startup type and dependencies</li>
-                        <li><strong>Services (Recovery tab):</strong> Configure what happens on failure (restart service, run program, etc.)</li>
-                        <li><strong>Task Scheduler:</strong> Check if any tasks interact with the service</li>
-                        <li><strong>Event Viewer (again):</strong> Monitor for new errors after configuration changes</li>
-                    </ol>
-                    <p style="margin-top: 15px; color: #34d399;"><strong>This workflow is ONLY possible with Control Panel Administrative Tools.</strong></p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-red">
+                    <div class="box-label">Security Setting</div>
+                    "Hide extensions for known file types" is enabled by default. This allows malware named "invoice.pdf.exe" to display as "invoice.pdf" in File Explorer. Technicians should disable this on all managed systems.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Show Hidden Files</div>
+                    Required for virus removal, profile troubleshooting, and AppData access. View tab &rarr; "Show hidden files, folders, and drives." Also show protected OS files to see pagefile.sys and hiberfil.sys.
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">Quick Access</div>
+                    Pinned folders and recent files. Right-click any folder to pin. Right-click recent files to remove from history. Privacy: clear Quick Access history under General tab &rarr; Clear File Explorer History.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>ESSENTIAL SHORTCUTS</h4>
-                <ul>
-                    <li><strong>services.msc</strong> - Services management</li>
-                    <li><strong>eventvwr.msc</strong> - Event Viewer</li>
-                    <li><strong>taskschd.msc</strong> - Task Scheduler</li>
-                    <li><strong>compmgmt.msc</strong> - Computer Management (unified console)</li>
-                    <li><strong>perfmon.msc</strong> - Performance Monitor</li>
-                </ul>
-            </div>
+<!-- ==================== SLIDE 15 — SYSTEM PROPERTIES DEEP DIVE ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">System <span class="accent">Properties</span></div>
+        <div class="slide-subtitle">sysdm.cpl — 5 tabs covering computer info, hardware, performance, restore, and remote access.</div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+        <table class="slide-table">
+            <thead><tr><th>Tab</th><th>What Is Here</th><th>Common Use</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Computer Name</strong></td><td>NetBIOS name, workgroup or domain membership, full computer description</td><td>Rename computer, join/leave domain</td></tr>
+                <tr><td><strong>Hardware</strong></td><td>Device Manager shortcut, Device Installation Settings, Drivers (signature enforcement)</td><td>Launch Device Manager, configure driver signing</td></tr>
+                <tr><td><strong>Advanced</strong></td><td>Performance (visual effects, virtual memory), User Profiles, Startup and Recovery (default OS, BSOD settings, dump file type)</td><td>Change pagefile size, configure BSOD dump</td></tr>
+                <tr><td><strong>System Protection</strong></td><td>Configure System Restore per drive: enable/disable, max disk usage. Create restore point, System Restore wizard</td><td>Create restore point before changes; restore after failure</td></tr>
+                <tr><td><strong>Remote</strong></td><td>Remote Assistance (allow helpers to connect), Remote Desktop (allow RDP connections), select allowed users</td><td>Enable RDP, add users to Remote Desktop Users group</td></tr>
+            </tbody>
+        </table>
 
-        <!-- Slide 9: Knowledge Check -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Test your understanding</p>
+        <div class="box box-gold">
+            <div class="box-label">Virtual Memory Path</div>
+            Advanced tab &rarr; Performance &rarr; Settings &rarr; Advanced tab &rarr; Virtual memory &rarr; Change. Default: system managed. Manual: set initial and maximum size. Rule of thumb: 1.5x RAM minimum, 3x RAM maximum. Moving pagefile to non-OS drive improves performance.
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario 1</div>
-                <div class="scenario-content">
-                    <p>You need to configure a static IP address with custom DNS servers and disable IPv6 on a network adapter. Where should you go?</p>
+<!-- ==================== SLIDE 16 — DIRECT APPLET COMMANDS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Direct Applet <span class="accent">Commands</span></div>
+        <div class="slide-subtitle">Win + R shortcuts that bypass Control Panel navigation entirely.</div>
 
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">A) Settings → Network & Internet → Ethernet</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1')">B) Control Panel → Network Connections (ncpa.cpl) → Adapter Properties</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">C) Device Manager → Network adapters</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">D) Settings → System → About → Advanced system settings</button>
-
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
-            </div>
-
-            <div class="scenario-box" id="quiz2">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario 2</div>
-                <div class="scenario-content">
-                    <p>A user reports their USB wireless mouse stopped working after a Windows update. Which tool should you check first to identify driver issues?</p>
-
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">A) Settings → Bluetooth & devices</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2')">B) Device Manager (devmgmt.msc)</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">C) Control Panel → Devices and Printers</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">D) Event Viewer → Application log</button>
-
-                    <div class="feedback" id="feedback-quiz2"></div>
-                </div>
-            </div>
-
-            <div class="scenario-box" id="quiz3">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario 3</div>
-                <div class="scenario-content">
-                    <p>You want to schedule a PowerShell script to run every day at 2 AM with administrator privileges. Which tool do you use?</p>
-
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">A) Control Panel → System and Security → Administrative Tools</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz3')">B) Task Scheduler (taskschd.msc)</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">C) Services (services.msc)</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">D) Settings → Apps → Startup</button>
-
-                    <div class="feedback" id="feedback-quiz3"></div>
-                </div>
-            </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 10: Control Panel vs Settings Decision Guide -->
-        <section class="slide" data-slide="10">
-            <h2 class="slide-title">Control Panel vs Settings</h2>
-            <p class="slide-subtitle">Decision guide for IT professionals</p>
-
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Task</th>
-                        <th scope="col">Use Control Panel</th>
-                        <th scope="col">Use Settings</th>
-                    </tr>
-                </thead>
+        <div class="card-grid-2">
+            <table class="slide-table">
+                <thead><tr><th>Command</th><th>Opens</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><strong>Change wallpaper/theme</strong></td>
-                        <td class="feature-no">Legacy option</td>
-                        <td class="feature-yes">Modern, easy</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Configure static IP</strong></td>
-                        <td class="feature-yes">Full control</td>
-                        <td class="feature-limited">Basic only</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Disable IPv6</strong></td>
-                        <td class="feature-yes">Required</td>
-                        <td class="feature-no">Not available</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Install/remove programs</strong></td>
-                        <td class="feature-yes">Desktop apps</td>
-                        <td class="feature-yes">All apps</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Access Device Manager</strong></td>
-                        <td class="feature-yes">Direct access</td>
-                        <td class="feature-no">Not available</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Manage Services</strong></td>
-                        <td class="feature-yes">services.msc</td>
-                        <td class="feature-no">Not available</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Configure Windows Update</strong></td>
-                        <td class="feature-limited">Some options</td>
-                        <td class="feature-yes">Primary interface</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Advanced Power Plans</strong></td>
-                        <td class="feature-yes">Detailed control</td>
-                        <td class="feature-limited">Simplified</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Firewall rules (advanced)</strong></td>
-                        <td class="feature-yes">wf.msc required</td>
-                        <td class="feature-no">Basic only</td>
-                    </tr>
-                    <tr>
-                        <td><strong>View Event Logs</strong></td>
-                        <td class="feature-yes">eventvwr.msc</td>
-                        <td class="feature-no">Not available</td>
-                    </tr>
+                    <tr><td><strong>control</strong></td><td>Control Panel home</td></tr>
+                    <tr><td><strong>sysdm.cpl</strong></td><td>System Properties</td></tr>
+                    <tr><td><strong>appwiz.cpl</strong></td><td>Programs and Features</td></tr>
+                    <tr><td><strong>ncpa.cpl</strong></td><td>Network Connections</td></tr>
+                    <tr><td><strong>inetcpl.cpl</strong></td><td>Internet Options</td></tr>
+                    <tr><td><strong>firewall.cpl</strong></td><td>Windows Defender Firewall</td></tr>
+                    <tr><td><strong>mmsys.cpl</strong></td><td>Sound applet</td></tr>
+                    <tr><td><strong>powercfg.cpl</strong></td><td>Power Options</td></tr>
                 </tbody>
             </table>
+            <table class="slide-table">
+                <thead><tr><th>Command</th><th>Opens</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>timedate.cpl</strong></td><td>Date and Time</td></tr>
+                    <tr><td><strong>intl.cpl</strong></td><td>Region (International)</td></tr>
+                    <tr><td><strong>devmgmt.msc</strong></td><td>Device Manager</td></tr>
+                    <tr><td><strong>diskmgmt.msc</strong></td><td>Disk Management</td></tr>
+                    <tr><td><strong>compmgmt.msc</strong></td><td>Computer Management</td></tr>
+                    <tr><td><strong>services.msc</strong></td><td>Services</td></tr>
+                    <tr><td><strong>secpol.msc</strong></td><td>Local Security Policy</td></tr>
+                    <tr><td><strong>netplwiz</strong></td><td>User Accounts (advanced)</td></tr>
+                </tbody>
+            </table>
+        </div>
 
-            <div class="key-points">
-                <h3>DECISION FRAMEWORK</h3>
-                <ul>
-                    <li><strong>Use Settings for:</strong> Modern features, user-friendly tasks, touch interfaces</li>
-                    <li><strong>Use Control Panel for:</strong> Advanced networking, Device Manager, Administrative Tools</li>
-                    <li><strong>Reality check:</strong> You MUST know both. Settings is the future, Control Panel is the present.</li>
-                    <li><strong>Pro approach:</strong> Try Settings first. If you hit a wall, jump to Control Panel.</li>
-                </ul>
+        <div class="box box-gold">
+            <div class="box-label">Exam Strategy</div>
+            Many A+ scenario questions describe a task and ask which tool to use. Memorize .cpl and .msc commands. Faster than navigating menus in the field and often the only path when the Start menu or taskbar is unavailable (safe mode, kiosk mode, broken shell).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — WINDOWS DEFENDER FIREWALL ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Windows Defender <span class="accent">Firewall</span></div>
+        <div class="slide-subtitle">firewall.cpl — network profile rules, app exceptions, and advanced inbound/outbound rules.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Network Profiles</div>
+                <div class="card-desc">Domain: applied when joined to an AD domain. Private: trusted network (home, office). Public: untrusted network (coffee shop, airport). Firewall rules are profile-specific. A remote app can work on Private but be blocked on Public.</div>
             </div>
+            <div class="card c-cyan">
+                <div class="card-label">Allow an App Through</div>
+                <div class="card-desc">firewall.cpl &rarr; Allow an app or feature. Check application name, select profiles (Domain, Private, Public). Change Settings button required to modify. "Allow another app" to add unlisted programs. Does not create granular port rules.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Advanced Settings (wf.msc)</div>
+                <div class="card-desc">Windows Firewall with Advanced Security. Create: Inbound rules (block incoming traffic to a port), Outbound rules (block application from contacting internet), Connection Security rules (IPsec). Sort by profile, protocol, port, or application. Monitoring tab shows active rules.</div>
+            </div>
+        </div>
 
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> When Control Panel Is Irreplaceable</div>
-                <div class="scenario-content">
-                    <p><strong>These tasks REQUIRE Control Panel (no Settings alternative):</strong></p>
-                    <ul style="margin: 10px 0 0 20px; color: #a89aba; line-height: 1.8;">
-                        <li>Advanced network adapter configuration (static IP, DNS, IPv6 disable)</li>
-                        <li>Device Manager (driver management, hardware troubleshooting)</li>
-                        <li>Services management (start/stop/configure Windows services)</li>
-                        <li>Event Viewer (system/security/application logs)</li>
-                        <li>Task Scheduler (automated task creation)</li>
-                        <li>Advanced firewall rules (port-specific, program-specific)</li>
-                        <li>Internet Options (security zones, certificates, proxy)</li>
-                        <li>Credential Manager (saved passwords, network credentials)</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #f59e0b;"><strong>Bottom line:</strong> Microsoft says "use Settings," but reality says "master both."</p>
+        <!-- SVG: Firewall allow/deny flow — inbound packet decision path -->
+        <div class="diagram-center">
+            <svg width="780" height="95" viewBox="0 0 780 95" aria-label="Firewall allow deny flow: packet arrives, check profile, check rules, allow or block" role="img">
+                <defs>
+                    <marker id="fw-arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#3ab577"/></marker>
+                    <marker id="fw-arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#ef4444"/></marker>
+                    <marker id="fw-arr-n" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#475569"/></marker>
+                </defs>
+                <!-- Packet arrives -->
+                <rect x="5" y="28" width="100" height="38" rx="5" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="55" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#60a5fa">Inbound</text>
+                <text x="55" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#60a5fa">Packet</text>
+                <line x1="105" y1="47" x2="135" y2="47" stroke="#334155" stroke-width="1.5" marker-end="url(#fw-arr-n)"/>
+                <!-- Animated packet -->
+                <circle r="4" fill="#60a5fa" opacity="0.8">
+                    <animateMotion dur="4s" repeatCount="indefinite" path="M 55,47 L 185,47 L 330,47"/>
+                </circle>
+                <!-- Profile check -->
+                <polygon points="185,28 260,47 185,66 110,47" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="185" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a">Network</text>
+                <text x="185" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Profile?</text>
+                <line x1="260" y1="47" x2="290" y2="47" stroke="#334155" stroke-width="1.5" marker-end="url(#fw-arr-n)"/>
+                <!-- Rule match -->
+                <polygon points="330,28 405,47 330,66 255,47" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="330" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4">Rule</text>
+                <text x="330" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4">Match?</text>
+                <!-- Yes — Allow -->
+                <line x1="405" y1="47" x2="450" y2="47" stroke="#3ab577" stroke-width="1.5" marker-end="url(#fw-arr-g)"/>
+                <text x="425" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577">Allow</text>
+                <rect x="452" y="28" width="110" height="38" rx="5" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="507" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">ALLOW</text>
+                <text x="507" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Pass to app</text>
+                <!-- No — Block -->
+                <line x1="330" y1="66" x2="330" y2="85" stroke="#ef4444" stroke-width="1.5" marker-end="url(#fw-arr-r)"/>
+                <text x="335" y="82" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">No match / Block rule</text>
+                <line x1="452" y1="66" x2="452" y2="85" stroke="#334155" stroke-width="1"/>
+                <!-- Default deny -->
+                <rect x="610" y="28" width="150" height="38" rx="5" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="685" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#ef4444">BLOCK</text>
+                <text x="685" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Packet dropped</text>
+                <line x1="570" y1="47" x2="608" y2="47" stroke="#ef4444" stroke-width="1.5" marker-end="url(#fw-arr-r)"/>
+                <text x="590" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">Block</text>
+            </svg>
+        </div>
+
+        <table class="slide-table" style="margin-top:4px;">
+            <thead><tr><th>Task</th><th>Tool</th><th>Path</th></tr></thead>
+            <tbody>
+                <tr><td>Turn firewall on/off</td><td>firewall.cpl</td><td>Turn Windows Defender Firewall on or off</td></tr>
+                <tr><td>Allow a program</td><td>firewall.cpl</td><td>Allow an app or feature through</td></tr>
+                <tr><td>Block a port (inbound)</td><td>wf.msc</td><td>Inbound Rules &rarr; New Rule &rarr; Port</td></tr>
+                <tr><td>Block an outbound app</td><td>wf.msc</td><td>Outbound Rules &rarr; New Rule &rarr; Program</td></tr>
+                <tr><td>Reset to defaults</td><td>firewall.cpl</td><td>Restore defaults (removes all custom rules)</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — INDEXING OPTIONS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Indexing <span class="accent">Options</span></div>
+        <div class="slide-subtitle">Control which locations Windows Search indexes for fast file and content retrieval.</div>
+
+        <div class="layout-split">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">What Is Indexed</div>
+                    <div class="card-desc">By default: Start Menu, user profile folders (Documents, Music, Videos, Pictures, Desktop, Downloads, AppData\Roaming). Can add more locations (e.g., D:\Projects). Can exclude specific folders within indexed locations.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">Advanced Options</div>
+                    <div class="card-desc">Rebuild index (resolves search errors, slow after rebuild). Change index location (move index database to non-OS drive for performance). File types tab: set which extensions are indexed by properties only or properties + content.</div>
+                </div>
+                <div class="card c-green">
+                    <div class="card-label">Troubleshooting Search</div>
+                    <div class="card-desc">If Windows Search returns no or incorrect results: Indexing Options &rarr; Advanced &rarr; Rebuild. Index status shows number of items indexed. May take 30-60 minutes on first build. Search service: WSearch must be running (services.msc).</div>
                 </div>
             </div>
-
-            <div class="scenario-box" style="text-align: center;">
-                <div class="scenario-title" style="justify-content: center;"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Module Complete!</div>
-                <div class="scenario-content">
-                    <p>You now understand Windows Control Panel and can confidently navigate both legacy and modern Windows interfaces.</p>
-                    <p style="margin-top: 15px;"><strong>Key Takeaway:</strong> Control Panel isn't going away anytime soon. Settings handles common tasks, but Control Panel owns the advanced features IT professionals need daily.</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-gold">
+                    <div class="box-label">Performance Note</div>
+                    Indexing runs as a background service (SearchIndexer.exe). High CPU/disk usage after large file copy is normal. Indexing pauses when battery is low. On SSDs, the index rebuild is fast. On HDDs, it can spike disk usage for an hour.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Search Troubleshooter Path</div>
+                    Settings &rarr; System &rarr; Troubleshoot &rarr; Other troubleshooters &rarr; Search and Indexing. Runs automated checks on the WSearch service and index integrity. Use this before manually rebuilding the index.
+                </div>
+                <div class="scenario-strip">
+                    Ticket: "User's file search returns nothing." Check: Is WSearch service running? (services.msc). If yes, Indexing Options &rarr; check status — if 0 items indexed, Rebuild. If service is stopped, set to Automatic and start it.
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(10)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module ✓</button>
-            </nav>
-        </section>
-    </main>
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19 &mdash; Summary</div>
+        <div class="slide-title">Control Panel <span class="accent">Key Takeaways</span></div>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 10;
+        <div class="summary-facts">
+            <div class="fact-row"><div class="fact-num">01</div><div class="fact-text"><strong>8 categories</strong> in Category view; switch to Large Icons for direct applet access. Use .cpl and .msc commands for fastest access.</div></div>
+            <div class="fact-row"><div class="fact-num">02</div><div class="fact-text"><strong>System Properties (sysdm.cpl)</strong> covers Computer Name, Device Manager, Performance/Pagefile, System Restore, and Remote Desktop in one place.</div></div>
+            <div class="fact-row"><div class="fact-num">03</div><div class="fact-text"><strong>appwiz.cpl</strong> — sort by Install Date to identify recently installed malware. View Installed Updates to roll back a bad patch.</div></div>
+            <div class="fact-row"><div class="fact-num">04</div><div class="fact-text"><strong>Credential Manager</strong> must be updated when network passwords change or mapped drives will prompt repeatedly.</div></div>
+            <div class="fact-row"><div class="fact-num">05</div><div class="fact-text"><strong>Internet Options &rarr; Connections &rarr; LAN Settings</strong> is the system-wide proxy configuration path for legacy apps and IE.</div></div>
+            <div class="fact-row"><div class="fact-num">06</div><div class="fact-text"><strong>Device Manager error codes:</strong> Code 10 = cannot start, Code 22 = disabled, Code 43 = hardware failure, Code 28 = no driver.</div></div>
+            <div class="fact-row"><div class="fact-num">07</div><div class="fact-text"><strong>File Explorer Options &rarr; hide extensions</strong> is enabled by default. Disable it on managed systems to prevent double-extension attacks.</div></div>
+            <div class="fact-row"><div class="fact-num">08</div><div class="fact-text"><strong>wf.msc</strong> (Advanced Firewall) creates granular inbound/outbound rules by port, program, and profile. firewall.cpl is for simple app exceptions only.</div></div>
+        </div>
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = `Slide ${currentSlide} of ${totalSlides}`;
+        <div class="box box-gold" style="margin-top:8px;">
+            <div class="box-label">Exam Domain Coverage</div>
+            This presentation covers CompTIA A+ 220-1102 Domain 1.3 (Microsoft Windows OS) with emphasis on Control Panel applets, administrative tools, and technician troubleshooting paths for hardware, networking, and security.
+        </div>
+    </div>
+</section>
 
-            // Update dots
-            document.querySelectorAll('.slide-dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../index.html" class="nav-btn back-btn" aria-label="Back to Core 2 hub">Back to Core 2</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark module complete">Mark Complete</button>
+</nav>
 
-            // Update slides
-            document.querySelectorAll('.slide').forEach((slide, index) => {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 19;
+    let current = 1;
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+        document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100) + '%';
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
 
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function checkAnswer(button, isCorrect, quizId) {
-            const feedbackEl = document.getElementById('feedback-' + quizId);
-            const options = button.parentElement.querySelectorAll('.quiz-option');
-
-            // Disable all options
-            options.forEach(opt => {
-                opt.style.pointerEvents = 'none';
-            });
-
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✓ Correct! Control Panel → Network Connections (ncpa.cpl) provides full adapter properties where you can configure static IP, custom DNS servers, and disable specific protocols like IPv6. Settings only offers basic configuration.';
-                } else if (quizId === 'quiz2') {
-                    feedbackEl.textContent = '✓ Correct! Device Manager (devmgmt.msc) is THE tool for identifying driver issues. Look for yellow warning triangles or red Xs indicating driver problems. You can update, rollback, or uninstall drivers here.';
-                } else if (quizId === 'quiz3') {
-                    feedbackEl.textContent = '✓ Correct! Task Scheduler (taskschd.msc) allows you to create scheduled tasks with specific triggers (daily at 2 AM), actions (run PowerShell script), and security contexts (run with elevated privileges).';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✗ Not quite. Settings → Network provides basic options only. Device Manager shows hardware but not protocol configuration. Advanced system settings is for system properties, not network adapters.';
-                } else if (quizId === 'quiz2') {
-                    feedbackEl.textContent = '✗ Not quite. Settings shows devices but lacks driver details. Devices and Printers shows device status but not driver information. Event Viewer is useful AFTER identifying the problem, but Device Manager is the first stop.';
-                } else if (quizId === 'quiz3') {
-                    feedbackEl.textContent = '✗ Not quite. Administrative Tools is a folder containing shortcuts. Services manages background services, not scheduled tasks. Settings → Startup controls programs that run at login, not scheduled automation.';
-                }
-
-                // Highlight correct answer
-                options.forEach(opt => {
-                    if ((opt.textContent.includes('Network Connections') && quizId === 'quiz1') ||
-                        (opt.textContent.includes('Device Manager') && quizId === 'quiz2') ||
-                        (opt.textContent.includes('Task Scheduler') && quizId === 'quiz3')) {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
-
-        function completeModule() {
-            // Use ModuleProgress for unified completion handling
-            ModuleProgress.complete('forge', 'forge-control-panel', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
+        /* Restart SVG animations on the incoming slide */
+        next.querySelectorAll('animate, animateMotion, animateTransform').forEach(function(el) {
+            el.beginElement();
         });
+    }
 
-        // Initialize
-        updateProgress();
-    </script>
-<script src="../../../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../../../components/PresentationA11y.js"></script>
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-control-panel', {
+            returnUrl: '../index.html'
+        });
+    }
+</script>
 </body>
 </html>

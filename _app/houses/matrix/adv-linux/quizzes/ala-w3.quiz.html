@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Quiz: DNS + Automation | Advanced Linux Administration</title>
+    <style>
+        :root {
+            --bg: #060d08;
+            --bg-card: #0a130c;
+            --bg-option: #0f1a11;
+            --green: #00ff41;
+            --green-dim: rgba(0, 255, 65, 0.15);
+            --text: #e2f0e5;
+            --text-muted: #86a88c;
+            --success: #00ff41;
+            --danger: #ff3333;
+            --border: rgba(0, 255, 65, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(135deg, var(--bg) 0%, #040b06 50%, #061008 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--green); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #33ff66; transform: translateX(-5px); display: inline-block; }
+
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--green-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--green); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), #33ff66); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--green); font-weight: 600; white-space: nowrap; }
+
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.8rem; color: var(--green); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.05rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.6; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .question-text code { font-family: 'Courier New', Courier, monospace; background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.2); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; color: #66ff88; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .option:hover { border-color: rgba(0, 255, 65, 0.4); background: rgba(0, 255, 65, 0.05); }
+        .option.selected { border-color: var(--green); background: rgba(0, 255, 65, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(0, 255, 65, 0.10); }
+        .option.incorrect { border-color: var(--danger); background: rgba(255, 51, 51, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--green); flex-shrink: 0; font-family: 'Courier New', Courier, monospace; }
+        .option.correct .option-letter { background: rgba(0, 255, 65, 0.25); color: var(--success); border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .feedback.correct { display: block; background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.30); color: #88ffaa; }
+        .feedback.incorrect { display: block; background: rgba(255, 51, 51, 0.06); border: 1px solid rgba(255, 51, 51, 0.30); color: #ff9999; }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(0, 255, 65, 0.10); border: 1px solid rgba(0, 255, 65, 0.40); color: var(--green); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Courier New', Courier, monospace; }
+        .next-btn:hover { background: rgba(0, 255, 65, 0.20); }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(0, 255, 65, 0.10); }
+
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--green); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; font-family: 'Courier New', Courier, monospace; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; font-family: 'Courier New', Courier, monospace; }
+        .btn-retry { background: rgba(0, 255, 65, 0.10); border: 1px solid rgba(0, 255, 65, 0.40) !important; color: var(--green); }
+        .btn-retry:hover { background: rgba(0, 255, 65, 0.25); }
+        .btn-hub { background: rgba(0, 255, 65, 0.15); border: 1px solid rgba(0, 255, 65, 0.40) !important; color: var(--success); }
+        .btn-hub:hover { background: rgba(0, 255, 65, 0.30); }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Advanced Linux Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 3 Quiz: Sector Authority</h1>
+            <p class="subtitle">DNS Hierarchy, BIND Deployment, Bash Scripting, and Automation</p>
+            <div class="meta">
+                <span>Week 3</span>
+                <span>15 Questions</span>
+                <span>Obj 5, 6</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to ALA Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Answers are NOT stored in this file.
+           Server-graded via gradeQuiz Cloud Function.
+           Answer key stored in Firestore quiz_keys/matrix-ala-w3-quiz */
+        var QUIZ_ID = 'matrix-ala-w3-quiz';
+
+        var questions = [
+            {
+                q: 'In BIND\'s <code>named.conf</code>, what is the purpose of the <code>allow-query</code> directive inside a zone block?',
+                opts: [
+                    'It specifies which IP addresses are allowed to perform zone transfers',
+                    'It restricts which IP addresses may send recursive queries through this server',
+                    'It controls which hosts may query this zone, independent of the global allow-query setting',
+                    'It defines which servers are authoritative for the zone'
+                ],
+                ans: 2,
+                exp: 'allow-query in a zone block overrides the global allow-query setting for that specific zone. It controls which source IPs may query that zone\'s records. allow-transfer controls zone transfers; allow-recursion controls recursive queries.'
+            },
+            {
+                q: 'An operator creates a zone file for <code>sector7.matrix.net</code>. The SOA record\'s MNAME field should contain what value?',
+                opts: [
+                    'The IP address of the primary DNS server',
+                    'The FQDN of the primary authoritative nameserver for this zone',
+                    'The email address of the zone administrator',
+                    'The secondary DNS server\'s hostname'
+                ],
+                ans: 1,
+                exp: 'The MNAME field in the SOA record is the FQDN of the primary authoritative nameserver (primary master). The RNAME field is the admin email (with @ replaced by a dot). These are separate fields with distinct purposes.'
+            },
+            {
+                q: 'Which DNS record type maps a hostname to an IPv4 address?',
+                opts: [
+                    'CNAME',
+                    'PTR',
+                    'A',
+                    'AAAA'
+                ],
+                ans: 2,
+                exp: 'An A record maps a hostname to an IPv4 address. AAAA maps to IPv6. PTR maps an IP to a hostname (reverse lookup). CNAME creates a canonical name alias pointing to another hostname.'
+            },
+            {
+                q: 'After editing a BIND zone file, an operator runs <code>rndc reload sector7.matrix.net</code>. The command returns success but new records are not resolving. What should be checked first?',
+                opts: [
+                    'Whether BIND was installed with the correct compilation flags',
+                    'Whether the zone file\'s serial number was incremented before saving',
+                    'Whether the rndc.key matches the key in named.conf',
+                    'Whether the TTL value in the zone file is set to zero'
+                ],
+                ans: 1,
+                exp: 'BIND uses the SOA serial number to determine if a zone has changed. If the serial was not incremented, BIND (and secondary servers) may not reload the zone data even after rndc reload. The convention is to use the date format YYYYMMDDnn and increment nn for each daily change.'
+            },
+            {
+                q: 'An operator writes a Bash script that needs to exit immediately if any command fails. Which line should appear at the top of the script after the shebang?',
+                opts: [
+                    'set -e',
+                    'set -x',
+                    'trap EXIT "exit 1"',
+                    'export ERREXIT=1'
+                ],
+                ans: 0,
+                exp: 'set -e (errexit) causes the shell to exit immediately when any command exits with a non-zero status. set -x enables command tracing for debugging. Combined as set -euo pipefail, this also catches unset variables (-u) and pipeline failures (-o pipefail).'
+            },
+            {
+                q: 'A Bash script uses the variable <code>$TARGET_DIR</code> which is set externally. The script runs <code>rm -rf $TARGET_DIR/logs</code>. If <code>TARGET_DIR</code> is empty or unset, what is the result?',
+                opts: [
+                    'The command harmlessly fails with "variable not set" error',
+                    'rm -rf /logs runs, potentially deleting system log files',
+                    'Bash automatically substitutes the current directory for empty variables',
+                    'The command is skipped because rm requires a non-empty path'
+                ],
+                ans: 1,
+                exp: 'If TARGET_DIR is empty, the command becomes rm -rf /logs which deletes /logs on the server. If TARGET_DIR is completely unset and the script does not use set -u, it becomes rm -rf /logs. Always use set -u or ${TARGET_DIR:?error message} to guard against this. This is a critical real-world mistake.'
+            },
+            {
+                q: 'Which cron expression runs a script every day at 02:30 AM?',
+                opts: [
+                    '30 2 * * *',
+                    '2 30 * * *',
+                    '* * 2 30 *',
+                    '30 02 0 0 *'
+                ],
+                ans: 0,
+                exp: 'Cron format is: minute hour day-of-month month day-of-week. So 30 2 * * * means minute=30, hour=2, every day of the month, every month, every day of the week - which is 02:30 AM daily.'
+            },
+            {
+                q: 'An operator needs a scheduled task to run every 15 minutes but only when the system load is below 2.0. Which tool is best suited for this requirement?',
+                opts: [
+                    'Standard cron with a load check wrapper script',
+                    'anacron with the delay parameter set to 15',
+                    'at with a recursive self-scheduling mechanism',
+                    'cron cannot check system load; use systemd timers with ConditionCPULoad'
+                ],
+                ans: 0,
+                exp: 'Standard cron does not check load natively, but a wrapper script can use uptime or /proc/loadavg to check the load and exit early if too high. Alternatively, cron supports a load average check via the -l flag in some implementations. ConditionCPULoad is valid for systemd timers but the wrapper script approach is the most portable.'
+            },
+            {
+                q: 'Which <code>systemd timer</code> directive causes a timer to fire 5 minutes after the system boots, regardless of the wall-clock time?',
+                opts: [
+                    'OnCalendar=*-*-* *:05:00',
+                    'OnBootSec=5min',
+                    'OnActiveSec=300',
+                    'BootDelay=5m'
+                ],
+                ans: 1,
+                exp: 'OnBootSec= specifies a delay relative to when the machine was booted. OnCalendar= fires at specific wall-clock times. OnActiveSec= fires relative to when the timer unit was last activated. BootDelay= is not a valid systemd directive.'
+            },
+            {
+                q: 'An operator writes a Bash function to check if a service is running and restart it if not. Which construct correctly tests the exit code of <code>systemctl is-active</code>?',
+                opts: [
+                    'if systemctl is-active --quiet "$SERVICE"; then echo "running"; else systemctl start "$SERVICE"; fi',
+                    'if [ systemctl is-active $SERVICE == "active" ]; then echo "running"; fi',
+                    'result=$(systemctl is-active $SERVICE); if result == "active"; then echo "running"; fi',
+                    'systemctl is-active $SERVICE; if $? = 0; then echo "running"; fi'
+                ],
+                ans: 0,
+                exp: 'systemctl is-active --quiet exits with code 0 if the service is active, non-zero otherwise. Using it directly as an if condition is the cleanest approach. The other options have syntax errors: [ cmd == val ] is wrong syntax; if result == is not valid shell; $? = is assignment not comparison and requires [[ ]].'
+            },
+            {
+                q: 'An operator wants to rotate the application log at <code>/var/log/myapp/app.log</code> daily, keep 7 days of compressed archives, and send SIGHUP to the process after rotation. Which tool handles this?',
+                opts: [
+                    'cron with a gzip + mv script',
+                    'logrotate with a configuration block in /etc/logrotate.d/',
+                    'journald with a retention policy in journald.conf',
+                    'rsyslog with a RolloverSize directive'
+                ],
+                ans: 1,
+                exp: 'logrotate is the standard tool for log rotation. A config block in /etc/logrotate.d/ with daily, rotate 7, compress, delaycompress, and postrotate/endscript containing kill -HUP $(cat /var/run/myapp.pid) handles all requirements. journald manages its own journal; rsyslog does not have a rollover directive.'
+            },
+            {
+                q: 'Which <code>dig</code> command performs a reverse DNS lookup for the IP address <code>10.0.1.50</code>?',
+                opts: [
+                    'dig -x 10.0.1.50',
+                    'dig PTR 10.0.1.50',
+                    'dig 50.1.0.10.in-addr.arpa',
+                    'dig --reverse 10.0.1.50'
+                ],
+                ans: 0,
+                exp: 'dig -x performs a reverse lookup. It automatically constructs the in-addr.arpa query from the IP address. It is equivalent to dig PTR 50.1.0.10.in-addr.arpa (note the reversed octets) but -x is the shorthand that handles the reversal automatically.'
+            },
+            {
+                q: 'A BIND server returns REFUSED for queries from a new client. The zone exists and is correctly configured. What is the most likely cause?',
+                opts: [
+                    'The zone file has a syntax error that prevents BIND from loading it',
+                    'The client IP is not included in the server\'s global allow-query ACL',
+                    'BIND requires a license for more than 10 simultaneous clients',
+                    'The named service is running but not listening on port 53'
+                ],
+                ans: 1,
+                exp: 'BIND returns REFUSED when a query comes from an IP not permitted by the allow-query ACL. The default allow-query is "any" but if an operator has restricted it to a specific network (e.g., allow-query { 10.0.0.0/8; };), clients outside that range receive REFUSED.'
+            },
+            {
+                q: 'An operator writes a Bash script to back up all files modified in the last 24 hours to <code>/backup/daily/</code>. Which command correctly finds those files?',
+                opts: [
+                    'find /data -newer /backup/daily/ -type f',
+                    'find /data -mtime -1 -type f',
+                    'ls -lt /data | grep "$(date +%Y-%m-%d)"',
+                    'find /data -atime -24 -type f'
+                ],
+                ans: 1,
+                exp: 'find -mtime -1 finds files modified less than 1 day (24 hours) ago. The minus sign means "less than N days". -mtime +1 means more than 1 day. -atime measures access time, not modification time. The ls approach is fragile and not reliable for scripting.'
+            },
+            {
+                q: 'Which directive in <code>named.conf</code> specifies that this BIND server is authoritative for the zone and reads data from a local file?',
+                opts: [
+                    'type primary; file "/etc/bind/db.sector7.matrix.net";',
+                    'type master; file "/etc/bind/db.sector7.matrix.net";',
+                    'Both A and B are correct depending on the BIND version',
+                    'authoritative yes; zonefile "/etc/bind/db.sector7.matrix.net";'
+                ],
+                ans: 2,
+                exp: 'BIND 9.16+ introduced type primary as the new preferred term for what was historically called type master. Both are valid in BIND 9.x (master is still supported for backward compatibility). BIND 10+ dropped master entirely. On Ubuntu 22.04 (which ships BIND 9.18), both work but type primary is preferred.'
+            }
+        ];
+
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').innerHTML = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            document.getElementById('resultsCard').style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. DNS and automation fundamentals are solid.';
+            else if (pct >= 70) msg = 'Passing score. Sector authority confirmed.';
+            else if (pct >= 50) msg = 'Not yet. Review ALA-11 through ALA-14 and retry.';
+            else msg = 'Below threshold. Return to Week 3 modules before the final exam.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('matrix', 'ala-w3-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

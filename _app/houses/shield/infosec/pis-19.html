@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management and Governance // BSL-4 // PIS-19</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --accent:         #3b82f6;
+            --accent-dim:     rgba(59, 130, 246, 0.12);
+            --accent-border:  rgba(59, 130, 246, 0.30);
+            --bg-dark:        #060810;
+            --bg-card:        #0a1018;
+            --bg-surface:     #0d1520;
+            --text-primary:   #dde8f8;
+            --text-secondary: #7ca4cc;
+            --text-muted:     #4a6480;
+            --border-subtle:  rgba(255, 255, 255, 0.06);
+            --breach-bg:      rgba(239, 68, 68, 0.06);
+            --breach-border:  rgba(239, 68, 68, 0.28);
+            --breach-text:    #fca5a5;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+        .ne-header { position: sticky; top: 0; z-index: 100; background: rgba(6, 8, 16, 0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+        .ne-course-label { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .ne-back-btn { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; transition: opacity 0.2s; }
+        .ne-back-btn:hover { opacity: 0.75; }
+        .ne-back-btn img { width: 14px; height: 14px; opacity: 0.7; }
+
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+        .ne-module-header { margin-bottom: 36px; }
+        .ne-badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .ne-badge { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 3px 9px; }
+        .obj-badge { font-size: 0.68rem; letter-spacing: 1.5px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 4px; padding: 3px 9px; }
+        .ne-module-title { font-size: 1.85rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; margin-bottom: 16px; }
+        .ne-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+        .ne-meta-item { font-size: 0.78rem; color: var(--text-muted); }
+        .ne-meta-item strong { color: var(--text-secondary); }
+
+        .ne-callout { background: var(--accent-dim); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--text-secondary); line-height: 1.65; font-style: italic; }
+        .ne-callout strong { color: var(--accent); font-style: normal; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+
+        .ne-breach { background: var(--breach-bg); border: 1px solid var(--breach-border); border-radius: 6px; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--breach-text); line-height: 1.65; }
+        .ne-breach strong { display: block; margin-bottom: 6px; font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase; color: #f87171; }
+
+        .ne-section { margin-bottom: 40px; }
+        .ne-section-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); position: relative; }
+        .ne-section-title::before { content: ''; position: absolute; bottom: -1px; left: 0; width: 40px; height: 2px; background: var(--accent); }
+
+        .ne-term { color: var(--accent); font-weight: 600; }
+        .ne-section p { font-size: 0.90rem; color: var(--text-secondary); margin-bottom: 14px; }
+
+        .ne-formula { font-family: 'JetBrains Mono', monospace; color: #93c5fd; font-size: 0.90rem; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 14px; margin: 10px 0 16px; display: inline-block; }
+
+        .ne-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0; }
+        .ne-table th { background: var(--bg-surface); color: var(--text-secondary); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        .ne-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: top; line-height: 1.6; }
+        .ne-table tr:last-child td { border-bottom: none; }
+        .ne-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .ne-takeaways { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 22px 26px; margin: 32px 0; }
+        .ne-takeaways-title { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
+        .ne-takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .ne-takeaways li { font-size: 0.87rem; color: var(--text-secondary); padding-left: 16px; position: relative; line-height: 1.6; }
+        .ne-takeaways li::before { content: '--'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+        .ne-quiz { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px 32px; margin-top: 36px; }
+        .ne-quiz-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-quiz-header img { width: 24px; height: 24px; opacity: 0.8; flex-shrink: 0; margin-top: 3px; }
+        .ne-quiz-header h3 { font-size: 1.0rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .ne-quiz-header p { font-size: 0.80rem; color: var(--text-muted); }
+
+        .ne-question { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-question:last-of-type { border-bottom: none; }
+        .ne-q-num { font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); margin-bottom: 8px; }
+        .ne-q-text { font-size: 0.92rem; color: var(--text-primary); line-height: 1.65; margin-bottom: 14px; }
+        .ne-options { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .ne-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .ne-option:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+        .ne-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: var(--accent); }
+        .ne-option label { font-size: 0.87rem; color: var(--text-secondary); cursor: pointer; line-height: 1.5; }
+
+        .ne-quiz-submit { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+        #quizSubmitBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 10px 28px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        #quizSubmitBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #quizSubmitBtn:disabled { opacity: 0.35; cursor: default; }
+        #quizStatusMsg { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+        .ne-quiz-result { display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 24px 28px; margin-top: 20px; text-align: center; }
+        .ne-quiz-result.pass { display: block; border-color: rgba(16, 185, 129, 0.30); background: rgba(16, 185, 129, 0.05); }
+        .ne-quiz-result.fail { display: block; border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); }
+        .result-score { font-size: 2.4rem; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 6px; }
+        .ne-quiz-result.pass .result-score { color: #34d399; }
+        .ne-quiz-result.fail .result-score { color: #f87171; }
+        .result-label { font-size: 0.78rem; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; }
+        .ne-quiz-result.pass .result-label { color: #6ee7b7; }
+        .ne-quiz-result.fail .result-label { color: #fca5a5; }
+        .result-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+
+        .retry-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.40); color: #f87171; font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 22px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        .ne-complete { text-align: center; padding: 32px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 14px 44px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        #completeBtn.is-done { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .complete-note { margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-19: Risk Management and Governance</h1>
+
+    <header class="ne-header">
+        <span class="ne-course-label">PIS // Principles of Information Security</span>
+        <a href="index.html" class="ne-back-btn">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <div class="ne-content">
+
+        <!-- Module header -->
+        <div class="ne-module-header">
+            <div class="ne-badge-row">
+                <span class="ne-badge">PIS-19 &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; BSL-4</span>
+                <span class="obj-badge">SY0-701: 5.0</span>
+            </div>
+            <h2 class="ne-module-title">Risk Management and Governance</h2>
+            <div class="ne-meta">
+                <span class="ne-meta-item"><strong>Duration:</strong> 35 min</span>
+                <span class="ne-meta-item"><strong>Clearance:</strong> BSL-4</span>
+                <span class="ne-meta-item"><strong>Quiz:</strong> 5 questions, 80% to pass</span>
+            </div>
+        </div>
+
+        <!-- Lore callout -->
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            "The directives that govern the facility. Every protocol you have followed, every access control you have configured, every containment barrier you have built -- all of it flows from the risk decisions documented in the facility governance framework. Risk management is not paperwork. It is the architecture of consequences: what can go wrong, what it costs if it does, and what we are willing to spend to prevent it."
+        </div>
+
+        <!-- Section 1: Risk Assessment -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">01 / 04 -- Risk Assessment: Qualitative and Quantitative</h3>
+            <p><span class="ne-term">Risk</span> is the potential for a threat to exploit a vulnerability and cause harm. SY0-701 Objective 5.2 tests risk assessment methodology and the formulas used to quantify risk.</p>
+            <p>The core risk formula: <span class="ne-formula">Risk = Threat x Vulnerability x Impact</span></p>
+            <p>A threat with no exploitable vulnerability produces no risk. A vulnerability with no threat actor produces no risk. Both must be present, and the impact determines how significant the risk is.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Approach</th>
+                        <th>Method</th>
+                        <th>Output</th>
+                        <th>When to Use</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Qualitative</td>
+                        <td>Expert judgment, interviews, risk matrices. Risks are ranked as High / Medium / Low using likelihood and impact scales.</td>
+                        <td>Risk ranking and priority order. Not a dollar figure.</td>
+                        <td>When data is unavailable or when communicating risk to non-technical stakeholders. Fast to produce. Subjective.</td>
+                    </tr>
+                    <tr>
+                        <td>Quantitative</td>
+                        <td>Calculations using asset value (AV), exposure factor (EF), annualized rate of occurrence (ARO). Produces SLE and ALE.</td>
+                        <td>Dollar amounts for risk exposure. Supports cost-benefit analysis of controls.</td>
+                        <td>When asset values and loss data are available. Supports budget decisions. Time-intensive and data-dependent.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Key quantitative formulas tested on SY0-701:</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Formula</th>
+                        <th>Calculation</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SLE</td>
+                        <td>Asset Value (AV) x Exposure Factor (EF)</td>
+                        <td>Single Loss Expectancy -- the expected dollar loss from a single occurrence of the threat.</td>
+                    </tr>
+                    <tr>
+                        <td>ALE</td>
+                        <td>SLE x Annualized Rate of Occurrence (ARO)</td>
+                        <td>Annualized Loss Expectancy -- the expected annual cost of the risk. If a control costs less than the ALE it reduces, the control is justified.</td>
+                    </tr>
+                    <tr>
+                        <td>Risk Register</td>
+                        <td>Documented list of identified risks with: description, likelihood, impact, risk owner, treatment strategy, residual risk after treatment.</td>
+                        <td>The master governance document for all known organizational risks. Reviewed and updated on a defined schedule.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility maintains a risk register with 34 active risk items. The top-rated risk is "unauthorized remote access to specimen classification database" with an ALE of $4.2M based on a SLE of $2.1M and an ARO of 2.0. The PAM implementation, network segmentation, and MFA controls reduce the estimated ARO to 0.1, bringing ALE down to $210K -- well below the annual control cost of $85K.
+            </div>
+        </section>
+
+        <!-- Section 2: BIA and Recovery Metrics -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">02 / 04 -- Business Impact Analysis: RTO, RPO, MTTR, MTBF</h3>
+            <p>A <span class="ne-term">Business Impact Analysis (BIA)</span> identifies critical business functions, determines the impact of their disruption over time, and establishes recovery requirements. SY0-701 Objective 5.2 tests the BIA-derived metrics that drive disaster recovery planning.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Full Name</th>
+                        <th>What It Defines</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>RTO</td>
+                        <td>Recovery Time Objective</td>
+                        <td>Maximum acceptable downtime before a disrupted system or function must be restored. Set by business requirements.</td>
+                        <td>A payment processing system has an RTO of 4 hours. If the outage exceeds 4 hours, the financial impact becomes unacceptable.</td>
+                    </tr>
+                    <tr>
+                        <td>RPO</td>
+                        <td>Recovery Point Objective</td>
+                        <td>Maximum acceptable amount of data loss measured in time. Drives backup frequency requirements.</td>
+                        <td>An RPO of 1 hour means the organization can tolerate losing up to 1 hour of transactions. Backups must run at least hourly.</td>
+                    </tr>
+                    <tr>
+                        <td>MTTR</td>
+                        <td>Mean Time to Repair</td>
+                        <td>Average time required to restore a failed component or system. A measure of operational efficiency and recovery capability.</td>
+                        <td>If servers fail 4 times per year and each repair takes 2 hours, MTTR is 2 hours. Reducing MTTR requires better tooling, documentation, and trained staff.</td>
+                    </tr>
+                    <tr>
+                        <td>MTBF</td>
+                        <td>Mean Time Between Failures</td>
+                        <td>Average time a component operates before failing. A reliability metric used to plan maintenance and redundancy.</td>
+                        <td>A drive rated at MTBF of 100,000 hours is statistically expected to fail once every 100,000 hours of operation. Higher MTBF = more reliable component.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>The relationship between RTO and RPO is critical: a short RTO requires fast failover capability (hot standby systems). A short RPO requires frequent backups or replication. Both drive infrastructure and cost decisions.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The specimen catalog database has an RTO of 2 hours and RPO of 15 minutes -- if the database goes offline, catalog operations must resume within 2 hours and data loss must not exceed 15 minutes of transactions. This drives a continuous replication requirement to a secondary facility and mandates a hot standby server that can be brought online without manual rebuild.
+            </div>
+        </section>
+
+        <!-- Section 3: Security Policies and Frameworks -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">03 / 04 -- Security Policies and Frameworks: NIST CSF, ISO 27001, SOC 2</h3>
+            <p><span class="ne-term">Security policies</span> are documented organizational decisions about how security will be managed. SY0-701 Objective 5.1 tests the purpose of common policy types and governance frameworks.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Policy Type</th>
+                        <th>Purpose</th>
+                        <th>Key Content</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>AUP (Acceptable Use)</td>
+                        <td>Defines permitted and prohibited use of organizational IT resources by employees and contractors.</td>
+                        <td>Prohibited activities, monitoring notice, consequences for violation. Users sign on hire.</td>
+                    </tr>
+                    <tr>
+                        <td>Password Policy</td>
+                        <td>Sets technical and procedural requirements for credential management.</td>
+                        <td>Minimum length, complexity, history, rotation frequency (or length-based expiration per NIST SP 800-63B), MFA requirements.</td>
+                    </tr>
+                    <tr>
+                        <td>Data Classification</td>
+                        <td>Defines how data is categorized by sensitivity and the handling requirements for each tier.</td>
+                        <td>Classification labels (Public, Internal, Confidential, Restricted), storage requirements, transmission requirements, destruction requirements.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Governance frameworks provide structured guidance for building security programs:</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Framework</th>
+                        <th>Origin</th>
+                        <th>Structure</th>
+                        <th>Primary Use</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>NIST CSF</td>
+                        <td>NIST (US Government)</td>
+                        <td>Five functions: Identify, Protect, Detect, Respond, Recover. Each function contains categories and subcategories.</td>
+                        <td>Voluntary framework for critical infrastructure and general security program development. Widely adopted in US industry and government.</td>
+                    </tr>
+                    <tr>
+                        <td>ISO 27001</td>
+                        <td>ISO/IEC international standard</td>
+                        <td>Annex A contains 93 controls across 4 themes. Organizations build an Information Security Management System (ISMS) and can pursue formal certification.</td>
+                        <td>International certification standard. Required or preferred by many enterprise customers and regulators. Formal third-party audit required for certification.</td>
+                    </tr>
+                    <tr>
+                        <td>SOC 2</td>
+                        <td>AICPA (US auditing standard)</td>
+                        <td>Five Trust Service Criteria: Security, Availability, Processing Integrity, Confidentiality, Privacy. Type I = controls designed. Type II = controls operating effectively over time (6-12 months).</td>
+                        <td>Cloud service providers and SaaS companies demonstrate security posture to enterprise customers. SOC 2 Type II is the gold standard for vendor security attestation.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's security program is aligned to NIST CSF and ISO 27001. The annual facility inspection evaluates all 93 ISO 27001 Annex A controls. Critical system vendors must hold SOC 2 Type II attestation before integration into the specimen management infrastructure.
+            </div>
+        </section>
+
+        <!-- Section 4: Compliance Regulations -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">04 / 04 -- Compliance Regulations: GDPR, HIPAA, PCI-DSS, SOX, FERPA</h3>
+            <p>SY0-701 Objective 5.1 tests compliance awareness: you must recognize which regulation applies to which data type or industry sector, and identify the security requirements imposed by each.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Regulation</th>
+                        <th>Scope</th>
+                        <th>Key Security Requirements</th>
+                        <th>Penalties</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>GDPR</td>
+                        <td>Personal data of EU residents. Applies to any organization worldwide that processes EU resident data.</td>
+                        <td>Data minimization, consent, right to erasure, breach notification within 72 hours, Data Protection Officer (DPO) for high-risk processing, Privacy by Design.</td>
+                        <td>Up to 4% of global annual revenue or EUR 20M, whichever is higher.</td>
+                    </tr>
+                    <tr>
+                        <td>HIPAA</td>
+                        <td>Protected Health Information (PHI) in the United States. Covered entities (healthcare providers, insurers) and their business associates.</td>
+                        <td>Administrative, physical, and technical safeguards. Encryption of PHI at rest and in transit. Access controls. Audit logs. Breach notification within 60 days.</td>
+                        <td>Up to $1.9M per violation category per year. Criminal penalties for willful neglect.</td>
+                    </tr>
+                    <tr>
+                        <td>PCI-DSS</td>
+                        <td>Payment card data (cardholder data environment). Any organization that stores, processes, or transmits credit card data.</td>
+                        <td>12 requirements including: firewall, no vendor default passwords, protect stored data, encrypt transmission, anti-malware, access control, monitoring, penetration testing, information security policy.</td>
+                        <td>Fines from card brands ($5K-$100K/month), potential loss of ability to process card payments.</td>
+                    </tr>
+                    <tr>
+                        <td>SOX</td>
+                        <td>Financial reporting for publicly traded US companies. Applies to IT systems that support financial reporting.</td>
+                        <td>Section 404 requires internal controls over financial reporting (ICFR). IT general controls: access management, change management, backup and recovery, incident response for financial systems.</td>
+                        <td>Criminal penalties for executives who certify false reports. Up to 20 years imprisonment.</td>
+                    </tr>
+                    <tr>
+                        <td>FERPA</td>
+                        <td>Educational records of students in US institutions receiving federal funding.</td>
+                        <td>Access controls on student records, prohibition on disclosure without consent (with defined exceptions), student right to inspect and correct their records.</td>
+                        <td>Loss of federal funding for institutions in violation.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-breach">
+                <strong>Exam Pattern: Regulation Identification</strong>
+                SY0-701 presents scenarios and asks which regulation applies. Key identifiers: EU personal data = GDPR. Healthcare records = HIPAA. Credit cards = PCI-DSS. Publicly traded company financial systems = SOX. University student records = FERPA. Overlap is possible -- a hospital that accepts credit card payments is subject to both HIPAA and PCI-DSS simultaneously.
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's research data includes genomic sequences from human subjects enrolled in containment studies. This data is protected under both HIPAA (health information) and the facility's internal classification policy at the "Restricted" tier. Annual compliance audits cover all applicable frameworks. The compliance calendar is reviewed by the legal team and the Chief Information Security Officer quarterly.
+            </div>
+        </section>
+
+        <!-- Key Takeaways -->
+        <div class="ne-takeaways">
+            <div class="ne-takeaways-title">Key Takeaways</div>
+            <ul>
+                <li>SLE = Asset Value x Exposure Factor. ALE = SLE x ARO. If a control costs less than the ALE it reduces, the control is cost-justified.</li>
+                <li>RTO = max acceptable downtime. RPO = max acceptable data loss. MTTR = average repair time. MTBF = average time between failures.</li>
+                <li>NIST CSF = 5 functions (Identify/Protect/Detect/Respond/Recover), voluntary US framework.</li>
+                <li>ISO 27001 = international certification standard with 93 Annex A controls and formal third-party audit.</li>
+                <li>SOC 2 Type II = controls operating effectively over time (6-12 months). Type I = controls designed.</li>
+                <li>Regulation mapping: EU personal data = GDPR. US healthcare = HIPAA. Credit cards = PCI-DSS. Publicly traded financials = SOX. Student records = FERPA.</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <img src="../../../assets/images/icons/icon-scales.webp" alt="">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- answers graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <!-- Q1 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 1 of 5</div>
+                    <p class="ne-q-text">A server has an asset value of $200,000. An analysis determines that a ransomware attack would destroy 50% of the server's value per incident, and this type of attack is expected to occur approximately twice per year. What is the Annualized Loss Expectancy (ALE)?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">$100,000</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">$200,000</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">$50,000</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">$400,000</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q2 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 2 of 5</div>
+                    <p class="ne-q-text">A hospital's electronic health records system experiences an outage. The BIA states that the maximum acceptable time before EHR must be back online is 6 hours. Which metric is this?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">RPO (Recovery Point Objective)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">MTBF (Mean Time Between Failures)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">RTO (Recovery Time Objective)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">MTTR (Mean Time to Repair)</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q3 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 3 of 5</div>
+                    <p class="ne-q-text">An organization is building a security program and wants to align with a voluntary framework that organizes security activities into five functions: Identify, Protect, Detect, Respond, and Recover. Which framework does this describe?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">ISO 27001</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">NIST Cybersecurity Framework (CSF)</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">SOC 2</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">PCI-DSS</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q4 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 4 of 5</div>
+                    <p class="ne-q-text">A company discovers that customer medical records were exposed in a data breach. The customers are US residents receiving healthcare services. Which regulation PRIMARILY governs the notification requirements for this breach?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">GDPR</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">PCI-DSS</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">HIPAA</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">SOX</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q5 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 5 of 5</div>
+                    <p class="ne-q-text">A cloud service provider undergoes an independent audit that evaluates whether its security controls have been operating effectively over a 12-month period. The audit covers the Security and Availability Trust Service Criteria. Which attestation does this describe?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">ISO 27001 certification</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">SOC 2 Type II report</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">SOC 2 Type I report</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">NIST CSF Tier 4 assessment</label></li>
+                    </ul>
+                </div>
+
+                <div class="ne-quiz-submit">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <!-- Result panel -->
+            <div class="ne-quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+        <!-- Completion area -->
+        <div class="ne-complete">
+            <button id="completeBtn" disabled>Pass the quiz to complete</button>
+            <p class="complete-note" id="completeNote">Complete the quiz with 80% or higher to mark this module complete.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Module constants ── */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-19';
+        const QUIZ_ID      = 'pis-19-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) {
+                    answerMap[String(i)] = selections[i];
+                }
+            }
+
+            var score = 0, percentage = 0, passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-19] Server grading failed:', e.message);
+            }
+
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.disabled = true;
+            });
+
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'ne-quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Facility governance directives confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+
+            if (passed) {
+                markComplete(score);
+            } else {
+                document.getElementById('retryBtn').style.display = 'inline-block';
+            }
+
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.checked = false;
+                r.disabled = false;
+            });
+
+            document.getElementById('quizResult').className = 'ne-quiz-result';
+
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+            document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+        }
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+                document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+            }
+        })();
+    </script>
+</body>
+</html>

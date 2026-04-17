@@ -1168,7 +1168,7 @@ const HouseRenderer = (function() {
                 </div>
                 <div class="hero-right">
                     <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.onerror=null;this.src='/assets/images/icons/icon-home.webp'">` : config.icon}</div>
-                    <h1 class="hero-title">House of the <span>${config.title}</span></h1>
+                    <h1 class="hero-title">${config.customTitle ? config.customTitle : `House of the <span>${config.title}</span>`}</h1>
                     <p class="hero-domain">${config.domain}</p>
                     <p class="hero-description">${config.description}</p>
                     ${lore ? `<p class="hero-mascot-quote">"${lore.quote}"</p>` : ''}

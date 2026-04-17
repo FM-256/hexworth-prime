@@ -163,3 +163,62 @@ Every box completion includes analytics data for pedagogical research:
 - **No server-side flag validation** — Flag hashing prevents casual source inspection but a determined student could extract the hash and brute-force short flags. The `ctfSubmitFlag` Cloud Function exists for tournament mode but is not used for solo arena.
 - **localStorage only (solo mode)** — Solo progress is device-bound. Clearing browser data loses all CTF progress. Firestore sync captures aggregate stats (boxes pwned, flags captured) but not per-box state.
 - **B/C/D/E series empty** — Only A-series (20 boxes) has content. Series slots are reserved but no boxes exist yet.
+
+## The Panopticon (Live Spectator Gallery)
+
+**Status:** SHIPPED
+**Location:** `_app/arena/spectator.html`
+**Cloud Functions:** `getLiveKitToken`, `endLiveStream`
+**Firestore:** `spectator_streams` collection
+**External Service:** LiveKit Cloud (WebRTC SFU)
+**Added:** 2026-04-09
+
+### Purpose
+
+The Panopticon is a live streaming gallery for the CTF Arena. Named after Jeremy Bentham's 1791 prison design — a circular structure where a central observer can watch every cell simultaneously — it lets spectators observe all active tournament participants in real-time. The name itself is a teaching moment: surveillance theory, Bentham, Foucault, and the ethics of observation in cybersecurity.
+
+### What It Does
+
+- **Gallery view** — Grid of 16:9 video tiles showing all active broadcasters. Tiles appear/disappear in real-time as operators go live or disconnect.
+- **Expanded view** — Click any tile to expand full-screen. Escape or click "[x] Back to Gallery" to return.
+- **Go Live** — Any authenticated user can broadcast their screen via the `getDisplayMedia()` API. Captures at up to 1080p/15fps.
+- **Live indicators** — Pulsing red LIVE badges on each tile, live count in header, elapsed time per stream.
+
+### Architecture
+
+```
+Broadcaster clicks "Go Live"
+  │
+  ├── getDisplayMedia()              ← Browser captures screen/tab/window
+  ├── getLiveKitToken(broadcaster)   ← Cloud Function generates JWT with publish permissions
+  ├── LiveKit Room.connect()         ← Connects to LiveKit Cloud SFU
+  ├── publishTrack(screenTrack)      ← Pushes video to LiveKit
+  └── Firestore: spectator_streams   ← Marks stream as active
+      │
+Spectator opens Panopticon
+  ├── onSnapshot(spectator_streams)  ← Real-time list of active streams
+  ├── For each stream:
+  │   ├── getLiveKitToken(spectator)  ← Cloud Function generates JWT with subscribe-only permissions
+  │   ├── LiveKit Room.connect()      ← Connects as subscriber
+  │   └── TrackSubscribed event       ← Attaches video element to tile
+  │
+Broadcaster stops
+  ├── Room.disconnect()
+  ├── endLiveStream CF               ← Marks stream inactive in Firestore
+  └── Spectator tiles auto-remove    ← onSnapshot fires, tile removed from grid
+```
+
+### Security
+
+- **API secrets** stored in Google Cloud Secret Manager (`LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`), never in client code
+- **Token-gated access** — Cloud Function generates scoped JWTs: broadcasters get publish+subscribe, spectators get subscribe-only
+- **Firestore rules** — `spectator_streams` is read-only for clients (`allow write: if false`), only Cloud Functions can write
+- **Unique identities** — Spectators get timestamped identity suffixes to prevent collisions with broadcasters in the same room
+
+### Cost
+
+LiveKit Cloud free tier: 1,000 participant-minutes/month. One participant-minute = one user connected for one minute. A 30-student tournament with 10 spectators watching for 1 hour = ~2,400 minutes. Paid tiers available for larger events.
+
+### Navigation
+
+Arena hub → "The Panopticon" button (cyan accent, top-right header)

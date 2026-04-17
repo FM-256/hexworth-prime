@@ -2,1702 +2,1234 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Access Control -->
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <!-- Progress & Achievements -->
+    <script src="../../../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
     <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 2: Expansion Cards, Storage, and Power - A+ Core 1</title>
+    <title>Chapter 2: Expansion Cards, Storage &amp; Power | A+ Core 1</title>
     <style>
-        :root {
-            --forge-primary: #ea580c;
-            --forge-secondary: #f97316;
-            --forge-accent: #fdba74;
-            --forge-dark: #7c2d12;
-            --forge-darker: #431407;
-            --forge-light: #fff7ed;
-            --text-primary: #292524;
-            --text-secondary: #57534e;
-            --bg-main: #fafaf9;
-            --bg-card: #ffffff;
-            --border-color: #e7e5e4;
-            --success: #16a34a;
-            --warning: #eab308;
-            --danger: #dc2626;
-            --info: #0ea5e9;
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
-            color: var(--text-primary);
-            line-height: 1.7;
-            min-height: 100vh;
-            padding: 20px;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .container { max-width: 1000px; margin: 0 auto; }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--forge-primary);
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-weight: 500;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .back-link:hover { text-decoration: underline; }
-
-        .header {
-            text-align: center;
-            padding: 40px 30px;
-            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 16px;
-            color: white;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow-lg);
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .header h1 { font-size: 2rem; margin-bottom: 10px; }
-        .header .chapter-num {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: inline-block;
-            margin-bottom: 15px;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-        .header .objectives {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
         }
-        .obj-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85rem;
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        /* Navigation Tabs */
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            background: var(--bg-card);
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-md);
-        }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .nav-tab {
-            padding: 10px 20px;
-            background: var(--bg-main);
-            border: none;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+
+        /* ── SVG DIAGRAMS ── */
+        .svg-diagram {
+            width: 100%; max-height: 160px;
+            display: block; overflow: visible;
             border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            color: var(--text-primary);
-        }
-
-        .nav-tab:hover { background: var(--forge-accent); }
-        .nav-tab.active {
-            background: var(--forge-primary);
-            color: white;
-        }
-
-        /* Content Sections */
-        .content-section {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .content-section.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Section Cards */
-        .section-card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .section-card h2 {
-            color: var(--forge-dark);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.4rem;
-        }
-
-        .section-card h3 {
-            color: var(--forge-primary);
-            margin: 20px 0 10px;
-            font-size: 1.1rem;
-        }
-
-        .section-card p { margin-bottom: 15px; color: var(--text-secondary); }
-
-        .section-card ul { margin-left: 20px; margin-bottom: 15px; }
-        .section-card ul li { margin-bottom: 5px; color: var(--text-secondary); }
-
-        /* Info Boxes */
-        .info-box {
-            background: var(--forge-light);
-            border-left: 4px solid var(--forge-primary);
-            padding: 15px 20px;
-            margin: 15px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .info-box.exam-tip {
-            background: #fef3c7;
-            border-left-color: var(--warning);
-        }
-
-        .info-box.key-point {
-            background: #dbeafe;
-            border-left-color: var(--info);
-        }
-
-        .info-box strong { color: var(--forge-dark); }
-
-        /* Tables */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            font-size: 0.9rem;
-        }
-
-        .data-table th, .data-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .data-table th {
-            background: var(--forge-primary);
-            color: white;
-            font-weight: 600;
-        }
-
-        .data-table tr:hover { background: var(--forge-light); }
-
-        /* Comparison Grid */
-        .comparison-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .compare-card {
-            background: var(--bg-main);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .compare-card:hover {
-            border-color: var(--forge-primary);
-            transform: translateY(-3px);
-        }
-
-        .compare-card.selected {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-        }
-
-        .compare-card h4 {
-            color: var(--forge-dark);
-            margin-bottom: 10px;
-        }
-
-        .compare-card .icon { font-size: 2rem; margin-bottom: 10px; }
-        .compare-card ul {
-            list-style: none;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            text-align: left;
-            margin: 0;
-        }
-        .compare-card ul li { padding: 3px 0; }
-
-        /* Labs Section */
-        .labs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .lab-link {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 20px;
-            background: var(--bg-main);
-            border-radius: 10px;
-            text-decoration: none;
-            color: var(--text-primary);
-            border: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .lab-link:hover {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-            transform: translateY(-2px);
-        }
-
-        .lab-link .lab-icon { font-size: 2rem; }
-        .lab-link h4 { color: var(--forge-dark); margin-bottom: 5px; }
-        .lab-link p { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
-
-        /* Quiz Styles */
-        .quiz-container { margin-top: 20px; }
-
-        .quiz-question {
-            background: var(--bg-main);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .quiz-question h4 {
-            color: var(--forge-dark);
-            margin-bottom: 15px;
-            font-size: 1rem;
-        }
-
-        .quiz-question .q-number {
-            background: var(--forge-primary);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 15px;
-            font-size: 0.85rem;
-            margin-right: 10px;
-        }
-
-        .quiz-options { list-style: none; margin: 0; }
-
-        .quiz-options li {
-            padding: 12px 15px;
-            margin: 8px 0;
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quiz-options li:hover { border-color: var(--forge-primary); }
-
-        .quiz-options li.selected {
-            border-color: var(--forge-primary);
-            background: var(--forge-light);
-        }
-
-        .quiz-options li.correct {
-            border-color: var(--success);
-            background: #dcfce7;
-        }
-
-        .quiz-options li.incorrect {
-            border-color: var(--danger);
-            background: #fee2e2;
-        }
-
-        .quiz-feedback {
-            display: none;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .quiz-feedback.show { display: block; }
-        .quiz-feedback.correct { background: #dcfce7; color: #166534; }
-        .quiz-feedback.incorrect { background: #fee2e2; color: #dc2626; }
-
-        .quiz-btn {
-            padding: 12px 25px;
-            background: var(--forge-primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-            transition: all 0.2s;
-        }
-
-        .quiz-btn:hover { background: var(--forge-dark); }
-        .quiz-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .score-display {
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 12px;
-            color: white;
-            margin-top: 20px;
-        }
-
-        .score-display h3 { font-size: 1.5rem; margin-bottom: 10px; }
-        .score-display .score { font-size: 3rem; font-weight: bold; }
-
-        /* Progress Section */
-        .chapter-progress {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .progress-bar-bg {
-            background: var(--border-color);
-            border-radius: 10px;
-            height: 12px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--forge-primary), var(--forge-secondary));
-            border-radius: 10px;
-            transition: width 0.5s ease;
-        }
-
-        /* Accordion */
-        .accordion { margin: 15px 0; }
-
-        .accordion-item {
-            background: var(--bg-main);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-
-        .accordion-header {
-            padding: 15px 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            color: var(--forge-dark);
-        }
-
-        .accordion-header:hover { background: var(--forge-light); }
-
-        .accordion-header .icon { transition: transform 0.3s; }
-        .accordion-item.open .accordion-header .icon { transform: rotate(180deg); }
-
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            padding: 0 20px;
-        }
-
-        .accordion-item.open .accordion-content {
-            max-height: 600px;
-            padding: 0 20px 20px;
-        }
-
-        /* Step List */
-        .step-list {
-            counter-reset: step;
-            list-style: none;
-            margin: 20px 0;
-        }
-
-        .step-list li {
-            position: relative;
-            padding-left: 50px;
-            margin-bottom: 20px;
-            color: var(--text-secondary);
-        }
-
-        .step-list li::before {
-            counter-increment: step;
-            content: counter(step);
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 35px;
-            height: 35px;
-            background: var(--forge-primary);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        .step-list li strong {
-            color: var(--text-primary);
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.5rem; }
-            .nav-tabs { flex-direction: column; }
-            .nav-tab { width: 100%; text-align: center; }
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="../../index.html" class="back-link">← Back to Core 1</a>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Chapter 2: Expansion Cards, Storage &amp; Power</h1>
 
-        <header class="header">
-            <span class="chapter-num">Chapter 2 of 12</span>
-            <h1>Expansion Cards, Storage Devices, and Power Supplies</h1>
-            <p>Adding functionality, storing data, and powering the system</p>
-            <div class="objectives">
-                <span class="obj-badge">Objective 3.3</span>
-                <span class="obj-badge">Objective 3.4</span>
-                <span class="obj-badge">Objective 3.5</span>
-            </div>
-        </header>
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:4.55%"></div>
 
-        <!-- Chapter Progress -->
-        <div class="chapter-progress">
-            <strong>Chapter Progress</strong>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="chapterProgress" style="width: 0%"></div>
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 1 &mdash; 220-1101 &nbsp;|&nbsp; Domain 3.3, 3.4, 3.5</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Chapter 2:<br>
+                <span class="accent">Expansion Cards, Storage &amp; Power</span>
             </div>
-            <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;">
-                <span id="progressText">Start learning below</span>
-            </p>
+            <div class="slide-subtitle" style="max-width:600px; margin-top:4px;">
+                Adding functionality, storing data, and keeping the system powered. From PCIe expansion cards through RAID arrays to 80 PLUS efficiency ratings.
+            </div>
         </div>
-
-        <!-- Navigation Tabs -->
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-section="learn"><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Learn</button>
-            <button class="nav-tab" data-section="interactive"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive</button>
-            <button class="nav-tab" data-section="labs"><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Labs</button>
-            <button class="nav-tab" data-section="quiz"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Quiz</button>
+        <div class="title-meta-row">
+            <span>22 Slides</span>
+            <span>Domain 3.3, 3.4 &amp; 3.5</span>
+            <span>Expansion &bull; HDD &bull; SSD &bull; RAID &bull; PSU</span>
+            <span>Exam 220-1101</span>
         </div>
+    </div>
+</section>
 
-        <!-- LEARN SECTION -->
-        <div id="learn" class="content-section active">
+<!-- ==================== SLIDE 2 — EXPANSION CARDS OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 22</div>
+        <div class="slide-title">Expansion <span class="accent">Cards Overview</span></div>
+        <div class="slide-subtitle">Add-on cards plug into motherboard slots to extend or upgrade system capabilities.</div>
 
-            <!-- Section 1: Expansion Cards -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-wildcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Expansion Cards</h2>
-                <p><strong>Expansion cards</strong> (also called add-on cards or adapter cards) plug into motherboard slots to add functionality that isn't built in or to upgrade existing capabilities.</p>
-
-                <h3>Common Expansion Card Types</h3>
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-joystick.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Video Cards (GPUs)</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Dedicated graphics processing for gaming, video editing, and 3D rendering. Features include:</p>
-                            <ul>
-                                <li>Own VRAM (video memory) - typically 4GB to 24GB</li>
-                                <li>Usually requires PCIe x16 slot</li>
-                                <li>May need additional power connectors (6-pin or 8-pin)</li>
-                                <li>Multiple display outputs (HDMI, DisplayPort, DVI)</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Sound Cards</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Provides enhanced audio quality beyond integrated motherboard audio:</p>
-                            <ul>
-                                <li>Higher sampling rates and bit depth</li>
-                                <li>Multiple audio jacks (surround sound support)</li>
-                                <li>Lower latency for professional audio work</li>
-                                <li>Usually uses PCIe x1 slot</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Network Interface Cards (NICs)</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Adds or upgrades network connectivity:</p>
-                            <ul>
-                                <li>Wired NICs: 1Gbps, 2.5Gbps, 10Gbps Ethernet</li>
-                                <li>Wireless NICs: Wi-Fi 5 (802.11ac), Wi-Fi 6 (802.11ax)</li>
-                                <li>May include antenna for better wireless reception</li>
-                                <li>Uses PCIe x1 slot (wired) or M.2 slot (some wireless)</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Capture Cards</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Records video from external sources (game consoles, cameras, other PCs):</p>
-                            <ul>
-                                <li>HDMI input for capturing video</li>
-                                <li>Passthrough for zero-latency gaming while recording</li>
-                                <li>Used for streaming and content creation</li>
-                                <li>Usually PCIe x4 for high bandwidth</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> USB Expansion Cards</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Adds additional or newer USB ports:</p>
-                            <ul>
-                                <li>Add USB 3.0/3.1/3.2 ports to older systems</li>
-                                <li>Add USB-C ports</li>
-                                <li>Internal headers or external rear ports</li>
-                                <li>Usually PCIe x1 slot</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <h3>Steps to Install an Expansion Card</h3>
-                <ol class="step-list">
-                    <li>
-                        <strong>Power off and unplug</strong>
-                        Ensure the computer is completely powered off and unplugged from AC power.
-                    </li>
-                    <li>
-                        <strong>Install the adapter</strong>
-                        Insert the card into the appropriate expansion slot firmly and evenly.
-                    </li>
-                    <li>
-                        <strong>Connect power (if needed)</strong>
-                        Some cards (especially GPUs) require additional power connectors from the PSU.
-                    </li>
-                    <li>
-                        <strong>Install drivers</strong>
-                        Boot the system and install drivers. Plug and Play may handle basic functionality.
-                    </li>
-                    <li>
-                        <strong>Check BIOS if issues</strong>
-                        If the card isn't recognized, check BIOS settings for slot configuration.
-                    </li>
-                    <li>
-                        <strong>Use manufacturer utilities</strong>
-                        For advanced configuration, use the card manufacturer's software.
-                    </li>
-                </ol>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> Always power off and unplug before installing expansion cards. Some cards (like GPUs) require additional power connectors - if not connected, the system may not POST or display errors.
-                </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Video Cards (GPU)</div>
+                <div class="card-desc">Dedicated graphics processor with its own VRAM (4&ndash;24 GB). Requires PCIe x16 slot. High-end cards need 6-pin or 8-pin supplemental power connectors from the PSU. Multiple outputs: HDMI, DisplayPort, DVI.</div>
             </div>
-
-            <!-- Section 2: Hard Disk Drives -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Hard Disk Drives (HDDs)</h2>
-                <p><strong>Hard Disk Drives</strong> use spinning magnetic platters and moving read/write heads to store data. They've been the primary storage medium for decades.</p>
-
-                <h3>HDD Components</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <h4>Platters</h4>
-                        <ul>
-                            <li>• Magnetic disks that store data</li>
-                            <li>• Multiple platters stacked on spindle</li>
-                            <li>• Data stored as magnetic charges</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Read/Write Heads</h4>
-                        <ul>
-                            <li>• Float above platter surface</li>
-                            <li>• Read and write data magnetically</li>
-                            <li>• One head per platter side</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Spindle Motor</h4>
-                        <ul>
-                            <li>• Spins platters at constant speed</li>
-                            <li>• Measured in RPM</li>
-                            <li>• Higher RPM = faster access</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Data Organization</h3>
-                <ul>
-                    <li><strong>Track</strong> - Concentric circles on platter surface</li>
-                    <li><strong>Sector</strong> - Pie-slice section of a track (usually 512 bytes)</li>
-                    <li><strong>Cylinder</strong> - Same track number across all platters</li>
-                    <li><strong>Cluster</strong> - Group of sectors (allocation unit for file system)</li>
-                </ul>
-
-                <h3>HDD Speeds (RPM)</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Speed</th>
-                            <th scope="col">Typical Use</th>
-                            <th scope="col">Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>5,400 RPM</td>
-                            <td>Laptops, external drives, NAS</td>
-                            <td>Lower power, quieter, slower</td>
-                        </tr>
-                        <tr>
-                            <td>7,200 RPM</td>
-                            <td>Desktop computers</td>
-                            <td>Most common desktop speed</td>
-                        </tr>
-                        <tr>
-                            <td>10,000 RPM</td>
-                            <td>Performance workstations</td>
-                            <td>Higher performance, more heat</td>
-                        </tr>
-                        <tr>
-                            <td>15,000 RPM</td>
-                            <td>Enterprise servers</td>
-                            <td>Fastest HDD, expensive, loud</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h3>HDD Form Factors</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Size</th>
-                            <th scope="col">Typical Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>3.5 inch</td>
-                            <td>Desktop computers, NAS</td>
-                        </tr>
-                        <tr>
-                            <td>2.5 inch</td>
-                            <td>Laptops, some desktops, external drives</td>
-                        </tr>
-                        <tr>
-                            <td>1.8 inch</td>
-                            <td>Older ultrabooks (largely obsolete)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h3>PATA/IDE (Legacy)</h3>
-                <p><strong>Parallel ATA</strong> (PATA), also called IDE, is the older interface:</p>
-                <ul>
-                    <li>40-pin flat ribbon cable</li>
-                    <li>Master/Slave configuration via jumpers</li>
-                    <li>Maximum 133 MB/s (UDMA 6)</li>
-                    <li>Largely obsolete - replaced by SATA</li>
-                </ul>
-
-                <div class="info-box key-point">
-                    <strong><img src="/assets/images/icons/icon-pin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Remember:</strong> HDDs are mechanical devices with moving parts, making them susceptible to damage from shock and vibration. Always handle carefully and avoid moving while powered on.
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sound Cards</div>
+                <div class="card-desc">Upgrades audio beyond integrated motherboard sound. Higher sampling rates and bit depth, lower latency for professional audio. Multiple jacks for surround-sound configurations. Uses PCIe x1 slot.</div>
             </div>
-
-            <!-- Section 3: Solid State Drives -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Solid State Drives (SSDs)</h2>
-                <p><strong>SSDs</strong> use flash memory chips (NAND) to store data. No moving parts means faster, more reliable, and more durable storage.</p>
-
-                <h3>SSD vs HDD Comparison</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>SSD Advantages</h4>
-                        <ul>
-                            <li>• Much faster read/write speeds</li>
-                            <li>• Faster boot and application loading</li>
-                            <li>• Silent operation (no moving parts)</li>
-                            <li>• More reliable and durable</li>
-                            <li>• Less power consumption</li>
-                            <li>• Resistant to shock and vibration</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                        <h4>SSD Disadvantages</h4>
-                        <ul>
-                            <li>• More expensive per GB</li>
-                            <li>• Limited write cycles (wear leveling helps)</li>
-                            <li>• Lower capacities for same price</li>
-                            <li>• Data recovery more difficult</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Hybrid Drives (SSHD)</h3>
-                <p><strong>Solid State Hybrid Drives</strong> combine a traditional HDD with a small SSD cache:</p>
-                <ul>
-                    <li>Frequently accessed data cached on SSD portion</li>
-                    <li>Large capacity of HDD with some SSD speed benefits</li>
-                    <li>Good middle-ground solution</li>
-                    <li>Less common now that SSDs are more affordable</li>
-                </ul>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> SSDs have a finite number of write operations (Program/Erase cycles). Modern SSDs use wear leveling to distribute writes evenly and extend lifespan. This is rarely an issue for typical consumer use.
-                </div>
-            </div>
-
-            <!-- Section 4: Storage Interfaces -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Storage Interfaces</h2>
-
-                <h3>SATA (Serial ATA)</h3>
-                <p>The standard interface for most HDDs and many SSDs:</p>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Version</th>
-                            <th scope="col">Speed</th>
-                            <th scope="col">Common Name</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>SATA I</td>
-                            <td>1.5 Gb/s (150 MB/s)</td>
-                            <td>SATA 1.5Gb/s</td>
-                        </tr>
-                        <tr>
-                            <td>SATA II</td>
-                            <td>3 Gb/s (300 MB/s)</td>
-                            <td>SATA 3Gb/s</td>
-                        </tr>
-                        <tr>
-                            <td>SATA III</td>
-                            <td>6 Gb/s (600 MB/s)</td>
-                            <td>SATA 6Gb/s</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <ul>
-                    <li><strong>Data connector:</strong> 7-pin L-shaped connector</li>
-                    <li><strong>Power connector:</strong> 15-pin from PSU</li>
-                    <li><strong>eSATA:</strong> External SATA for hot-swappable external drives</li>
-                    <li><strong>mSATA:</strong> Mini-SATA form factor (older laptops)</li>
-                </ul>
-
-                <h3>NVMe (Non-Volatile Memory Express)</h3>
-                <p><strong>NVMe</strong> is a protocol designed specifically for flash storage, using PCIe bus:</p>
-                <ul>
-                    <li>Much faster than SATA (up to 7,000+ MB/s)</li>
-                    <li>Lower latency than SATA</li>
-                    <li>Connects via PCIe lanes (x2 or x4)</li>
-                    <li>Most common in M.2 form factor</li>
-                </ul>
-
-                <h3>M.2 Form Factor</h3>
-                <p>M.2 is a compact form factor for SSDs (and other devices like Wi-Fi cards):</p>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Key</th>
-                            <th scope="col">Interfaces</th>
-                            <th scope="col">Typical Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>B Key</td>
-                            <td>SATA, PCIe x2</td>
-                            <td>SATA SSDs, some PCIe SSDs</td>
-                        </tr>
-                        <tr>
-                            <td>M Key</td>
-                            <td>PCIe x4, SATA</td>
-                            <td>NVMe SSDs (fastest)</td>
-                        </tr>
-                        <tr>
-                            <td>B+M Key</td>
-                            <td>Compatible with both</td>
-                            <td>Universal compatibility</td>
-                        </tr>
-                        <tr>
-                            <td>E Key</td>
-                            <td>PCIe x2, USB</td>
-                            <td>Wi-Fi, Bluetooth cards</td>
-                        </tr>
-                        <tr>
-                            <td>A Key</td>
-                            <td>PCIe x2, USB</td>
-                            <td>Wi-Fi, Bluetooth cards</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> An M.2 slot can support SATA or NVMe drives, but not all M.2 slots support both! Check motherboard specifications. An NVMe drive won't work in a SATA-only M.2 slot.
-                </div>
-
-                <h3>PCIe Transfer Rates</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Version</th>
-                            <th scope="col">Per Lane</th>
-                            <th scope="col">x4 Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>PCIe 3.0</td>
-                            <td>~1 GB/s</td>
-                            <td>~4 GB/s</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe 4.0</td>
-                            <td>~2 GB/s</td>
-                            <td>~8 GB/s</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe 5.0</td>
-                            <td>~4 GB/s</td>
-                            <td>~16 GB/s</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Section 5: RAID -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> RAID Configurations</h2>
-                <p><strong>RAID</strong> (Redundant Array of Independent/Inexpensive Disks) combines multiple drives for performance, redundancy, or both.</p>
-
-                <h3>RAID Levels for Exam</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>RAID 0 (Striping)</h4>
-                        <ul>
-                            <li>• Minimum: 2 drives</li>
-                            <li>• Data split across drives</li>
-                            <li>• Best performance</li>
-                            <li>• NO redundancy</li>
-                            <li>• One drive fails = all data lost</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>RAID 1 (Mirroring)</h4>
-                        <ul>
-                            <li>• Minimum: 2 drives</li>
-                            <li>• Identical copy on each drive</li>
-                            <li>• Full redundancy</li>
-                            <li>• 50% usable capacity</li>
-                            <li>• Can survive one drive failure</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>RAID 5 (Striping + Parity)</h4>
-                        <ul>
-                            <li>• Minimum: 3 drives</li>
-                            <li>• Striped with distributed parity</li>
-                            <li>• Good balance of performance/redundancy</li>
-                            <li>• Loses capacity of 1 drive to parity</li>
-                            <li>• Can survive one drive failure</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>RAID 10 (1+0)</h4>
-                        <ul>
-                            <li>• Minimum: 4 drives</li>
-                            <li>• Mirrored sets that are striped</li>
-                            <li>• Best performance AND redundancy</li>
-                            <li>• 50% usable capacity</li>
-                            <li>• Can survive multiple failures (in different mirrors)</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> RAID 0 = Speed, no safety. RAID 1 = Safety through mirroring. RAID 5 = Balance (needs 3+ drives). RAID 10 = Best of both (needs 4+ drives). Remember: RAID is NOT a backup - always have separate backups!
-                </div>
-            </div>
-
-            <!-- Section 6: Removable Storage -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Removable Storage & Optical Drives</h2>
-
-                <h3>Flash Memory Storage</h3>
-                <ul>
-                    <li><strong>USB Flash Drives</strong> - Portable storage via USB port</li>
-                    <li><strong>SD Cards</strong> - Secure Digital cards for cameras, phones</li>
-                    <li><strong>MicroSD</strong> - Smaller SD for phones, tablets</li>
-                    <li><strong>CompactFlash</strong> - Older, larger format (professional cameras)</li>
-                </ul>
-                <p>All flash storage is <strong>hot-swappable</strong> - can be connected/removed while powered on.</p>
-
-                <h3>Optical Drives</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Format</th>
-                            <th scope="col">Capacity</th>
-                            <th scope="col">Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>CD-R/RW</td>
-                            <td>700 MB</td>
-                            <td>R = write once, RW = rewritable</td>
-                        </tr>
-                        <tr>
-                            <td>DVD-R/RW</td>
-                            <td>4.7 GB (single layer)</td>
-                            <td>8.5 GB dual layer</td>
-                        </tr>
-                        <tr>
-                            <td>DVD+R/RW</td>
-                            <td>4.7 GB (single layer)</td>
-                            <td>Competing format to DVD-R</td>
-                        </tr>
-                        <tr>
-                            <td>BD-R/RE (Blu-ray)</td>
-                            <td>25 GB (single layer)</td>
-                            <td>50 GB dual layer, 100 GB triple</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box key-point">
-                    <strong><img src="/assets/images/icons/icon-pin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Optical Drive Note:</strong> Many modern systems no longer include optical drives. External USB optical drives are available when needed for legacy software or media.
-                </div>
-            </div>
-
-            <!-- Section 7: Power Supplies -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-battery.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Power Supplies</h2>
-                <p>The <strong>Power Supply Unit (PSU)</strong> converts AC power from the wall outlet to DC power used by computer components.</p>
-
-                <h3>Power Conversion</h3>
-                <ul>
-                    <li><strong>Input:</strong> AC 115V (US) or 220V (international)</li>
-                    <li><strong>Output:</strong> DC voltages at +3.3V, +5V, +12V</li>
-                    <li><strong>Rating:</strong> Measured in Watts (W)</li>
-                </ul>
-
-                <h3>Voltage Rails</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Voltage</th>
-                            <th scope="col">Components Powered</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>+3.3V</td>
-                            <td>RAM, some motherboard components</td>
-                        </tr>
-                        <tr>
-                            <td>+5V</td>
-                            <td>SATA drives, USB ports, some fans</td>
-                        </tr>
-                        <tr>
-                            <td>+12V</td>
-                            <td>CPU, GPU, fans, drives (motors)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h3>PSU Types</h3>
-                <div class="comparison-grid">
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Non-Modular</h4>
-                        <ul>
-                            <li>• All cables permanently attached</li>
-                            <li>• Lower cost</li>
-                            <li>• More cable clutter</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Semi-Modular</h4>
-                        <ul>
-                            <li>• Essential cables attached</li>
-                            <li>• Optional cables removable</li>
-                            <li>• Good balance</li>
-                        </ul>
-                    </div>
-                    <div class="compare-card">
-                        <div class="icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                        <h4>Fully Modular</h4>
-                        <ul>
-                            <li>• All cables detachable</li>
-                            <li>• Cleanest cable management</li>
-                            <li>• Highest cost</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3>Efficiency Ratings (80 PLUS)</h3>
-                <p>80 PLUS certification indicates PSU efficiency at converting AC to DC:</p>
-                <ul>
-                    <li><strong>80 PLUS:</strong> 80% efficiency</li>
-                    <li><strong>80 PLUS Bronze:</strong> 82-85% efficiency</li>
-                    <li><strong>80 PLUS Gold:</strong> 87-90% efficiency</li>
-                    <li><strong>80 PLUS Platinum:</strong> 89-92% efficiency</li>
-                    <li><strong>80 PLUS Titanium:</strong> 91-96% efficiency</li>
-                </ul>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> Higher efficiency = less wasted power as heat, lower electricity bills. A 500W Gold PSU wastes less power than a 500W Bronze PSU at the same load.
-                </div>
-
-                <h3>Reasons to Replace PSU</h3>
-                <ul>
-                    <li>PSU failure (no power, random shutdowns)</li>
-                    <li>Upgrading components that need more power</li>
-                    <li>Adding a powerful GPU that exceeds current PSU capacity</li>
-                    <li>New components need connectors the old PSU doesn't have</li>
-                </ul>
-
-                <h3>Redundant Power Supplies</h3>
-                <p>Servers often have redundant (dual) PSUs - if one fails, the other keeps the system running. Common in enterprise environments for high availability.</p>
-            </div>
-
-            <!-- Section 8: Power Connectors -->
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Power Connectors</h2>
-
-                <h3>Motherboard Power Connectors</h3>
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>24-pin ATX (Main Power)</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>The main motherboard power connector. Originally 20-pin, expanded to 24-pin for additional power needs.</p>
-                            <ul>
-                                <li>Provides +3.3V, +5V, +12V rails</li>
-                                <li>Can be 20+4 pin (backward compatible)</li>
-                                <li>Always required for motherboard</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <div class="accordion-header" onclick="toggleAccordion(this)">
-                            <span>4/8-pin ATX12V / EPS (CPU Power)</span>
-                            <span class="icon">▼</span>
-                        </div>
-                        <div class="accordion-content">
-                            <p>Additional 12V power for the CPU, located near the CPU socket.</p>
-                            <ul>
-                                <li>4-pin for lower-power CPUs</li>
-                                <li>8-pin (or 4+4) for high-power CPUs</li>
-                                <li>Some motherboards have 8+4 or 8+8</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <h3>Peripheral Power Connectors</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Connector</th>
-                            <th scope="col">Pins</th>
-                            <th scope="col">Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>SATA Power</td>
-                            <td>15-pin</td>
-                            <td>SATA HDDs and SSDs</td>
-                        </tr>
-                        <tr>
-                            <td>Molex</td>
-                            <td>4-pin</td>
-                            <td>Legacy devices, fans, older drives</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe 6-pin</td>
-                            <td>6-pin</td>
-                            <td>Mid-range GPUs (75W additional)</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe 8-pin</td>
-                            <td>8-pin</td>
-                            <td>High-end GPUs (150W additional)</td>
-                        </tr>
-                        <tr>
-                            <td>PCIe 12-pin/16-pin</td>
-                            <td>12/16-pin</td>
-                            <td>Newest high-power GPUs (12VHPWR)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="info-box exam-tip">
-                    <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> SATA power = 15 pins. SATA data = 7 pins. Don't confuse them! The power connector is wider. Molex is the older 4-pin connector - adapters exist to convert Molex to SATA power.
-                </div>
-
-                <h3>UPS (Uninterruptible Power Supply)</h3>
-                <p>A UPS provides battery backup power during outages:</p>
-                <ul>
-                    <li>Keeps system running briefly during power loss</li>
-                    <li>Provides surge protection</li>
-                    <li>Allows for graceful shutdown</li>
-                    <li>Essential for servers and workstations</li>
-                    <li>Rated in VA (volt-amperes) or watts</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">Network Cards (NICs)</div>
+                <div class="card-desc">Wired NICs: 1 Gbps, 2.5 Gbps, 10 Gbps Ethernet via PCIe x1. Wireless NICs: Wi-Fi 5 (802.11ac), Wi-Fi 6 (802.11ax), with external antenna connectors. Some wireless NICs use M.2 E-key slot instead of PCIe.</div>
             </div>
         </div>
 
-        <!-- INTERACTIVE SECTION -->
-        <div id="interactive" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: Storage Speed Comparison</h2>
-                <p>Compare different storage interface speeds:</p>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Interface</th>
-                            <th scope="col">Max Speed</th>
-                            <th scope="col">Relative Speed</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>SATA III</td>
-                            <td>600 MB/s</td>
-                            <td><div style="background: var(--forge-primary); height: 20px; width: 10%; border-radius: 5px;"></div></td>
-                        </tr>
-                        <tr>
-                            <td>NVMe PCIe 3.0 x4</td>
-                            <td>~3,500 MB/s</td>
-                            <td><div style="background: var(--forge-primary); height: 20px; width: 55%; border-radius: 5px;"></div></td>
-                        </tr>
-                        <tr>
-                            <td>NVMe PCIe 4.0 x4</td>
-                            <td>~7,000 MB/s</td>
-                            <td><div style="background: var(--forge-primary); height: 20px; width: 85%; border-radius: 5px;"></div></td>
-                        </tr>
-                        <tr>
-                            <td>NVMe PCIe 5.0 x4</td>
-                            <td>~12,000 MB/s</td>
-                            <td><div style="background: var(--forge-primary); height: 20px; width: 100%; border-radius: 5px;"></div></td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Capture Cards</div>
+                <div class="card-desc">Records HDMI video from external sources (consoles, cameras). Passthrough output for zero-latency gaming while recording. Used in streaming and content creation. Typically PCIe x4 for bandwidth headroom.</div>
             </div>
+            <div class="card c-cyan">
+                <div class="card-label">USB Expansion Cards</div>
+                <div class="card-desc">Adds USB 3.0/3.1/3.2 or USB-C ports to older systems lacking them. Available as rear-port only or with internal headers. Uses PCIe x1 slot. Useful when motherboard USB headers are exhausted.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RAID Controllers</div>
+                <div class="card-desc">Dedicated hardware RAID card offloads parity calculation from the CPU. Supports more drives than onboard SATA ports. Used in servers and high-availability workstations. Typically PCIe x4 or x8.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: RAID Calculator</h2>
-                <p>See how different RAID levels affect usable capacity:</p>
+<!-- ==================== SLIDE 3 — INSTALLING EXPANSION CARDS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 22</div>
+        <div class="slide-title">Installing <span class="accent">Expansion Cards</span></div>
+        <div class="slide-subtitle">Correct procedure prevents electrostatic discharge damage and POST failures.</div>
 
-                <div style="margin: 20px 0;">
-                    <label style="display: block; margin-bottom: 10px;"><strong>Number of drives:</strong></label>
-                    <input type="range" id="driveCount" min="2" max="8" value="4" style="width: 100%;">
-                    <span id="driveCountDisplay">4 drives</span>
-                </div>
-
-                <div style="margin: 20px 0;">
-                    <label style="display: block; margin-bottom: 10px;"><strong>Drive size:</strong></label>
-                    <select id="driveSize" style="padding: 10px; width: 100%; border-radius: 8px; border: 2px solid var(--border-color);">
-                        <option value="500">500 GB</option>
-                        <option value="1000" selected>1 TB</option>
-                        <option value="2000">2 TB</option>
-                        <option value="4000">4 TB</option>
-                    </select>
-                </div>
-
-                <div id="raidResults" style="margin-top: 20px;">
-                    <!-- Results populated by JS -->
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Installation Steps</div>
+                <div class="card-desc">
+                    1. Power off and unplug from AC.<br>
+                    2. Ground yourself (ESD wrist strap).<br>
+                    3. Remove slot cover bracket from case.<br>
+                    4. Insert card firmly and evenly into slot &mdash; no rocking.<br>
+                    5. Secure bracket screw.<br>
+                    6. Connect supplemental power if required (GPUs).<br>
+                    7. Boot and install drivers.
                 </div>
             </div>
-
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Interactive: Connector Matcher</h2>
-                <p>Match the connector to its pin count:</p>
-
-                <div class="quiz-container" id="connectorGame">
-                    <div class="quiz-question">
-                        <h3><span class="q-number">1</span> SATA Data Connector</h3>
-                        <ul class="quiz-options">
-                            <li onclick="checkConnector(this, '7')">7 pins</li>
-                            <li onclick="checkConnector(this, '15')">15 pins</li>
-                            <li onclick="checkConnector(this, '24')">24 pins</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">2</span> SATA Power Connector</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkConnector(this, '7')">7 pins</li>
-                            <li onclick="checkConnector(this, '15')">15 pins</li>
-                            <li onclick="checkConnector(this, '24')">24 pins</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">3</span> ATX Main Power</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkConnector(this, '4')">4 pins</li>
-                            <li onclick="checkConnector(this, '8')">8 pins</li>
-                            <li onclick="checkConnector(this, '24')">24 pins</li>
-                        </ul>
-                    </div>
-                    <div class="quiz-question">
-                        <h4><span class="q-number">4</span> Molex Connector</h4>
-                        <ul class="quiz-options">
-                            <li onclick="checkConnector(this, '4')">4 pins</li>
-                            <li onclick="checkConnector(this, '6')">6 pins</li>
-                            <li onclick="checkConnector(this, '8')">8 pins</li>
-                        </ul>
-                    </div>
+            <div class="card c-cyan">
+                <div class="card-label">Post-Install Troubleshooting</div>
+                <div class="card-desc">
+                    Card not detected: reseat the card &mdash; poor contact is common.<br>
+                    GPU powers on but no display: check PCIe power connectors.<br>
+                    BSOD after GPU install: driver conflict &mdash; use DDU (Display Driver Uninstaller) and reinstall clean.<br>
+                    BIOS/UEFI may have slot enable/disable settings &mdash; verify PCIe slot is enabled.
                 </div>
             </div>
         </div>
 
-        <!-- LABS SECTION -->
-        <div id="labs" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Hands-On Labs</h2>
-                <p>Practice with power supply connectors:</p>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Always power off and unplug before installing expansion cards. GPUs that are not connected to their supplemental power connector will fail to POST or produce error beeps. Missing CPU power (EPS connector) produces the same symptom &mdash; know how to distinguish the two.
+        </div>
 
-                <div class="labs-grid">
-                    <a href="../../labs/forge-psu-connectors.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h3>PSU Connector Identification</h3>
-                            <p>Identify different power connectors and their uses</p>
-                        </div>
-                    </a>
-                </div>
+        <div class="box box-red">
+            <div class="box-label">ESD Warning</div>
+            Expansion cards contain CMOS and MOSFET components that can be destroyed by static discharge far below the threshold humans can feel. Always use an ESD wrist strap or regularly touch the metal case frame before handling cards. Never slide cards across clothing or carpets.
+        </div>
+    </div>
+</section>
 
-                <div class="info-box" style="margin-top: 20px;">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tip:</strong> Understanding power connectors is essential for building and troubleshooting PCs. The wrong connector can damage components!
-                </div>
+<!-- ==================== SLIDE 4 — HDD FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 22</div>
+        <div class="slide-title">Hard Disk Drives: <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Spinning magnetic platters, read/write heads, and data organization terms.</div>
 
-                <h3 style="margin-top: 30px;">Additional Practice Activities</h3>
-                <div class="labs-grid">
-                    <a href="../../labs/forge-raid-config.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h4>RAID Configuration Builder</h4>
-                            <p>Design RAID arrays and calculate capacity, performance, and fault tolerance</p>
-                        </div>
-                    </a>
-                    <a href="../../labs/forge-storage-upgrade.lab.html" class="lab-link">
-                        <span class="lab-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span>
-                        <div>
-                            <h4>Storage Upgrade Lab</h4>
-                            <p>Practice HDD to SSD upgrades with M.2 NVMe installation</p>
-                        </div>
-                    </a>
-                </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Key Components</div>
+                <div class="card-desc"><strong>Platters:</strong> Magnetic disks stacked on a spindle; data stored as magnetic polarity changes.<br><strong>Read/Write Heads:</strong> Float 3&ndash;5 nm above the platter surface; one per side.<br><strong>Spindle Motor:</strong> Spins platters at constant RPM.<br><strong>Actuator Arm:</strong> Moves heads across the platter.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Organization</div>
+                <div class="card-desc"><strong>Track:</strong> Concentric circle on platter surface.<br><strong>Sector:</strong> Pie-slice of a track; 512 bytes (legacy) or 4096 bytes (Advanced Format).<br><strong>Cylinder:</strong> Same track number across all platters (vertical stack).<br><strong>Cluster:</strong> Group of sectors; smallest addressable unit for the file system.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RPM &amp; Form Factors</div>
+                <div class="card-desc"><strong>5,400 RPM:</strong> Laptops, NAS, external drives &mdash; quieter, lower power.<br><strong>7,200 RPM:</strong> Desktop standard &mdash; best balance of speed and cost.<br><strong>10,000 RPM:</strong> Performance workstations.<br><strong>15,000 RPM:</strong> Enterprise SAS &mdash; fastest, hottest, loudest.<br><strong>3.5"</strong> desktop &bull; <strong>2.5"</strong> laptop/external.</div>
             </div>
         </div>
 
-        <!-- QUIZ SECTION -->
-        <div id="quiz" class="content-section">
-            <div class="section-card">
-                <h2><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Chapter 2 Quiz</h2>
-                <p>Test your knowledge of expansion cards, storage, and power supplies. <strong>15 questions</strong></p>
+        <!-- SVG: HDD Cross-Section — platter, tracks, sectors, animated arm seek -->
+        <svg class="svg-diagram" viewBox="0 0 520 160" aria-label="HDD cross-section diagram">
+            <!-- Platter body -->
+            <ellipse cx="160" cy="80" rx="70" ry="70" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <!-- Platter tracks — concentric rings -->
+            <ellipse cx="160" cy="80" rx="58" ry="58" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <ellipse cx="160" cy="80" rx="46" ry="46" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <ellipse cx="160" cy="80" rx="34" ry="34" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <ellipse cx="160" cy="80" rx="22" ry="22" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <!-- Sector wedges -->
+            <line x1="160" y1="80" x2="160" y2="10" stroke="#1e3a5f" stroke-width="1"/>
+            <line x1="160" y1="80" x2="221" y2="45" stroke="#1e3a5f" stroke-width="1"/>
+            <line x1="160" y1="80" x2="221" y2="115" stroke="#1e3a5f" stroke-width="1"/>
+            <line x1="160" y1="80" x2="160" y2="150" stroke="#1e3a5f" stroke-width="1"/>
+            <line x1="160" y1="80" x2="99" y2="115" stroke="#1e3a5f" stroke-width="1"/>
+            <line x1="160" y1="80" x2="99" y2="45" stroke="#1e3a5f" stroke-width="1"/>
+            <!-- Highlighted sector -->
+            <path d="M160,80 L221,45 A70,70 0 0,1 221,115 Z" fill="rgba(201,168,58,0.18)" stroke="#c9a83a" stroke-width="1"/>
+            <!-- Spindle center -->
+            <circle cx="160" cy="80" r="8" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+            <!-- Actuator arm pivot -->
+            <circle cx="258" cy="80" r="6" fill="#334155" stroke="#64748b" stroke-width="1.5"/>
+            <!-- Actuator arm — animated seeking -->
+            <g id="hdd-arm">
+                <line x1="258" y1="80" x2="190" y2="36" stroke="#c9a83a" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- Read/write head -->
+                <rect x="183" y="30" width="14" height="7" rx="2" fill="#c9a83a"/>
+                <animateTransform attributeName="transform" type="rotate"
+                    values="0 258 80; -18 258 80; 14 258 80; -8 258 80; 0 258 80"
+                    dur="3.2s" repeatCount="indefinite"/>
+            </g>
+            <!-- Labels -->
+            <text x="160" y="6" text-anchor="middle" font-size="9" fill="#64748b">Track</text>
+            <text x="236" y="132" text-anchor="middle" font-size="9" fill="#c9a83a">Sector</text>
+            <text x="258" y="101" text-anchor="middle" font-size="9" fill="#94a3b8">Actuator</text>
+            <!-- Right panel: labels key -->
+            <rect x="310" y="18" width="190" height="124" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.07)"/>
+            <text x="320" y="36" font-size="10" fill="#c9a83a" font-weight="700">HDD Cross-Section</text>
+            <circle cx="322" cy="52" r="4" fill="#2d4a6e" stroke="#475569" stroke-width="1"/>
+            <text x="332" y="56" font-size="9" fill="#94a3b8">Concentric Tracks</text>
+            <path d="M316,66 L322,62 L328,66 L322,70 Z" fill="rgba(201,168,58,0.3)" stroke="#c9a83a" stroke-width="1"/>
+            <text x="332" y="70" font-size="9" fill="#94a3b8">Sector (pie slice)</text>
+            <rect x="318" y="79" width="8" height="5" rx="1" fill="#c9a83a"/>
+            <text x="332" y="85" font-size="9" fill="#94a3b8">Read/Write Head</text>
+            <line x1="316" y1="95" x2="328" y2="95" stroke="#c9a83a" stroke-width="2.5"/>
+            <text x="332" y="99" font-size="9" fill="#94a3b8">Actuator Arm</text>
+            <circle cx="322" cy="113" r="4" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+            <text x="332" y="117" font-size="9" fill="#94a3b8">Spindle</text>
+            <text x="320" y="134" font-size="8" fill="#475569" font-style="italic">Arm seeks across tracks</text>
+        </svg>
 
-                <div class="quiz-container" id="mainQuiz"></div>
+        <div class="box box-red">
+            <div class="box-label">Technician Note</div>
+            HDDs have moving parts and are vulnerable to shock, vibration, and strong magnetic fields. Never move a powered HDD. A head crash (head contacts platter) destroys data and requires professional recovery. Always handle drives parallel to the ground.
+        </div>
+    </div>
+</section>
 
-                <button class="quiz-btn" id="submitQuiz" onclick="submitQuiz()" style="display: none;">Submit Quiz</button>
+<!-- ==================== SLIDE 5 — PATA vs SATA ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 22</div>
+        <div class="slide-title">Storage Interfaces: <span class="accent">PATA vs. SATA</span></div>
+        <div class="slide-subtitle">Legacy parallel ribbon cable vs. current serial point-to-point standard.</div>
 
-                <div class="score-display" id="quizResults" style="display: none;">
-                    <h3>Quiz Complete!</h3>
-                    <div class="score"><span id="finalScore">0</span>/15</div>
-                    <p id="scoreMessage"></p>
-                    <button class="quiz-btn" onclick="resetQuiz()" style="background: white; color: var(--forge-primary); margin-top: 15px;">Try Again</button>
-                    <a href="../ch03-peripherals/index.html" class="quiz-btn" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 3 — Peripherals &rsaquo;</a>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">PATA / IDE (Legacy)</div>
+                <div class="card-desc">Parallel ATA &mdash; 40-pin flat ribbon cable. Maximum 133 MB/s (UDMA 6). Supports two devices per cable via Master/Slave jumper configuration. Wide ribbon blocks airflow. Largely replaced by SATA after 2003. Still occasionally found on embedded systems and industrial equipment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SATA (Current)</div>
+                <div class="card-desc">Serial ATA &mdash; thin 7-pin L-shaped data cable, separate 15-pin power. SATA I: 1.5 Gbps. SATA II: 3.0 Gbps. SATA III: 6 Gbps (~550 MB/s practical). One device per cable &mdash; no jumper configuration. Hot-swappable on most controllers. Backward compatible across versions.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Interface</th><th>Max Speed</th><th>Connector</th><th>Devices/Cable</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>PATA (IDE)</strong></td><td>133 MB/s</td><td>40-pin ribbon</td><td>2 (master/slave)</td><td>Legacy</td></tr>
+                <tr><td><strong>SATA I</strong></td><td>150 MB/s</td><td>7-pin L-shaped</td><td>1</td><td>Legacy</td></tr>
+                <tr><td><strong>SATA II</strong></td><td>300 MB/s</td><td>7-pin L-shaped</td><td>1</td><td>Older hardware</td></tr>
+                <tr><td><strong>SATA III</strong></td><td>600 MB/s</td><td>7-pin L-shaped</td><td>1</td><td>Current standard</td></tr>
+                <tr><td><strong>eSATA</strong></td><td>600 MB/s</td><td>External SATA</td><td>1</td><td>External hot-swap</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — SSD TYPES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 22</div>
+        <div class="slide-title">Solid State Drives: <span class="accent">Types &amp; Technology</span></div>
+        <div class="slide-subtitle">NAND flash memory with no moving parts &mdash; faster, more durable, uses less power than HDDs.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">SATA SSD (2.5")</div>
+                <div class="card-desc">Same interface as HDDs but uses NAND flash. Max ~550 MB/s (SATA III ceiling). Direct HDD replacement for laptops and desktops. Reliable, affordable, widely available. Form factor: 2.5" or 3.5" with adapter. Bottlenecked by SATA interface &mdash; not by the NAND itself.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">M.2 SATA SSD</div>
+                <div class="card-desc">M.2 form factor running the SATA protocol. No cable required &mdash; plugs directly into M.2 slot. Same speed ceiling as 2.5" SATA (~550 MB/s). Uses B-key or B+M-key M.2 slot. Compact design for laptops and small form factor systems. Verify slot supports SATA before purchasing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">M.2 NVMe SSD</div>
+                <div class="card-desc">M.2 form factor using the NVMe protocol over PCIe lanes. Dramatically faster: PCIe 3.0 x4: ~3,500 MB/s. PCIe 4.0 x4: ~7,000 MB/s. PCIe 5.0 x4: ~12,000+ MB/s. Uses M-key or B+M-key slot. Requires NVMe-capable M.2 slot. Default storage choice for modern builds.</div>
+            </div>
+        </div>
+
+        <!-- SVG: SSD vs HDD side-by-side comparison -->
+        <svg class="svg-diagram" viewBox="0 0 520 150" aria-label="SSD vs HDD comparison diagram">
+            <!-- HDD panel -->
+            <rect x="10" y="10" width="230" height="130" rx="6" fill="rgba(255,255,255,0.03)" stroke="#334155" stroke-width="1.5"/>
+            <text x="125" y="28" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700">HDD — Spinning Disk</text>
+            <!-- HDD platter -->
+            <ellipse cx="95" cy="82" rx="42" ry="42" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <ellipse cx="95" cy="82" rx="30" ry="30" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <ellipse cx="95" cy="82" rx="18" ry="18" fill="none" stroke="#2d4a6e" stroke-width="1"/>
+            <circle cx="95" cy="82" r="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+            <!-- HDD arm animated -->
+            <g>
+                <line x1="148" y1="82" x2="113" y2="55" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+                <rect x="106" y="49" width="10" height="6" rx="1" fill="#94a3b8"/>
+                <animateTransform attributeName="transform" type="rotate"
+                    values="0 148 82; -20 148 82; 12 148 82; 0 148 82"
+                    dur="2.8s" repeatCount="indefinite"/>
+            </g>
+            <text x="95" y="138" text-anchor="middle" font-size="8" fill="#64748b">~10ms seek / ~100 MB/s</text>
+            <!-- SSD panel -->
+            <rect x="280" y="10" width="230" height="130" rx="6" fill="rgba(255,255,255,0.03)" stroke="#3ab577" stroke-width="1.5"/>
+            <text x="395" y="28" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700">SSD — NAND Flash</text>
+            <!-- NAND chip grid -->
+            <rect x="305" y="38" width="36" height="28" rx="3" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1"/>
+            <text x="323" y="56" text-anchor="middle" font-size="7" fill="#06b6d4">NAND</text>
+            <rect x="349" y="38" width="36" height="28" rx="3" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1"/>
+            <text x="367" y="56" text-anchor="middle" font-size="7" fill="#06b6d4">NAND</text>
+            <rect x="393" y="38" width="36" height="28" rx="3" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1"/>
+            <text x="411" y="56" text-anchor="middle" font-size="7" fill="#06b6d4">NAND</text>
+            <rect x="437" y="38" width="36" height="28" rx="3" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1"/>
+            <text x="455" y="56" text-anchor="middle" font-size="7" fill="#06b6d4">NAND</text>
+            <!-- Controller chip -->
+            <rect x="327" y="78" width="50" height="32" rx="3" fill="#0f172a" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="352" y="97" text-anchor="middle" font-size="7" fill="#c9a83a">Controller</text>
+            <!-- DRAM cache -->
+            <rect x="393" y="78" width="50" height="32" rx="3" fill="#0f172a" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text x="418" y="97" text-anchor="middle" font-size="7" fill="#8b5cf6">DRAM</text>
+            <!-- animated data flash on NAND chips -->
+            <rect x="305" y="38" width="36" height="28" rx="3" fill="#06b6d4" opacity="0">
+                <animate attributeName="opacity" values="0;0.25;0;0;0" dur="1.8s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="393" y="38" width="36" height="28" rx="3" fill="#06b6d4" opacity="0">
+                <animate attributeName="opacity" values="0;0;0.25;0;0" dur="1.8s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="349" y="38" width="36" height="28" rx="3" fill="#06b6d4" opacity="0">
+                <animate attributeName="opacity" values="0;0;0;0.25;0" dur="1.8s" repeatCount="indefinite"/>
+            </rect>
+            <text x="395" y="138" text-anchor="middle" font-size="8" fill="#64748b">&lt;0.1ms access / 500-7000 MB/s</text>
+            <!-- VS label -->
+            <text x="258" y="85" text-anchor="middle" font-size="14" fill="#475569" font-weight="700">VS</text>
+        </svg>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">SSD Advantages over HDD</div>
+                No moving parts &mdash; shock-resistant. Silent operation. Much faster access times (&lt;0.1 ms vs. 10+ ms HDD). Lower power draw. Smaller and lighter. Faster boot and application launch times.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">SSD Wear Leveling</div>
+                NAND flash has a finite number of Program/Erase cycles. The SSD controller uses wear leveling to distribute writes evenly across all cells, extending drive lifespan. TRIM command allows the OS to inform the SSD which blocks are no longer in use, improving performance.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — NVMe & M.2 DEEP DIVE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 22</div>
+        <div class="slide-title">NVMe &amp; M.2 <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">M.2 key types, NVMe protocol, and PCIe bandwidth per generation.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>M.2 Key</th><th>Interfaces Supported</th><th>Typical Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>B Key</strong></td><td>SATA, PCIe x2</td><td>SATA SSDs, some NVMe</td></tr>
+                <tr><td><strong>M Key</strong></td><td>PCIe x4, SATA</td><td>NVMe SSDs (fastest)</td></tr>
+                <tr><td><strong>B+M Key</strong></td><td>SATA + PCIe x2</td><td>Universal compatibility</td></tr>
+                <tr><td><strong>E Key</strong></td><td>PCIe x2, USB</td><td>Wi-Fi / Bluetooth cards</td></tr>
+                <tr><td><strong>A Key</strong></td><td>PCIe x2, USB</td><td>Wi-Fi / Bluetooth cards</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">PCIe Bandwidth (x4 slot)</div>
+                <div class="card-desc">PCIe 3.0 x4: ~4 GB/s. PCIe 4.0 x4: ~8 GB/s. PCIe 5.0 x4: ~16 GB/s. NVMe protocol is optimized for flash: up to 64,000 I/O queues with 65,535 commands per queue. AHCI (SATA) supports only 1 queue with 32 commands &mdash; a massive bottleneck for modern SSDs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common Sizes</div>
+                <div class="card-desc">M.2 modules follow a naming convention: 2242 = 22mm wide, 42mm long. 2280 = 22mm wide, 80mm long (most common). 22110 = 22mm wide, 110mm long (enterprise/server). Always check motherboard manual for supported lengths &mdash; not all slots have screw standoffs for every size.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Critical Exam Tip</div>
+                <div class="card-desc">An NVMe SSD will NOT work in a SATA-only M.2 slot. A SATA M.2 SSD will NOT work in an NVMe-only M.2 slot. Check the motherboard specification carefully &mdash; physical slot fit does NOT guarantee compatibility. This is a frequently tested A+ scenario question.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — RAID FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 22</div>
+        <div class="slide-title">RAID: <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Redundant Array of Independent Disks &mdash; combining drives for performance, redundancy, or both.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">RAID 0 &mdash; Striping</div>
+                <div class="card-desc">Minimum 2 drives. Data is split across all drives in parallel &mdash; maximum read and write performance. Usable capacity = sum of all drives. NO redundancy. If one drive fails, ALL data is lost. Use case: scratch disks, video editing where backups exist elsewhere.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RAID 1 &mdash; Mirroring</div>
+                <div class="card-desc">Minimum 2 drives. Every write is duplicated to both drives simultaneously. Full redundancy: one drive can fail and data is intact. Usable capacity = 50% of total raw capacity. Slightly faster reads (can read from both). Use case: OS drives, small critical data stores.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">RAID 5 &mdash; Striping + Parity</div>
+                <div class="card-desc">Minimum 3 drives. Data and parity are distributed across all drives. One drive can fail and data is recovered from parity. Usable capacity = (n-1) drives. Good balance of performance and redundancy. Write penalty: parity must be calculated on every write. Most common enterprise configuration.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RAID 10 &mdash; Stripe + Mirror</div>
+                <div class="card-desc">Minimum 4 drives. Combines RAID 0 (striping) and RAID 1 (mirroring). Data is striped across mirrored pairs. Survives multiple drive failures if they are in different mirror pairs. 50% usable capacity. Best performance and redundancy combination. Preferred for databases and high-I/O workloads.</div>
+            </div>
+        </div>
+
+        <!-- SVG: RAID 0/1/5 three-panel comparison -->
+        <svg class="svg-diagram" viewBox="0 0 520 148" aria-label="RAID 0, 1, and 5 comparison diagram">
+            <!-- RAID 0 panel -->
+            <rect x="8" y="8" width="156" height="132" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="86" y="24" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700">RAID 0 — Striping</text>
+            <!-- Two drives -->
+            <rect x="22" y="34" width="44" height="80" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <rect x="102" y="34" width="44" height="80" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <!-- Stripe blocks animated -->
+            <rect x="22" y="34" width="44" height="14" rx="2" fill="#ef4444" opacity="0.7">
+                <animate attributeName="opacity" values="0.7;0.3;0.7" dur="1s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="102" y="34" width="44" height="14" rx="2" fill="#ef4444" opacity="0.3">
+                <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="22" y="50" width="44" height="14" rx="2" fill="#ef4444" opacity="0.3">
+                <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.2s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="102" y="50" width="44" height="14" rx="2" fill="#ef4444" opacity="0.7">
+                <animate attributeName="opacity" values="0.7;0.3;0.7" dur="1.2s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="22" y="66" width="44" height="14" rx="2" fill="#ef4444" opacity="0.5">
+                <animate attributeName="opacity" values="0.5;0.2;0.5" dur="0.9s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="102" y="66" width="44" height="14" rx="2" fill="#ef4444" opacity="0.2">
+                <animate attributeName="opacity" values="0.2;0.5;0.2" dur="0.9s" repeatCount="indefinite"/>
+            </rect>
+            <text x="44" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">Disk A</text>
+            <text x="124" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">Disk B</text>
+            <text x="86" y="134" text-anchor="middle" font-size="8" fill="#ef4444">Speed, NO redundancy</text>
+            <!-- RAID 1 panel -->
+            <rect x="182" y="8" width="156" height="132" rx="6" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="260" y="24" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700">RAID 1 — Mirror</text>
+            <rect x="196" y="34" width="44" height="80" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <rect x="276" y="34" width="44" height="80" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <!-- Mirror arrow -->
+            <text x="248" y="78" text-anchor="middle" font-size="14" fill="#c9a83a">&#8644;</text>
+            <!-- Mirror blocks — identical -->
+            <rect x="196" y="34" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.5"/>
+            <rect x="276" y="34" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.5"/>
+            <rect x="196" y="49" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.35"/>
+            <rect x="276" y="49" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.35"/>
+            <rect x="196" y="64" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.2"/>
+            <rect x="276" y="64" width="44" height="13" rx="2" fill="#c9a83a" opacity="0.2"/>
+            <text x="218" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">Primary</text>
+            <text x="298" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">Mirror</text>
+            <text x="260" y="134" text-anchor="middle" font-size="8" fill="#c9a83a">Full redundancy, 50% cap</text>
+            <!-- RAID 5 panel -->
+            <rect x="356" y="8" width="156" height="132" rx="6" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="434" y="24" text-anchor="middle" font-size="10" fill="#06b6d4" font-weight="700">RAID 5 — Parity</text>
+            <!-- Three drives -->
+            <rect x="366" y="34" width="32" height="80" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <rect x="418" y="34" width="32" height="80" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <rect x="470" y="34" width="32" height="80" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+            <!-- Data stripes with parity distribution -->
+            <rect x="366" y="34" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <rect x="418" y="34" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <rect x="470" y="34" width="32" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+            <text x="486" y="44" text-anchor="middle" font-size="6" fill="#fff">P</text>
+            <rect x="366" y="48" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <rect x="418" y="48" width="32" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+            <rect x="470" y="48" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <text x="434" y="58" text-anchor="middle" font-size="6" fill="#fff">P</text>
+            <rect x="366" y="62" width="32" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+            <rect x="418" y="62" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <rect x="470" y="62" width="32" height="12" rx="2" fill="#06b6d4" opacity="0.6"/>
+            <text x="382" y="72" text-anchor="middle" font-size="6" fill="#fff">P</text>
+            <text x="382" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">D1</text>
+            <text x="434" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">D2</text>
+            <text x="486" y="122" text-anchor="middle" font-size="7" fill="#94a3b8">D3</text>
+            <text x="434" y="134" text-anchor="middle" font-size="8" fill="#06b6d4">Distributed parity (n-1)</text>
+        </svg>
+
+        <div class="box box-red">
+            <div class="box-label">Critical Exam Fact</div>
+            RAID is NOT a backup. RAID protects against drive failure but not against accidental deletion, ransomware, fire, or theft. Always maintain a separate backup in addition to RAID. This distinction appears repeatedly on A+ exams.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — RAID COMPARISON TABLE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 22</div>
+        <div class="slide-title">RAID <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Side-by-side reference for the four exam-critical RAID levels.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Level</th><th>Min Drives</th><th>Usable Capacity</th><th>Redundancy</th><th>Performance</th><th>Best Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>RAID 0</strong></td><td>2</td><td>100%</td><td>None</td><td>Best read/write</td><td>Scratch, video</td></tr>
+                <tr><td><strong>RAID 1</strong></td><td>2</td><td>50%</td><td>1 drive failure</td><td>Good read, normal write</td><td>OS, critical data</td></tr>
+                <tr><td><strong>RAID 5</strong></td><td>3</td><td>(n-1) drives</td><td>1 drive failure</td><td>Good read, write penalty</td><td>File servers</td></tr>
+                <tr><td><strong>RAID 10</strong></td><td>4</td><td>50%</td><td>Multiple (cross-mirror)</td><td>Best + redundancy</td><td>Databases, VMs</td></tr>
+            </tbody>
+        </table>
+
+        <div class="scenario-strip">
+            Scenario: A client&rsquo;s file server has 4 identical 2 TB drives. They need fault tolerance and reasonable write performance. RAID 5 gives 6 TB usable with single-drive redundancy. RAID 10 gives 4 TB usable with faster writes and better fault tolerance. The choice depends on budget for additional drives versus performance requirements.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Hardware vs. Software RAID</div>
+                Hardware RAID uses a dedicated controller card (has its own CPU and cache). Software RAID uses the main CPU (Windows Storage Spaces, mdadm on Linux). Hardware RAID is faster and transparent to the OS. Software RAID is cheaper but uses CPU cycles.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Hot Spare</div>
+                An additional unallocated drive connected to the RAID controller. When a drive fails, the hot spare automatically joins the array and rebuilding begins immediately without human intervention. Not a RAID level &mdash; it is an add-on to any RAID configuration.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — REMOVABLE STORAGE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 22</div>
+        <div class="slide-title">Removable Storage &amp; <span class="accent">Optical Drives</span></div>
+        <div class="slide-subtitle">Flash media, SD cards, and optical disc formats still appear on A+ exams.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Flash Memory Formats</div>
+                <div class="card-desc"><strong>USB Flash Drives:</strong> Portable NAND storage via USB. Hot-swappable.<br><strong>SD Card:</strong> Secure Digital &mdash; cameras, tablets. Standard, Mini, and Micro sizes.<br><strong>CompactFlash:</strong> Larger older format for professional cameras &mdash; still in use.<br>All flash storage is hot-swappable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Optical Disc Formats</div>
+                <div class="card-desc"><strong>CD-R/RW:</strong> 700 MB. R = write-once, RW = rewritable.<br><strong>DVD-R/RW and DVD+R/RW:</strong> 4.7 GB (SL), 8.5 GB (DL). Competing formats, functionally equivalent.<br><strong>Blu-ray BD-R/RE:</strong> 25 GB (SL), 50 GB (DL), 100 GB (TL). Highest optical capacity.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Practical Notes</div>
+                <div class="card-desc">Most modern systems ship without optical drives. External USB optical drives are available for legacy media and software. Blu-ray requires a Blu-ray drive &mdash; DVD drives cannot read Blu-ray discs. USB flash is faster and more reliable than optical for software deployment.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Format</th><th>Capacity</th><th>Writable</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>CD-R</strong></td><td>700 MB</td><td>Write-once</td></tr>
+                <tr><td><strong>DVD-R / DVD+R</strong></td><td>4.7 GB (SL) / 8.5 GB (DL)</td><td>Write-once</td></tr>
+                <tr><td><strong>BD-R</strong></td><td>25 GB (SL) / 50 GB (DL)</td><td>Write-once</td></tr>
+                <tr><td><strong>BD-RE</strong></td><td>25 GB (SL) / 50 GB (DL)</td><td>Rewritable</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — PSU FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 22</div>
+        <div class="slide-title">Power Supply Unit: <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">The PSU converts AC wall power to the DC voltages all computer components require.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">AC to DC Conversion</div>
+                <div class="card-desc">Input: 115V AC (US) or 220&ndash;240V AC (international). Output: multiple regulated DC voltage rails. Some PSUs have a manual voltage selector switch (115V/230V) &mdash; setting incorrectly can destroy the PSU and attached components. Modern auto-sensing PSUs detect input voltage automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DC Output Rails</div>
+                <div class="card-desc"><strong>+12V:</strong> CPU, GPU, fans, drive motors &mdash; highest current demand.<br><strong>+5V:</strong> SATA data logic, USB ports, older cards.<br><strong>+3.3V:</strong> RAM, PCIe x1 cards, modern I/O circuitry.<br><strong>-12V:</strong> Legacy serial port circuitry (very low current).<br><strong>5VSB:</strong> 5V standby &mdash; powers Wake-on-LAN, USB charging while off.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Non-Modular</div>
+                <div class="card-desc">All cables permanently attached. Cannot remove unused cables. Creates cable clutter inside case. Lowest cost option. Adequate for standard builds where most cables are used.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Semi-Modular</div>
+                <div class="card-desc">Essential cables (24-pin ATX, EPS CPU) are permanently attached. Optional cables (SATA power, PCIe) are detachable. Good balance of convenience and cost.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Fully Modular</div>
+                <div class="card-desc">All cables detachable including the 24-pin. Maximum cable management flexibility. Cleanest builds. Highest cost. Only connect cables that are actually needed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — PSU RATINGS & EFFICIENCY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 22</div>
+        <div class="slide-title">PSU Ratings &amp; <span class="accent">80 PLUS Efficiency</span></div>
+        <div class="slide-subtitle">Wattage, efficiency certification, and when to replace a PSU.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Wattage Rating</div>
+                <div class="card-desc">Total output capacity in watts. A 500W PSU can deliver a combined maximum of 500W across all rails. Size the PSU to handle peak system load plus 20&ndash;30% headroom for efficiency and future upgrades. High-end GPUs alone can draw 300&ndash;450W. Always calculate total system TDP when specifying a PSU.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">80 PLUS Certification</div>
+                <div class="card-desc">Indicates the PSU converts AC to DC at 80%+ efficiency at 20%, 50%, and 100% load. Less waste heat. Lower electricity cost. Wasted power becomes heat inside the PSU, shortening its lifespan. Higher tier = better efficiency at all load levels.</div>
+            </div>
+        </div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Certification</th><th>Efficiency at 50% Load</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>80 PLUS (White)</strong></td><td>80%</td></tr>
+                <tr><td><strong>80 PLUS Bronze</strong></td><td>85%</td></tr>
+                <tr><td><strong>80 PLUS Silver</strong></td><td>88%</td></tr>
+                <tr><td><strong>80 PLUS Gold</strong></td><td>90%</td></tr>
+                <tr><td><strong>80 PLUS Platinum</strong></td><td>92%</td></tr>
+                <tr><td><strong>80 PLUS Titanium</strong></td><td>94%</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Higher efficiency means less wasted power as heat. A 500W Gold PSU wastes less electricity than a 500W Bronze PSU at the same load. Know the tiers by name. Common reason to replace a PSU: failure, system upgrade requiring more power, or new GPU needing connectors the old PSU lacks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — POWER CONNECTORS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 22</div>
+        <div class="slide-title">PSU <span class="accent">Connectors</span></div>
+        <div class="slide-subtitle">Every connector is keyed to prevent incorrect insertion &mdash; know each by name and pin count.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Connector</th><th>Pins</th><th>Powers</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>ATX 24-pin (P1)</strong></td><td>24</td><td>Motherboard</td><td>Originally 20-pin; backward-compatible adapters exist</td></tr>
+                <tr><td><strong>EPS 4-pin / 8-pin</strong></td><td>4 or 8</td><td>CPU VRM</td><td>Located at upper-left of board; missing = no POST</td></tr>
+                <tr><td><strong>SATA Power</strong></td><td>15</td><td>SATA drives</td><td>L-shaped; wider than 7-pin data connector</td></tr>
+                <tr><td><strong>Molex</strong></td><td>4</td><td>Legacy drives, fans</td><td>Older format; adapters convert to SATA power</td></tr>
+                <tr><td><strong>PCIe 6-pin</strong></td><td>6</td><td>Mid-range GPU</td><td>75W supplemental (slot provides 75W = 150W total)</td></tr>
+                <tr><td><strong>PCIe 8-pin</strong></td><td>8</td><td>High-end GPU</td><td>150W supplemental (slot + connector = 225W)</td></tr>
+                <tr><td><strong>PCIe 12VHPWR</strong></td><td>16</td><td>High-power GPU</td><td>Up to 600W; RTX 4000-series and newer</td></tr>
+            </tbody>
+        </table>
+
+        <!-- SVG: PSU connector shape outlines — 24-pin ATX, 8-pin EPS, 6-pin PCIe, SATA power -->
+        <svg class="svg-diagram" viewBox="0 0 520 130" aria-label="PSU connector shapes diagram">
+            <!-- 24-pin ATX -->
+            <rect x="20" y="20" width="52" height="90" rx="4" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="2"/>
+            <!-- pin grid 4 cols x 6 rows -->
+            <g fill="#c9a83a">
+                <circle cx="32" cy="32" r="3"/><circle cx="44" cy="32" r="3"/><circle cx="56" cy="32" r="3"/><circle cx="68" cy="32" r="3"/>
+                <circle cx="32" cy="44" r="3"/><circle cx="44" cy="44" r="3"/><circle cx="56" cy="44" r="3"/><circle cx="68" cy="44" r="3"/>
+                <circle cx="32" cy="56" r="3"/><circle cx="44" cy="56" r="3"/><circle cx="56" cy="56" r="3"/><circle cx="68" cy="56" r="3"/>
+                <circle cx="32" cy="68" r="3"/><circle cx="44" cy="68" r="3"/><circle cx="56" cy="68" r="3"/><circle cx="68" cy="68" r="3"/>
+                <circle cx="32" cy="80" r="3"/><circle cx="44" cy="80" r="3"/><circle cx="56" cy="80" r="3"/><circle cx="68" cy="80" r="3"/>
+                <circle cx="32" cy="92" r="3"/><circle cx="44" cy="92" r="3"/><circle cx="56" cy="92" r="3"/><circle cx="68" cy="92" r="3"/>
+            </g>
+            <text x="46" y="120" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700">24-pin ATX</text>
+            <text x="46" y="130" text-anchor="middle" font-size="7" fill="#64748b">Motherboard</text>
+            <!-- 8-pin EPS -->
+            <rect x="108" y="32" width="52" height="66" rx="4" fill="rgba(234,88,12,0.08)" stroke="#ea580c" stroke-width="2"/>
+            <!-- pin grid 4 cols x 2 rows -->
+            <g fill="#ea580c">
+                <circle cx="120" cy="46" r="3"/><circle cx="132" cy="46" r="3"/><circle cx="144" cy="46" r="3"/><circle cx="156" cy="46" r="3"/>
+                <circle cx="120" cy="58" r="3"/><circle cx="132" cy="58" r="3"/><circle cx="144" cy="58" r="3"/><circle cx="156" cy="58" r="3"/>
+                <circle cx="120" cy="70" r="3"/><circle cx="132" cy="70" r="3"/><circle cx="144" cy="70" r="3"/><circle cx="156" cy="70" r="3"/>
+                <circle cx="120" cy="82" r="3"/><circle cx="132" cy="82" r="3"/><circle cx="144" cy="82" r="3"/><circle cx="156" cy="82" r="3"/>
+            </g>
+            <text x="134" y="110" text-anchor="middle" font-size="9" fill="#ea580c" font-weight="700">8-pin EPS</text>
+            <text x="134" y="120" text-anchor="middle" font-size="7" fill="#64748b">CPU Power</text>
+            <!-- 6-pin PCIe -->
+            <rect x="200" y="32" width="46" height="52" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2"/>
+            <g fill="#22c55e">
+                <circle cx="212" cy="45" r="3"/><circle cx="224" cy="45" r="3"/><circle cx="236" cy="45" r="3"/>
+                <circle cx="212" cy="57" r="3"/><circle cx="224" cy="57" r="3"/><circle cx="236" cy="57" r="3"/>
+                <circle cx="212" cy="69" r="3"/><circle cx="224" cy="69" r="3"/><circle cx="236" cy="69" r="3"/>
+                <circle cx="212" cy="77" r="3"/><circle cx="224" cy="77" r="3"/><circle cx="236" cy="77" r="3"/>
+            </g>
+            <text x="223" y="97" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="700">6-pin PCIe</text>
+            <text x="223" y="107" text-anchor="middle" font-size="7" fill="#64748b">GPU (75W)</text>
+            <!-- SATA power — L-shaped profile -->
+            <path d="M295,28 L420,28 L420,58 L370,58 L370,110 L295,110 Z" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="2"/>
+            <!-- 15 pins in L shape: top row 7, bottom col 8 -->
+            <g fill="#06b6d4">
+                <circle cx="307" cy="39" r="3"/><circle cx="318" cy="39" r="3"/><circle cx="329" cy="39" r="3"/><circle cx="340" cy="39" r="3"/>
+                <circle cx="351" cy="39" r="3"/><circle cx="362" cy="39" r="3"/><circle cx="373" cy="39" r="3"/>
+                <circle cx="384" cy="39" r="3"/><circle cx="395" cy="39" r="3"/><circle cx="406" cy="39" r="3"/>
+                <circle cx="307" cy="52" r="3"/><circle cx="307" cy="65" r="3"/><circle cx="307" cy="78" r="3"/>
+                <circle cx="307" cy="91" r="3"/><circle cx="307" cy="99" r="3"/>
+            </g>
+            <text x="357" y="122" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700">SATA Power</text>
+            <text x="357" y="132" text-anchor="middle" font-size="7" fill="#64748b">15 pins, L-shape</text>
+            <!-- animated glow on 24-pin to highlight it -->
+            <rect x="20" y="20" width="52" height="90" rx="4" fill="none" stroke="#c9a83a" stroke-width="1" opacity="0">
+                <animate attributeName="opacity" values="0;0.5;0" dur="2s" repeatCount="indefinite"/>
+            </rect>
+            <!-- legend box -->
+            <rect x="435" y="20" width="76" height="92" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.07)"/>
+            <text x="473" y="34" text-anchor="middle" font-size="8" fill="#94a3b8" font-weight="700">Connector IDs</text>
+            <circle cx="443" cy="46" r="4" fill="#c9a83a" opacity="0.5"/>
+            <text x="452" y="50" font-size="7" fill="#94a3b8">24-pin = MB</text>
+            <circle cx="443" cy="60" r="4" fill="#ea580c" opacity="0.6"/>
+            <text x="452" y="64" font-size="7" fill="#94a3b8">8-pin = CPU</text>
+            <circle cx="443" cy="74" r="4" fill="#22c55e" opacity="0.6"/>
+            <text x="452" y="78" font-size="7" fill="#94a3b8">6-pin = GPU</text>
+            <circle cx="443" cy="88" r="4" fill="#06b6d4" opacity="0.6"/>
+            <text x="452" y="92" font-size="7" fill="#94a3b8">15-pin = HDD</text>
+            <text x="443" y="106" font-size="6" fill="#475569" font-style="italic">All keyed</text>
+        </svg>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Distinction</div>
+            SATA power = 15 pins. SATA data = 7 pins. Do not confuse them on the exam. The power connector is wider. Molex is 4 pins with a D-shaped housing. PCIe 6-pin and 8-pin are GPU supplemental power &mdash; entirely different from the EPS 4/8-pin CPU connector despite similar pin counts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — UPS & REDUNDANT PSU ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 22</div>
+        <div class="slide-title">UPS &amp; <span class="accent">Redundant Power</span></div>
+        <div class="slide-subtitle">Battery backup, power conditioning, and server-grade dual PSU configurations.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">UPS &mdash; Uninterruptible Power Supply</div>
+                <div class="card-desc">Provides battery backup during power outages, allowing graceful shutdown or continued operation. Includes surge protection, line conditioning (filters noise), and voltage regulation. Rated in VA (volt-amperes) and watts. Essential for servers, workstations, and network equipment. Types: Standby (offline), Line-interactive, Online (double-conversion).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Redundant PSU (Servers)</div>
+                <div class="card-desc">Enterprise servers often install two PSUs in a hot-swap bay. If one PSU fails, the second seamlessly takes over &mdash; zero downtime. Both PSUs share load while running. Failed unit can be swapped while server remains online. Common in 1U/2U rack servers. Each PSU has its own AC input; recommended to use separate circuits or UPS units.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Standby (Offline) UPS</div>
+                <div class="card-desc">Passes AC through directly until power fails, then switches to battery. Switch time: 10&ndash;25 ms. Most affordable. Adequate for workstations where brief interruption is acceptable. Not suitable for sensitive server loads.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Line-Interactive UPS</div>
+                <div class="card-desc">Includes automatic voltage regulation (AVR) to handle brownouts and surges without switching to battery. Switch time: &lt;4 ms. Most common for server closets and network equipment racks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Online (Double-Conversion)</div>
+                <div class="card-desc">Continuously runs through the inverter. Always on battery (battery always being charged). Zero transfer time. Most expensive. Best isolation from power quality issues. Used for medical, financial, and critical infrastructure systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — STORAGE SPEED COMPARISON ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 22</div>
+        <div class="slide-title">Storage <span class="accent">Speed Comparison</span></div>
+        <div class="slide-subtitle">Understanding the performance tiers helps match storage to workload requirements.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Interface</th><th>Max Sequential Read</th><th>Latency</th><th>Typical Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>7,200 RPM HDD (SATA)</strong></td><td>~150 MB/s</td><td>~10 ms</td><td>Bulk storage, archives, NAS</td></tr>
+                <tr><td><strong>SATA SSD</strong></td><td>~550 MB/s</td><td>~0.1 ms</td><td>OS drives, budget upgrades</td></tr>
+                <tr><td><strong>NVMe PCIe 3.0 x4</strong></td><td>~3,500 MB/s</td><td>~0.02 ms</td><td>Primary OS + apps, gaming</td></tr>
+                <tr><td><strong>NVMe PCIe 4.0 x4</strong></td><td>~7,000 MB/s</td><td>~0.02 ms</td><td>High-end workstations</td></tr>
+                <tr><td><strong>NVMe PCIe 5.0 x4</strong></td><td>~12,000+ MB/s</td><td>~0.01 ms</td><td>Enterprise, content creation</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Hybrid Drives (SSHD)</div>
+                Solid State Hybrid Drives combine a traditional HDD with a small SSD cache (8&ndash;32 GB). Frequently accessed data is cached on the SSD portion, improving effective speed. Lower cost than a full SSD for the same capacity. Less common now that SSD prices have dropped significantly.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">SAS &mdash; Serial Attached SCSI</div>
+                Enterprise storage interface. SAS-1: 3 Gbps. SAS-2: 6 Gbps. SAS-3: 12 Gbps. SAS-4: 22.5 Gbps. SAS controllers accept SATA drives, but SATA controllers do NOT accept SAS drives. SAS uses dual-port connections for redundant paths &mdash; critical for server uptime.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — TROUBLESHOOTING STORAGE ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 22</div>
+        <div class="slide-title">Troubleshooting <span class="accent">Storage Issues</span></div>
+        <div class="slide-subtitle">Common failure symptoms and their root causes for HDDs, SSDs, and RAID arrays.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">HDD Failure Symptoms</div>
+                <div class="card-desc">Clicking or grinding noise: mechanical failure &mdash; imminent data loss. Power it down immediately and recover data. Slow read/write: check SMART data for reallocated sectors. "Drive not detected" in BIOS: check SATA data cable and power connector. Data corruption: surface scan with tools like CrystalDiskInfo.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SSD Failure Symptoms</div>
+                <div class="card-desc">Drive not detected: check M.2 key/protocol compatibility or reseat the module. Files corrupted or unreadable: check SMART/health status &mdash; nearing write endurance limit. Performance degradation: TRIM may be disabled or drive is nearly full (below 10% free space degrades NVMe). Heat throttling on PCIe 4.0+ drives &mdash; add heatsink.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RAID Failure Symptoms</div>
+                <div class="card-desc">RAID degraded warning: one drive failed &mdash; replace immediately (RAID 5 has no more fault tolerance until rebuild completes). RAID 0 with failed drive: all data lost, restore from backup. Slow write performance after rebuild: normal during RAID 5 rebuild process. Two drives fail in RAID 5: array lost, restore from backup.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A workstation boots but Windows shows "disk read error." The technician opens the case and hears a repetitive clicking sound from the HDD. This is the "click of death" &mdash; the read/write head is failing to find its home position. Pull power immediately, clone to a new drive if possible, then replace. Do not attempt chkdsk on a mechanically failing drive.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — PSU TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 22</div>
+        <div class="slide-title">Troubleshooting <span class="accent">Power Issues</span></div>
+        <div class="slide-subtitle">PSU failure modes, connector issues, and when no-POST traces back to power.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Dead / No Power</div>
+                <div class="card-desc">System completely unresponsive: first check the wall outlet and power strip. Test with known-good PSU. PSU fan not spinning: may be fanless design or PSU failed. Some PSUs have a self-test button &mdash; short PS_ON to ground on 24-pin to test manually. A failed PSU will sometimes show no signs before completely dying.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Random Shutdowns / Reboots</div>
+                <div class="card-desc">Insufficient wattage: system becomes unstable under load (gaming, rendering). Capacitor bulge: visible on PSU or motherboard &mdash; replace immediately. Overheating PSU: blocked vents, fan failure, or inadequate case airflow. Voltage rail sag: measurable with multimeter on molex or with diagnostic software.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">No POST &mdash; Power Related</div>
+                <div class="card-desc">Missing 24-pin: no power to board &mdash; nothing starts. Missing EPS 4/8-pin CPU connector: system powers on but immediately shuts down or posts "CPU error." Missing GPU PCIe power: GPU fans may spin but no display output and may beep. Check all connectors first before replacing any component.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Voltage Tolerance</div>
+                <div class="card-desc">ATX standard allows &plusmn;5% tolerance on all rails. Measure with multimeter: 12V rail should read 11.4&ndash;12.6V. Values outside this range indicate PSU failure or failing capacitors. +12V is most critical &mdash; CPU and GPU draw the majority of current from this rail.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When to Replace</div>
+                <div class="card-desc">PSU has completely failed. Adding a high-power GPU that exceeds current wattage capacity. System repeatedly under-powers under load (PSU too small). New GPU requires connectors the old PSU lacks (12VHPWR). Age: most PSUs degrade after 5&ndash;7 years of continuous use.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — EXPANSION CARD TYPES DEEP DIVE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 22</div>
+        <div class="slide-title">Expansion Cards: <span class="accent">A+ Exam Focus</span></div>
+        <div class="slide-subtitle">Key facts about GPU, NIC, capture, and USB expansion cards for the 220-1101.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Card Type</th><th>Typical Slot</th><th>Key Exam Facts</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>GPU / Video Card</strong></td><td>PCIe x16</td><td>Own VRAM; may need 6-pin or 8-pin supplemental power; multiple display outputs</td></tr>
+                <tr><td><strong>Sound Card</strong></td><td>PCIe x1</td><td>Upgrades integrated audio; higher sample rates; 3.5mm or optical S/PDIF output</td></tr>
+                <tr><td><strong>Wired NIC</strong></td><td>PCIe x1</td><td>Adds Ethernet; speeds: 1G, 2.5G, 10G; RJ-45 port on bracket</td></tr>
+                <tr><td><strong>Wireless NIC</strong></td><td>PCIe x1 or M.2 E/A-key</td><td>Wi-Fi 5/6; antenna connectors; may need to disable integrated Wi-Fi in BIOS</td></tr>
+                <tr><td><strong>Capture Card</strong></td><td>PCIe x4</td><td>HDMI input; passthrough output; for streaming and recording</td></tr>
+                <tr><td><strong>USB Expansion</strong></td><td>PCIe x1</td><td>Adds USB 3.x or USB-C ports; internal headers available on some models</td></tr>
+                <tr><td><strong>RAID Controller</strong></td><td>PCIe x4/x8</td><td>Hardware RAID; own CPU and cache; transparent to OS</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Up-Plugging Rule (Revisited)</div>
+            A PCIe x1 card fits and functions in a PCIe x16 slot (up-plugging). A PCIe x16 card does NOT fit in a PCIe x1 slot without physical modification. This rule applies to all expansion cards, not just GPUs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — STORAGE DECISION GUIDE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 22</div>
+        <div class="slide-title">Storage <span class="accent">Decision Guide</span></div>
+        <div class="slide-subtitle">Matching storage technology to real-world requirements &mdash; a practical framework.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">OS Drive</div>
+                <div class="card-desc">Always use an SSD. Minimum: SATA SSD for budget builds. Recommended: NVMe PCIe 3.0 or 4.0 for all new builds. The OS drive impacts every user interaction &mdash; boot time, application launch, file open. An HDD OS drive in 2025 is a significant user experience liability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Bulk / Archive Storage</div>
+                <div class="card-desc">HDDs remain cost-effective at &gt;2 TB. 3.5" desktop drives offer best $/TB. Use for documents, photos, video archives, and NAS arrays where speed is not critical. Consider 5,400 RPM for NAS (lower power, heat, and noise). Enterprise drives (WD Red, Seagate IronWolf) for 24/7 NAS use.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">High-Performance Workstation</div>
+                <div class="card-desc">NVMe PCIe 4.0 or 5.0 for primary drive. RAID 0 NVMe in PCIe bifurcation setups for extreme sequential throughput (video editing, 3D rendering). Secondary HDD for project storage. Separate NVMe for OS to prevent fragmentation. Match PSU wattage to GPU + CPU TDP + all storage.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Connectivity Check Before Purchase</div>
+            Before recommending any storage upgrade: verify SATA port availability, M.2 slot count, whether slots support NVMe or SATA only, PCIe generation, and available power connectors from the PSU. A storage recommendation without checking the motherboard spec sheet is an incomplete recommendation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — EXAM PRACTICE QUESTIONS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 22</div>
+        <div class="slide-title">Exam Practice: <span class="accent">Quick Questions</span></div>
+        <div class="slide-subtitle">Six A+ style scenario questions &mdash; answers in gold.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">A technician installs a new GPU but the system powers on with no display output and the GPU fan barely spins. Most likely cause? &mdash; <strong style="color:#c9a83a;">PCIe supplemental power connector not connected. Connect the 6-pin or 8-pin power cable from the PSU to the GPU.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">A server has 4 identical 4 TB drives. Management wants fault tolerance and the best read/write performance. Which RAID is best? &mdash; <strong style="color:#c9a83a;">RAID 10. 8 TB usable, survives one drive failure per mirror pair, best I/O performance.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">A user purchases an NVMe M.2 SSD for their laptop but it is not detected. The slot accepts M.2 but the board only supports SATA M.2. What is the issue? &mdash; <strong style="color:#c9a83a;">The M.2 slot only supports SATA protocol. An NVMe drive requires PCIe/NVMe support in the M.2 slot.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">A 500W Bronze PSU is compared to a 500W Gold PSU running a 250W load. What is the key difference? &mdash; <strong style="color:#c9a83a;">The Gold PSU is approximately 90% efficient vs. 85% for Bronze &mdash; it converts more AC to usable DC and wastes less as heat.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">RAID 5 with 5 x 2 TB drives fails and one drive needs replacement. How much usable capacity is available? &mdash; <strong style="color:#c9a83a;">8 TB usable &mdash; RAID 5 with n drives gives (n-1) drives of usable capacity: 5-1 = 4, but 5 x 2 TB = 10 TB raw, minus 2 TB parity = 8 TB.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">A PCIe x1 network card needs to be installed but only a PCIe x16 slot is free. Can it be installed there? &mdash; <strong style="color:#c9a83a;">Yes. Up-plugging is fully supported. The x1 card will function at x1 speed in the x16 slot.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 22</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Chapter 2 terms organized by category.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Expansion &amp; Slots</div>
+                <div class="card-desc">
+                    <strong>PCIe x1 / x4 / x16</strong> &mdash; expansion slot widths<br>
+                    <strong>Up-plugging</strong> &mdash; smaller card in larger slot<br>
+                    <strong>GPU, NIC, Sound, Capture</strong> &mdash; common card types<br>
+                    <strong>Riser card</strong> &mdash; changes card orientation in small cases<br>
+                    <strong>ESD</strong> &mdash; electrostatic discharge; destroys components
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Storage</div>
+                <div class="card-desc">
+                    <strong>SATA I/II/III</strong> &mdash; 1.5 / 3.0 / 6 Gbps<br>
+                    <strong>NVMe</strong> &mdash; PCIe-based protocol for flash<br>
+                    <strong>M.2 B/M/E-key</strong> &mdash; connector key types<br>
+                    <strong>RAID 0/1/5/10</strong> &mdash; stripe, mirror, parity, combo<br>
+                    <strong>TRIM</strong> &mdash; OS command that improves SSD performance<br>
+                    <strong>SAS</strong> &mdash; enterprise serial storage, backward-compat with SATA
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Power</div>
+                <div class="card-desc">
+                    <strong>ATX 24-pin</strong> &mdash; main motherboard power<br>
+                    <strong>EPS 4/8-pin</strong> &mdash; CPU supplemental power<br>
+                    <strong>SATA power 15-pin</strong> &mdash; drive power<br>
+                    <strong>Molex 4-pin</strong> &mdash; legacy device power<br>
+                    <strong>80 PLUS</strong> &mdash; efficiency certification tiers<br>
+                    <strong>UPS</strong> &mdash; battery backup + surge/line protection
                 </div>
             </div>
         </div>
     </div>
+</section>
 
-    <script>
-        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
-        // Answer key stored in Firestore quiz_keys/aplus-core1-ch02
-        const QUIZ_ID = 'aplus-core1-ch02';
-        const quizQuestions = [
-            {
-                q: "Which expansion card slot is typically used for graphics cards?",
-                options: ["PCIe x1", "PCIe x4", "PCIe x16", "PCI"]
-            },
-            {
-                q: "What is the maximum speed of SATA III?",
-                options: ["150 MB/s", "300 MB/s", "600 MB/s", "1200 MB/s"]
-            },
-            {
-                q: "Which RAID level provides striping with NO redundancy?",
-                options: ["RAID 0", "RAID 1", "RAID 5", "RAID 10"]
-            },
-            {
-                q: "How many pins does a SATA power connector have?",
-                options: ["4", "7", "15", "24"]
-            },
-            {
-                q: "What does NVMe stand for?",
-                options: ["New Volume Memory Express", "Non-Volatile Memory Express", "Network Virtual Memory Extension", "Nano-Volt Magnetic Express"]
-            },
-            {
-                q: "Which M.2 key type is used for NVMe SSDs (fastest speeds)?",
-                options: ["A Key", "B Key", "E Key", "M Key"]
-            },
-            {
-                q: "What is the minimum number of drives for RAID 5?",
-                options: ["2", "3", "4", "5"]
-            },
-            {
-                q: "Which connector provides main power to the motherboard?",
-                options: ["4-pin Molex", "8-pin EPS", "15-pin SATA", "24-pin ATX"]
-            },
-            {
-                q: "What is a disadvantage of SSDs compared to HDDs?",
-                options: ["Slower speeds", "More noise", "Higher cost per GB", "Less reliable"]
-            },
-            {
-                q: "What voltage rail primarily powers the CPU and GPU?",
-                options: ["+3.3V", "+5V", "+12V", "+24V"]
-            },
-            {
-                q: "RAID 1 is also known as:",
-                options: ["Striping", "Mirroring", "Parity", "Spanning"]
-            },
-            {
-                q: "What does UPS stand for?",
-                options: ["Universal Power Switch", "Uninterruptible Power Supply", "Unified Power System", "Ultra Power Source"]
-            },
-            {
-                q: "Which connector replaced the 4-pin Molex for SATA drives?",
-                options: ["6-pin PCIe", "8-pin EPS", "15-pin SATA power", "20-pin ATX"]
-            },
-            {
-                q: "What is the typical speed of a desktop HDD?",
-                options: ["3,600 RPM", "5,400 RPM", "7,200 RPM", "15,000 RPM"]
-            },
-            {
-                q: "Which expansion card is used for recording video from external sources?",
-                options: ["Sound card", "Network card", "Capture card", "USB expansion card"]
-            }
-        ];
+<!-- ==================== SLIDE 22 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 22 &mdash; Chapter 2 Complete</div>
+        <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways from Expansion Cards, Storage &amp; Power.</div>
 
-        let userAnswers = new Array(quizQuestions.length).fill(null);
-        let quizSubmitted = false;
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">1</div>
+                <div class="fact-text"><strong>Expansion cards</strong> use PCIe slots (x1, x4, x16). Up-plugging is supported &mdash; a smaller card works in a larger slot. Always power off and unplug before installing cards.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">2</div>
+                <div class="fact-text"><strong>SATA III</strong> maxes out at 6 Gbps (~550 MB/s practical). NVMe over PCIe is the performance standard: PCIe 4.0 x4 delivers ~7 GB/s &mdash; 12x faster than SATA.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">3</div>
+                <div class="fact-text"><strong>M.2 slots</strong> can support SATA or NVMe &mdash; not interchangeable. A physical fit does not guarantee protocol compatibility. Check the board spec before purchase.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">4</div>
+                <div class="fact-text"><strong>RAID 0</strong> = speed, no redundancy. <strong>RAID 1</strong> = mirror, 50% capacity. <strong>RAID 5</strong> = parity, one drive fault tolerance. <strong>RAID 10</strong> = best of both, 50% capacity, 4+ drives.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">5</div>
+                <div class="fact-text"><strong>RAID is not a backup.</strong> A separate backup is always required. RAID protects against drive failure only &mdash; not accidental deletion, ransomware, or physical disaster.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">6</div>
+                <div class="fact-text"><strong>80 PLUS certification</strong> measures PSU efficiency. Higher tier = less waste heat, lower electricity cost. Know the tiers: White, Bronze, Silver, Gold, Platinum, Titanium.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">7</div>
+                <div class="fact-text"><strong>SATA power = 15 pins. SATA data = 7 pins.</strong> PCIe GPU supplemental power uses 6-pin or 8-pin. Missing CPU EPS connector prevents POST. Know all connector names and counts.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">8</div>
+                <div class="fact-text"><strong>SAS controllers accept SATA drives; SATA controllers do NOT accept SAS drives.</strong> UPS provides battery backup, surge protection, and line conditioning for critical systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        // Tab Navigation
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../../index.html" class="nav-btn back-btn" aria-label="Back to Core 1 hub">Back to Core 1</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 22</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark chapter complete">Mark Complete</button>
+</nav>
 
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.section).classList.add('active');
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 22;
+    let current = 1;
 
-                // Load quiz if switching to quiz tab
-                if (tab.dataset.section === 'quiz' && document.getElementById('mainQuiz').innerHTML === '') {
-                    loadQuiz();
-                }
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
 
-                updateProgress();
-            });
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
+
+        /* Restart SVG animations by clone-replacing each svg element */
+        next.querySelectorAll('svg').forEach(function(svg) {
+            var parent = svg.parentNode;
+            var clone = svg.cloneNode(true);
+            parent.replaceChild(clone, svg);
         });
 
-        // Accordion
-        function toggleAccordion(header) {
-            const item = header.parentElement;
-            item.classList.toggle('open');
-        }
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
 
-        // RAID Calculator
-        const driveCountSlider = document.getElementById('driveCount');
-        const driveSizeSelect = document.getElementById('driveSize');
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
 
-        function updateRAIDCalculator() {
-            const drives = parseInt(driveCountSlider.value);
-            const size = parseInt(driveSizeSelect.value);
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
 
-            document.getElementById('driveCountDisplay').textContent = drives + ' drives';
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
 
-            const total = drives * size;
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
 
-            let html = '<table class="data-table"><thead><tr><th scope="col">RAID Level</th><th scope="col">Usable Capacity</th><th scope="col">Notes</th></tr></thead><tbody>';
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
 
-            // RAID 0
-            html += `<tr><td>RAID 0</td><td>${total} GB</td><td>Full capacity, no redundancy</td></tr>`;
-
-            // RAID 1
-            if (drives >= 2) {
-                html += `<tr><td>RAID 1</td><td>${size} GB</td><td>50% capacity (mirrored)</td></tr>`;
-            }
-
-            // RAID 5
-            if (drives >= 3) {
-                const raid5 = (drives - 1) * size;
-                html += `<tr><td>RAID 5</td><td>${raid5} GB</td><td>One drive worth for parity</td></tr>`;
-            } else {
-                html += `<tr><td>RAID 5</td><td>N/A</td><td style="color: var(--danger);">Needs 3+ drives</td></tr>`;
-            }
-
-            // RAID 10
-            if (drives >= 4 && drives % 2 === 0) {
-                const raid10 = (drives / 2) * size;
-                html += `<tr><td>RAID 10</td><td>${raid10} GB</td><td>50% capacity (mirrored pairs)</td></tr>`;
-            } else {
-                html += `<tr><td>RAID 10</td><td>N/A</td><td style="color: var(--danger);">Needs 4+ even drives</td></tr>`;
-            }
-
-            html += '</tbody></table>';
-            document.getElementById('raidResults').innerHTML = html;
-        }
-
-        driveCountSlider.addEventListener('input', updateRAIDCalculator);
-        driveSizeSelect.addEventListener('change', updateRAIDCalculator);
-        updateRAIDCalculator(); // Initial load
-
-        // Connector Matcher
-        const connectorAnswers = ['7', '15', '24', '4'];
-
-        function checkConnector(element, answer) {
-            const question = element.parentElement.parentElement;
-            const questionIndex = Array.from(document.querySelectorAll('#connectorGame .quiz-question')).indexOf(question);
-            const correctAnswer = connectorAnswers[questionIndex];
-
-            // Clear previous selections
-            question.querySelectorAll('li').forEach(li => {
-                li.classList.remove('selected', 'correct', 'incorrect');
-            });
-
-            if (answer === correctAnswer) {
-                element.classList.add('correct');
-            } else {
-                element.classList.add('incorrect');
-                // Show correct answer
-                question.querySelectorAll('li').forEach(opt => {
-                    if (opt.textContent.includes(correctAnswer)) {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
-
-        // Main Quiz
-        function loadQuiz() {
-            const container = document.getElementById('mainQuiz');
-            container.innerHTML = '';
-
-            quizQuestions.forEach((q, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.className = 'quiz-question';
-                questionDiv.innerHTML = `
-                    <h4><span class="q-number">${index + 1}</span> ${q.q}</h4>
-                    <ul class="quiz-options">
-                        ${q.options.map((opt, optIndex) => `
-                            <li onclick="selectAnswer(${index}, ${optIndex}, this)">${opt}</li>
-                        `).join('')}
-                    </ul>
-                    <div class="quiz-feedback" id="feedback-${index}"></div>
-                `;
-                container.appendChild(questionDiv);
-            });
-
-            document.getElementById('submitQuiz').style.display = 'block';
-        }
-
-        function selectAnswer(questionIndex, optionIndex, element) {
-            if (quizSubmitted) return;
-
-            userAnswers[questionIndex] = optionIndex;
-
-            // Clear previous selection
-            element.parentElement.querySelectorAll('li').forEach(li => {
-                li.classList.remove('selected');
-            });
-            element.classList.add('selected');
-        }
-
-        /**
-         * submitQuiz — Server-side graded (QC-21)
-         *
-         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
-         * The server looks up quiz_keys/aplus-core1-ch02 in Firestore, compares answers,
-         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
-         *
-         * Falls back to a "grading unavailable" message if Firebase isn't loaded
-         * (e.g. offline mode or SDK failure).
-         */
-        async function submitQuiz() {
-            // Check if all questions answered
-            if (userAnswers.includes(null)) {
-                alert('Please answer all questions before submitting.');
-                return;
-            }
-
-            quizSubmitted = true;
-            const submitBtn = document.getElementById('submitQuiz');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Grading...';
-
-            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
-            const answerMap = {};
-            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
-
-            let score = 0;
-            let results = null;
-
-            try {
-                // Call server-side grading via FirebaseAuth bridge
-                if (typeof FirebaseAuth !== 'undefined') {
-                    await FirebaseAuth.waitForAuth();
-                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
-                        quizId: QUIZ_ID,
-                        answers: answerMap
-                    });
-                    results = response.data.results;
-                    score = response.data.score;
-                }
-            } catch (e) {
-                console.warn('Server grading failed, showing submission without grading:', e.message);
-            }
-
-            // Render results
-            quizQuestions.forEach((q, index) => {
-                const options = document.querySelectorAll(`#mainQuiz .quiz-question:nth-child(${index + 1}) li`);
-                const feedback = document.getElementById(`feedback-${index}`);
-                const isCorrect = results ? results[index].correct : null;
-
-                options.forEach((opt, optIndex) => {
-                    opt.classList.remove('selected');
-                    // When server grades, we only know right/wrong — highlight the user's pick
-                    if (optIndex === userAnswers[index]) {
-                        opt.classList.add(isCorrect ? 'correct' : 'incorrect');
-                    }
-                });
-
-                if (isCorrect === true) {
-                    feedback.textContent = '✓ Correct!';
-                    feedback.className = 'quiz-feedback show correct';
-                } else if (isCorrect === false) {
-                    feedback.textContent = '✗ Incorrect.';
-                    feedback.className = 'quiz-feedback show incorrect';
-                } else {
-                    feedback.textContent = 'Grading unavailable — try again when online.';
-                    feedback.className = 'quiz-feedback show';
-                }
-            });
-
-            // Show results
-            submitBtn.style.display = 'none';
-            document.getElementById('quizResults').style.display = 'block';
-            document.getElementById('finalScore').textContent = score;
-
-            const percentage = (score / quizQuestions.length) * 100;
-            let message = '';
-            if (percentage >= 90) message = 'Excellent! You have mastered this chapter!';
-            else if (percentage >= 70) message = 'Good job! Review the topics you missed.';
-            else if (percentage >= 50) message = 'Keep studying. Review the Learn section again.';
-            else message = 'Needs improvement. Re-read the chapter before retrying.';
-
-            document.getElementById('scoreMessage').textContent = message;
-
-            // Save progress
-            saveProgress(score);
-        }
-
-        function resetQuiz() {
-            quizSubmitted = false;
-            userAnswers = new Array(quizQuestions.length).fill(null);
-            document.getElementById('quizResults').style.display = 'none';
-            loadQuiz();
-        }
-
-        // Progress tracking
-        function updateProgress() {
-            const sections = ['learn', 'interactive', 'labs', 'quiz'];
-            const visited = JSON.parse(localStorage.getItem('ch02-visited') || '[]');
-
-            const activeSection = document.querySelector('.nav-tab.active').dataset.section;
-            if (!visited.includes(activeSection)) {
-                visited.push(activeSection);
-                localStorage.setItem('ch02-visited', JSON.stringify(visited));
-            }
-
-            const progress = (visited.length / sections.length) * 100;
-            document.getElementById('chapterProgress').style.width = progress + '%';
-            document.getElementById('progressText').textContent =
-                `${visited.length} of ${sections.length} sections visited`;
-        }
-
-        function saveProgress(quizScore) {
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
-            progress.ch02 = {
-                completed: quizScore >= 11, // 70% to pass
-                quizScore: quizScore,
-                lastAttempt: new Date().toISOString()
-            };
-            localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
-        }
-
-        // Initialize
-        updateProgress();
-    </script>
+    /* Mark Complete — records module progress and returns to Core 1 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-ch02-expansion-storage', {
+            returnUrl: '../../index.html'
+        });
+    }
+</script>
 </body>
 </html>

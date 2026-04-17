@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codes of Ethics | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0010 0%, #0d0018 50%, #0f001e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 0, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #cc00cc; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8ff; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e0030; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+
+        /* Comparison table for code analysis */
+        .compare-table { display: grid; grid-template-columns: 180px repeat(4, 1fr); gap: 1px; border: 1px solid rgba(255,0,255,0.12); border-radius: 8px; overflow: hidden; }
+        .compare-cell { background: rgba(255,255,255,0.03); padding: 8px 10px; font-size: 0.78rem; color: #94a3b8; }
+        .compare-cell.header { background: rgba(255,0,255,0.08); color: #ff00ff; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .compare-cell.row-label { color: #f1f5f9; font-weight: 600; background: rgba(255,255,255,0.05); }
+        .compare-cell.yes { color: #22c55e; }
+        .compare-cell.partial { color: #eab308; }
+        .compare-cell.no { color: #ef4444; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2, 1fr); } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Codes of Ethics | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ETH-W4C &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; Appendices</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Codes of<br>
+                <span class="accent">Ethics</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                ACM &nbsp;&bull;&nbsp; IEEE &nbsp;&bull;&nbsp; PMI &nbsp;&bull;&nbsp; AITP &nbsp;&bull;&nbsp; SE Code &nbsp;&bull;&nbsp; Applying Principles to Practice
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A senior software engineer discovers that the AI system their company has deployed for hiring decisions is producing racially biased outputs. Management is aware but has not acted. The engineer asks themselves: "What do the professional codes require of me?" They look up the ACM Code. Principle 1.4: "Be fair and take action not to discriminate." Principle 2.7: "Foster awareness and understanding of impacts." Principle 3.7: "Recognize and take special care of negative consequences." The codes are unambiguous. The action they imply is not comfortable. That is precisely when codes matter.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ETH-W4C</span>
+            <span>Week 4 of 8</span>
+            <span>Appendices</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY CODES OF ETHICS EXIST ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Why <span class="accent">Codes of Ethics</span> Exist</div>
+        <div class="slide-subtitle">Professional codes of ethics serve multiple functions that cannot be served by law alone.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Guidance Beyond Law</div>
+                <div class="card-desc">Law sets minimum standards. Ethics codes articulate aspirational professional standards that exceed legal minimums. A behavior can be legal and still be professionally unethical -- and professionals who live only at the legal minimum are not meeting the obligations of professionalism. Codes provide the framework for evaluating conduct in the space between "clearly illegal" and "morally required." This is the space where most professional ethics decisions actually live.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Professional Identity and Trust</div>
+                <div class="card-desc">Professions that have codes of ethics establish a basis for public trust. When you consult a physician, you trust that their obligation to your health overrides their personal financial interests in recommending treatment -- because the medical code of ethics requires it and the licensing system enforces it. Professional codes in computing attempt to establish the same basis for trust: that a computing professional's obligation to the user and the public overrides commercial pressures. The extent to which this trust is warranted is a question about code enforcement, not code content.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Shared Framework for Difficult Decisions</div>
+                <div class="card-desc">When facing a novel ethical situation -- and computing professionals encounter novel ethical situations regularly -- a code provides a shared reference framework. Instead of each professional reasoning from scratch, the code provides principles that have been developed through collective deliberation, tested in application, and refined over time. This does not eliminate the need for judgment -- it provides principled starting points for that judgment and a shared vocabulary for discussing ethical disagreements.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Limits of Codes</div>
+            Codes alone do not produce ethical behavior. They require: professional awareness (knowing the code exists), understanding (being able to apply it), organizational cultures that support application, and enforcement mechanisms that create consequences for violations. A code without these elements is a document. A code with them is infrastructure for professional ethics.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- ACM CODE OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">ACM Code of Ethics: <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The Association for Computing Machinery Code of Ethics and Professional Conduct (2018). The most widely adopted computing ethics code globally.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Structure</div>
+                <div class="card-desc">Four sections: (1) General Ethical Principles (8 principles applying to all people), (2) Professional Responsibilities (9 principles specific to computing professionals), (3) Professional Leadership Principles (6 principles for those in leadership), and (4) Compliance with the Code (2 principles requiring adherence and promoting the code). The 2018 version was a significant update from the 1992 original, addressing AI, privacy, and digital systems not present in 1992.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">First Principle: Contribute to Society</div>
+                <div class="card-desc">ACM Principle 1.1: "Contribute to society and to human well-being, acknowledging that all people are stakeholders in computing." This anchors the entire code in a social purpose -- computing professionals are not merely technical workers, they are participants in a technology that affects everyone. The obligation to contribute positively to society is foundational, not optional or aspirational. All other principles flow from this commitment to human and social benefit.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Avoid Harm (1.2)</div>
+                <div class="card-desc">Among the most operationally important principles: "Avoid harm." The code explicitly includes harms to users, third parties, and society. It states that "when a harmful outcome is foreseeable," the professional is obligated to address it. This is a proactive obligation -- not merely refraining from causing harm, but actively working to prevent foreseeable harm. The Therac-25, Boeing MCAS, and IBM Watson cases all involved foreseeable harm that was not adequately addressed. This principle directly speaks to those failures.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Enforcement</div>
+                <div class="card-desc">ACM's enforcement mechanism is limited: membership can be revoked for code violations. Since ACM membership is voluntary and not required to practice computing, this sanction is relatively mild. There is no licensing board, no practice prohibition, and no fine structure. The code's force is primarily moral rather than regulatory. This is both a weakness (limited deterrent power) and a strength (it applies to the full scope of computing practice rather than only to a narrow licensed subset).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- ACM CODE: SECTION 1 ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">ACM Code: <span class="accent">General Principles</span></div>
+        <div class="slide-subtitle">Section 1: Eight principles that apply to computing professionals as members of society.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1.1</span>
+                <span class="fact-text"><strong>Contribute to society and to human well-being, acknowledging that all people are stakeholders in computing.</strong> Prioritize public good. Protect civil liberties. Minimize negative consequences to health, safety, and personal security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.2</span>
+                <span class="fact-text"><strong>Avoid harm.</strong> Foreseeable harms must be reported to appropriate parties. When interests conflict, professionals must minimize harm to the less powerful party. "Harm" includes physical, economic, psychological, and societal harms.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.3</span>
+                <span class="fact-text"><strong>Be honest and trustworthy.</strong> Includes honest assessment of capabilities, honest reporting of flaws and defects, and honest communication with users about risks. Deception and omission that result in harm are prohibited.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.4</span>
+                <span class="fact-text"><strong>Be fair and take action not to discriminate.</strong> Prohibits discrimination based on protected characteristics. Includes obligation to recognize and address algorithmic bias. Actively work to include underrepresented groups in the profession.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.5</span>
+                <span class="fact-text"><strong>Respect the work required to produce new ideas, inventions, creative works, and computing artifacts.</strong> Intellectual property respect. Proper attribution. No plagiarism or unauthorized use.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.6</span>
+                <span class="fact-text"><strong>Respect privacy.</strong> Collect only necessary data. Use data only for intended purpose. Protect data from unauthorized access. Support individuals' rights to control their personal information.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1.7</span>
+                <span class="fact-text"><strong>Honor confidentiality.</strong> Protect organizational confidences unless doing so would violate law, the code, or cause serious harm. Confidentiality obligations do not supersede ethical obligations to the public.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ACM CODE: SECTION 2 ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">ACM Code: <span class="accent">Professional Responsibilities</span></div>
+        <div class="slide-subtitle">Section 2: Nine principles specific to computing professionals in their technical roles.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">2.1</span>
+                <span class="fact-text"><strong>Strive to achieve high quality in both the processes and products of professional work.</strong> Pursuit of excellence. Commitment to quality standards proportional to the system's impact and harm potential. Not meeting the applicable standard of care is a code violation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.2</span>
+                <span class="fact-text"><strong>Maintain high standards of professional competence, conduct, and ethical practice.</strong> Continuous learning obligation. Know the limits of your competence and do not misrepresent them. Seek to improve skills relevant to your current and emerging work.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.3</span>
+                <span class="fact-text"><strong>Know and respect existing rules pertaining to professional work.</strong> Includes laws, regulations, contracts, and organizational policies. Understanding the legal and regulatory environment is part of professional competence, not an optional specialization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.4</span>
+                <span class="fact-text"><strong>Accept and provide appropriate professional review.</strong> Code review, design review, safety case review, and independent testing are professional norms. Resisting review undermines the quality and accountability mechanisms that protect users.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.5</span>
+                <span class="fact-text"><strong>Give comprehensive, accurate assessments of computer systems and their impacts.</strong> No cherry-picking of results. Honest reporting of limitations and risks. This principle directly prohibits the kind of selective disclosure documented in the Boeing 737 MAX and IBM Watson cases.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.6</span>
+                <span class="fact-text"><strong>Perform work only in areas of competence.</strong> Do not accept assignments you are not qualified to execute. When work requires expertise you do not have, seek collaboration with those who do or disclose the limitation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2.7</span>
+                <span class="fact-text"><strong>Foster public awareness and understanding of computing, related technologies, and their consequences.</strong> Includes obligation to correct public misconceptions and to communicate risks in accessible terms to non-technical stakeholders.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ACM CODE: SECTIONS 3 AND 4 ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">ACM Code: <span class="accent">Leadership and Compliance</span></div>
+        <div class="slide-subtitle">Section 3 (Leadership Principles) and Section 4 (Compliance) -- the parts of the ACM Code most relevant to managers and organizations.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">3.1 -- Ensure Good Social Context</div>
+                <div class="card-desc">Leaders must articulate the social responsibilities of their organizations, products, and employees. This principle recognizes that leadership sets the ethical tone -- a leader who only communicates commercial objectives and never communicates social obligations creates an organization where social obligations are effectively deprioritized. Explicitly communicating and modeling ethical responsibilities is a leadership obligation, not an option.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">3.4 -- Design for Inclusivity</div>
+                <div class="card-desc">Systems must be designed to serve all users, including those with disabilities, those with limited technical literacy, and those in resource-constrained environments. Accessibility is an ethical design requirement under the ACM Code, not a feature to be added if time permits. This principle requires proactive design for inclusion rather than reactive accommodation after the fact -- and it places the obligation on leaders who can make resource allocation decisions that enable inclusive design.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">3.7 -- Recognize and Manage Conflicts of Interest</div>
+                <div class="card-desc">Leaders must recognize when organizational or personal financial interests conflict with ethical obligations to users or the public. The Boeing MCAS, Facebook Papers, and IBM Watson cases all involved organizational leadership facing this conflict and prioritizing financial interests. Section 3.7 is the provision that makes those leadership choices code violations -- not just business decisions -- when they result in documented harm that leaders knew or should have known was foreseeable.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">4.2 -- Uphold, Promote, and Respect the Code</div>
+                <div class="card-desc">Members are obligated not only to follow the code themselves but to promote it, to encourage others to follow it, and to report violations to appropriate parties. This creates an active obligation -- not a passive compliance standard. A member who knows of code violations by colleagues and says nothing has failed the code as surely as if they committed the violation themselves. This principle is the code's foundation for collective professional accountability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- IEEE CODE OVERVIEW ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">IEEE Code of Ethics: <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The Institute of Electrical and Electronics Engineers Code of Ethics. Focuses on engineering practice with emphasis on safety and public interest.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Structure and Focus</div>
+                <div class="card-desc">The IEEE Code (most recently updated 2020) consists of a single commitment statement followed by ten specific commitments. It is shorter than the ACM Code but shares its core principles: public safety paramount, honesty in technical matters, non-discrimination, and professional competence. The IEEE Code's engineering background gives it particular emphasis on safety, accuracy of technical claims, and the obligation to challenge unsafe decisions -- reflecting the tradition of engineering ethics that traces to Challenger, Tacoma Narrows, and earlier disasters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Article I: Public Safety Paramount</div>
+                <div class="card-desc">IEEE Code Article I: "to hold paramount the safety, health, and welfare of the public in keeping with our responsibility as professionals." "Paramount" is a strong word -- it means above all other considerations. When safety conflicts with schedule, safety takes precedence. When safety conflicts with cost, safety takes precedence. When safety conflicts with employer instruction, safety takes precedence. This is not a soft aspiration -- it is the foundational commitment from which all other professional obligations flow in the IEEE framework.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Honesty in Technical Claims (Article IV)</div>
+                <div class="card-desc">IEEE Article IV: "to be honest and realistic in stating claims or estimates based on available data." No overpromising. No understating risks. No cherry-picking favorable data. This article speaks directly to cases like IBM Watson (overpromised capability), Boeing MCAS (understated risks), and Cambridge Analytica (misleading claims about data use). Honest technical claims are not merely a matter of accuracy -- they are the foundation of the trust relationships between computing professionals and the public they serve.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- IEEE CODE: TEN COMMITMENTS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">IEEE Code: <span class="accent">Ten Commitments</span></div>
+        <div class="slide-subtitle">The specific commitments of the IEEE Code of Ethics, annotated for application to computing contexts.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">I</span>
+                <span class="fact-text"><strong>Hold paramount the safety, health, and welfare of the public.</strong> Foundational commitment. Safety above commercial pressure, schedule, or employer instruction. Applies to all engineering and computing work, not only safety-critical systems.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">II</span>
+                <span class="fact-text"><strong>Only perform services in areas of competence.</strong> Mirror of ACM 2.6. Parallel across both codes. No misrepresentation of qualification. Seek additional expertise when needed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">III</span>
+                <span class="fact-text"><strong>Be honest and realistic in stating claims or estimates based on available data.</strong> Core honesty obligation. Applies to technical specifications, performance claims, risk assessments, and project status reporting equally.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">IV</span>
+                <span class="fact-text"><strong>Reject bribery in all its forms.</strong> No acceptance of improper personal gain in exchange for technical judgment. Broader than financial bribery -- includes any arrangement that compromises independent professional judgment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">V</span>
+                <span class="fact-text"><strong>Improve the understanding of technology, its appropriate application, and its potential consequences.</strong> Education and communication obligation. IEEE engineers are not only practitioners -- they are stewards of public technical literacy in their domains.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">VI</span>
+                <span class="fact-text"><strong>Maintain and improve technical competence.</strong> Continuous learning obligation. Seek collaboration with others whose knowledge supplements your own.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">VII</span>
+                <span class="fact-text"><strong>Seek, accept, and offer honest criticism of technical work; acknowledge errors; and credit properly the contributions of others.</strong> Review culture obligation. Covers both giving and receiving honest feedback, and the attribution of intellectual contributions.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- PMI CODE OF ETHICS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">PMI Code of Ethics: <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The Project Management Institute Code of Ethics and Professional Conduct. Relevant to IT professionals in project management roles, which is a significant portion of the IT workforce.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Structure: Four Values</div>
+                <div class="card-desc">The PMI Code is organized around four core values: Responsibility, Respect, Fairness, and Honesty. For each value, the code distinguishes between "aspirational" standards (what we strive for) and "mandatory" standards (what is required of all PMI members and credential holders). This two-tier structure explicitly acknowledges the difference between ethical aspiration and ethical minimum -- a useful pedagogical device that most other professional codes do not make explicit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Responsibility</div>
+                <div class="card-desc">Aspirational: take responsibility for decisions and their consequences, own mistakes, and correct them. Mandatory: report unethical conduct to appropriate management, act in the best interest of clients, and report conflicts of interest. PMI's responsibility standard requires both individual accountability and active reporting of organizational ethics violations -- paralleling the ACM's 4.2 obligation to promote compliance with the code, but with stronger mandatory specifications.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Fairness</div>
+                <div class="card-desc">Aspirational: proactively examine for bias and correct it. Mandatory: not discriminate, not engage in undisclosed conflicts of interest, not favor one project stakeholder at the expense of others. The fairness standard explicitly addresses conflicts of interest in project decisions -- relevant to IT project managers who influence vendor selection, contractor relationships, and resource allocation in ways that create conflict of interest exposure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Honesty</div>
+                <div class="card-desc">Aspirational: proactively share information that stakeholders would want to know. Mandatory: not deceive, not engage in dishonest communication, not misrepresent qualifications. PMI's proactive sharing aspiration goes beyond mere non-deception -- it articulates a duty to volunteer material information that others would want, even when not specifically asked. This is more demanding than a strict non-deception standard and is particularly relevant to project status reporting, which is a chronic source of project ethics failures.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- AITP CODE OF ETHICS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">AITP Code of Ethics: <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The Association of Information Technology Professionals Code of Ethics -- focused on IT practitioners and managers, with attention to organizational loyalty alongside public interest.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Structure and Audience</div>
+                <div class="card-desc">The AITP Code is organized around obligations to four parties: society and society's institutions, the employer, clients, and colleagues and the profession. This multi-party structure makes explicit a feature that other codes address less directly: professional ethics involves navigating obligations to multiple parties who may have conflicting interests. The code's explicit acknowledgment of employer obligations alongside public obligations makes it particularly useful for analyzing cases where these interests conflict.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Obligations to Society</div>
+                <div class="card-desc">AITP requires that its members: protect the privacy of others, protect the safety of the public (using professional skill and knowledge), and act in the general public interest when performing duties. These obligations are stated first -- before obligations to employers or clients -- which signals their priority in the AITP ethical hierarchy. This ordering matters when obligations conflict: public safety and privacy come before employer loyalty in the AITP framework.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Obligations to Employers</div>
+                <div class="card-desc">AITP members commit to: making decisions based on best available information, avoiding conflicts of interest, using employer resources only for authorized purposes, and notifying employers of conflicts between employer instructions and ethical obligations. Crucially, the obligation to notify employers of ethical conflicts -- rather than silently complying with problematic instructions -- creates a clear professional path for handling situations where employers ask professionals to do things the code prohibits.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- FOUR CODES: COMPARATIVE ANALYSIS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Four Codes: <span class="accent">Comparative Analysis</span></div>
+        <div class="slide-subtitle">How do ACM, IEEE, PMI, and AITP approach the same ethical dimensions? A structured comparison.</div>
+
+        <div class="compare-table">
+            <div class="compare-cell header">Dimension</div>
+            <div class="compare-cell header">ACM (2018)</div>
+            <div class="compare-cell header">IEEE (2020)</div>
+            <div class="compare-cell header">PMI (2006)</div>
+            <div class="compare-cell header">AITP</div>
+
+            <div class="compare-cell row-label">Public safety paramount</div>
+            <div class="compare-cell yes">Yes -- Explicit (1.2)</div>
+            <div class="compare-cell yes">Yes -- Article I</div>
+            <div class="compare-cell partial">Implied in Responsibility</div>
+            <div class="compare-cell yes">Yes -- Society first</div>
+
+            <div class="compare-cell row-label">Honesty in technical claims</div>
+            <div class="compare-cell yes">Yes -- 1.3, 2.5</div>
+            <div class="compare-cell yes">Yes -- Article III</div>
+            <div class="compare-cell yes">Yes -- Honesty value</div>
+            <div class="compare-cell yes">Yes -- Explicit</div>
+
+            <div class="compare-cell row-label">Competence maintenance</div>
+            <div class="compare-cell yes">Yes -- 2.2, 2.6</div>
+            <div class="compare-cell yes">Yes -- Article VI</div>
+            <div class="compare-cell partial">Implied</div>
+            <div class="compare-cell partial">Yes -- Ongoing education</div>
+
+            <div class="compare-cell row-label">Non-discrimination / bias</div>
+            <div class="compare-cell yes">Yes -- 1.4 (explicit on AI bias)</div>
+            <div class="compare-cell partial">Article VIII (general)</div>
+            <div class="compare-cell yes">Yes -- Fairness value</div>
+            <div class="compare-cell partial">Implied in fairness</div>
+
+            <div class="compare-cell row-label">Privacy protection</div>
+            <div class="compare-cell yes">Yes -- 1.6 (detailed)</div>
+            <div class="compare-cell partial">Not specific</div>
+            <div class="compare-cell partial">Limited</div>
+            <div class="compare-cell yes">Yes -- Explicit</div>
+
+            <div class="compare-cell row-label">Whistleblowing support</div>
+            <div class="compare-cell yes">Yes -- 4.2 (promote code)</div>
+            <div class="compare-cell yes">Yes -- Challenge unsafe</div>
+            <div class="compare-cell yes">Yes -- Mandatory report</div>
+            <div class="compare-cell yes">Yes -- Notify employer</div>
+
+            <div class="compare-cell row-label">Enforcement mechanism</div>
+            <div class="compare-cell partial">Membership revocation</div>
+            <div class="compare-cell partial">Membership revocation</div>
+            <div class="compare-cell partial">Credential revocation</div>
+            <div class="compare-cell partial">Membership revocation</div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- WHERE THE CODES AGREE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Where the Codes <span class="accent">Agree</span></div>
+        <div class="slide-subtitle">Despite different structures and emphases, all four major IT professional codes converge on a core set of obligations.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Public Interest Primacy</div>
+                <div class="card-desc">All four codes place public safety, welfare, and interest above organizational loyalty and personal gain. The ordering may be stated differently -- "paramount" (IEEE), "first" (AITP), or "foundational" (ACM) -- but the hierarchy is consistent. When an IT professional's employer instructs them to do something that harms the public, all four codes require the professional to prioritize the public interest. No code authorizes compliance with instructions that damage public safety or welfare.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Honesty as Non-Negotiable</div>
+                <div class="card-desc">All four codes require honesty in technical claims, risk assessments, and professional communications. No code permits deception, misrepresentation, or selective disclosure that misleads stakeholders about risks. This consensus is particularly relevant given how many technology ethics cases involve selective disclosure, overpromised capabilities, or suppressed internal research. The codes are unanimous: honest communication is not optional.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Competence as Obligation</div>
+                <div class="card-desc">All four codes require that professionals only perform work within their competence, maintain their competence over time, and honestly represent the limits of their competence. This creates a continuous obligation in a field that changes as rapidly as IT -- what constituted competence five years ago may not today. The obligation is not to be omniscient, but to be honest about the boundaries of what you know and to actively work to keep those boundaries current.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Whistleblowing as Obligation</div>
+                <div class="card-desc">All four codes require some form of reporting when professionals observe violations of ethical obligations -- whether to internal parties (AITP), to code-compliance bodies (ACM 4.2), or to appropriate external parties when internal channels fail. Silence in the face of known violations is not ethically neutral under any of the four codes. The specific pathway differs, but the obligation to do something rather than nothing is consistent.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- WHERE THE CODES DIFFER ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Where the Codes <span class="accent">Differ</span></div>
+        <div class="slide-subtitle">The significant differences in emphasis, specificity, and scope across the four codes -- and what those differences mean for application.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Specificity on Contemporary Issues</div>
+                <div class="card-desc">ACM's 2018 update addresses AI bias, data privacy, and algorithmic systems explicitly. The IEEE Code (2020) is more general. The PMI Code (2006) and AITP Code were written before AI-specific ethics issues became central to computing practice. This means ACM provides more actionable guidance for AI-era dilemmas, while the other codes require more interpretive work to apply. The gap in AI specificity reflects the date of last update, not a deeper disagreement about principles.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Employer Obligations</div>
+                <div class="card-desc">The AITP Code is the most explicit about obligations to employers: specific confidentiality requirements, conflict of interest procedures, and authorized use of resources. The ACM and IEEE codes address employer relationships less directly, through the general honesty and harm-avoidance principles. PMI's approach is stakeholder-specific. For IT professionals navigating complex employer-public interest conflicts, the AITP Code's explicit structure may be more practically useful than codes that address employer relationships only implicitly.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Privacy</div>
+                <div class="card-desc">ACM's privacy principle (1.6) is the most developed across the four codes: data minimization, purpose limitation, individual rights, and protection obligations are all addressed explicitly. IEEE does not have a specific privacy article. PMI addresses privacy only in terms of project client confidentiality, not user or public privacy. AITP has explicit privacy obligations but less detail than ACM. For computing professionals working on data systems, ACM's privacy framework is the most directly applicable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Leadership Obligations</div>
+                <div class="card-desc">ACM's Section 3 is unique in providing explicit principles for professionals in leadership roles -- a recognition that organizational leadership has distinct ethical obligations beyond individual professional conduct. IEEE, PMI, and AITP do not have equivalent leadership-specific sections. For IT managers and executives, ACM's leadership principles provide guidance that is not available in the other codes -- particularly on creating ethical organizational cultures and managing conflicts of interest at the organizational level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SE CODE OF ETHICS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Software Engineering <span class="accent">Code of Ethics</span></div>
+        <div class="slide-subtitle">The ACM/IEEE Software Engineering Code of Ethics and Professional Practice -- a joint code specifically for software engineers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Origins and Status</div>
+                <div class="card-desc">Developed jointly by ACM and IEEE in 1997 as part of the initiative to establish software engineering as a recognized engineering discipline. Adopted by both organizations. Consists of eight principles organized around the key stakeholder relationships of software engineering practice. The SE Code was a response to the growing recognition that software engineering required a domain-specific ethics framework, not just the application of general computing or general engineering codes to software contexts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Eight Principles (Abbreviated)</div>
+                <div class="card-desc">PUBLIC: Software engineers shall act consistently with the public interest. CLIENT AND EMPLOYER: Act in a manner consistent with the best interests of clients and employers, consistent with the public interest. PRODUCT: Ensure that the products and related modifications meet the highest professional standards possible. JUDGMENT: Maintain integrity and independence in professional judgment. MANAGEMENT: Promote ethical management. PROFESSION: Advance integrity and reputation of the profession. COLLEAGUES: Be fair and supportive of colleagues. SELF: Participate in lifelong learning.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Product Principle in Detail</div>
+                <div class="card-desc">SE Code Principle 3 (PRODUCT) is the most operationally detailed for software quality ethics: ensure that specifications are complete and not in conflict; produce adequate documentation; use appropriate methods and tools; test adequately; identify, define, and address ethical, economic, cultural, legal, and environmental issues related to work projects. The requirement to address ethical issues in product work is explicit and specific -- making it a directly actionable standard for software engineers facing quality vs. schedule tradeoffs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Relationship to ACM and IEEE Codes</div>
+                <div class="card-desc">The SE Code does not replace the ACM or IEEE codes -- it provides domain-specific elaboration of principles that both codes state more generally. A software engineer is bound by both the SE Code and (as applicable) the ACM and IEEE general codes. When the SE Code and a general code conflict, the general code's principles take precedence. In practice, the codes are consistent and complementary -- the SE Code is best understood as operationalizing general principles for the specific software engineering context.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- SE CODE: PUBLIC PRINCIPLE ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">SE Code: <span class="accent">Public Principle</span></div>
+        <div class="slide-subtitle">Principle 1 of the SE Code -- the foundational public interest commitment, with its specific operational requirements.</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">SE Code Principle 1 -- PUBLIC</div>
+            Software engineers shall act consistently with the public interest. In particular, software engineers shall, as appropriate: accept full responsibility for their own work; moderate the interests of the software engineer, the employer, the client and the users with the public good; approve software only if they have a well-founded belief that it is safe, meets specifications, passes appropriate tests, and does not diminish quality of life; disclose to appropriate persons or authorities any actual or potential danger to the user, the public, or the environment, that they reasonably believe to be associated with software or related documents; cooperate in efforts to address matters of grave public concern caused by software.
+        </div>
+
+        <div class="summary-facts" style="margin-top: 8px;">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text">"Approve software only if they have a well-founded belief that it is safe" -- this is why signing off on Therac-25, MCAS, or defective medical device software when you have doubts about safety is a code violation, not just a business decision.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text">"Disclose to appropriate persons any actual or potential danger" -- this is the whistleblowing obligation of the SE Code. It does not require waiting for management permission. It requires disclosure when danger is reasonably believed to exist.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text">"Cooperate in efforts to address matters of grave public concern" -- this principle requires cooperation with investigations, regulatory reviews, and public accountability processes, not obstruction of them.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- APPLYING CODES TO CASES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Applying Codes to <span class="accent">Cases</span></div>
+        <div class="slide-subtitle">A structured method for using professional codes to analyze ethical situations systematically.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Step 1: Identify the Stakeholders</div>
+                <div class="card-desc">Who is affected by the decision? Users, clients, employers, colleagues, third parties, the public, future generations. Map out all affected parties before beginning ethical analysis. The tendency to overlook indirect or diffuse stakeholders (society, future users, environmental communities) produces analysis that underweights the most significant long-term harms. Systematic stakeholder identification is the precondition for complete ethical analysis.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Step 2: Identify the Applicable Principles</div>
+                <div class="card-desc">Which principles from which codes apply to this situation? Start with the most specific applicable code (SE Code for software development, PMI Code for project management decisions). Identify the specific principles, not just the general values. "The IEEE Code requires safety to be paramount" is less useful than "IEEE Article I requires that I hold safety paramount, which means I cannot approve this design without resolving the identified safety concern in item 4 of the risk assessment."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 3: Identify the Conflicts</div>
+                <div class="card-desc">Where do the identified obligations conflict -- with each other, with employer instructions, with personal interests, or with legal requirements? Map the conflicts explicitly. This step is where the hard work is. An obligation to maintain confidentiality conflicts with an obligation to disclose danger. The code provides guidance on how to resolve this conflict (public safety overrides confidentiality) -- but the analysis must first identify that a conflict exists before the resolution can be applied.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top: 4px;">
+            <div class="card c-green">
+                <div class="card-label">Step 4: Apply the Priority Ordering</div>
+                <div class="card-desc">All codes agree: public safety is paramount. When conflicts are resolved by the code's own priority ordering (public safety over employer interest), apply it. When the code does not clearly resolve the conflict, apply ethical reasoning frameworks (utilitarian, deontological, virtue ethics) to reach a principled position. Document your reasoning. The ability to articulate the ethical basis of professional decisions is itself a professional competence the codes require.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Step 5: Act and Document</div>
+                <div class="card-desc">Act on the conclusion the analysis requires. Document the analysis and the decision. If the action involves reporting a concern, document the specific concern, the reporting pathway used, the date, and the response received. Documentation is not just good practice -- it is the evidentiary foundation that protects you if your decision is later challenged, and it creates the record of ethical conduct that professional accountability requires.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Step 6: Review After the Fact</div>
+                <div class="card-desc">After a decision is made and its consequences are visible, review the analysis: was the right framework applied? Were all stakeholders adequately considered? Were the consequences foreseeable in retrospect even if not foreseen? This retrospective review is how professional ethical judgment improves over time. It is also how professional communities build the case studies and precedents that inform future ethical reasoning -- which is why the cases in this course exist.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- WHAT WOULD YOU DO: CODE APPLICATION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Apply the code analysis framework to these scenarios. Identify the applicable principles before reaching a conclusion.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are the lead software engineer on a hospital management system. Your project manager has scheduled the go-live date for three months from now. You assess that completing adequate security testing will require an additional six weeks. The project manager says the date cannot move and that the security testing can be done after launch. Identify: which principles from at least two codes apply. What do they require you to do? At what point, if any, does your obligation change if the project manager is also the CIO?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You are a certified PMP managing an IT contract for a city government. You discover that your employer has been billing the city for hours not worked. The billing appears to be intentional -- you find evidence suggesting it is a pattern, not an error. Your manager, who approves the billing, is also your performance evaluator. Identify: which PMI Code principles apply. What do they require you to do? Does it matter that you are not personally involved in the billing? What does the PMI Code say about reporting to external parties (the city)?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            You are a senior data scientist at a consumer credit company. Your model has a documented 12% false-positive rate for minority applicants compared to a 6% false-positive rate for majority applicants on adverse credit decisions. Your director says the overall accuracy of the model is high and within regulatory guidelines. Identify: which principles from ACM and the SE Code apply. Does the fact that you are within regulatory guidelines affect your ethical obligation? What does the code require you to do when your analysis conflicts with your director's determination?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- LIMITS OF CODES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">The <span class="accent">Limits</span> of Codes</div>
+        <div class="slide-subtitle">What codes of ethics cannot do -- understanding the limitations that must be addressed through other mechanisms.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Codes Cannot Enforce Themselves</div>
+                <div class="card-desc">No code of ethics enforces itself. Enforcement requires: awareness (professionals must know the code exists), understanding (professionals must be able to apply it), organizational cultures that support application, compliance monitoring, and consequences for violations. A professional who has never read their professional code cannot apply it. An organization that does not reference codes in its culture has effectively neutralized them. Codes are tools -- they require wielders.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Membership Is Voluntary</div>
+                <div class="card-desc">ACM, IEEE, PMI, and AITP membership is all voluntary. Unlike the bar association or medical board, they cannot prevent non-members from practicing. A software engineer who is not an ACM member is not bound by the ACM Code. Even members who are bound face only membership revocation as the maximum sanction -- they can continue to practice computing. This structural limitation means professional codes have far less regulatory force than codes in licensed professions, and their effectiveness depends primarily on professional culture rather than enforcement.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Codes Cannot Resolve All Conflicts</div>
+                <div class="card-desc">Professional codes provide frameworks for ethical reasoning, not algorithms that produce determinate answers to every ethical question. When two legitimate principles conflict -- confidentiality vs. transparency, honesty vs. harm avoidance -- codes provide priority orderings and general principles, but applying them to specific situations requires judgment. An engineer who says "the code tells me exactly what to do" is probably misreading the code. It tells you what principles apply and what considerations take priority. Judgment about specific application is still required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Codes Are Not Politically Neutral</div>
+                <div class="card-desc">Professional ethics codes reflect the values of the communities that produce them. ACM and IEEE are North American-dominated professional associations whose membership skews toward employed engineers in commercial settings. The codes reflect those perspectives. They are less developed on issues of global labor justice, environmental sustainability, and the political economy of technology development than on technical quality and individual professional conduct. Reading the codes critically -- aware of what they emphasize and what they underemphasize -- is part of sophisticated professional ethics.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- ETHICS CODES AND AI ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Professional Codes <span class="accent">and AI</span></div>
+        <div class="slide-subtitle">How existing codes apply to the ethical challenges of AI development and deployment -- and where new guidance is needed.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">ACM's AI-Specific Guidance</div>
+                <div class="card-desc">ACM Principle 1.4 explicitly addresses algorithmic bias: computing professionals must "design and implement systems that are robustly and reliably usable by a diversity of people." Principle 2.5 (give comprehensive, accurate assessments) directly applies to AI performance claims. Principle 1.6 (respect privacy) applies to training data and inference systems. The 2018 update made ACM the most AI-ready of the major codes -- but even it was written before large language models and generative AI were the defining challenges of the field.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Where Existing Codes Fall Short on AI</div>
+                <div class="card-desc">Existing codes do not explicitly address: obligations regarding training data consent and copyright, the explainability requirement for high-stakes AI decisions, algorithmic impact assessment requirements, obligations regarding AI-generated content labeling, the governance of AI systems that make decisions affecting many people simultaneously, or the environmental obligations created by large-scale AI training. These gaps are being addressed through supplemental guidance documents and proposed new principles, but they represent limitations in the current code frameworks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Applying Existing Principles to AI</div>
+                <div class="card-desc">The core principles apply even when specific AI guidance is absent: avoid harm (AI systems that cause documented harm violate this); be honest (AI performance claims must be accurate and not misleading); respect privacy (AI systems must not use data beyond their stated purpose); be fair (AI systems must be tested for disparate impact before deployment in consequential contexts); maintain competence (AI engineers must understand the capabilities and limitations of their systems). The principles generalize -- applying them to AI requires judgment, but not new principles.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- CODES IN CONFLICT WITH EMPLOYER INSTRUCTIONS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Codes vs. <span class="accent">Employer Instructions</span></div>
+        <div class="slide-subtitle">All four codes address the situation where employer instructions conflict with professional obligations. What do they require?</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Hierarchy</div>
+            All four codes establish the same hierarchy when employer instructions conflict with professional obligations: (1) Legal requirements -- follow them, or withdraw from the work. (2) Public safety and welfare -- these override employer instructions. (3) Professional code obligations -- these override employer instructions that conflict with them. (4) Employer instructions -- follow them within the bounds established by 1-3. The hierarchy is not ambiguous. Professionals who follow employer instructions that violate the first three levels are not sheltered by the "following orders" rationale -- the codes explicitly reject it.
+        </div>
+
+        <div class="card-grid" style="margin-top: 8px;">
+            <div class="card c-green">
+                <div class="card-label">The Internal Escalation Pathway</div>
+                <div class="card-desc">When a supervisor gives a professionally unacceptable instruction, the codes generally expect: (1) communicate the concern clearly to the supervisor, with the specific professional obligation invoked, (2) if the supervisor maintains the instruction, escalate to the next level of management, (3) if organizational escalation fails, consider reporting to the relevant professional body, regulator, or (for safety issues) public disclosure. Not every concern requires immediate external escalation -- the process gives organizations an opportunity to correct problems before external action is required.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When Internal Escalation Is Not Required</div>
+                <div class="card-desc">Internal escalation is not required when: the wrongdoing involves senior management (they are the escalation target), reporting internally would expose the reporter to immediate retaliation before the concern can be addressed, the harm is ongoing and immediate and cannot wait for the internal process, or internal reporting has already been tried and suppressed. In these circumstances, the codes support and in some cases require external disclosure without exhausting internal channels.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Professional's Final Recourse</div>
+                <div class="card-desc">All four codes implicitly recognize withdrawal from participation as the ultimate professional recourse when complying with an employer instruction would require violating the code. "I cannot perform work that violates my professional obligations" is a legitimate professional position, recognized by the codes, even when it results in termination. The codes do not make this easy -- they acknowledge the personal cost. But they are consistent that professional obligation does not end when an employer demands otherwise.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CODES AND CORPORATE ETHICS PROGRAMS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Codes and Corporate <span class="accent">Ethics Programs</span></div>
+        <div class="slide-subtitle">How professional codes relate to organizational ethics and compliance programs -- and what distinguishes effective programs from theater.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Compliance vs. Ethics Programs</div>
+                <div class="card-desc">Compliance programs focus on preventing legal violations. Ethics programs focus on promoting ethical behavior beyond legal minimums. Most large organizations have compliance programs; fewer have genuine ethics programs. The distinction matters: a compliance culture asks "is this legal?" An ethics culture asks "is this right?" A professional whose employer has only a compliance program must supply the ethical analysis themselves -- the organization will not prompt it. This makes professional codes more, not less, important in compliance-only environments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ethics Hotlines and Their Effectiveness</div>
+                <div class="card-desc">Most large organizations have ethics hotlines or reporting mechanisms. Research on their effectiveness is mixed: they are most useful when: reporters can report anonymously, reports are investigated by a genuinely independent function (not HR that reports to the people being reported on), reporters are protected from retaliation, and reports produce visible consequences for violations. Hotlines that exist to satisfy regulatory requirements without these features function as ethics theater -- creating the appearance of accountability without its substance.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ethics Training and Code Literacy</div>
+                <div class="card-desc">Effective integration of professional codes into organizational ethics programs requires: including code content in professional development training, making code application part of performance expectations, referencing codes in ethics policy documents, and creating mechanisms for professionals to raise code-based concerns (not just compliance violations). Organizations that have never asked their IT professionals whether they have read the ACM or IEEE code have tacitly communicated that the codes are irrelevant to their work. That communication is consequential.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">External Accountability</div>
+                <div class="card-desc">Organizational ethics programs without external accountability structures can be captured by the organizations they are meant to hold accountable. Boeing's ethics program, Volkswagen's compliance program, and Wells Fargo's internal controls all failed to prevent major ethical violations because they reported to management rather than independent oversight. External accountability -- through regulatory oversight, independent audit, third-party compliance verification, or board-level ethics committee independence -- is required for organizational ethics programs to function where the stakes are highest.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- BUILDING AN ETHICAL CASE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Building an <span class="accent">Ethical Case</span></div>
+        <div class="slide-subtitle">When you need to make an argument for an ethical position in a professional context, how do you construct it persuasively?</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Ground It in the Code</div>
+                <div class="card-desc">Reference the specific principle, not the general value. "I believe this is wrong" is easy to dismiss. "ACM Principle 2.5 requires comprehensive and accurate assessment of risks, and the current reporting omits the identified vulnerability from the client's risk presentation" is specific, objective, and harder to dismiss. Grounding ethical arguments in recognized professional codes provides external authority for positions that might otherwise appear as personal preference or political opinion. It also demonstrates that the position is principled, not arbitrary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Quantify the Risk</div>
+                <div class="card-desc">Abstract ethical arguments are less persuasive than concrete risk assessments. "Deploying this with the known defect creates ethical issues" is less persuasive than "Deploying this with the known defect exposes approximately 40,000 users to potential data loss, creates regulatory penalty exposure under HIPAA Section 164.312(a)(2)(iv), and would require disclosure under the SE Code Principle 1 if it results in harm." Connecting ethical obligations to concrete risks makes the argument actionable and removes the abstraction that allows decision-makers to delay.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Document in Writing</div>
+                <div class="card-desc">Verbal objections leave no record. Written objections -- memos, emails, formal risk assessments -- create a record of the concern, the date it was raised, and the response. This documentation protects you if the feared harm materializes; it creates evidence of good-faith professional conduct; and it takes the argument out of the interpersonal dynamic where power differentials are most operative and into the documentary record where the content of the argument matters more. If you raise an ethical concern, put it in writing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- CODES APPLIED: CASE SET 1 ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Codes Applied: <span class="accent">Case Set 1</span></div>
+        <div class="slide-subtitle">Apply the analysis framework to the cases covered earlier in this course.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text"><strong>Therac-25:</strong> SE Code Principle 1 (approve software only with well-founded belief it is safe), SE Code 3 (test adequately), IEEE Article I (hold safety paramount). The AECL engineers who tested inadequately and shipped without hardware interlocks violated all three. The institutional suppression of operator reports also violated SE Code 1 (cooperate in efforts to address matters of grave public concern).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text"><strong>Boeing 737 MAX:</strong> ACM 2.5 (give comprehensive, accurate assessments -- violated by not disclosing MCAS's full authority), IEEE Article I (hold safety paramount -- violated by prioritizing schedule over safety validation), SE Code 1 (disclose actual or potential danger -- violated by not informing pilots and airlines of MCAS existence).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text"><strong>IBM Watson for Oncology:</strong> ACM 1.3 (be honest and trustworthy -- violated by misleading marketing of capabilities), ACM 2.5 (give accurate assessments -- violated by omitting training data limitations), IEEE Article III (be honest and realistic in stating claims -- violated by overpromising clinical performance).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">D</span>
+                <span class="fact-text"><strong>Cambridge Analytica:</strong> ACM 1.6 (respect privacy -- violated by API design enabling mass data harvest without meaningful consent), ACM 1.3 (be honest -- violated by not disclosing the breach to affected users), PMI Fairness (mandatory standard against undisclosed conflicts of interest -- violated by concealing the breach investigation from regulators).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">E</span>
+                <span class="fact-text"><strong>COMPAS:</strong> ACM 1.4 (be fair, take action not to discriminate -- violated by deploying an algorithm with documented racial error disparities without remediation), ACM 2.5 (give comprehensive assessments -- violated by not disclosing the algorithm's performance disparities to the courts using its output).</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- CODES APPLIED: CASE SET 2 ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Codes Applied: <span class="accent">Case Set 2</span></div>
+        <div class="slide-subtitle">Applying the analysis to the Week 4 cases.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">F</span>
+                <span class="fact-text"><strong>Frances Haugen (Facebook):</strong> ACM 4.2 (uphold and promote the code, report violations) -- supports her disclosure. ACM 1.7 (honor confidentiality) -- in tension, but the code is clear that public safety obligations override confidentiality. ACM 3.7 (recognize conflicts of interest) -- her disclosure identified a systematic conflict between Facebook's revenue interests and user safety that organizational leadership was failing to manage.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">G</span>
+                <span class="fact-text"><strong>Amazon Resume Screening (Algorithmic Bias):</strong> ACM 1.4 (be fair, take action not to discriminate) -- required either retraining the model to remove the gendered bias or not deploying it. ACM 2.5 (give accurate assessments) -- required honest communication to users of the tool about its documented bias before deployment. ACM 1.2 (avoid harm) -- required addressing the foreseeable harm to women applicants from deployment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">H</span>
+                <span class="fact-text"><strong>Myanmar (Facebook Content Moderation Failure):</strong> ACM 1.2 (avoid harm -- foreseeable harm from inadequate moderation capacity required action), ACM 1.1 (contribute to human well-being -- deploying a platform as primary internet infrastructure for a country without investing in adequate safety for that language violated this obligation). SE Code Principle 1 (cooperate in efforts to address matters of grave public concern) -- required cooperation with UN investigators rather than resistance.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">I</span>
+                <span class="fact-text"><strong>H-1B Wage Suppression:</strong> ACM 1.4 (be fair, take action not to discriminate) -- paying equivalent workers less based on visa status, when the visa status is a legally engineered power asymmetry, is a fairness violation. AITP Obligations to Colleagues -- treating H-1B colleagues as second-class workers based on immigration status violates the obligation to treat colleagues with respect and fairness. PMI Fairness (mandatory standard) -- managers who approve discriminatory pay arrangements violate PMI's mandatory fairness standard.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">J</span>
+                <span class="fact-text"><strong>Gig Worker Misclassification:</strong> AITP Obligations to Society -- denying employment protections to economically dependent workers by intentional misclassification harms public welfare. ACM 1.2 (avoid harm) -- knowingly depriving workers of health insurance, minimum wage protection, and labor rights constitutes a foreseeable harm that the code requires be addressed. PMI Responsibility (mandatory) -- acting in the best interest of affected parties requires honest classification of the economic reality of the relationship.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- THE EMERGING PROFESSIONAL ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">The <span class="accent">Emerging Professional</span></div>
+        <div class="slide-subtitle">How do you build the professional ethics infrastructure you will need throughout your career?</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Read the Codes</div>
+                <div class="card-desc">The ACM Code is approximately 4,000 words. The IEEE Code is shorter. The SE Code is comprehensive. The PMI Code is well-organized. Reading these documents -- actually reading them, not scanning -- takes a few hours total. For documents that govern professional obligations that can determine whether people live or die, that is a reasonable time investment. Most working IT professionals have never read the codes that govern their profession. This is a remediable situation. Remedy it today.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Develop an Ethics Vocabulary</div>
+                <div class="card-desc">Having the language to articulate ethical concerns precisely is a professional skill. "This feels wrong" does not function in a professional context the way "ACM Principle 2.5 requires comprehensive disclosure of known risks, and this deliverable omits the three risk factors documented in the testing report" does. The cases in this course, the frameworks from this module, and the terminology of ethical reasoning all contribute to a professional ethics vocabulary that makes you more effective when ethical concerns must be raised.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Practice Before the Crisis</div>
+                <div class="card-desc">The worst time to develop your ethical analysis skills is when you are in the middle of a crisis, under time pressure, and professionally exposed. The best time is now -- in case studies, classroom discussions, and low-stakes professional situations where you can reason carefully without consequences. The skills you develop in analyzing Therac-25 and Cambridge Analytica are the skills you will need when you discover a security vulnerability in your company's production system the day before a major launch.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- CODES AND PROFESSIONAL LICENSURE ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Codes and <span class="accent">Licensure</span></div>
+        <div class="slide-subtitle">The ongoing debate about whether software and IT engineering should require licensure -- and what professional codes would look like if backed by regulatory enforcement.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Case for Licensure</div>
+                <div class="card-desc">Medicine and law are licensed because their practitioners can cause serious harm to clients who cannot adequately evaluate their competence. Software engineers can cause the same caliber of harm -- Therac-25, Boeing MCAS, and medical device defects make this clear. Licensure would require demonstrated competence, bind practitioners to enforceable ethical codes, enable license revocation for violations, and create the professional accountability structure that voluntary membership in associations cannot provide. The Texas PE licensing for software engineers (for safety-critical work) is the most significant US experiment in this direction.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Case Against Licensure</div>
+                <div class="card-desc">Software evolves too rapidly for licensure frameworks to remain current. Entry barriers to practice would reduce innovation and harm smaller development communities. Most software development does not have the same direct harm potential as medical practice or structural engineering. Licensure would favor established practitioners over newcomers, entrench incumbents, and create bureaucratic costs without equivalent safety benefits. The open source community, which has produced much of the most reliable software infrastructure, would be particularly burdened by licensure requirements.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Current State</div>
+                <div class="card-desc">No jurisdiction requires software engineering licensure for general practice. The Texas State Board of Professional Engineers has a software engineering PE license. Canada's provincial engineering associations issue Professional Engineer designations to software engineers. The UK established the Chartered Engineer pathway for software and systems engineers. For safety-critical system development (avionics, nuclear, medical devices), regulatory certification requirements effectively function as a form of licensure for the specific work, if not the general profession.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Middle Ground</div>
+                <div class="card-desc">Some proposals suggest risk-tiered credentialing: general software development requires no license; development of safety-critical software (defined by the harm potential of failure) requires demonstrated competence and ongoing professional development; and management of safety-critical software projects requires certification. This approach targets regulatory burden at the highest-risk activities without creating barriers across the full breadth of computing practice. It is analogous to how the FAA certifies commercial pilots but not all aircraft operators.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- THE VIRTUE ETHICS SUPPLEMENT ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">The <span class="accent">Virtue Ethics</span> Supplement</div>
+        <div class="slide-subtitle">Why codes alone are not sufficient -- and what virtue ethics adds to professional ethics reasoning.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What Virtue Ethics Asks</div>
+                <div class="card-desc">Rule-based ethics (follow the code) and outcome-based ethics (maximize welfare) are both important. Virtue ethics asks a different question: "What kind of person do I want to be, and what would that person do in this situation?" Aristotle's framework identifies virtues -- courage, honesty, practical wisdom, justice, temperance -- as dispositions that guide right action across contexts, not rules to be applied mechanically. A virtuous professional does not ask "does the code require this?" They ask "is this what an honest, courageous, practically wise professional would do?"</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Where Virtue Ethics Fills the Gaps</div>
+                <div class="card-desc">Codes have gaps -- situations they do not cover, ambiguities about application, and conflicts they do not resolve. Virtue ethics provides guidance in those gaps by asking what a person of good character would do. In the space between "clearly required by the code" and "clearly prohibited by the code" lies a large domain of professional discretion. Virtue ethics guides the exercise of that discretion toward what an honorable professional -- not merely a compliant one -- would choose.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Professional Courage</div>
+                <div class="card-desc">The virtue most directly relevant to whistleblowing, raising safety concerns, and challenging management decisions is courage -- the disposition to do what is right even when it is difficult, costly, or threatening. Roger Boisjoly had the courage to argue against the Challenger launch. Frances Haugen had the courage to copy documents and testify before Congress. Professional courage is not recklessness -- it is the willingness to act on a principled position despite personal cost. This is a virtue, not a code requirement, and it must be cultivated, not just mandated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- COMPARATIVE FRAMEWORKS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Ethical Frameworks: <span class="accent">Comparative Summary</span></div>
+        <div class="slide-subtitle">A structured comparison of the four ethical frameworks used throughout this course -- and how they interact with professional codes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Utilitarianism</div>
+                <div class="card-desc">Maximize aggregate welfare. Minimize aggregate harm. The right action produces the best outcomes for the most people. Strength: provides a systematic framework for weighing competing harms. Weakness: can justify harm to individuals or minorities if the aggregate benefit is large enough. Relationship to codes: utilitarian reasoning underlies "avoid harm" principles -- code requirements to minimize foreseeable harm reflect utilitarian logic. But codes also contain deontological constraints that limit pure utilitarian calculation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Deontology (Kant)</div>
+                <div class="card-desc">Act only on principles you could will to be universal laws. Treat persons as ends, never merely as means. Rights are inviolable regardless of consequences. Strength: provides clear constraints against exploiting individuals for aggregate benefit. Weakness: can produce rigidly counterproductive results when rules conflict or consequences are catastrophic. Relationship to codes: deontological thinking underlies honesty requirements (you must tell the truth even when lying would produce better outcomes), non-discrimination (you cannot treat people as means to efficiency), and the prohibition on concealing safety risks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Virtue Ethics</div>
+                <div class="card-desc">Focus on the character of the moral agent rather than rules or outcomes. Ask what a person of good character would do. Cultivate virtues (honesty, courage, justice, practical wisdom) that guide right action across contexts. Strength: handles novel situations and ambiguous cases that rules cannot fully specify. Weakness: less action-guiding in specific situations than rule-based frameworks. Relationship to codes: virtue ethics provides the motivational foundation for code compliance -- the virtuous professional follows the code because they are honest and care about public welfare, not merely because the code requires it.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Social Contract / Contractarianism</div>
+                <div class="card-desc">Moral norms are principles that rational persons would agree to behind a "veil of ignorance" (Rawls) -- not knowing their position in society. Focus on fairness and the rules that would be acceptable to all parties. Strength: provides a framework for evaluating distributional fairness and social institutions. Relationship to codes: social contract thinking underlies privacy and consent requirements (people would agree to information norms that protect their autonomy if they did not know whether they would be the data subject or the data collector) and non-discrimination standards (principles should be acceptable regardless of which group you are in).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- WHAT WOULD YOU DO: CODE CONFLICTS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Code conflict scenarios -- situations where two valid principles point in different directions.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A -- Confidentiality vs. Disclosure</div>
+            You are an IT security consultant who has completed an assessment for a healthcare client. The assessment is confidential under your contract. You find significant security vulnerabilities. The client receives the report and says they will address the issues next quarter due to budget constraints. You assess that in the current state, patient data is at material risk of breach. The client invokes confidentiality and instructs you not to disclose. How do you navigate ACM 1.7 (honor confidentiality) against ACM 1.2 (avoid harm) and the SE Code's obligation to disclose potential danger?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B -- Competence vs. Refusal</div>
+            Your employer assigns you to lead development of an AI fraud detection system for a financial services client. AI development is not your core expertise -- you have general software engineering skills and have taken one AI course. The timeline is aggressive. You can either accept the assignment (risking inadequate work and code violations for working outside competence) or refuse (risking your employment and the client relationship). The codes say only perform work in areas of competence. But you could also learn. Where is the competence threshold, and who decides it?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C -- Public Disclosure Timing</div>
+            You are a security researcher who has found a critical vulnerability in widely used medical device software. You notify the vendor. After 90 days (Google's standard coordinated disclosure timeline), the vendor has not patched the vulnerability. You have evidence the vendor has known about a similar vulnerability for two years. Patients may currently be at risk. Do you disclose publicly? Notify the FDA? Contact a journalist? The SE Code says disclose potential danger "to appropriate persons or authorities." Who is the appropriate authority here?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- EMERGING ETHICS DOMAINS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Emerging <span class="accent">Ethics Domains</span></div>
+        <div class="slide-subtitle">Areas where professional codes are being extended or where new guidance is most actively being developed.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Autonomous Systems Ethics</div>
+                <div class="card-desc">IEEE has published "Ethically Aligned Design" -- a comprehensive framework for autonomous and intelligent systems. It addresses: embedding human values in AI, avoiding harm, accountability for autonomous system decisions, and transparency in how autonomous systems make decisions. The ACM and IEEE codes did not anticipate autonomous vehicles, autonomous weapons, or autonomous medical decision systems. These are areas where new principled frameworks -- not merely extensions of existing codes -- are being developed to address qualitatively new ethical challenges.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Quantum Computing Ethics</div>
+                <div class="card-desc">Quantum computers capable of breaking current encryption standards would make most current privacy and security infrastructure obsolete. The ethical obligations around transition to quantum-resistant cryptography, the timeline for disclosure of quantum capabilities, and the national security implications of quantum computing are beginning to receive attention in professional ethics communities. These are areas where current codes apply in principle but where domain-specific guidance will be needed as the technology matures.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Brain-Computer Interface Ethics</div>
+                <div class="card-desc">Devices that interface directly with the human brain -- for medical purposes (treating Parkinson's, restoring motor function) and potentially for commercial purposes (direct neural input to computing systems) -- raise ethical questions about bodily autonomy, cognitive privacy, the right to mental integrity, and the fairness of cognitive enhancement access that existing codes do not address. These are not distant future problems -- Neuralink and other companies are conducting human trials now. Professional ethics frameworks are lagging the technology.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- THE PROFESSIONAL ETHICS LANDSCAPE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">The Professional Ethics <span class="accent">Landscape</span></div>
+        <div class="slide-subtitle">An overview of the full ecosystem of documents, organizations, and frameworks that compose professional IT ethics in 2025.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text"><strong>Professional codes:</strong> ACM (2018), IEEE (2020), SE Code (1997), PMI (2006), AITP. Voluntary but authoritative. Define professional obligations. Used in ethics analysis, litigation, and regulation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text"><strong>Industry AI ethics frameworks:</strong> Google AI Principles, Microsoft Responsible AI, IBM AI Ethics, Partnership on AI. Vary in specificity and enforcement. Generally weaker than professional codes on enforcement. Reflect corporate interests alongside genuine ethical commitments.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text"><strong>Government frameworks:</strong> NIST AI RMF, EU AI Act (legally binding), UK AI Safety Institute, Biden Administration AI Executive Order (partially rescinded). Range from voluntary guidance to binding regulation. EU AI Act is the most comprehensive binding framework globally.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">D</span>
+                <span class="fact-text"><strong>Academic and research frameworks:</strong> Belmont Report principles adapted to AI, Algorithmic Fairness research community, AI safety research community (DeepMind, Anthropic, OpenAI safety teams). Developing technical and conceptual frameworks that will eventually inform codes and regulation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">E</span>
+                <span class="fact-text"><strong>International standards:</strong> ISO/IEC 42001 (AI Management Systems), IEEE Std 7000-2021 (ethical concerns in system design), ISO/IEC 27001 (security). Standards provide technical specifications for implementing ethical principles that codes state at a higher level of abstraction.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- THE COURSE IN REVIEW ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">The Course <span class="accent">in Review</span></div>
+        <div class="slide-subtitle">The themes that have run through Weeks 1-4 and how they connect to the codes covered in this module.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Ethics Frameworks in Practice</div>
+                <div class="card-desc">Utilitarianism, deontology, virtue ethics, and social contract theory are not competing answers -- they are complementary lenses. The most robust ethical analysis uses multiple frameworks. When they converge (the Therac-25 failure was wrong under all four frameworks), the case is clear. When they diverge (the trolley problem, whistleblowing tradeoffs), the analysis must engage with the divergence rather than defaulting to one framework. The codes integrate elements of all four -- which is part of why they remain useful across such diverse situations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Systemic vs. Individual Ethics</div>
+                <div class="card-desc">Most technology ethics failures are not produced by individual bad actors. They are produced by systemic failures: commercial incentives that outweigh safety considerations, organizational cultures that suppress concerns, regulatory gaps that permit harms, and market structures that reward under-investment in quality and safety. Individual professional ethics is necessary but insufficient. Systemic responses -- regulation, liability reform, governance structures, professional accountability -- are required alongside individual virtue. Both matter. Neither alone is sufficient.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Practitioner's Agency</div>
+                <div class="card-desc">The consistent message of every case in this course: real people made choices that produced the outcomes. AECL engineers chose not to conduct formal safety analysis on the Therac-25. Boeing engineers chose to certify MCAS on a single sensor. Facebook chose not to implement available fixes for teen mental health harm. These choices were not inevitable. Other choices were available. The practitioners who made them had professional codes that pointed toward different choices. The distance between the code and the decision is the space where professional ethics lives -- and where you will spend your career.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Discussion Questions</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Final module discussion questions. These integrate material from the full course.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">All four codes agree on the priority of public safety over employer interests. Yet in every major case in this course, professionals prioritized employer interests over public safety. What does this gap between code and practice tell us about the limits of professional codes, and what structural changes would reduce it?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Compare how the ACM Code and the SE Code handle the obligation to disclose safety risks. Which is more actionable in a specific professional situation? Are they consistent, or do they create any tension in their application?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The AITP Code explicitly addresses obligations to employers as well as to society, while the ACM Code addresses employer relationships more indirectly. When an IT professional faces a conflict between these two sets of obligations, which code provides better practical guidance? Why?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Should software engineering require professional licensure for safety-critical work? Construct a complete argument for and against, and take a position. What specific criteria would you use to define "safety-critical" for this purpose?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Identify a current technology product or practice that you believe is ethically problematic but does not clearly violate any existing code. Analyze it using the codes, identify the nearest applicable principles, and explain whether the gap indicates a limitation of the codes or a feature (that is, whether the codes' silence reflects genuine ethical permissibility or an oversight in code development).</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Final <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Capstone exercises for the Ethics in IT course. These integrate material from all eight weeks.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Read the ACM Code of Ethics in full (acm.org/code-of-ethics). Identify the three principles you find most difficult to apply in practice, explain why each is difficult, and describe a specific professional scenario in which you would face the difficulty you identify.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Select one of: Therac-25, Boeing 737 MAX, IBM Watson for Oncology, Cambridge Analytica, or COMPAS. Prepare a complete code analysis: identify all applicable principles from at least two codes, the specific code violations, what the codes required but was not done, and what professional intervention at what point in the timeline could have produced a different outcome.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a two-page personal ethics statement for your professional practice: which code(s) you commit to following, which three principles you consider most fundamental to your own practice, how you will handle situations where employer instructions conflict with your code obligations, and what you will do if internal escalation fails. This document is for you -- write it as if you intend to keep it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Compare the enforcement mechanisms of ACM, IEEE, PMI, and the state bar association (lawyers) and the state medical board (physicians). What explains the difference in enforcement power? What would need to change for computing professional codes to have equivalent enforcement power? Would you support those changes? Why or why not?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Design a 30-minute ethics training module for a hypothetical 100-person IT department that has never explicitly engaged with professional codes of ethics. Specify: the learning objectives, the content covered, the format, the cases or scenarios used, how you would assess whether the training produced genuine ethical understanding versus rote compliance, and how you would connect the training to daily professional practice rather than leaving it as a one-time event.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- COURSE SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Course Capstone</div>
+        <div class="slide-title">Course <span class="accent">Capstone</span></div>
+        <div class="slide-subtitle">What this course has been, what the codes require, and what you are responsible for from here.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            The cases in this course are not historical curiosities. They are templates. The pattern -- a technology creates foreseeable harm, the organization knows, the codes require action, the action does not happen, people are hurt -- will recur throughout your career. You will be in the room when the decision is made. You will know the codes. The question is whether knowing will be enough to produce action.
+        </div>
+
+        <div class="section-label">9 Principles to Carry Into Practice</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">ACM, IEEE, SE Code, PMI, and AITP all agree: public safety is paramount. When it conflicts with employer interest, schedule, or commercial pressure, safety wins. This is not a soft aspiration. It is the foundational commitment of professional computing ethics.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Honesty in technical claims is non-negotiable under all four codes. No overpromising, no selective disclosure, no suppression of risk information. The IBM Watson case, the Boeing MCAS case, and the Cambridge Analytica case all centrally involve violations of this principle.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Competence is a continuous obligation. In a field that changes as rapidly as IT, what constituted competence five years ago may not today. The obligation to maintain competence and to honestly represent its limits is ongoing, not a one-time certification.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">All four codes support and, in some circumstances, require whistleblowing when internal channels fail. The obligation is uncomfortable. The codes do not make it comfortable. They make it clear.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Fairness includes proactive bias testing. ACM 1.4 does not merely prohibit discrimination -- it requires action to prevent it. Deploying systems with documented disparate impact without attempting to remediate is a code violation, not merely a business risk.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Professional codes do not enforce themselves. They require aware, capable, courageous professionals operating in organizational cultures that support ethical behavior. Individual virtue and structural accountability are both necessary.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Codes apply beyond technical work. How you treat colleagues, contractors, H-1B workers, gig workers, and the communities affected by your organization's environmental footprint are all within the scope of professional ethics.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Technology determinism is an ethical choice. When you call technological change inevitable, you are declining responsibility for its outcomes. Real professionals own the choices in the systems they build -- including the choices about what the systems do and to whom.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Professional courage is a virtue, not a rule. No code can compel it. It must be cultivated. The practitioners in this course who acted rightly -- Boisjoly, Haugen, the Google engineers who walked out -- did so at personal cost. That is what professional courage means in practice.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w4-codes', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

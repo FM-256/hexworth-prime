@@ -2,2374 +2,1195 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Access Control -->
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
-    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter 8: Network Services, Virtualization and Cloud Computing | CompTIA A+ Core 1</title>
-    <link rel="stylesheet" href="../../../../../../../styles/main.css">
+    <title>Chapter 8: Network Services, Virtualization and Cloud Computing | A+ Core 1</title>
     <style>
-        :root {
-            --primary-color: #6366f1;
-            --secondary-color: #8b5cf6;
-            --accent-color: #a855f7;
-            --success-color: #22c55e;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --dark-bg: #0f0f23;
-            --card-bg: #1a1a2e;
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --border-color: #374151;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--dark-bg);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .chapter-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .chapter-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 2rem;
-            background: linear-gradient(135deg, var(--card-bg), #252542);
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .chapter-number {
-            display: inline-block;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            padding: 0.5rem 1.5rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-block;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .chapter-title {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .exam-objectives {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .objective-tag {
-            background: rgba(99, 102, 241, 0.2);
-            border: 1px solid var(--primary-color);
-            padding: 0.4rem 1rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
 
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            margin-bottom: 1rem;
-            transition: color 0.3s;
-        }
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
 
-        .back-link:hover {
-            color: var(--primary-color);
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2,1fr); } .slide-title { font-size: 1.3rem; } }
 
-        /* Tab Navigation */
-        .tab-navigation {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            background: var(--card-bg);
-            padding: 0.5rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 1rem;
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
+        /* ── SVG DIAGRAM COMMON ── */
+        svg[id^="svg-"] {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: all 0.3s;
+            padding: 4px;
         }
-
-        .tab-btn:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--text-primary);
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Content Sections */
-        .content-section {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .section-icon {
-            font-size: 1.5rem;
-        }
-
-        /* Info Cards */
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .info-card {
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-        }
-
-        .info-card h4 {
-            color: var(--primary-color);
-            margin-bottom: 0.75rem;
-            font-size: 1.1rem;
-        }
-
-        .info-card ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .info-card li {
-            padding: 0.4rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-        }
-
-        .info-card li::before {
-            content: ">";
-            position: absolute;
-            left: 0;
-            color: var(--accent-color);
-            font-weight: bold;
-        }
-
-        /* Comparison Tables */
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-        }
-
-        .comparison-table th,
-        .comparison-table td {
-            padding: 1rem;
-            text-align: left;
-            border: 1px solid var(--border-color);
-        }
-
-        .comparison-table th {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            font-weight: 600;
-        }
-
-        .comparison-table tr:nth-child(even) {
-            background: rgba(99, 102, 241, 0.05);
-        }
-
-        .comparison-table tr:hover {
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        /* Mnemonic Box */
-        .mnemonic-box {
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
-            border: 1px solid var(--success-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .mnemonic-box h4 {
-            color: var(--success-color);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* Exam Tip Box */
-        .exam-tip {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
-            border: 1px solid var(--warning-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .exam-tip h4 {
-            color: var(--warning-color);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* Key Concept Box */
-        .key-concept {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
-            border: 1px solid var(--primary-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .key-concept h4 {
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
-        }
-
-        /* Code/Tech Box */
-        .tech-box {
-            background: #1e1e3f;
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'Consolas', 'Monaco', monospace;
-            margin: 1rem 0;
-            border-left: 3px solid var(--accent-color);
-        }
-
-        /* Interactive Sections */
-        .interactive-container {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .interactive-title {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            color: var(--accent-color);
-        }
-
-        .interactive-description {
-            color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-        }
-
-        /* Cloud Service Matcher Game */
-        .cloud-matcher-container {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .service-categories {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .category-zone {
-            background: rgba(99, 102, 241, 0.1);
-            border: 2px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            min-height: 120px;
-            transition: all 0.3s;
-        }
-
-        .category-zone.drag-over {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.2);
-        }
-
-        .category-zone h4 {
-            color: var(--primary-color);
-            margin-bottom: 0.75rem;
-            text-align: center;
-        }
-
-        .service-examples {
-            flex: 1;
-            min-width: 300px;
-        }
-
-        .draggable-service {
-            background: linear-gradient(135deg, var(--card-bg), #252542);
-            border: 1px solid var(--border-color);
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            cursor: grab;
-            transition: all 0.3s;
-        }
-
-        .draggable-service:hover {
-            border-color: var(--primary-color);
-            transform: translateX(5px);
-        }
-
-        .draggable-service.correct {
-            background: rgba(34, 197, 94, 0.2);
-            border-color: var(--success-color);
-        }
-
-        .draggable-service.incorrect {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: var(--danger-color);
-        }
-
-        /* DNS Quiz Game */
-        .dns-quiz-container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .dns-question {
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .dns-question-text {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-        }
-
-        .dns-options {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-        }
-
-        .dns-option {
-            padding: 0.75rem;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-
-        .dns-option:hover {
-            border-color: var(--primary-color);
-        }
-
-        .dns-option.selected {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.2);
-        }
-
-        .dns-option.correct {
-            background: rgba(34, 197, 94, 0.2);
-            border-color: var(--success-color);
-        }
-
-        .dns-option.incorrect {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: var(--danger-color);
-        }
-
-        /* Hypervisor Identifier Game */
-        .hypervisor-game {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .hypervisor-item {
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .hypervisor-name {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--accent-color);
-        }
-
-        .hypervisor-description {
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-        }
-
-        .hypervisor-buttons {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .type-btn {
-            flex: 1;
-            padding: 0.75rem;
-            border: 2px solid var(--border-color);
-            background: transparent;
-            color: var(--text-primary);
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .type-btn:hover {
-            border-color: var(--primary-color);
-        }
-
-        .type-btn.selected {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.2);
-        }
-
-        .type-btn.correct {
-            border-color: var(--success-color);
-            background: rgba(34, 197, 94, 0.2);
-        }
-
-        .type-btn.incorrect {
-            border-color: var(--danger-color);
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        /* Quiz Section */
-        .quiz-container {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 2rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .quiz-progress {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .progress-bar {
-            flex: 1;
-            height: 8px;
-            background: var(--border-color);
-            border-radius: 4px;
-            margin: 0 1rem;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            transition: width 0.3s;
-        }
-
-        .quiz-question {
-            margin-bottom: 1.5rem;
-        }
-
-        .question-text {
-            font-size: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .quiz-options {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .quiz-option {
-            padding: 1rem 1.25rem;
-            background: rgba(99, 102, 241, 0.1);
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .quiz-option:hover {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.2);
-        }
-
-        .quiz-option.selected {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.3);
-        }
-
-        .quiz-option.correct {
-            border-color: var(--success-color);
-            background: rgba(34, 197, 94, 0.2);
-        }
-
-        .quiz-option.incorrect {
-            border-color: var(--danger-color);
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        .quiz-nav {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 1.5rem;
-        }
-
-        .quiz-btn {
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-        }
-
-        .quiz-btn.primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-        }
-
-        .quiz-btn.secondary {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-        }
-
-        .quiz-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        .quiz-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Results */
-        .quiz-results {
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .results-score {
-            font-size: 4rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-        }
-
-        .results-score.passed {
-            color: var(--success-color);
-        }
-
-        .results-score.failed {
-            color: var(--danger-color);
-        }
-
-        .results-message {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-        }
-
-        .results-details {
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-        }
-
-        /* Game Controls */
-        .game-controls {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1.5rem;
-            justify-content: center;
-        }
-
-        .game-btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-
-        .game-btn.check {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-        }
-
-        .game-btn.reset {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-        }
-
-        .game-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .game-score {
-            text-align: center;
-            font-size: 1.2rem;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 8px;
-        }
-
-        /* Labs Section */
-        .labs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .lab-card {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            transition: all 0.3s;
-        }
-
-        .lab-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary-color);
-        }
-
-        .lab-card h3 {
-            color: var(--primary-color);
-            margin-bottom: 0.75rem;
-        }
-
-        .lab-card p {
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-        }
-
-        .lab-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--accent-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .lab-link:hover {
-            color: var(--primary-color);
-        }
-
-        /* Hierarchy Diagram */
-        .hierarchy-diagram {
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-            text-align: center;
-        }
-
-        .hierarchy-level {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin: 1rem 0;
-            flex-wrap: wrap;
-        }
-
-        .hierarchy-node {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-
-        .hierarchy-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .hierarchy-connector {
-            color: var(--accent-color);
-            font-size: 1.5rem;
-        }
-
-        /* Responsibility Chart */
-        .responsibility-chart {
-            margin: 1.5rem 0;
-        }
-
-        .responsibility-row {
-            display: grid;
-            grid-template-columns: 150px repeat(4, 1fr);
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .responsibility-header {
-            font-weight: 600;
-            text-align: center;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-radius: 8px;
-        }
-
-        .responsibility-cell {
-            text-align: center;
-            padding: 0.5rem;
-            border-radius: 4px;
-        }
-
-        .responsibility-cell.you {
-            background: rgba(99, 102, 241, 0.3);
-            border: 1px solid var(--primary-color);
-        }
-
-        .responsibility-cell.provider {
-            background: rgba(139, 92, 246, 0.3);
-            border: 1px solid var(--secondary-color);
-        }
-
-        .responsibility-label {
-            font-weight: 500;
-            padding: 0.5rem;
-            background: var(--card-bg);
-            border-radius: 4px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .chapter-title {
-                font-size: 1.8rem;
-            }
-
-            .tab-navigation {
-                flex-wrap: wrap;
-            }
-
-            .tab-btn {
-                flex: 1 1 45%;
-            }
-
-            .cloud-matcher-container {
-                flex-direction: column;
-            }
-
-            .dns-options {
-                grid-template-columns: 1fr;
-            }
-
-            .hypervisor-buttons {
-                flex-direction: column;
-            }
-
-            .responsibility-row {
-                grid-template-columns: 1fr;
-            }
-        }
+        @media (max-height: 700px) { svg[id^="svg-"] { max-height: 90px !important; } }
     </style>
 </head>
 <body>
-    <div class="chapter-container">
-        <a href="../../index.html" class="back-link">
-            <span>&larr;</span> Back to Core 1 Overview
-        </a>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Chapter 8: Network Services, Virtualization and Cloud Computing</h1>
 
-        <header class="chapter-header">
-            <span class="chapter-number">Chapter 8</span>
-            <h1 class="chapter-title">Network Services, Virtualization and Cloud Computing</h1>
-            <p>Server roles, cloud models, and virtual machine concepts</p>
-            <div class="exam-objectives">
-                <span class="objective-tag">Objective 2.4</span>
-                <span class="objective-tag">Objective 4.1</span>
-                <span class="objective-tag">Objective 4.2</span>
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:4.55%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 1 &mdash; 220-1101 &nbsp;|&nbsp; Objectives 2.4, 4.1, 4.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Chapter 8:<br>
+                <span class="accent">Network Services, Virtualization &amp; Cloud</span>
             </div>
-        </header>
-
-        <!-- Tab Navigation -->
-        <nav class="tab-navigation">
-            <button class="tab-btn active" onclick="switchTab('learn')">Learn</button>
-            <button class="tab-btn" onclick="switchTab('interactive')">Interactive</button>
-            <button class="tab-btn" onclick="switchTab('labs')">Labs</button>
-            <button class="tab-btn" onclick="switchTab('quiz')">Quiz</button>
-        </nav>
-
-        <!-- LEARN TAB -->
-        <div id="learn-tab" class="tab-content active">
-
-            <!-- Section 1: Server Roles Overview -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">1</span>
-                    Server Roles Overview
-                </h2>
-
-                <p>Networks rely on various servers to provide essential services. Each server role handles specific tasks that keep the network functioning efficiently.</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h3>Web Server</h3>
-                        <ul>
-                            <li>Hosts websites and web applications</li>
-                            <li>Responds to HTTP/HTTPS requests</li>
-                            <li>Apache, IIS, Nginx are common examples</li>
-                            <li>Uses ports 80 (HTTP) and 443 (HTTPS)</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>File Server</h4>
-                        <ul>
-                            <li>Centralized storage for network files</li>
-                            <li>Manages file permissions and access</li>
-                            <li>Enables file sharing across the network</li>
-                            <li>Uses SMB (Windows) or NFS (Linux)</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Print Server</h4>
-                        <ul>
-                            <li>Manages networked printers</li>
-                            <li>Handles print job queuing</li>
-                            <li>Can be dedicated hardware or software</li>
-                            <li>Centralizes printer management</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Mail Server</h4>
-                        <ul>
-                            <li>Sends and receives email</li>
-                            <li>Provides anti-spam filtering</li>
-                            <li>SMTP (25), POP3 (110), IMAP (143)</li>
-                            <li>Exchange, Postfix are examples</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="key-concept">
-                    <h4>Dedicated vs Non-Dedicated Servers</h4>
-                    <p><strong>Dedicated Server:</strong> Performs only server functions, optimized for its role. Used in enterprise environments.</p>
-                    <p><strong>Non-Dedicated Server:</strong> Also used as a workstation while providing services. Common in small offices.</p>
-                </div>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>DHCP Server</h4>
-                        <ul>
-                            <li>Automatically assigns IP addresses</li>
-                            <li><strong>DORA Process:</strong> Discover, Offer, Request, Acknowledge</li>
-                            <li><strong>Scope:</strong> Range of available IPs</li>
-                            <li><strong>Reservations:</strong> Static assignment by MAC</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Proxy Server</h4>
-                        <ul>
-                            <li>Acts as intermediary for requests</li>
-                            <li><strong>Caching:</strong> Speeds up common requests</li>
-                            <li><strong>Filtering:</strong> Blocks unwanted content</li>
-                            <li>Hides client identity from servers</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p>Remember <strong>DORA</strong> for DHCP: <strong>D</strong>iscover (client broadcasts), <strong>O</strong>ffer (server responds), <strong>R</strong>equest (client accepts), <strong>A</strong>cknowledge (server confirms). This process is heavily tested!</p>
-                </div>
-            </section>
-
-            <!-- Section 2: DNS Deep Dive -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">2</span>
-                    DNS Deep Dive
-                </h2>
-
-                <p>The Domain Name System (DNS) translates human-readable domain names into IP addresses. Understanding DNS hierarchy and record types is essential for the exam.</p>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">DNS Hierarchy</h3>
-
-                <div class="hierarchy-diagram">
-                    <div class="hierarchy-label">Root Level (13 Global Root Servers)</div>
-                    <div class="hierarchy-level">
-                        <span class="hierarchy-node">. (root)</span>
-                    </div>
-                    <div class="hierarchy-connector">&darr;</div>
-                    <div class="hierarchy-label">Top Level Domains (TLDs)</div>
-                    <div class="hierarchy-level">
-                        <span class="hierarchy-node">.com</span>
-                        <span class="hierarchy-node">.gov</span>
-                        <span class="hierarchy-node">.edu</span>
-                        <span class="hierarchy-node">.org</span>
-                        <span class="hierarchy-node">.net</span>
-                    </div>
-                    <div class="hierarchy-connector">&darr;</div>
-                    <div class="hierarchy-label">Second Level Domains</div>
-                    <div class="hierarchy-level">
-                        <span class="hierarchy-node">google</span>
-                        <span class="hierarchy-node">microsoft</span>
-                        <span class="hierarchy-node">harvard</span>
-                    </div>
-                    <div class="hierarchy-connector">&darr;</div>
-                    <div class="hierarchy-label">Host Names</div>
-                    <div class="hierarchy-level">
-                        <span class="hierarchy-node">www</span>
-                        <span class="hierarchy-node">mail</span>
-                        <span class="hierarchy-node">ftp</span>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">DNS Resource Records</h3>
-
-                <p>DNS uses <strong>Zone Files</strong> containing <strong>Resource Records (RRs)</strong> to map names to addresses. There are over 30 record types, but these are most important:</p>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Record Type</th>
-                            <th scope="col">Purpose</th>
-                            <th scope="col">Example</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>A</strong></td>
-                            <td>Maps hostname to IPv4 address</td>
-                            <td>www.example.com &rarr; 192.168.1.1</td>
-                        </tr>
-                        <tr>
-                            <td><strong>AAAA</strong></td>
-                            <td>Maps hostname to IPv6 address</td>
-                            <td>www.example.com &rarr; 2001:db8::1</td>
-                        </tr>
-                        <tr>
-                            <td><strong>MX</strong></td>
-                            <td>Mail Exchange - identifies mail server</td>
-                            <td>example.com &rarr; mail.example.com</td>
-                        </tr>
-                        <tr>
-                            <td><strong>CNAME</strong></td>
-                            <td>Canonical Name - alias for another domain</td>
-                            <td>www &rarr; webserver.example.com</td>
-                        </tr>
-                        <tr>
-                            <td><strong>PTR</strong></td>
-                            <td>Pointer - reverse lookup (IP to name)</td>
-                            <td>192.168.1.1 &rarr; www.example.com</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="mnemonic-box">
-                    <h4>Memory Trick: DNS Records</h4>
-                    <p><strong>A</strong> = <strong>A</strong>ddress (IPv4) | <strong>AAAA</strong> = Four A's for IPv<strong>6</strong> (128-bit) | <strong>MX</strong> = <strong>M</strong>ail e<strong>X</strong>change | <strong>CNAME</strong> = <strong>C</strong>anon<strong>NAME</strong> (alias) | <strong>PTR</strong> = <strong>P</strong>oin<strong>T</strong>e<strong>R</strong> (reverse)</p>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p><strong>A vs AAAA:</strong> A record = IPv4 (32-bit), AAAA = IPv6 (128-bit). The "quad-A" has 4 letters for the larger address space. This distinction appears frequently on exams!</p>
-                </div>
-            </section>
-
-            <!-- Section 3: Authentication & Logging -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">3</span>
-                    Authentication & Logging
-                </h2>
-
-                <p>Authentication servers verify user identities and control access to network resources. Logging servers collect and analyze security events.</p>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">AAA Framework</h3>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Authentication</h4>
-                        <ul>
-                            <li>Verifies user identity</li>
-                            <li>"Who are you?"</li>
-                            <li>Username/password, tokens, biometrics</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Authorization</h4>
-                        <ul>
-                            <li>Determines access permissions</li>
-                            <li>"What can you do?"</li>
-                            <li>Based on roles, groups, policies</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Accounting</h4>
-                        <ul>
-                            <li>Tracks user activities</li>
-                            <li>"What did you do?"</li>
-                            <li>Logging, auditing, billing</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Authentication Protocols</h3>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Protocol</th>
-                            <th scope="col">Type</th>
-                            <th scope="col">Features</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>RADIUS</strong></td>
-                            <td>Open Standard</td>
-                            <td>Authentication + Authorization only; encrypts password only; UDP-based; widely used</td>
-                        </tr>
-                        <tr>
-                            <td><strong>TACACS+</strong></td>
-                            <td>Cisco Proprietary</td>
-                            <td>Full AAA support; encrypts entire packet; TCP-based; granular control</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p><strong>RADIUS vs TACACS+:</strong> Remember - <strong>RADIUS = Open standard</strong>, <strong>TACACS+ = Cisco proprietary</strong>. TACACS+ provides full AAA and encrypts the entire packet, while RADIUS only encrypts the password.</p>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Syslog</h3>
-
-                <p>Syslog is a standard protocol for collecting and storing log messages from network devices.</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Syslog Clients</h4>
-                        <ul>
-                            <li>Send messages to the server</li>
-                            <li><strong>Facility Code:</strong> 0-23 (identifies device type)</li>
-                            <li><strong>Severity Level:</strong> 0-7 (importance)</li>
-                            <li>Text description of the event</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Syslog Servers</h4>
-                        <ul>
-                            <li>Collect and store messages</li>
-                            <li>Listener service receives logs</li>
-                            <li>Database stores events</li>
-                            <li>Management/filtering software</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h4 style="color: var(--accent-color); margin: 1rem 0;">Syslog Severity Levels</h4>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Level</th>
-                            <th scope="col">Name</th>
-                            <th scope="col">Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>0</strong></td>
-                            <td>Emergency</td>
-                            <td>System is unusable</td>
-                        </tr>
-                        <tr>
-                            <td><strong>1</strong></td>
-                            <td>Alert</td>
-                            <td>Immediate action needed</td>
-                        </tr>
-                        <tr>
-                            <td><strong>2</strong></td>
-                            <td>Critical</td>
-                            <td>Critical conditions</td>
-                        </tr>
-                        <tr>
-                            <td><strong>3</strong></td>
-                            <td>Error</td>
-                            <td>Error conditions</td>
-                        </tr>
-                        <tr>
-                            <td><strong>4</strong></td>
-                            <td>Warning</td>
-                            <td>Warning conditions</td>
-                        </tr>
-                        <tr>
-                            <td><strong>5</strong></td>
-                            <td>Notice</td>
-                            <td>Normal but significant</td>
-                        </tr>
-                        <tr>
-                            <td><strong>6</strong></td>
-                            <td>Informational</td>
-                            <td>Informational messages</td>
-                        </tr>
-                        <tr>
-                            <td><strong>7</strong></td>
-                            <td>Debug</td>
-                            <td>Debug-level messages</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="mnemonic-box">
-                    <h4>Memory Trick: Syslog Severity</h4>
-                    <p><strong>"Every Alley Cat Eats Watery Noodle In Dishes"</strong><br>
-                    <strong>E</strong>mergency(0) - <strong>A</strong>lert(1) - <strong>C</strong>ritical(2) - <strong>E</strong>rror(3) - <strong>W</strong>arning(4) - <strong>N</strong>otice(5) - <strong>I</strong>nformational(6) - <strong>D</strong>ebug(7)<br>
-                    <em>Lower number = More severe!</em></p>
-                </div>
-            </section>
-
-            <!-- Section 4: Internet Appliances -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">4</span>
-                    Internet Appliances
-                </h2>
-
-                <p>Internet appliances are specialized network devices that perform specific functions to improve security, performance, and management.</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h3>Spam Gateway</h3>
-                        <ul>
-                            <li>Filters malicious emails</li>
-                            <li>Blocks phishing attempts</li>
-                            <li>Quarantines suspicious messages</li>
-                            <li>Sits between internet and mail server</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Unified Threat Management (UTM)</h4>
-                        <ul>
-                            <li>All-in-one security appliance</li>
-                            <li>Combines multiple security features</li>
-                            <li>Firewall + IDS/IPS + Antivirus</li>
-                            <li>VPN + Content filtering</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Load Balancer</h4>
-                        <ul>
-                            <li>Distributes traffic across servers</li>
-                            <li><strong>Performance:</strong> Faster response</li>
-                            <li><strong>Scalability:</strong> Easy to add servers</li>
-                            <li><strong>Reliability:</strong> Redundancy if one fails</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Endpoint Management Server</h4>
-                        <ul>
-                            <li>Deploys security policies</li>
-                            <li>Installs/updates operating systems</li>
-                            <li>Centralized backup management</li>
-                            <li>Monitors endpoint compliance</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="key-concept">
-                    <h4>DMZ (Demilitarized Zone)</h4>
-                    <p>Also called <strong>Perimeter Network</strong> or <strong>Screened Subnet</strong>. A DMZ is a network segment that sits between the internal network and the internet, hosting public-facing services (web servers, mail servers) while protecting the internal network with firewalls on both sides.</p>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p><strong>UTM</strong> is the "Swiss Army knife" of network security - it combines firewall, intrusion detection, antivirus, VPN, and content filtering into one device. Know that it "unifies multiple security features onto a single platform."</p>
-                </div>
-            </section>
-
-            <!-- Section 5: Legacy, Embedded Systems & IoT -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">5</span>
-                    Legacy, Embedded Systems & IoT
-                </h2>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Legacy Systems</h3>
-
-                <p>Legacy systems are older technologies still in use due to cost, compatibility, or critical functions:</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Legacy Hardware</h4>
-                        <ul>
-                            <li>Older servers and workstations</li>
-                            <li>Proprietary equipment</li>
-                            <li>May lack modern security features</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Legacy Software</h4>
-                        <ul>
-                            <li>Applications no longer supported</li>
-                            <li>Critical business functions</li>
-                            <li>May have security vulnerabilities</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Legacy Network Protocols</h4>
-                        <ul>
-                            <li>Older protocols still required</li>
-                            <li>Compatibility requirements</li>
-                            <li>Security concerns</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Embedded Systems</h3>
-
-                <p>Embedded systems are small or large non-computer devices with integrated software on microcontrollers/microprocessors for performing dedicated functions.</p>
-
-                <div class="key-concept">
-                    <h4>SCADA - Supervisory Control and Data Acquisition</h4>
-                    <p>Industrial control systems used to monitor and control infrastructure (power grids, water treatment, manufacturing). SCADA systems are often legacy/embedded and require special security considerations.</p>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Internet of Things (IoT)</h3>
-
-                <p>IoT devices connect everyday objects to the internet, enabling automation and remote control:</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Home Automation</h4>
-                        <ul>
-                            <li>Smart thermostats (Nest, Ecobee)</li>
-                            <li>Smart lighting systems</li>
-                            <li>Window treatments/blinds</li>
-                            <li>Sprinkler/irrigation systems</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Home Security</h4>
-                        <ul>
-                            <li>Smart door locks</li>
-                            <li>Video doorbells (Ring)</li>
-                            <li>Security cameras</li>
-                            <li>Motion sensors</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Voice Assistants</h4>
-                        <ul>
-                            <li>Amazon Alexa</li>
-                            <li>Google Assistant</li>
-                            <li>Apple Siri</li>
-                            <li>Voice-enabled devices</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p>IoT security is a growing concern! These devices often have weak default passwords, limited update capabilities, and can be entry points for network attacks. Always change default credentials and isolate IoT devices on separate network segments when possible.</p>
-                </div>
-            </section>
-
-            <!-- Section 6: Cloud Computing Models -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">6</span>
-                    Cloud Computing Models
-                </h2>
-
-                <p>"The Cloud" refers to accessing remote servers over the internet to store files, run applications, or use computing resources. Understanding the three main service models is crucial for the exam.</p>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h3>IaaS - Infrastructure as a Service</h3>
-                        <ul>
-                            <li>Provider gives: Network hardware, storage, servers</li>
-                            <li>You manage: OS, applications, data</li>
-                            <li><strong>Pay for what you use</strong></li>
-                            <li>Examples: AWS EC2, Azure VMs, Google Compute</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>PaaS - Platform as a Service</h4>
-                        <ul>
-                            <li>Builds on IaaS</li>
-                            <li>Adds: Development tools, middleware</li>
-                            <li>You manage: Applications and data</li>
-                            <li>Examples: Google App Engine, Azure App Service</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>SaaS - Software as a Service</h4>
-                        <ul>
-                            <li><strong>Subscription-based</strong></li>
-                            <li>Everything is rented (software, platform, infrastructure)</li>
-                            <li>You manage: Just your data</li>
-                            <li>Examples: Google Docs, Office 365, Salesforce</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Responsibility Matrix</h3>
-
-                <p>Who manages what? This is critical for the exam:</p>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Layer</th>
-                            <th scope="col">On-Premises</th>
-                            <th scope="col">IaaS</th>
-                            <th scope="col">PaaS</th>
-                            <th scope="col">SaaS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Applications</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                        </tr>
-                        <tr>
-                            <td>Data</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                        </tr>
-                        <tr>
-                            <td>Runtime/Middleware</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                        </tr>
-                        <tr>
-                            <td>OS</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                        </tr>
-                        <tr>
-                            <td>Virtualization</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                        </tr>
-                        <tr>
-                            <td>Servers/Storage/Network</td>
-                            <td style="background: rgba(99, 102, 241, 0.2);">You</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                            <td style="background: rgba(139, 92, 246, 0.2);">Provider</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;"><span style="color: var(--primary-color);">Blue = You manage</span> | <span style="color: var(--secondary-color);">Purple = Provider manages</span></p>
-
-                <div class="mnemonic-box">
-                    <h4>Memory Trick: Cloud Services</h4>
-                    <p><strong>IaaS = "I" manage the most</strong> (Infrastructure - you get raw resources)<br>
-                    <strong>PaaS = "P"rogrammers love this</strong> (Platform - development tools included)<br>
-                    <strong>SaaS = "S"imple to use</strong> (Software - just log in and use it)</p>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p>When asked "Which cloud model...?" look for keywords:<br>
-                    - <strong>Virtual servers, raw computing</strong> = IaaS<br>
-                    - <strong>Development platform, deploy apps</strong> = PaaS<br>
-                    - <strong>Subscription, web-based app</strong> = SaaS</p>
-                </div>
-            </section>
-
-            <!-- Section 7: Cloud Deployment Types & Features -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">7</span>
-                    Cloud Deployment Types & Features
-                </h2>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Cloud Deployment Models</h3>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Type</th>
-                            <th scope="col">Description</th>
-                            <th scope="col">Best For</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Private Cloud</strong></td>
-                            <td>Dedicated infrastructure for one organization; can be on-premises or hosted</td>
-                            <td>Enterprises with security/compliance needs</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Public Cloud</strong></td>
-                            <td>Shared infrastructure provided by third party; multi-tenant</td>
-                            <td>Startups, variable workloads, cost savings</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Hybrid Cloud</strong></td>
-                            <td>Combination of private and public; data/apps can move between</td>
-                            <td>Organizations needing flexibility</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Community Cloud</strong></td>
-                            <td>Shared by organizations with common concerns; cost shared</td>
-                            <td>Government, healthcare, research groups</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Cloud Characteristics</h3>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>On-Demand Self-Service</h4>
-                        <ul>
-                            <li>Access resources without human intervention</li>
-                            <li>Provision storage, computing as needed</li>
-                            <li>Self-service portal</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Broad Network Access</h4>
-                        <ul>
-                            <li>Access from any device via network</li>
-                            <li>Workstations, laptops, mobile phones</li>
-                            <li>Web browser interface</li>
-                            <li><strong>Ubiquitous access</strong> - anywhere, anytime</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Resource Pooling</h4>
-                        <ul>
-                            <li>One large pool divided among clients</li>
-                            <li>Multi-tenant model</li>
-                            <li>Dynamic resource assignment</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Rapid Elasticity</h4>
-                        <ul>
-                            <li>Scale up or down quickly</li>
-                            <li><strong>Pay-as-you-grow</strong></li>
-                            <li>Handle traffic spikes</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Measured (Metered) Service</h4>
-                        <ul>
-                            <li>Pay only for what you use</li>
-                            <li>Usage tracking and billing</li>
-                            <li>Transparency in resource consumption</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>High Availability</h4>
-                        <ul>
-                            <li>99.9% uptime (three nines)</li>
-                            <li>99.99% uptime (four nines)</li>
-                            <li>Redundancy and failover</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Cloud Storage & Applications</h3>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Service</th>
-                            <th scope="col">Free Tier</th>
-                            <th scope="col">Type</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Dropbox</td>
-                            <td>2 GB</td>
-                            <td>Cloud Storage</td>
-                        </tr>
-                        <tr>
-                            <td>Apple iCloud</td>
-                            <td>5 GB</td>
-                            <td>Cloud Storage</td>
-                        </tr>
-                        <tr>
-                            <td>Microsoft OneDrive</td>
-                            <td>5 GB</td>
-                            <td>Cloud Storage</td>
-                        </tr>
-                        <tr>
-                            <td>Box</td>
-                            <td>10 GB</td>
-                            <td>Cloud Storage</td>
-                        </tr>
-                        <tr>
-                            <td>Google Drive</td>
-                            <td>15 GB</td>
-                            <td>Cloud Storage</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="key-concept">
-                    <h4>Synchronization Applications</h4>
-                    <p>Cloud sync apps run in the background, keeping local folders synchronized with cloud storage. Files appear as if stored locally but are actually mirrored to the cloud, enabling access from any device and automatic backup.</p>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p><strong>Rapid Elasticity</strong> is a key cloud characteristic! It means resources can be quickly scaled up or down based on demand. This is different from traditional IT where you must purchase and install new hardware.</p>
-                </div>
-            </section>
-
-            <!-- Section 8: Virtualization Concepts -->
-            <section class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon">8</span>
-                    Virtualization Concepts
-                </h2>
-
-                <p>Virtualization creates logical (virtual) versions of computing resources, allowing multiple operating systems to run on a single physical machine.</p>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Hypervisor Types</h3>
-
-                <p>A <strong>Hypervisor</strong> (Virtual Machine Manager/VMM) is software that allows multiple operating systems to share a single hardware host.</p>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Feature</th>
-                            <th scope="col">Type 1 (Bare Metal)</th>
-                            <th scope="col">Type 2 (Hosted)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Runs On</strong></td>
-                            <td>Directly on hardware</td>
-                            <td>On top of existing OS</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Use Case</strong></td>
-                            <td>Servers, data centers</td>
-                            <td>Desktop virtualization</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Performance</strong></td>
-                            <td>Better (no host OS overhead)</td>
-                            <td>Lower (host OS adds overhead)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Examples</strong></td>
-                            <td>VMware ESXi, Microsoft Hyper-V, Citrix XenServer</td>
-                            <td>VirtualBox, VMware Workstation, Parallels</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="mnemonic-box">
-                    <h4>Memory Trick: Hypervisor Types</h4>
-                    <p><strong>Type 1 = #1 performance</strong> (bare metal, directly on hardware)<br>
-                    <strong>Type 2 = 2 layers</strong> (Host OS + Hypervisor stacked)</p>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Purpose of Virtual Machines</h3>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Cost Savings</h4>
-                        <ul>
-                            <li>Run multiple servers on one physical machine</li>
-                            <li>Reduce hardware costs</li>
-                            <li>Lower power consumption</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Sandbox Testing</h4>
-                        <ul>
-                            <li>Isolated environment for testing</li>
-                            <li>Test software without risk</li>
-                            <li>Malware analysis in safe space</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Development/Testing</h4>
-                        <ul>
-                            <li>Create test environments quickly</li>
-                            <li>Snapshot and rollback capabilities</li>
-                            <li>Test different OS configurations</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Legacy Software/OS</h4>
-                        <ul>
-                            <li>Run old applications</li>
-                            <li>Cross-platform virtualization</li>
-                            <li>Compatibility without old hardware</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">Client-Side Virtualization Requirements</h3>
-
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Resource</th>
-                            <th scope="col">Requirement</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>CPU</strong></td>
-                            <td>Multiple cores; virtualization support (Intel VT-x, AMD-V)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>RAM</strong></td>
-                            <td>Enough to support host OS AND all guest VMs simultaneously</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Storage (HDD/SSD)</strong></td>
-                            <td>Sufficient space for each guest OS installation</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Network</strong></td>
-                            <td>Adequate bandwidth if VMs need network access</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="key-concept">
-                    <h4>Virtual Desktop Infrastructure (VDI)</h4>
-                    <p><strong>On-Premises VDI:</strong> Virtual desktops hosted on local servers in your data center.<br>
-                    <strong>Cloud VDI:</strong> Virtual desktops hosted by cloud providers (Azure Virtual Desktop, AWS WorkSpaces).</p>
-                </div>
-
-                <h3 style="color: var(--accent-color); margin: 1.5rem 0 1rem;">VM Security & Network Requirements</h3>
-
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4>Security Requirements</h4>
-                        <ul>
-                            <li>Same as physical machines!</li>
-                            <li>Anti-malware protection</li>
-                            <li>Regular OS updates</li>
-                            <li>Firewall configuration</li>
-                        </ul>
-                    </div>
-
-                    <div class="info-card">
-                        <h4>Network Requirements</h4>
-                        <ul>
-                            <li>Same as host if network access needed</li>
-                            <li>NAT, Bridged, or Host-only modes</li>
-                            <li>Virtual switches for VM networking</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="exam-tip">
-                    <h4>Exam Tip</h4>
-                    <p><strong>Type 1 vs Type 2 is HEAVILY tested!</strong> Remember:<br>
-                    - Type 1 (ESXi, Hyper-V) = Bare metal = Servers = Better performance<br>
-                    - Type 2 (VirtualBox, VMware Workstation) = Hosted = Desktop = Runs on existing OS</p>
-                </div>
-            </section>
+            <div class="slide-subtitle" style="max-width:640px; margin-top:4px;">
+                Server roles, DNS, authentication, IoT, cloud service models, and hypervisor types. The infrastructure layer every A+ technician must understand.
+            </div>
         </div>
+        <div class="title-meta-row">
+            <span>22 Slides</span>
+            <span>Objectives 2.4 &bull; 4.1 &bull; 4.2</span>
+            <span>Cloud &bull; Virtualization &bull; DNS &bull; IoT</span>
+            <span>Exam 220-1101</span>
+        </div>
+    </div>
+</section>
 
-        <!-- INTERACTIVE TAB -->
-        <div id="interactive-tab" class="tab-content">
+<!-- ==================== SLIDE 2 — SERVER ROLES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 22</div>
+        <div class="slide-title">Server <span class="accent">Roles Overview</span></div>
+        <div class="slide-subtitle">Networks rely on specialized servers to provide essential services to clients.</div>
 
-            <!-- Interactive 1: Cloud Service Matcher -->
-            <div class="interactive-container">
-                <h3 class="interactive-title">Cloud Service Matcher</h3>
-                <p class="interactive-description">Drag each example to its correct cloud service model (IaaS, PaaS, or SaaS).</p>
-
-                <div class="cloud-matcher-container">
-                    <div class="service-categories">
-                        <div class="category-zone" id="iaas-zone" ondrop="dropService(event, 'iaas')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                            <h4>IaaS</h4>
-                            <div class="zone-items"></div>
-                        </div>
-                        <div class="category-zone" id="paas-zone" ondrop="dropService(event, 'paas')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                            <h4>PaaS</h4>
-                            <div class="zone-items"></div>
-                        </div>
-                        <div class="category-zone" id="saas-zone" ondrop="dropService(event, 'saas')" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                            <h4>SaaS</h4>
-                            <div class="zone-items"></div>
-                        </div>
-                    </div>
-
-                    <div class="service-examples" id="service-examples">
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="saas" id="service-1">Google Docs</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="iaas" id="service-2">AWS EC2 Virtual Servers</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="paas" id="service-3">Google App Engine</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="saas" id="service-4">Microsoft 365</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="iaas" id="service-5">Azure Virtual Machines</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="paas" id="service-6">Microsoft Azure App Service</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="saas" id="service-7">Salesforce CRM</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="iaas" id="service-8">Google Compute Engine</div>
-                        <div class="draggable-service" draggable="true" ondragstart="dragService(event)" data-correct="saas" id="service-9">Gmail</div>
-                    </div>
-                </div>
-
-                <div class="game-controls">
-                    <button class="game-btn check" onclick="checkCloudMatcher()">Check Answers</button>
-                    <button class="game-btn reset" onclick="resetCloudMatcher()">Reset</button>
-                </div>
-                <div class="game-score" id="cloud-score" style="display: none;"></div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Web Server</div>
+                <div class="card-desc">Hosts websites and web apps. Responds to HTTP (port 80) and HTTPS (port 443) requests. Examples: Apache, IIS, Nginx. Delivers HTML, CSS, JS and dynamic content to browser clients.</div>
             </div>
-
-            <!-- Interactive 2: DNS Record Type Quiz -->
-            <div class="interactive-container">
-                <h3 class="interactive-title">DNS Record Type Quiz</h3>
-                <p class="interactive-description">Match each description to the correct DNS record type.</p>
-
-                <div class="dns-quiz-container" id="dns-quiz">
-                    <!-- Questions will be populated by JavaScript -->
-                </div>
-
-                <div class="game-controls">
-                    <button class="game-btn check" onclick="checkDNSQuiz()">Check Answers</button>
-                    <button class="game-btn reset" onclick="resetDNSQuiz()">Reset</button>
-                </div>
-                <div class="game-score" id="dns-score" style="display: none;"></div>
+            <div class="card c-cyan">
+                <div class="card-label">File Server</div>
+                <div class="card-desc">Centralized storage for network files. Manages permissions and access control. Uses SMB on Windows networks, NFS on Linux. Enables shared drives mapped across the domain.</div>
             </div>
-
-            <!-- Interactive 3: Hypervisor Type Identifier -->
-            <div class="interactive-container">
-                <h3 class="interactive-title">Hypervisor Type Identifier</h3>
-                <p class="interactive-description">Identify whether each hypervisor is Type 1 (Bare Metal) or Type 2 (Hosted).</p>
-
-                <div class="hypervisor-game" id="hypervisor-game">
-                    <!-- Items will be populated by JavaScript -->
-                </div>
-
-                <div class="game-controls">
-                    <button class="game-btn check" onclick="checkHypervisor()">Check Answers</button>
-                    <button class="game-btn reset" onclick="resetHypervisor()">Reset</button>
-                </div>
-                <div class="game-score" id="hypervisor-score" style="display: none;"></div>
+            <div class="card c-green">
+                <div class="card-label">Print Server</div>
+                <div class="card-desc">Manages networked printers and print job queuing. Can be dedicated hardware or a software role on an existing server. Centralizes printer configuration and driver deployment.</div>
             </div>
         </div>
 
-        <!-- LABS TAB -->
-        <div id="labs-tab" class="tab-content">
-            <div class="content-section">
-                <h2 class="section-title">
-                    <span class="section-icon"><img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
-                    Hands-On Labs
-                </h2>
-                <p>Practice your cloud and virtualization skills with these interactive labs:</p>
-
-                <div class="labs-grid">
-                    <div class="lab-card">
-                        <h3>Cloud Service Scenario Lab</h3>
-                        <p>Given real-world scenarios, determine which cloud service model (IaaS, PaaS, SaaS) best fits each situation.</p>
-                        <a href="../../labs/forge-cloud-scenarios.lab.html" class="lab-link">
-                            Launch Lab &rarr;
-                        </a>
-                    </div>
-
-                    <div class="lab-card">
-                        <h3>DNS Configuration Lab</h3>
-                        <p>Practice configuring DNS records and understanding zone files.</p>
-                        <a href="../../labs/forge-dns-config.lab.html" class="lab-link">
-                            Launch Lab &rarr;
-                        </a>
-                    </div>
-
-                    <div class="lab-card">
-                        <h3>Virtual Machine Setup Lab</h3>
-                        <p>Learn to create and configure virtual machines with proper resource allocation.</p>
-                        <a href="../../labs/forge-vm-setup.lab.html" class="lab-link">
-                            Launch Lab &rarr;
-                        </a>
-                    </div>
-
-                    <div class="lab-card">
-                        <h3>Server Role Identification</h3>
-                        <p>Identify server roles based on services and ports in network diagrams.</p>
-                        <a href="../../labs/forge-server-roles.lab.html" class="lab-link">
-                            Launch Lab &rarr;
-                        </a>
-                    </div>
-                </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Mail Server</div>
+                <div class="card-desc">Sends and receives email. Provides anti-spam filtering and quarantine. Protocols: SMTP port 25 (sending), POP3 port 110, IMAP port 143 (receiving). Exchange and Postfix are common examples.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DHCP Server</div>
+                <div class="card-desc">Automatically assigns IP addresses via the DORA process: Discover, Offer, Request, Acknowledge. Manages scope (IP pool), leases, and static reservations by MAC address.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Proxy Server</div>
+                <div class="card-desc">Acts as intermediary between clients and the internet. Provides caching (faster repeat requests), content filtering (blocks unwanted sites), and hides client identity from external servers.</div>
             </div>
         </div>
 
-        <!-- QUIZ TAB -->
-        <div id="quiz-tab" class="tab-content">
-            <div class="quiz-container">
-                <div class="quiz-progress">
-                    <span id="quiz-current">Question 1</span>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill" style="width: 6.67%"></div>
-                    </div>
-                    <span id="quiz-total">of 15</span>
-                </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip: DORA</div>
+            Remember <strong>DORA</strong> for DHCP: <strong>D</strong>iscover (client broadcasts) &rarr; <strong>O</strong>ffer (server responds) &rarr; <strong>R</strong>equest (client selects) &rarr; <strong>A</strong>cknowledge (server confirms). This is heavily tested.
+        </div>
+    </div>
+</section>
 
-                <div id="quiz-content">
-                    <!-- Quiz questions populated by JavaScript -->
-                </div>
+<!-- ==================== SLIDE 3 — DEDICATED VS NON-DEDICATED ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 22</div>
+        <div class="slide-title">Dedicated <span class="accent">vs. Non-Dedicated Servers</span></div>
+        <div class="slide-subtitle">The role a machine plays determines how it should be configured and secured.</div>
 
-                <div class="quiz-nav">
-                    <button class="quiz-btn secondary" id="prev-btn" onclick="prevQuestion()" disabled>Previous</button>
-                    <button class="quiz-btn primary" id="next-btn" onclick="nextQuestion()">Next</button>
-                </div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Dedicated Server</div>
+                <div class="card-desc">Performs only server functions. Hardware is optimized for its specific role (file serving, web hosting, database). No user workload. Higher performance, better security posture. Standard in enterprise environments and data centers. Resources are not shared with user activity.</div>
             </div>
+            <div class="card c-cyan">
+                <div class="card-label">Non-Dedicated Server</div>
+                <div class="card-desc">Provides services while also being used as a workstation. Common in small offices and home networks. A user PC sharing files or a printer while someone works on it. Performance is reduced and attack surface is increased compared to a dedicated server.</div>
+            </div>
+        </div>
 
-            <div class="quiz-results" id="quiz-results" style="display: none;">
-                <div class="results-score" id="results-score">0%</div>
-                <div class="results-message" id="results-message"></div>
-                <div class="results-details" id="results-details"></div>
-                <button class="quiz-btn primary" onclick="retakeQuiz()">Retake Quiz</button>
-                <a href="../ch09-laptops/index.html" class="quiz-btn primary" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 9 — Laptops &rsaquo;</a>
+        <div class="card-grid-2">
+            <div class="box box-green">
+                <div class="box-label">When to Use Dedicated</div>
+                High-availability environments, regulated industries, any workload requiring consistent uptime. Domain controllers, database servers, and authentication servers must be dedicated.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">Non-Dedicated Risk</div>
+                User errors, malware on the desktop, or resource contention can bring down services. Acceptable for small offices; not acceptable for production environments serving more than a handful of users.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A small 5-person office has one PC sharing a printer and a folder. That is a non-dedicated server. When the business grows to 20 employees, a dedicated file/print server becomes necessary. Know which scenario the exam is describing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — DNS HIERARCHY ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 22</div>
+        <div class="slide-title">DNS <span class="accent">Hierarchy</span></div>
+        <div class="slide-subtitle">The Domain Name System translates human-readable names to IP addresses through a distributed tree structure.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Root Level</div>
+                <div class="card-desc">13 sets of root name servers operated globally (labeled A through M). Represented as a single dot "." at the top of the DNS tree. Every DNS query ultimately traces back here if not cached locally. Maintained by ICANN and partner organizations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Top Level Domains (TLDs)</div>
+                <div class="card-desc">First level below root. Generic TLDs: .com, .org, .net, .edu, .gov. Country-code TLDs: .uk, .de, .jp. Sponsored TLDs: .mil (US military). Each TLD is delegated to a registry organization. IANA oversees the root zone.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Second Level &amp; Hosts</div>
+                <div class="card-desc">Second level domains are registered by organizations (google, microsoft, harvard). Host names sit below that: www, mail, ftp. Full FQDN reads right to left: <strong>www.google.com.</strong> = host . domain . TLD . root. The trailing dot is implied in browsers.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">How a DNS Query Works</div>
+            Client checks local cache &rarr; checks /etc/hosts (or Windows HOSTS file) &rarr; queries configured DNS server &rarr; recursive resolver queries root &rarr; TLD server &rarr; authoritative name server &rarr; returns A record to client. Result is cached with TTL.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — DNS RECORD TYPES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 22</div>
+        <div class="slide-title">DNS <span class="accent">Resource Records</span></div>
+        <div class="slide-subtitle">Zone files contain resource records (RRs) that map names to addresses and services.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Record</th>
+                    <th>Purpose</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>A</strong></td><td>Maps hostname to IPv4 address (32-bit)</td><td>www.example.com &rarr; 192.168.1.1</td></tr>
+                <tr><td><strong>AAAA</strong></td><td>Maps hostname to IPv6 address (128-bit)</td><td>www.example.com &rarr; 2001:db8::1</td></tr>
+                <tr><td><strong>MX</strong></td><td>Mail Exchange &mdash; identifies the mail server for a domain</td><td>example.com &rarr; mail.example.com</td></tr>
+                <tr><td><strong>CNAME</strong></td><td>Canonical Name &mdash; alias pointing to another hostname</td><td>www &rarr; webserver.example.com</td></tr>
+                <tr><td><strong>PTR</strong></td><td>Pointer record &mdash; reverse lookup (IP to name)</td><td>192.168.1.1 &rarr; www.example.com</td></tr>
+                <tr><td><strong>TXT</strong></td><td>Text record &mdash; used for SPF, DKIM, domain verification</td><td>v=spf1 include:... ~all</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Exam Tip: A vs AAAA</div>
+                A record = IPv4 (32-bit, 4 octets). AAAA record = IPv6 (128-bit). The "quad-A" name has 4 letters for the 4x larger address space. This distinction appears frequently on exams.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Memory Trick</div>
+                <strong>A</strong> = <strong>A</strong>ddress (IPv4) &bull; <strong>AAAA</strong> = four A's for IPv<strong>6</strong> &bull; <strong>MX</strong> = <strong>M</strong>ail e<strong>X</strong>change &bull; <strong>CNAME</strong> = alias &bull; <strong>PTR</strong> = reverse
             </div>
         </div>
     </div>
+</section>
 
-    <script>
-        // Tab Switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+<!-- ==================== SLIDE 6 — AAA FRAMEWORK ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 22</div>
+        <div class="slide-title">Authentication &amp; <span class="accent">AAA Framework</span></div>
+        <div class="slide-subtitle">Three distinct functions that together govern secure network access.</div>
 
-            document.getElementById(tabName + '-tab').classList.add('active');
-            event.target.classList.add('active');
-        }
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Authentication</div>
+                <div class="card-desc"><em>"Who are you?"</em> Verifies user identity before granting access. Methods: username/password, smart cards, certificates, biometrics, one-time passwords (OTP), and multi-factor authentication (MFA). Credentials must be validated against a trusted directory.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorization</div>
+                <div class="card-desc"><em>"What can you do?"</em> Determines what resources and actions an authenticated user is permitted. Based on roles, group memberships, access control lists (ACLs), and policies. A user can be authenticated but still denied access to specific resources.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accounting</div>
+                <div class="card-desc"><em>"What did you do?"</em> Tracks and logs user activity: login times, resources accessed, commands executed. Enables auditing, forensic investigation, and billing. Syslog and RADIUS accounting are common mechanisms.</div>
+            </div>
+        </div>
 
-        // =====================
-        // CLOUD SERVICE MATCHER
-        // =====================
-        let draggedService = null;
+        <table class="slide-table">
+            <thead>
+                <tr><th>Protocol</th><th>Type</th><th>Transport</th><th>Encryption</th><th>Key Feature</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>RADIUS</strong></td><td>Open Standard</td><td>UDP</td><td>Password only</td><td>Authentication + Authorization; widely supported</td></tr>
+                <tr><td><strong>TACACS+</strong></td><td>Cisco Proprietary</td><td>TCP</td><td>Full packet</td><td>Full AAA; granular command authorization for routers</td></tr>
+            </tbody>
+        </table>
 
-        function dragService(e) {
-            draggedService = e.target;
-            e.dataTransfer.setData('text/plain', e.target.id);
-        }
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip: RADIUS vs TACACS+</div>
+            <strong>RADIUS</strong> = Open standard, UDP, encrypts password only. <strong>TACACS+</strong> = Cisco proprietary, TCP, encrypts entire packet, supports full AAA with per-command authorization. If the scenario mentions Cisco devices and granular control, choose TACACS+.
+        </div>
+    </div>
+</section>
 
-        function allowDrop(e) {
-            e.preventDefault();
-            e.target.closest('.category-zone').classList.add('drag-over');
-        }
+<!-- ==================== SLIDE 7 — SYSLOG ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 22</div>
+        <div class="slide-title">Syslog <span class="accent">Severity Levels</span></div>
+        <div class="slide-subtitle">Standard protocol for collecting and storing log messages from network devices. Lower number = more severe.</div>
 
-        function dragLeave(e) {
-            e.target.closest('.category-zone')?.classList.remove('drag-over');
-        }
+        <table class="slide-table">
+            <thead>
+                <tr><th>Level</th><th>Name</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>0</strong></td><td>Emergency</td><td>System is unusable</td></tr>
+                <tr><td><strong>1</strong></td><td>Alert</td><td>Immediate action required</td></tr>
+                <tr><td><strong>2</strong></td><td>Critical</td><td>Critical conditions</td></tr>
+                <tr><td><strong>3</strong></td><td>Error</td><td>Error conditions</td></tr>
+                <tr><td><strong>4</strong></td><td>Warning</td><td>Warning conditions</td></tr>
+                <tr><td><strong>5</strong></td><td>Notice</td><td>Normal but significant</td></tr>
+                <tr><td><strong>6</strong></td><td>Informational</td><td>Informational messages</td></tr>
+                <tr><td><strong>7</strong></td><td>Debug</td><td>Debug-level messages</td></tr>
+            </tbody>
+        </table>
 
-        function dropService(e, category) {
-            e.preventDefault();
-            const zone = e.target.closest('.category-zone');
-            zone.classList.remove('drag-over');
+        <div class="card-grid-2">
+            <div class="box box-green">
+                <div class="box-label">Memory Trick</div>
+                <strong>"Every Alley Cat Eats Watery Noodle In Dishes"</strong><br>
+                Emergency(0) &ndash; Alert(1) &ndash; Critical(2) &ndash; Error(3) &ndash; Warning(4) &ndash; Notice(5) &ndash; Informational(6) &ndash; Debug(7)
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Syslog Architecture</div>
+                <strong>Clients</strong> send messages with a Facility Code (0&ndash;23, device type) and Severity Level. <strong>Servers</strong> collect, store, and filter. Listener receives on UDP 514. Syslog-ng and rsyslog are common server implementations.
+            </div>
+        </div>
+    </div>
+</section>
 
-            if (draggedService) {
-                zone.querySelector('.zone-items').appendChild(draggedService);
-                draggedService.dataset.placed = category;
-            }
-        }
+<!-- ==================== SLIDE 8 — INTERNET APPLIANCES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 22</div>
+        <div class="slide-title">Internet <span class="accent">Appliances</span></div>
+        <div class="slide-subtitle">Specialized network devices that improve security, performance, and management without general-purpose OS overhead.</div>
 
-        function checkCloudMatcher() {
-            const services = document.querySelectorAll('.draggable-service');
-            let correct = 0;
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Spam Gateway</div>
+                <div class="card-desc">Filters malicious and unwanted emails before they reach the mail server. Blocks phishing attempts, quarantines suspicious messages, and enforces sender policy. Sits between the internet and the internal mail server as the first inbound MX hop.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">UTM (Unified Threat Management)</div>
+                <div class="card-desc">"Swiss Army knife" of network security. Combines: Firewall + IDS/IPS + Antivirus + VPN + Content filtering into one appliance. Simplifies management; single vendor for multiple security functions. Popular in SMB environments that lack dedicated security staff.</div>
+            </div>
+        </div>
 
-            services.forEach(service => {
-                const placed = service.dataset.placed;
-                const correctAnswer = service.dataset.correct;
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Load Balancer</div>
+                <div class="card-desc">Distributes incoming traffic across multiple servers. Provides <strong>performance</strong> (faster response), <strong>scalability</strong> (add servers without downtime), and <strong>reliability</strong> (session persists if one server fails). Layer 4 (transport) or Layer 7 (application) operation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">DMZ &amp; Screened Subnet</div>
+                <div class="card-desc">Also called Perimeter Network. A network segment between the internal LAN and the internet, protected by firewalls on both sides. Hosts public-facing services (web, mail) while isolating the internal network. Compromise of a DMZ host does not automatically expose the LAN.</div>
+            </div>
+        </div>
 
-                service.classList.remove('correct', 'incorrect');
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            UTM = "unifies multiple security features onto a single platform." Load balancer = distributes traffic for redundancy and performance. DMZ = sits between two firewalls, hosts public-facing services. Know all three definitions cold.
+        </div>
+    </div>
+</section>
 
-                if (placed === correctAnswer) {
-                    service.classList.add('correct');
-                    correct++;
-                } else if (placed) {
-                    service.classList.add('incorrect');
-                }
-            });
+<!-- ==================== SLIDE 9 — LEGACY & EMBEDDED SYSTEMS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 22</div>
+        <div class="slide-title">Legacy &amp; <span class="accent">Embedded Systems</span></div>
+        <div class="slide-subtitle">Older and purpose-built systems that remain in production due to cost, compatibility, or specialized function.</div>
 
-            const scoreDiv = document.getElementById('cloud-score');
-            scoreDiv.style.display = 'block';
-            scoreDiv.innerHTML = `Score: ${correct}/9 correct (${Math.round(correct/9*100)}%)`;
-        }
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Legacy Systems</div>
+                <div class="card-desc">Older hardware, software, or protocols still in use because replacement is too costly or disruptive. May lack modern security features, receive no vendor patches, and require compatibility shims. Security posture depends on network isolation and compensating controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Embedded Systems</div>
+                <div class="card-desc">Small or large non-computer devices with software on microcontrollers dedicated to a specific function. Examples: building HVAC controllers, medical infusion pumps, industrial PLCs. Often run real-time operating systems (RTOS). Update cycles measured in years, not weeks.</div>
+            </div>
+        </div>
 
-        function resetCloudMatcher() {
-            const examplesContainer = document.getElementById('service-examples');
-            const services = document.querySelectorAll('.draggable-service');
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">SCADA</div>
+                <div class="card-desc">Supervisory Control and Data Acquisition. Industrial control systems managing infrastructure: power grids, water treatment plants, oil pipelines, manufacturing. Often legacy/embedded. Target of nation-state attacks. Air-gapping and strict network segmentation are common mitigations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IoT Security Risks</div>
+                <div class="card-desc">IoT devices (smart thermostats, cameras, doorbells, voice assistants) often ship with weak default passwords, no update mechanism, and minimal security design. Each device is a potential entry point. Best practice: isolate IoT on a separate VLAN, change default credentials, disable unused features.</div>
+            </div>
+        </div>
 
-            services.forEach(service => {
-                service.classList.remove('correct', 'incorrect');
-                delete service.dataset.placed;
-                examplesContainer.appendChild(service);
-            });
+        <div class="scenario-strip">
+            A hospital uses infusion pumps running a 2008 embedded OS. They cannot be patched. The correct mitigation is network segmentation: place medical devices on an isolated VLAN with no internet access and strict firewall rules. This is a tested scenario pattern.
+        </div>
+    </div>
+</section>
 
-            document.getElementById('cloud-score').style.display = 'none';
-        }
+<!-- ==================== SLIDE 10 — IoT DEVICES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 22</div>
+        <div class="slide-title">Internet of <span class="accent">Things (IoT)</span></div>
+        <div class="slide-subtitle">Everyday objects connected to the internet, enabling automation and remote management.</div>
 
-        // =====================
-        // DNS RECORD TYPE QUIZ
-        // =====================
-        const dnsQuestions = [
-            { question: "Maps a hostname to an IPv4 address", correct: "A", options: ["A", "AAAA", "MX", "PTR"] },
-            { question: "Maps a hostname to an IPv6 address", correct: "AAAA", options: ["A", "AAAA", "CNAME", "PTR"] },
-            { question: "Identifies the mail server for a domain", correct: "MX", options: ["MX", "A", "CNAME", "PTR"] },
-            { question: "Creates an alias for another domain name", correct: "CNAME", options: ["A", "MX", "CNAME", "PTR"] },
-            { question: "Performs reverse lookup (IP to name)", correct: "PTR", options: ["A", "AAAA", "MX", "PTR"] },
-            { question: "Used for www.example.com to 192.168.1.1", correct: "A", options: ["A", "AAAA", "CNAME", "MX"] }
-        ];
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Home Automation</div>
+                <div class="card-desc">Smart thermostats (Nest, Ecobee), lighting systems, window treatments, sprinkler controllers. All connect via Wi-Fi or Z-Wave/Zigbee to a hub or direct cloud service. Reduce energy consumption and enable remote management.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Home Security</div>
+                <div class="card-desc">Smart door locks, video doorbells (Ring), security cameras, and motion sensors. Stream video to cloud services. Enable remote lock/unlock and instant alert notifications. Attack surface includes cloud accounts, mobile apps, and the devices themselves.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Voice Assistants</div>
+                <div class="card-desc">Amazon Alexa, Google Assistant, Apple HomePod. Always-listening microphones. Control other smart devices by voice command. Privacy concerns: audio data uploaded to cloud. In enterprise, often prohibited in conference rooms due to eavesdropping risk.</div>
+            </div>
+        </div>
 
-        let dnsAnswers = {};
+        <div class="card-grid-2">
+            <div class="box box-red">
+                <div class="box-label">IoT Security Checklist</div>
+                Change all default passwords immediately. Apply firmware updates. Disable unused features (UPnP, remote access). Isolate on a dedicated IoT VLAN. Monitor for abnormal outbound traffic. These devices are a common lateral movement entry point.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Exam Tip</div>
+                IoT security is a growing concern on the A+ exam. The exam expects you to know: (1) change default credentials, (2) isolate IoT devices from the main network, (3) keep firmware updated. These three points cover most IoT scenario questions.
+            </div>
+        </div>
+    </div>
+</section>
 
-        function renderDNSQuiz() {
-            const container = document.getElementById('dns-quiz');
-            container.innerHTML = '';
+<!-- ==================== SLIDE 11 — CLOUD SERVICE MODELS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 22</div>
+        <div class="slide-title">Cloud Service <span class="accent">Models (IaaS / PaaS / SaaS)</span></div>
+        <div class="slide-subtitle">Three tiers of cloud service, each shifting more management responsibility to the provider.</div>
 
-            dnsQuestions.forEach((q, i) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.className = 'dns-question';
-                questionDiv.innerHTML = `
-                    <div class="dns-question-text">${i + 1}. ${q.question}</div>
-                    <div class="dns-options">
-                        ${q.options.map(opt => `
-                            <div class="dns-option" onclick="selectDNSAnswer(${i}, '${opt}')" data-question="${i}" data-option="${opt}">
-                                ${opt}
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-                container.appendChild(questionDiv);
-            });
-        }
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">IaaS &mdash; Infrastructure as a Service</div>
+                <div class="card-desc">Provider gives: network hardware, storage, servers, virtualization layer. You manage: OS, middleware, applications, data. Pay for what you use. Maximum flexibility; maximum responsibility. Examples: AWS EC2, Azure VMs, Google Compute Engine.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PaaS &mdash; Platform as a Service</div>
+                <div class="card-desc">Builds on IaaS. Provider adds: OS, runtime, middleware, development tools. You manage: applications and data only. Ideal for developers who want to deploy without managing servers. Examples: Google App Engine, Azure App Service, Heroku.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SaaS &mdash; Software as a Service</div>
+                <div class="card-desc">Subscription-based. Provider manages everything: hardware, OS, runtime, and the application itself. You manage only your data and user configuration. Examples: Google Workspace, Microsoft 365, Salesforce, Dropbox.</div>
+            </div>
+        </div>
 
-        function selectDNSAnswer(questionIndex, answer) {
-            dnsAnswers[questionIndex] = answer;
+        <table class="slide-table">
+            <thead>
+                <tr><th>Layer</th><th>On-Premises</th><th>IaaS</th><th>PaaS</th><th>SaaS</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Applications</td><td>You</td><td>You</td><td>You</td><td>Provider</td></tr>
+                <tr><td>Data</td><td>You</td><td>You</td><td>You</td><td>You</td></tr>
+                <tr><td>OS / Runtime</td><td>You</td><td>You</td><td>Provider</td><td>Provider</td></tr>
+                <tr><td>Servers / Network</td><td>You</td><td>Provider</td><td>Provider</td><td>Provider</td></tr>
+            </tbody>
+        </table>
 
-            document.querySelectorAll(`[data-question="${questionIndex}"]`).forEach(opt => {
-                opt.classList.remove('selected');
-                if (opt.dataset.option === answer) {
-                    opt.classList.add('selected');
-                }
-            });
-        }
+        <!-- SVG: IaaS / PaaS / SaaS responsibility stack — 3 columns -->
+        <svg id="svg-iaas" viewBox="0 0 700 130" width="100%" style="max-height:125px;display:block;margin:0 auto;" aria-label="Cloud service model responsibility stacks">
+            <!-- Column headers -->
+            <text x="175" y="16" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">IaaS</text>
+            <text x="350" y="16" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">PaaS</text>
+            <text x="525" y="16" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">SaaS</text>
+            <!-- Layer labels on left axis -->
+            <text x="90" y="39"  text-anchor="end" font-family="Segoe UI,sans-serif" font-size="8.5" fill="#64748b">Applications</text>
+            <text x="90" y="58"  text-anchor="end" font-family="Segoe UI,sans-serif" font-size="8.5" fill="#64748b">Data</text>
+            <text x="90" y="77"  text-anchor="end" font-family="Segoe UI,sans-serif" font-size="8.5" fill="#64748b">OS / Runtime</text>
+            <text x="90" y="96"  text-anchor="end" font-family="Segoe UI,sans-serif" font-size="8.5" fill="#64748b">Servers / Net</text>
+            <text x="90" y="115" text-anchor="end" font-family="Segoe UI,sans-serif" font-size="8.5" fill="#64748b">Virtualization</text>
+            <!-- IaaS column — customer: apps,data,OS; provider: servers,virt -->
+            <rect x="100" y="24" width="150" height="18" rx="3" fill="rgba(201,168,58,0.25)" stroke="#c9a83a" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.1s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.1s" fill="freeze" restart="always"/>YOU</text>
+            <rect x="100" y="44" width="150" height="18" rx="3" fill="rgba(201,168,58,0.25)" stroke="#c9a83a" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.2s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.2s" fill="freeze" restart="always"/>YOU</text>
+            <rect x="100" y="64" width="150" height="18" rx="3" fill="rgba(201,168,58,0.25)" stroke="#c9a83a" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.3s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.3s" fill="freeze" restart="always"/>YOU</text>
+            <rect x="100" y="84" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.4s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.4s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="100" y="104" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.5s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.5s" fill="freeze" restart="always"/>PROVIDER</text>
+            <!-- PaaS column — customer: apps,data; provider: OS,servers,virt -->
+            <rect x="275" y="24" width="150" height="18" rx="3" fill="rgba(6,182,212,0.25)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.6s" fill="freeze" restart="always"/></rect>
+            <text x="350" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.6s" fill="freeze" restart="always"/>YOU</text>
+            <rect x="275" y="44" width="150" height="18" rx="3" fill="rgba(6,182,212,0.25)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.7s" fill="freeze" restart="always"/></rect>
+            <text x="350" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.7s" fill="freeze" restart="always"/>YOU</text>
+            <rect x="275" y="64" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.8s" fill="freeze" restart="always"/></rect>
+            <text x="350" y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.8s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="275" y="84" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.9s" fill="freeze" restart="always"/></rect>
+            <text x="350" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="0.9s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="275" y="104" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.0s" fill="freeze" restart="always"/></rect>
+            <text x="350" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.0s" fill="freeze" restart="always"/>PROVIDER</text>
+            <!-- SaaS column — customer: data; provider: everything else -->
+            <rect x="450" y="24" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.1s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.1s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="450" y="44" width="150" height="18" rx="3" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.2s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.2s" fill="freeze" restart="always"/>YOU (data only)</text>
+            <rect x="450" y="64" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.3s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.3s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="450" y="84" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.4s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.4s" fill="freeze" restart="always"/>PROVIDER</text>
+            <rect x="450" y="104" width="150" height="18" rx="3" fill="rgba(71,85,105,0.25)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.5s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" begin="1.5s" fill="freeze" restart="always"/>PROVIDER</text>
+        </svg>
 
-        function checkDNSQuiz() {
-            let correct = 0;
+        <div class="box box-gold">
+            <div class="box-label">Memory Trick</div>
+            <strong>IaaS = "I" manage the most</strong> (raw infrastructure). <strong>PaaS = "P"rogrammers love it</strong> (platform and tools included). <strong>SaaS = "S"imple to use</strong> (just log in).
+        </div>
+    </div>
+</section>
 
-            dnsQuestions.forEach((q, i) => {
-                document.querySelectorAll(`[data-question="${i}"]`).forEach(opt => {
-                    opt.classList.remove('correct', 'incorrect');
+<!-- ==================== SLIDE 12 — CLOUD DEPLOYMENT TYPES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 22</div>
+        <div class="slide-title">Cloud <span class="accent">Deployment Models</span></div>
+        <div class="slide-subtitle">Who owns and operates the infrastructure determines which deployment model applies.</div>
 
-                    if (opt.dataset.option === q.correct) {
-                        opt.classList.add('correct');
-                    } else if (opt.dataset.option === dnsAnswers[i] && dnsAnswers[i] !== q.correct) {
-                        opt.classList.add('incorrect');
-                    }
-                });
+        <table class="slide-table">
+            <thead>
+                <tr><th>Type</th><th>Description</th><th>Best For</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Private Cloud</strong></td><td>Dedicated infrastructure for one org; on-premises or hosted; single-tenant</td><td>Enterprises with compliance/security requirements</td></tr>
+                <tr><td><strong>Public Cloud</strong></td><td>Shared infrastructure from third-party provider; multi-tenant</td><td>Startups, variable workloads, cost optimization</td></tr>
+                <tr><td><strong>Hybrid Cloud</strong></td><td>Mix of private and public; data and apps move between environments</td><td>Organizations needing flexibility and compliance</td></tr>
+                <tr><td><strong>Community Cloud</strong></td><td>Shared by organizations with common needs; costs are pooled</td><td>Government agencies, healthcare, research consortia</td></tr>
+            </tbody>
+        </table>
 
-                if (dnsAnswers[i] === q.correct) correct++;
-            });
+        <!-- SVG: Cloud deployment models — Venn-style overlapping circles -->
+        <svg id="svg-deploy" viewBox="0 0 700 120" width="100%" style="max-height:115px;display:block;margin:0 auto;" aria-label="Cloud deployment model diagram">
+            <!-- Public cloud — large background circle -->
+            <circle cx="350" cy="64" r="80" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.5" opacity="0">
+                <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.2s" fill="freeze" restart="always"/>
+            </circle>
+            <text x="350" y="20" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.2s" fill="freeze" restart="always"/>PUBLIC CLOUD</text>
+            <text x="350" y="30" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#475569" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.2s" fill="freeze" restart="always"/>Multi-tenant / AWS, Azure, GCP</text>
+            <!-- Private cloud — left overlap -->
+            <circle cx="220" cy="70" r="55" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5" opacity="0">
+                <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.6s" fill="freeze" restart="always"/>
+            </circle>
+            <text x="180" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze" restart="always"/>PRIVATE</text>
+            <text x="180" y="82" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze" restart="always"/>Single-tenant</text>
+            <!-- Community cloud — right overlap -->
+            <circle cx="480" cy="70" r="55" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5" opacity="0">
+                <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.0s" fill="freeze" restart="always"/>
+            </circle>
+            <text x="520" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a855f7" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.0s" fill="freeze" restart="always"/>COMMUNITY</text>
+            <text x="520" y="82" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#a855f7" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.0s" fill="freeze" restart="always"/>Shared org group</text>
+            <!-- Hybrid label in the overlap zone -->
+            <text x="310" y="72" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="1.4s" fill="freeze" restart="always"/>HYBRID</text>
+            <text x="310" y="83" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="1.4s" fill="freeze" restart="always"/>Private + Public mix</text>
+            <!-- Legend dots -->
+            <circle cx="10" cy="108" r="5" fill="rgba(6,182,212,0.5)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="18" y="112" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4">Public</text>
+            <circle cx="65" cy="108" r="5" fill="rgba(201,168,58,0.5)" stroke="#c9a83a" stroke-width="1"/>
+            <text x="73" y="112" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">Private</text>
+            <circle cx="120" cy="108" r="5" fill="rgba(168,85,247,0.5)" stroke="#a855f7" stroke-width="1"/>
+            <text x="128" y="112" font-family="Segoe UI,sans-serif" font-size="8" fill="#a855f7">Community</text>
+            <text x="185" y="112" font-family="Segoe UI,sans-serif" font-size="8" fill="#64748b">Hybrid = overlap of Private + Public</text>
+        </svg>
 
-            const scoreDiv = document.getElementById('dns-score');
-            scoreDiv.style.display = 'block';
-            scoreDiv.innerHTML = `Score: ${correct}/${dnsQuestions.length} correct (${Math.round(correct/dnsQuestions.length*100)}%)`;
-        }
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Key Cloud Characteristics (NIST)</div>
+                <div class="card-desc"><strong>On-Demand Self-Service:</strong> Provision without human intervention<br><strong>Broad Network Access:</strong> Access from any device<br><strong>Resource Pooling:</strong> Multi-tenant shared resources<br><strong>Rapid Elasticity:</strong> Scale up/down instantly<br><strong>Measured Service:</strong> Pay only for what you use</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cloud Storage Services</div>
+                <div class="card-desc">Dropbox: 2 GB free &bull; iCloud: 5 GB free &bull; OneDrive: 5 GB free &bull; Box: 10 GB free &bull; Google Drive: 15 GB free. Sync apps run in background mirroring local folders to cloud, enabling access from any device and automatic backup.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        function resetDNSQuiz() {
-            dnsAnswers = {};
-            document.querySelectorAll('.dns-option').forEach(opt => {
-                opt.classList.remove('selected', 'correct', 'incorrect');
-            });
-            document.getElementById('dns-score').style.display = 'none';
-        }
+<!-- ==================== SLIDE 13 — CLOUD CHARACTERISTICS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 22</div>
+        <div class="slide-title">Cloud <span class="accent">Characteristics</span></div>
+        <div class="slide-subtitle">NIST defines five essential characteristics that distinguish true cloud computing.</div>
 
-        // =====================
-        // HYPERVISOR IDENTIFIER
-        // =====================
-        const hypervisors = [
-            { name: "VMware ESXi", description: "Runs directly on server hardware without a host OS", correct: "type1" },
-            { name: "VirtualBox", description: "Runs on Windows, macOS, or Linux as an application", correct: "type2" },
-            { name: "Microsoft Hyper-V", description: "Can run as bare metal hypervisor on servers", correct: "type1" },
-            { name: "VMware Workstation", description: "Desktop application for running VMs on your PC", correct: "type2" },
-            { name: "Citrix XenServer", description: "Enterprise virtualization platform running on bare metal", correct: "type1" },
-            { name: "Parallels Desktop", description: "Runs on macOS to host Windows and other OSes", correct: "type2" }
-        ];
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Rapid Elasticity</div>
+                <div class="card-desc">Resources can be scaled up or down instantly based on demand. Scale a web farm from 2 to 200 instances in minutes during a traffic spike, then scale back to save cost. Pay-as-you-grow model eliminates overprovisioning. This is the most tested cloud characteristic on the exam.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">On-Demand Self-Service</div>
+                <div class="card-desc">Users can provision computing resources (storage, VMs, bandwidth) through a self-service portal without requiring human interaction from the provider. Immediate access to resources 24/7 via web console or API. No waiting for hardware procurement or datacenter work orders.</div>
+            </div>
+        </div>
 
-        let hypervisorAnswers = {};
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Resource Pooling</div>
+                <div class="card-desc">Provider's resources are pooled to serve multiple consumers (multi-tenancy). Physical and virtual resources are dynamically assigned based on demand. Customers generally do not know or control the physical location of resources. Economies of scale benefit both provider and customer.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Measured Service</div>
+                <div class="card-desc">Resource usage is metered and reported. Customers pay only for what they consume: compute hours, GB stored, data transferred. Transparency in billing. Supports chargeback models in enterprise IT. Contrast with traditional IT: fixed hardware cost regardless of utilization.</div>
+            </div>
+        </div>
 
-        function renderHypervisorGame() {
-            const container = document.getElementById('hypervisor-game');
-            container.innerHTML = '';
+        <div class="box box-gold">
+            <div class="box-label">High Availability Tiers</div>
+            99.9% uptime = "three nines" = 8.7 hours downtime/year. 99.99% = "four nines" = 52 minutes/year. 99.999% = "five nines" = 5 minutes/year. Cloud SLAs define which tier is guaranteed. Redundancy, failover, and geographic distribution achieve higher nines.
+        </div>
+    </div>
+</section>
 
-            hypervisors.forEach((h, i) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'hypervisor-item';
-                itemDiv.innerHTML = `
-                    <div class="hypervisor-name">${h.name}</div>
-                    <div class="hypervisor-description">${h.description}</div>
-                    <div class="hypervisor-buttons">
-                        <button class="type-btn" onclick="selectHypervisor(${i}, 'type1')" data-hyper="${i}" data-type="type1">Type 1 (Bare Metal)</button>
-                        <button class="type-btn" onclick="selectHypervisor(${i}, 'type2')" data-hyper="${i}" data-type="type2">Type 2 (Hosted)</button>
-                    </div>
-                `;
-                container.appendChild(itemDiv);
-            });
-        }
+<!-- ==================== SLIDE 14 — HYPERVISORS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 22</div>
+        <div class="slide-title">Hypervisor <span class="accent">Types</span></div>
+        <div class="slide-subtitle">A hypervisor (Virtual Machine Manager) allows multiple operating systems to share a single physical host.</div>
 
-        function selectHypervisor(index, type) {
-            hypervisorAnswers[index] = type;
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Type 1 &mdash; Bare Metal</div>
+                <div class="card-desc">Installs directly on physical hardware. No host OS layer. The hypervisor IS the operating layer. Maximum performance because there is no host OS overhead. Used in servers and data centers. Examples: VMware ESXi, Microsoft Hyper-V, Citrix XenServer, KVM (when used as primary OS).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Type 2 &mdash; Hosted</div>
+                <div class="card-desc">Runs on top of an existing host operating system as an application. The host OS adds a layer of overhead. Easier to set up for desktop use. Used for development, testing, and personal lab environments. Examples: Oracle VirtualBox, VMware Workstation, Parallels Desktop (macOS).</div>
+            </div>
+        </div>
 
-            document.querySelectorAll(`[data-hyper="${index}"]`).forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.dataset.type === type) {
-                    btn.classList.add('selected');
-                }
-            });
-        }
+        <table class="slide-table">
+            <thead>
+                <tr><th>Feature</th><th>Type 1 (Bare Metal)</th><th>Type 2 (Hosted)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Runs on</td><td>Directly on hardware</td><td>On top of existing OS</td></tr>
+                <tr><td>Performance</td><td>Better (no host OS overhead)</td><td>Lower (host OS adds overhead)</td></tr>
+                <tr><td>Use case</td><td>Production servers, data centers</td><td>Desktop labs, dev/test</td></tr>
+                <tr><td>Examples</td><td>ESXi, Hyper-V, XenServer</td><td>VirtualBox, VMware Workstation</td></tr>
+            </tbody>
+        </table>
 
-        function checkHypervisor() {
-            let correct = 0;
+        <!-- SVG: Type 1 vs Type 2 hypervisor stack diagrams -->
+        <svg id="svg-hyper" viewBox="0 0 700 130" width="100%" style="max-height:125px;display:block;margin:0 auto;" aria-label="Type 1 and Type 2 hypervisor stack comparison">
+            <!-- Type 1 column -->
+            <text x="175" y="14" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Type 1 — Bare Metal</text>
+            <!-- Hardware layer -->
+            <rect x="20" y="20" width="310" height="20" rx="3" fill="rgba(71,85,105,0.5)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="34" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/>HARDWARE (Physical Server)</text>
+            <!-- Hypervisor directly on hardware -->
+            <rect x="20" y="42" width="310" height="20" rx="3" fill="rgba(201,168,58,0.3)" stroke="#c9a83a" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze" restart="always"/></rect>
+            <text x="175" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze" restart="always"/>HYPERVISOR (VMware ESXi / Hyper-V)</text>
+            <!-- VMs on Type 1 -->
+            <rect x="20"  y="64" width="98"  height="20" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.7s" fill="freeze" restart="always"/></rect>
+            <text x="69"  y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.7s" fill="freeze" restart="always"/>VM 1</text>
+            <rect x="120" y="64" width="98"  height="20" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.8s" fill="freeze" restart="always"/></rect>
+            <text x="169" y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.8s" fill="freeze" restart="always"/>VM 2</text>
+            <rect x="220" y="64" width="110" height="20" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.9s" fill="freeze" restart="always"/></rect>
+            <text x="275" y="77" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.9s" fill="freeze" restart="always"/>VM 3</text>
+            <!-- Badge -->
+            <rect x="20" y="90" width="310" height="16" rx="3" fill="rgba(201,168,58,0.08)" stroke="none"/>
+            <text x="175" y="101" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">No host OS overhead — maximum performance</text>
+            <!-- Type 2 column -->
+            <text x="525" y="14" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Type 2 — Hosted</text>
+            <!-- Hardware layer -->
+            <rect x="370" y="20" width="310" height="20" rx="3" fill="rgba(71,85,105,0.5)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="34" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/>HARDWARE (Laptop / Workstation)</text>
+            <!-- Host OS layer -->
+            <rect x="370" y="42" width="310" height="20" rx="3" fill="rgba(71,85,105,0.35)" stroke="#334155" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze" restart="always"/>HOST OS (Windows / macOS / Linux)</text>
+            <!-- Hypervisor app on top of host OS -->
+            <rect x="370" y="64" width="310" height="20" rx="3" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze" restart="always"/></rect>
+            <text x="525" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze" restart="always"/>HYPERVISOR APP (VirtualBox / VMware WS)</text>
+            <!-- VMs on Type 2 -->
+            <rect x="370" y="86" width="148" height="18" rx="3" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.9s" fill="freeze" restart="always"/></rect>
+            <text x="444" y="98" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.9s" fill="freeze" restart="always"/>VM 1</text>
+            <rect x="522" y="86" width="158" height="18" rx="3" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.0s" fill="freeze" restart="always"/></rect>
+            <text x="601" y="98" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.0s" fill="freeze" restart="always"/>VM 2</text>
+            <!-- Badge -->
+            <rect x="370" y="108" width="310" height="16" rx="3" fill="rgba(6,182,212,0.05)" stroke="none"/>
+            <text x="525" y="119" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4">Host OS adds overhead — easy desktop setup</text>
+            <!-- Divider -->
+            <line x1="348" y1="14" x2="348" y2="125" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,3"/>
+        </svg>
 
-            hypervisors.forEach((h, i) => {
-                document.querySelectorAll(`[data-hyper="${i}"]`).forEach(btn => {
-                    btn.classList.remove('correct', 'incorrect');
+        <div class="box box-gold">
+            <div class="box-label">Memory Trick</div>
+            <strong>Type 1 = #1 performance</strong> (bare metal, no host OS). <strong>Type 2 = 2 layers</strong> (host OS + hypervisor stacked on top). If the scenario mentions servers or data centers, Type 1. If it mentions running VMs on a laptop, Type 2.
+        </div>
+    </div>
+</section>
 
-                    if (btn.dataset.type === h.correct) {
-                        btn.classList.add('correct');
-                    } else if (btn.dataset.type === hypervisorAnswers[i] && hypervisorAnswers[i] !== h.correct) {
-                        btn.classList.add('incorrect');
-                    }
-                });
+<!-- ==================== SLIDE 15 — VM PURPOSES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 22</div>
+        <div class="slide-title">Virtual Machine <span class="accent">Use Cases</span></div>
+        <div class="slide-subtitle">Why organizations run VMs and the specific advantages each use case provides.</div>
 
-                if (hypervisorAnswers[i] === h.correct) correct++;
-            });
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Server Consolidation</div>
+                <div class="card-desc">Run multiple logical servers on one physical machine. A physical host running 20 VMs replaces 20 physical servers. Reduces hardware cost, power consumption, cooling, and datacenter floor space. Reduces e-waste. ROI is typically achieved within 12&ndash;18 months.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sandbox Testing</div>
+                <div class="card-desc">Isolated environment for evaluating software, testing configurations, or analyzing malware. Changes do not affect the host. Snapshot before testing; revert after. Security teams run malware in sandboxed VMs to observe behavior without risk to production systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Development &amp; QA</div>
+                <div class="card-desc">Developers spin up VMs matching the production environment. Test against different OS versions. Create snapshot before a destructive test; rollback in seconds. CI/CD pipelines provision disposable VMs for each build. Eliminates "works on my machine" problems.</div>
+            </div>
+        </div>
 
-            const scoreDiv = document.getElementById('hypervisor-score');
-            scoreDiv.style.display = 'block';
-            scoreDiv.innerHTML = `Score: ${correct}/${hypervisors.length} correct (${Math.round(correct/hypervisors.length*100)}%)`;
-        }
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Snapshot Capability</div>
+                A snapshot captures the complete VM state at a point in time: disk, memory, CPU state. Revert to any snapshot instantly. Critical for testing patch deployments on production-like VMs before applying to physical systems. Does not replace backup for long-term data protection.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">VM Requirements</div>
+                To run 64-bit VMs: CPU must support hardware virtualization. Enable <strong>Intel VT-x</strong> or <strong>AMD-V</strong> in UEFI before installing a hypervisor. Disabled by default on many OEM systems. Failure to enable causes "This host does not support VT-x" errors on first VM creation.
+            </div>
+        </div>
+    </div>
+</section>
 
-        function resetHypervisor() {
-            hypervisorAnswers = {};
-            document.querySelectorAll('.type-btn').forEach(btn => {
-                btn.classList.remove('selected', 'correct', 'incorrect');
-            });
-            document.getElementById('hypervisor-score').style.display = 'none';
-        }
+<!-- ==================== SLIDE 16 — NETWORK CONFIGURATION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 22</div>
+        <div class="slide-title">VM Network <span class="accent">Configuration</span></div>
+        <div class="slide-subtitle">How virtual machines connect to networks and communicate with the host and external systems.</div>
 
-        // =====================
-        // QUIZ
-        // =====================
-        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
-        // Answer key stored in Firestore quiz_keys/aplus-core1-ch08
-        const QUIZ_ID = 'aplus-core1-ch08';
-        const quizQuestions = [
-            {
-                question: "Which DNS record type maps a hostname to an IPv4 address?",
-                options: ["AAAA", "MX", "A", "PTR"]
-            },
-            {
-                question: "What does DORA stand for in DHCP?",
-                options: ["Distribute, Offer, Request, Accept", "Discover, Offer, Request, Acknowledge", "Download, Open, Run, Activate", "Direct, Obtain, Return, Assign"]
-            },
-            {
-                question: "Which cloud service model provides the MOST control to the customer?",
-                options: ["SaaS", "PaaS", "IaaS", "FaaS"]
-            },
-            {
-                question: "Google Docs and Microsoft 365 are examples of which cloud service model?",
-                options: ["IaaS", "PaaS", "SaaS", "DaaS"]
-            },
-            {
-                question: "Which hypervisor type runs directly on hardware without a host operating system?",
-                options: ["Type 1", "Type 2", "Type 3", "Type 0"]
-            },
-            {
-                question: "VMware Workstation and VirtualBox are examples of which hypervisor type?",
-                options: ["Type 1 (Bare Metal)", "Type 2 (Hosted)", "Type 3 (Hybrid)", "Type 0 (Firmware)"]
-            },
-            {
-                question: "Which AAA protocol is Cisco proprietary and encrypts the entire packet?",
-                options: ["RADIUS", "TACACS+", "Kerberos", "LDAP"]
-            },
-            {
-                question: "What is the severity level for a Syslog Emergency message?",
-                options: ["7", "0", "1", "3"]
-            },
-            {
-                question: "Which cloud deployment model combines private and public cloud resources?",
-                options: ["Private cloud", "Public cloud", "Hybrid cloud", "Community cloud"]
-            },
-            {
-                question: "A network area between the internal network and internet hosting public-facing servers is called a:",
-                options: ["VLAN", "DMZ", "VPN", "NAT"]
-            },
-            {
-                question: "Which cloud characteristic allows resources to scale up or down based on demand?",
-                options: ["Broad network access", "Resource pooling", "Rapid elasticity", "Measured service"]
-            },
-            {
-                question: "Which DNS record type is used for reverse lookups (IP to hostname)?",
-                options: ["A", "AAAA", "CNAME", "PTR"]
-            },
-            {
-                question: "What appliance combines firewall, IDS/IPS, antivirus, and VPN into a single device?",
-                options: ["Load Balancer", "Proxy Server", "UTM", "Spam Gateway"]
-            },
-            {
-                question: "Which server role automatically assigns IP addresses to network clients?",
-                options: ["DNS Server", "DHCP Server", "File Server", "Web Server"]
-            },
-            {
-                question: "In the cloud service responsibility model, which layer does the customer ALWAYS manage regardless of service type?",
-                options: ["Operating System", "Network", "Data", "Virtualization"]
-            }
-        ];
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Bridged</div>
+                <div class="card-desc">VM appears as a separate device on the physical network. Gets its own IP from DHCP or static assignment. Can be accessed by any device on the network. Best for servers that need to be reachable from other machines. Most closely mimics a physical machine.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NAT (Network Address Translation)</div>
+                <div class="card-desc">VM shares the host's IP address. The hypervisor translates outbound traffic. VM can reach the internet but external devices cannot initiate connections to the VM. Best for general internet use where inbound access is not needed. Default in VirtualBox and VMware Workstation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Host-Only</div>
+                <div class="card-desc">VM can communicate with the host and other VMs on the same host-only network, but has no external network access. Used for isolated test environments, internal lab networks, or when security requires the VM to have no internet connectivity.</div>
+            </div>
+        </div>
 
-        let currentQuestion = 0;
-        let userAnswers = new Array(quizQuestions.length).fill(null);
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">VM Resource Allocation</div>
+                Assign vCPUs, RAM, and virtual disk based on workload. Do not over-commit memory on a Type 2 hypervisor or the host OS will thrash. On Type 1 hypervisors, memory ballooning and overcommit are managed by the hypervisor with memory pages shared where possible.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">NIC Teaming &amp; vSwitches</div>
+                Virtual switches (vSwitches) connect VMs to each other and to physical NICs. NIC teaming bonds multiple physical NICs for bandwidth aggregation or failover. VLANs can be applied to virtual port groups just like on physical switches.
+            </div>
+        </div>
 
-        function renderQuestion() {
-            const q = quizQuestions[currentQuestion];
-            const container = document.getElementById('quiz-content');
+        <!-- SVG: Virtual network diagram — VMs connected by vSwitch inside physical host -->
+        <svg id="svg-vnet" viewBox="0 0 700 128" width="100%" style="max-height:123px;display:block;margin:0 auto;" aria-label="Virtual network diagram inside a physical host">
+            <!-- Physical host box -->
+            <rect x="10" y="8" width="560" height="115" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+            <text x="18" y="22" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">PHYSICAL HOST</text>
+            <!-- vSwitch -->
+            <rect x="30" y="80" width="520" height="22" rx="4" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1.5" opacity="0">
+                <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.5s" fill="freeze" restart="always"/>
+            </rect>
+            <text x="290" y="95" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.5s" fill="freeze" restart="always"/>VIRTUAL SWITCH (vSwitch)</text>
+            <!-- VM boxes -->
+            <rect x="30"  y="28" width="110" height="44" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/></rect>
+            <text x="85"  y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/>VM 1</text>
+            <text x="85"  y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#c9a83a" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.1s" fill="freeze" restart="always"/>10.0.0.10</text>
+            <line x1="85" y1="72" x2="85" y2="80" stroke="#c9a83a" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.2s" begin="0.5s" fill="freeze" restart="always"/></line>
 
-            container.innerHTML = `
-                <div class="quiz-question">
-                    <div class="question-text">${currentQuestion + 1}. ${q.question}</div>
-                    <div class="quiz-options">
-                        ${q.options.map((opt, i) => `
-                            <div class="quiz-option ${userAnswers[currentQuestion] === i ? 'selected' : ''}"
-                                 onclick="selectAnswer(${i})">
-                                ${opt}
-                            </div>
-                        `).join('')}
-                    </div>
+            <rect x="160" y="28" width="110" height="44" rx="5" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.2s" fill="freeze" restart="always"/></rect>
+            <text x="215" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.2s" fill="freeze" restart="always"/>VM 2</text>
+            <text x="215" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#06b6d4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.2s" fill="freeze" restart="always"/>10.0.0.11</text>
+            <line x1="215" y1="72" x2="215" y2="80" stroke="#06b6d4" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.2s" begin="0.5s" fill="freeze" restart="always"/></line>
+
+            <rect x="290" y="28" width="110" height="44" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze" restart="always"/></rect>
+            <text x="345" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze" restart="always"/>VM 3</text>
+            <text x="345" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#3ab577" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze" restart="always"/>10.0.0.12</text>
+            <line x1="345" y1="72" x2="345" y2="80" stroke="#3ab577" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.2s" begin="0.5s" fill="freeze" restart="always"/></line>
+
+            <rect x="420" y="28" width="110" height="44" rx="5" fill="rgba(168,85,247,0.12)" stroke="#a855f7" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze" restart="always"/></rect>
+            <text x="475" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#a855f7" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze" restart="always"/>VM 4</text>
+            <text x="475" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7.5" fill="#a855f7" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze" restart="always"/>10.0.0.13</text>
+            <line x1="475" y1="72" x2="475" y2="80" stroke="#a855f7" stroke-width="1.5" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.2s" begin="0.5s" fill="freeze" restart="always"/></line>
+
+            <!-- Physical NIC uplink to external network -->
+            <line x1="290" y1="102" x2="290" y2="120" stroke="#475569" stroke-width="2" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.8s" fill="freeze" restart="always"/></line>
+            <rect x="255" y="110" width="70" height="18" rx="3" fill="rgba(71,85,105,0.3)" stroke="#475569" stroke-width="1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.8s" fill="freeze" restart="always"/></rect>
+            <text x="290" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#64748b" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.8s" fill="freeze" restart="always"/>Physical NIC</text>
+
+            <!-- External network label -->
+            <rect x="590" y="30" width="100" height="30" rx="5" fill="rgba(255,255,255,0.04)" stroke="#334155" stroke-width="1"/>
+            <text x="640" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">External</text>
+            <text x="640" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Network</text>
+            <line x1="572" y1="102" x2="640" y2="50" stroke="#334155" stroke-width="1" stroke-dasharray="4,3" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.0s" fill="freeze" restart="always"/></line>
+        </svg>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ENDPOINT MANAGEMENT ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 22</div>
+        <div class="slide-title">Endpoint <span class="accent">Management Server</span></div>
+        <div class="slide-subtitle">Centralized control of client devices across the network from a single management platform.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Core Functions</div>
+                <div class="card-desc">Deploy security policies to all endpoints. Install, update, and remove operating systems remotely. Centralized backup management and monitoring. Inventory hardware and software across all managed devices. Enforce compliance posture (patch levels, AV signatures, encryption status).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Software Deployment</div>
+                <div class="card-desc">Push applications to user machines silently in the background. Manage license compliance. Schedule updates during off-hours maintenance windows. Roll back failed deployments. Create deployment groups by department, location, or machine type. Examples: SCCM, Intune, Jamf.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Remote Control &amp; Assistance</div>
+                <div class="card-desc">Take control of remote machines for troubleshooting. View the desktop, run commands, transfer files. Tools: Microsoft Quick Assist, Remote Desktop, TeamViewer, LogMeIn. Authentication and logging are required for security and audit trail compliance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Asset Tracking</div>
+                <div class="card-desc">Maintain inventory of all managed endpoints: hardware specs, installed software, OS version, warranty status. Automate discovery of new devices joining the network. Track software licenses against installed counts. Generate compliance reports for audits.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            An IT department must push a critical security patch to 500 workstations before 5 PM. Without an endpoint management server, that requires 500 manual logins. With SCCM or Intune, a single policy deployment handles all 500 machines in parallel.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — CLOUD EXAM KEYWORDS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 22</div>
+        <div class="slide-title">Cloud Exam <span class="accent">Keyword Mapping</span></div>
+        <div class="slide-subtitle">When the exam asks "Which cloud model...?" look for these trigger words in the scenario.</div>
+
+        <table class="slide-table">
+            <thead>
+                <tr><th>Keyword in Question</th><th>Correct Answer</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Virtual servers, raw computing, AWS EC2</td><td><strong>IaaS</strong></td><td>Provider gives infrastructure; you manage OS and up</td></tr>
+                <tr><td>Development platform, deploy apps, App Engine</td><td><strong>PaaS</strong></td><td>Provider adds runtime and tools; you write code</td></tr>
+                <tr><td>Subscription, web-based app, Office 365</td><td><strong>SaaS</strong></td><td>Provider manages everything; you just use the app</td></tr>
+                <tr><td>Own infrastructure, single tenant, compliance</td><td><strong>Private Cloud</strong></td><td>Org owns and controls all resources</td></tr>
+                <tr><td>AWS, Azure, Google Cloud, shared</td><td><strong>Public Cloud</strong></td><td>Third-party multi-tenant</td></tr>
+                <tr><td>Mix on-premises + AWS, burst to cloud</td><td><strong>Hybrid Cloud</strong></td><td>Combination of private and public</td></tr>
+                <tr><td>Scale up instantly, handle traffic spike</td><td><strong>Rapid Elasticity</strong></td><td>NIST characteristic: dynamic scaling</td></tr>
+                <tr><td>Pay per use, metered billing</td><td><strong>Measured Service</strong></td><td>NIST characteristic: usage-based billing</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 22</div>
+        <div class="slide-title">Scenario <span class="accent">Practice</span></div>
+        <div class="slide-subtitle">A+ style questions. Cover the answers and reason through each before revealing.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">A company uses AWS to run virtual servers and manages their own OS and applications. Which cloud model is this? &mdash; <strong style="color:#c9a83a;">IaaS. Provider supplies virtual infrastructure; customer manages OS and applications.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">A technician's hypervisor runs directly on hardware with no underlying OS. Which hypervisor type is this? &mdash; <strong style="color:#c9a83a;">Type 1 (Bare Metal). Direct hardware access, no host OS layer.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">Which authentication protocol is Cisco proprietary, uses TCP, and encrypts the entire packet? &mdash; <strong style="color:#c9a83a;">TACACS+. RADIUS is open standard, uses UDP, and only encrypts the password.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">A DNS query for webmail.company.com returns a CNAME record pointing to mail.company.com. What does this mean? &mdash; <strong style="color:#c9a83a;">webmail is an alias. The actual mail server is at mail.company.com. A separate A record resolves mail.company.com to its IP.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">Syslog message level 2 arrives on the server. What does this indicate? &mdash; <strong style="color:#c9a83a;">Critical. Level 0=Emergency, 1=Alert, 2=Critical. Lower number = more severe.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">An IoT device on the network sends unusual outbound traffic to an unknown IP. First mitigation step? &mdash; <strong style="color:#c9a83a;">Isolate the device immediately (VLAN or port disable), then investigate firmware and credentials.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — QUICK REFERENCE ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 22</div>
+        <div class="slide-title">Chapter 8 <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">Key terms, ports, and abbreviations from this chapter.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Ports to Memorize</div>
+                <div class="card-desc">
+                    <strong>HTTP</strong> &mdash; 80 &bull; <strong>HTTPS</strong> &mdash; 443<br>
+                    <strong>SMTP</strong> &mdash; 25 &bull; <strong>POP3</strong> &mdash; 110<br>
+                    <strong>IMAP</strong> &mdash; 143 &bull; <strong>DNS</strong> &mdash; 53<br>
+                    <strong>DHCP</strong> &mdash; 67/68 &bull; <strong>Syslog</strong> &mdash; 514 (UDP)<br>
+                    <strong>RADIUS</strong> &mdash; 1812/1813 &bull; <strong>TACACS+</strong> &mdash; 49
                 </div>
-            `;
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Acronym Reference</div>
+                <div class="card-desc">
+                    <strong>AAA</strong> &mdash; Authentication, Authorization, Accounting<br>
+                    <strong>DHCP</strong> &mdash; Dynamic Host Configuration Protocol<br>
+                    <strong>DMZ</strong> &mdash; Demilitarized Zone<br>
+                    <strong>DORA</strong> &mdash; Discover, Offer, Request, Acknowledge<br>
+                    <strong>UTM</strong> &mdash; Unified Threat Management<br>
+                    <strong>SCADA</strong> &mdash; Supervisory Control and Data Acquisition<br>
+                    <strong>VMM</strong> &mdash; Virtual Machine Manager (Hypervisor)
+                </div>
+            </div>
+        </div>
 
-            // Update progress
-            document.getElementById('quiz-current').textContent = `Question ${currentQuestion + 1}`;
-            document.getElementById('progress-fill').style.width = `${((currentQuestion + 1) / quizQuestions.length) * 100}%`;
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Cloud Service Tiers</div>
+                <div class="card-desc">
+                    <strong>IaaS</strong> &mdash; You manage OS and above<br>
+                    <strong>PaaS</strong> &mdash; You manage apps and data<br>
+                    <strong>SaaS</strong> &mdash; You manage only data<br>
+                    <strong>Private</strong> &mdash; Single tenant, org controlled<br>
+                    <strong>Public</strong> &mdash; Multi-tenant, provider controlled<br>
+                    <strong>Hybrid</strong> &mdash; Mix of private and public
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Hypervisors</div>
+                <div class="card-desc">
+                    <strong>Type 1</strong> &mdash; Bare metal (ESXi, Hyper-V)<br>
+                    <strong>Type 2</strong> &mdash; Hosted (VirtualBox, Workstation)<br>
+                    <strong>VT-x / AMD-V</strong> &mdash; Enable in UEFI first<br>
+                    <strong>Snapshot</strong> &mdash; Point-in-time state capture<br>
+                    <strong>Bridge/NAT/Host-Only</strong> &mdash; VM network modes
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            // Update buttons
-            document.getElementById('prev-btn').disabled = currentQuestion === 0;
-            document.getElementById('next-btn').textContent = currentQuestion === quizQuestions.length - 1 ? 'Submit' : 'Next';
-        }
+<!-- ==================== SLIDE 21 — EXAM PRACTICE 2 ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 22</div>
+        <div class="slide-title">Exam Practice: <span class="accent">More Scenarios</span></div>
+        <div class="slide-subtitle">Six additional A+ style questions covering cloud, virtualization, and network services.</div>
 
-        function selectAnswer(index) {
-            userAnswers[currentQuestion] = index;
-            renderQuestion();
-        }
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">An organization needs resources that can scale up instantly during a product launch then scale back down. Which cloud characteristic describes this? &mdash; <strong style="color:#c9a83a;">Rapid Elasticity. Resources scale dynamically on demand.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">A developer uses VirtualBox on their Windows laptop to run a Linux VM for testing. Which hypervisor type? &mdash; <strong style="color:#c9a83a;">Type 2. VirtualBox runs on top of the Windows host OS.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">A load balancer distributes requests to three web servers. One server fails. What happens to traffic? &mdash; <strong style="color:#c9a83a;">The load balancer detects the failure and reroutes all traffic to the remaining two healthy servers automatically.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">Which DNS record type is used to point webmail.example.com to the actual mail server hostname? &mdash; <strong style="color:#c9a83a;">CNAME (Canonical Name). It creates an alias from webmail to the real hostname.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">A customer pays for Google Workspace per user per month. Which service model is this? &mdash; <strong style="color:#c9a83a;">SaaS. Subscription-based, provider manages everything, user just uses the application.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">Which appliance combines firewall, IDS/IPS, antivirus, and VPN in a single device? &mdash; <strong style="color:#c9a83a;">UTM (Unified Threat Management). It unifies multiple security features onto a single platform.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        function nextQuestion() {
-            if (currentQuestion === quizQuestions.length - 1) {
-                submitQuiz();
-            } else {
-                currentQuestion++;
-                renderQuestion();
-            }
-        }
+<!-- ==================== SLIDE 22 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 22 &mdash; Chapter 8 Complete</div>
+        <div class="slide-title">Chapter 8 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways from Network Services, Virtualization and Cloud Computing.</div>
 
-        function prevQuestion() {
-            if (currentQuestion > 0) {
-                currentQuestion--;
-                renderQuestion();
-            }
-        }
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">1</div>
+                <div class="fact-text"><strong>Server roles</strong> include web (80/443), file (SMB/NFS), print, mail (25/110/143), DHCP (DORA), and proxy. Each has a specific function and port set.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">2</div>
+                <div class="fact-text"><strong>DNS records:</strong> A = IPv4, AAAA = IPv6, MX = mail, CNAME = alias, PTR = reverse. A vs AAAA is the most tested distinction.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">3</div>
+                <div class="fact-text"><strong>AAA:</strong> Authentication (who), Authorization (what), Accounting (audit). RADIUS = open/UDP/password-only. TACACS+ = Cisco/TCP/full packet encrypted.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">4</div>
+                <div class="fact-text"><strong>Syslog levels 0&ndash;7:</strong> lower = more severe. Emergency(0) through Debug(7). Mnemonic: "Every Alley Cat Eats Watery Noodle In Dishes."</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">5</div>
+                <div class="fact-text"><strong>Cloud models:</strong> IaaS (you manage OS+), PaaS (you manage apps+), SaaS (you manage data only). Private/Public/Hybrid/Community deployment types.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">6</div>
+                <div class="fact-text"><strong>Rapid Elasticity</strong> = scale resources instantly on demand. The most tested NIST cloud characteristic on the exam.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">7</div>
+                <div class="fact-text"><strong>Type 1 hypervisor</strong> = bare metal (ESXi, Hyper-V). <strong>Type 2</strong> = hosted on OS (VirtualBox, VMware Workstation). Enable VT-x/AMD-V in UEFI before creating VMs.</div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">8</div>
+                <div class="fact-text"><strong>IoT security:</strong> change default credentials, isolate on separate VLAN, update firmware. UTM = unified security appliance. DMZ = hosts public services between two firewalls.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        /**
-         * submitQuiz — Server-side graded (QC-21)
-         *
-         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
-         * The server looks up quiz_keys/aplus-core1-ch08 in Firestore, compares answers,
-         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
-         *
-         * Falls back to a "grading unavailable" message if Firebase isn't loaded
-         * (e.g. offline mode or SDK failure).
-         */
-        async function submitQuiz() {
-            const nextBtn = document.getElementById('next-btn');
-            nextBtn.disabled = true;
-            nextBtn.textContent = 'Grading...';
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../../index.html" class="nav-btn back-btn" aria-label="Back to Core 1 hub">Back to Core 1</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 22</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark chapter complete">Mark Complete</button>
+</nav>
 
-            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
-            const answerMap = {};
-            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 22;
+    let current = 1;
 
-            let score = 0;
-            let percentage = 0;
-            let passed = false;
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
 
-            try {
-                if (typeof FirebaseAuth !== 'undefined') {
-                    await FirebaseAuth.waitForAuth();
-                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
-                        quizId: QUIZ_ID,
-                        answers: answerMap
-                    });
-                    score = response.data.score;
-                    percentage = Math.round((score / quizQuestions.length) * 100);
-                    passed = percentage >= 70;
-                }
-            } catch (e) {
-                console.warn('Server grading failed, showing submission without grading:', e.message);
-            }
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
 
-            // Update progress
-            updateProgress(passed);
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
 
-            // Show results
-            document.querySelector('.quiz-container').style.display = 'none';
-            const resultsDiv = document.getElementById('quiz-results');
-            resultsDiv.style.display = 'block';
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
 
-            document.getElementById('results-score').textContent = `${percentage}%`;
-            document.getElementById('results-score').className = `results-score ${passed ? 'passed' : 'failed'}`;
-            document.getElementById('results-message').textContent = passed ?
-                'Congratulations! You passed!' :
-                'Keep studying and try again!';
-            document.getElementById('results-details').textContent =
-                `You got ${score} out of ${quizQuestions.length} questions correct. (70% required to pass)`;
-        }
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
 
-        function retakeQuiz() {
-            currentQuestion = 0;
-            userAnswers = new Array(quizQuestions.length).fill(null);
-            document.querySelector('.quiz-container').style.display = 'block';
-            document.getElementById('quiz-results').style.display = 'none';
-            renderQuestion();
-        }
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
 
-        function updateProgress(passed) {
-            if (passed) {
-                try {
-                    const progressKey = 'aplus-core1-progress';
-                    let progress = JSON.parse(localStorage.getItem(progressKey) || '{}');
-                    progress.ch08 = {
-                        completed: true,
-                        completedAt: new Date().toISOString()
-                    };
-                    localStorage.setItem(progressKey, JSON.stringify(progress));
-                } catch (e) {
-                    /* silently ignore */
-                }
-            }
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            renderQuestion();
-            renderDNSQuiz();
-            renderHypervisorGame();
+        /* Restart SVG animations when their slide becomes active */
+        next.querySelectorAll('animate').forEach(function(a) {
+            a.beginElement();
         });
-    
-        function completeModule() {
-            if (typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.complete('forge', 'forge-index', {
-                    returnUrl: '../../../../../index.html'
-                });
-            }
-        }
-    </script>
+    }
 
-    <div style="text-align:center; padding:20px; margin-top:10px;">
-        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
-    </div>
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to Core 1 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-ch08-cloud', {
+            returnUrl: '../../index.html'
+        });
+    }
+</script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hexworth Prime - Message Moderation</title>
+    <title>Hexworth Prime - Ansible Moderation</title>
     <link rel="icon" type="image/webp" href="/assets/images/icons/icon-explosion.webp">
     <style>
         * {
@@ -591,36 +591,32 @@
     <!-- Toast -->
     <div class="mod-toast" id="modToast"></div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-functions-compat.js"></script>
+    <!-- Firebase SDK (modular — matches dashboard/inbox) -->
+    <script src="/components/FirebaseAuth.js"></script>
 
-    <script>
+    <script type="module">
         /**
          * F-23F: Moderation & Handler Controls
          * Handler view for managing class messages, reports, and blocks.
+         * Uses modular Firebase SDK via FirebaseAuth.js (shared auth session with dashboard).
          */
-        (function() {
+        (async function() {
             'use strict';
 
-            const firebaseConfig = {
-                apiKey: "AIzaSyC3y8MkTcGbJSn0JKGB-hG0tE1I3cVqppc",
-                authDomain: "hexworth-prime.firebaseapp.com",
-                projectId: "hexworth-prime",
-                storageBucket: "hexworth-prime.appspot.com",
-                messagingSenderId: "573aborting",
-                appId: "1:573:web:hexworth"
-            };
-
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
+            // ── Firebase init via FirebaseAuth ──
+            const user = await FirebaseAuth.waitForAuth();
+            if (!user) {
+                window.location.href = '/login.html';
+                return;
             }
 
-            const auth = firebase.auth();
-            const db = firebase.firestore();
-            const functions = firebase.app().functions('us-central1');
+            const {
+                getFirestore, collection, doc, getDoc, getDocs,
+                query, where, orderBy, limit, onSnapshot, updateDoc
+            } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+
+            const { getApps } = window.firebaseApp;
+            const db = getFirestore(getApps()[0]);
 
             let currentUser = null;
             let handlerClasses = []; // classes this handler owns
@@ -635,44 +631,39 @@
             // AUTH — Require Handler/Admin
             // ═══════════════════════════════════════════════════════════
 
-            auth.onAuthStateChanged(async (user) => {
-                if (!user) {
-                    window.location.href = '/login.html';
-                    return;
-                }
-                currentUser = user;
+            currentUser = user;
 
-                // Verify handler/admin status
-                const userDoc = await db.collection('users').doc(user.uid).get();
-                if (!userDoc.exists) {
-                    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#f85149;">Access denied. Handler account required.</div>';
-                    return;
-                }
-                const userData = userDoc.data();
-                if (userData.accountType !== 'handler' && userData.accountType !== 'admin' && userData.role !== 'admin') {
-                    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#f85149;">Access denied. Handler account required.</div>';
-                    return;
-                }
+            // Verify handler/admin status
+            const userSnap = await getDoc(doc(db, 'users', user.uid));
+            if (!userSnap.exists()) {
+                document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#f85149;">Access denied. Handler account required.</div>';
+                return;
+            }
+            const userData = userSnap.data();
+            if (userData.accountType !== 'handler' && userData.accountType !== 'admin' && userData.role !== 'admin') {
+                document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#f85149;">Access denied. Handler account required.</div>';
+                return;
+            }
 
-                await loadHandlerClasses();
-                loadStats();
-                loadMessages();
-                loadReportedMessages();
-                loadBlockedStudents();
-            });
+            await loadHandlerClasses();
+            loadStats();
+            loadMessages();
+            loadReportedMessages();
+            loadBlockedStudents();
 
             // ═══════════════════════════════════════════════════════════
             // DATA LOADING
             // ═══════════════════════════════════════════════════════════
 
             async function loadHandlerClasses() {
-                const snap = await db.collection('classes')
-                    .where('handlerUid', '==', currentUser.uid)
-                    .get();
+                const snap = await getDocs(query(
+                    collection(db, 'classes'),
+                    where('handlerUid', '==', currentUser.uid)
+                ));
 
                 handlerClasses = [];
-                snap.forEach(doc => {
-                    handlerClasses.push({ id: doc.id, ...doc.data() });
+                snap.forEach(d => {
+                    handlerClasses.push({ id: d.id, ...d.data() });
                 });
 
                 // Populate filter dropdowns
@@ -690,9 +681,9 @@
             async function getUserInfo(uid) {
                 if (userCache[uid]) return userCache[uid];
                 try {
-                    const doc = await db.collection('users').doc(uid).get();
-                    if (doc.exists) {
-                        const data = doc.data();
+                    const userDoc = await getDoc(doc(db, 'users', uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
                         userCache[uid] = {
                             displayName: data.callsign || data.displayName || data.email || 'Unknown',
                             accountType: data.accountType || 'student'
@@ -722,13 +713,14 @@
                 let flaggedCount = 0;
 
                 for (const classId of classIds) {
-                    const totalSnap = await db.collection('messages')
-                        .where('classId', '==', classId)
-                        .get();
+                    const totalSnap = await getDocs(query(
+                        collection(db, 'messages'),
+                        where('classId', '==', classId)
+                    ));
                     totalCount += totalSnap.size;
 
-                    totalSnap.forEach(doc => {
-                        const data = doc.data();
+                    totalSnap.forEach(d => {
+                        const data = d.data();
                         if (data.reportedBy && data.reportedBy.length > 0) {
                             reportedCount++;
                             if (data.reportedBy.length >= 3) flaggedCount++;
@@ -736,9 +728,10 @@
                     });
                 }
 
-                const blockedSnap = await db.collection('messaging_blocks')
-                    .where('blockedBy', '==', currentUser.uid)
-                    .get();
+                const blockedSnap = await getDocs(query(
+                    collection(db, 'messaging_blocks'),
+                    where('blockedBy', '==', currentUser.uid)
+                ));
 
                 $('statTotal').textContent = totalCount;
                 $('statReported').textContent = reportedCount;
@@ -763,15 +756,16 @@
 
                 allMessages = [];
 
-                for (const classId of classIds) {
-                    let query = db.collection('messages')
-                        .where('classId', '==', classId)
-                        .orderBy('timestamp', 'desc')
-                        .limit(50);
-
-                    const snap = await query.get();
-                    snap.forEach(doc => {
-                        allMessages.push({ id: doc.id, ...doc.data(), _doc: doc });
+                for (const cId of classIds) {
+                    const q = query(
+                        collection(db, 'messages'),
+                        where('classId', '==', cId),
+                        orderBy('timestamp', 'desc'),
+                        limit(50)
+                    );
+                    const snap = await getDocs(q);
+                    snap.forEach(d => {
+                        allMessages.push({ id: d.id, ...d.data(), _doc: d });
                     });
                     if (!snap.empty) {
                         lastMessageDoc = snap.docs[snap.docs.length - 1];
@@ -867,17 +861,18 @@
                 }
 
                 const reported = [];
-                for (const classId of classIds) {
-                    // Get messages that have been reported
-                    const snap = await db.collection('messages')
-                        .where('classId', '==', classId)
-                        .orderBy('timestamp', 'desc')
-                        .get();
+                for (const cId of classIds) {
+                    const q = query(
+                        collection(db, 'messages'),
+                        where('classId', '==', cId),
+                        orderBy('timestamp', 'desc')
+                    );
+                    const snap = await getDocs(q);
 
-                    snap.forEach(doc => {
-                        const data = doc.data();
+                    snap.forEach(d => {
+                        const data = d.data();
                         if (data.reportedBy && data.reportedBy.length > 0) {
-                            reported.push({ id: doc.id, ...data });
+                            reported.push({ id: d.id, ...data });
                         }
                     });
                 }
@@ -890,9 +885,10 @@
 
             async function loadBlockedStudents() {
                 const list = $('blockedList');
-                const blockedSnap = await db.collection('messaging_blocks')
-                    .where('blockedBy', '==', currentUser.uid)
-                    .get();
+                const blockedSnap = await getDocs(query(
+                    collection(db, 'messaging_blocks'),
+                    where('blockedBy', '==', currentUser.uid)
+                ));
 
                 if (blockedSnap.empty) {
                     list.innerHTML = '<li class="mod-empty">No blocked students.</li>';
@@ -900,8 +896,8 @@
                 }
 
                 list.innerHTML = '';
-                for (const doc of blockedSnap.docs) {
-                    const data = doc.data();
+                for (const blockDoc of blockedSnap.docs) {
+                    const data = blockDoc.data();
                     const userInfo = await getUserInfo(data.blockedUid);
                     const className = handlerClasses.find(c => c.id === data.classId);
 
@@ -915,7 +911,7 @@
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">${className ? escapeHtml(className.name) : data.classId}</div>
                             </div>
                         </div>
-                        <button class="mod-action-btn" onclick="unblockStudent('${doc.id}')">Unblock</button>
+                        <button class="mod-action-btn" onclick="unblockStudent('${blockDoc.id}')">Unblock</button>
                     `;
                     list.appendChild(li);
                 }
@@ -928,7 +924,7 @@
             window.deleteMessage = function(messageId) {
                 showConfirm('Delete Message', 'This will soft-delete the message. It will be hidden from users.', async () => {
                     try {
-                        await db.collection('messages').doc(messageId).update({ deleted: true });
+                        await updateDoc(doc(db, 'messages', messageId), { deleted: true });
                         showToast('Message deleted', 'success');
                         loadMessages($('filterClass').value, $('filterStudent').value);
                         loadStats();
@@ -941,7 +937,7 @@
             window.unblockStudent = async function(blockId) {
                 showConfirm('Unblock Student', 'This will allow the student to send messages again.', async () => {
                     try {
-                        await db.collection('messaging_blocks').doc(blockId).delete();
+                        await FirebaseAuth.callFunction('unblockStudent', { blockId });
                         showToast('Student unblocked', 'success');
                         loadBlockedStudents();
                         loadStats();
@@ -962,11 +958,9 @@
                     `Block ${studentInfo.displayName} from messaging in this class?`,
                     async () => {
                         try {
-                            await db.collection('messaging_blocks').add({
-                                blockedUid: studentUid,
-                                blockedBy: currentUser.uid,
-                                classId: classId,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            await FirebaseAuth.callFunction('blockStudent', {
+                                studentUid: studentUid,
+                                classId: classId
                             });
                             showToast('Student blocked', 'success');
                             loadBlockedStudents();
@@ -1078,13 +1072,12 @@
                 }
 
                 studentSelect.innerHTML = '<option value="">Loading...</option>';
-                const membersSnap = await db.collection('classes').doc(classId)
-                    .collection('members').get();
+                const membersSnap = await getDocs(collection(db, 'classes', classId, 'members'));
 
                 studentSelect.innerHTML = '<option value="">Select student</option>';
-                for (const doc of membersSnap.docs) {
-                    const info = await getUserInfo(doc.id);
-                    studentSelect.innerHTML += `<option value="${doc.id}">${escapeHtml(info.displayName)}</option>`;
+                for (const memberDoc of membersSnap.docs) {
+                    const info = await getUserInfo(memberDoc.id);
+                    studentSelect.innerHTML += `<option value="${memberDoc.id}">${escapeHtml(info.displayName)}</option>`;
                 }
                 studentSelect.disabled = false;
             });

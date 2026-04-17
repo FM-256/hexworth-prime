@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ethics in IT Final Exam | Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0d1a;
+    --card: #1a1628;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #c9a83a;
+    --accent2: #e8c44a;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f0d1a 50%, #1a0d28 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.1);
+    border-color: rgba(201, 168, 58, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(26, 22, 40, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass {
+    background: rgba(46, 213, 115, 0.15);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+  }
+
+  .result-msg.fail {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--bad);
+    border: 1px solid var(--bad);
+  }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(232, 196, 74, 0.15));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Ethics in IT Hub</a>
+  <span class="brand">Hexworth Prime</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/35 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>Ethics in IT Final Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CIS4253</span>
+      <span class="tag">35 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">All Chapters</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Comprehensive exam covering all 10 chapters and appendices: ethical frameworks, professional conduct, cybersecurity, privacy, expression, IP, software ethics, societal impact, social media, organizational ethics, codes of ethics, and emerging issues</li>
+      <li>You need 70% (25/35) to complete the course</li>
+      <li>Questions are scenario-based and integration-heavy -- expect questions that require applying multiple frameworks to a single situation</li>
+      <li>Time limit: 75 minutes (timer starts when the page loads)</li>
+      <li>Review all your answers before submitting -- you only get one attempt</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Ethics in IT</a> | Hexworth Prime
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/divergent-eth-final
+const QUIZ_ID = 'divergent-eth-final';
+
+/* ── Final Exam question bank: Ethics in IT, all chapters ──
+   35 questions spanning Ch. 1-10 plus appendices.
+   Index 0 in each 'a' array is always the correct answer; answers are shuffled at render. */
+const examData = [
+  // Ch. 1: Overview of Ethics
+  {q: "A company's code of conduct prohibits employees from accepting gifts valued over $50 from vendors. An engineer accepts a conference trip worth $800 from a vendor whose product she is currently evaluating. She argues the trip is 'educational, not a gift.' Which ethical analysis most accurately describes her situation?", a: ["She is rationalizing a conflict of interest; the monetary value and timing make this a clear violation regardless of her characterization", "The educational framing is legally sufficient to distinguish the trip from a prohibited gift", "She should disclose the trip to her manager and let the organization decide whether it violates policy", "There is no ethical violation because she genuinely intends to make an objective evaluation"]},
+
+  {q: "Which of the following scenarios represents a conflict between 'legal' and 'ethical' in IT?", a: ["A company collects and sells detailed behavioral profiles of users who consented via a 47-page terms-of-service document they did not read", "A developer releases a patch without a change management ticket in violation of internal policy", "An administrator accesses a system outside her authorized scope during an emergency", "A company fails to file a required breach notification within the 72-hour regulatory window"]},
+
+  // Ch. 2: IT Professional Ethics
+  {q: "An IT professional discovers that the system he built and deployed for a client is being used to facilitate voter suppression by identifying and targeting specific demographic groups. His contract has six months remaining. What does professional ethics require?", a: ["Raise the concern in writing with the client, and if unresolved, consult legal counsel and consider terminating the engagement", "Complete the contract because the professional's responsibility ends at the technical specification he was given", "Report the activity to the press immediately to maximize public awareness", "Continue the engagement but document personal objections in case of future litigation"]},
+
+  {q: "The IEEE Code of Ethics requires members to 'hold paramount the safety, health, and welfare of the public.' When this obligation conflicts directly with an employer's business interests, the IEEE code places this public obligation:", a: ["Above employer interests -- public welfare is the paramount (highest) obligation in the hierarchy", "Below employer interests when the employer's legal counsel has reviewed the situation", "At equal weight with employer interests, requiring a utilitarian calculation", "Below employer interests when the professional is bound by a non-disclosure agreement"]},
+
+  // Ch. 3: Cybersecurity Ethics
+  {q: "A red team operator, during an authorized penetration test, discovers evidence that the client organization is engaged in financial fraud unrelated to the test scope. The operator should:", a: ["Document the discovery, halt activities that could disturb evidence, and disclose to appropriate legal counsel or senior leadership outside the fraudulent team", "Continue the test and include a single note about the discovery in the final report", "Report directly to law enforcement without informing the client, to preserve evidence", "Ignore the discovery because it falls outside the contracted scope of work"]},
+
+  {q: "Bug bounty programs, where companies pay researchers to discover and disclose vulnerabilities, are ethically significant because they:", a: ["Create a structured, authorized channel that aligns researcher incentives with vendor security improvement and responsible disclosure", "Legally prohibit researchers from disclosing vulnerabilities to anyone other than the vendor", "Transfer legal liability for undiscovered vulnerabilities from the vendor to program participants", "Eliminate the ethical gray area of unauthorized security research entirely"]},
+
+  {q: "A security researcher discovers a critical zero-day vulnerability in a power grid control system. The vendor has a history of ignoring privately reported vulnerabilities for years. Using a responsible disclosure framework, what is the most defensible next step after the vendor fails to respond within the agreed disclosure window?", a: ["Coordinate with ICS-CERT and publish a limited disclosure with mitigation guidance but without full exploitation details, allowing defenders to act while limiting attacker advantage", "Publish full technical details immediately to force the vendor to patch under public pressure", "Indefinitely withhold publication because critical infrastructure vulnerabilities should never be disclosed publicly", "Sell the vulnerability to a government agency to ensure it is used for defensive purposes only"]},
+
+  // Ch. 4: Privacy
+  {q: "A hospital's analytics team discovers that by combining de-identified patient records with publicly available ZIP code and birth year data, they can re-identify approximately 87% of patients. The MOST appropriate response is:", a: ["Halt the analytics process, treat the data as identifiable, and apply full PHI protections and consent requirements", "Continue operations because the data was properly de-identified under HIPAA Safe Harbor at the time of processing", "Report the re-identification risk to the IRB but continue using the data pending review", "Apply additional de-identification transformations and continue the project"]},
+
+  {q: "GDPR requires data controllers to conduct a Data Protection Impact Assessment (DPIA) before processing that is 'likely to result in a high risk' to individuals' rights and freedoms. Which processing activity most clearly triggers this requirement?", a: ["Large-scale profiling of individuals using automated decision-making that produces legal or similarly significant effects", "Processing employee payroll data using a third-party HR software platform", "Maintaining a customer mailing list for a small retail business", "Storing archived email records for legal hold purposes"]},
+
+  {q: "A fitness app shares users' detailed workout location data with a health insurance company. Users consented to the app sharing data with 'health partners' in the privacy policy. Which privacy principle is most strained by this arrangement?", a: ["Purpose limitation -- users consented to health improvement features, not insurer risk assessment, which is a materially different and potentially adverse use", "Data minimization -- the fitness app is collecting more data than needed for its core purpose", "Transparency -- the privacy policy was insufficiently detailed about partner categories", "Storage limitation -- the insurance company may retain the data longer than the app"]},
+
+  // Ch. 5: Freedom of Expression
+  {q: "A government passes a law requiring social media platforms to remove content 'that undermines public confidence in democratic institutions' within 24 hours of posting. The primary civil liberties concern is:", a: ["The vague standard grants the government broad discretion to suppress legitimate political speech and dissent", "The 24-hour deadline is technically infeasible for platforms of sufficient scale", "The law creates strict liability for platforms regardless of knowledge of the content", "The law applies equally to foreign and domestic content, creating extraterritorial jurisdiction issues"]},
+
+  {q: "Whistle-blower protection laws are grounded in which ethical premise?", a: ["The public interest in disclosing serious wrongdoing by powerful institutions outweighs the harm to confidentiality obligations in those specific circumstances", "Employees have an absolute ethical right to disclose any employer activity they personally find objectionable", "Whistleblower disclosures are always legal because they involve protected speech under the First Amendment", "Organizations have no legitimate interest in confidentiality when they are engaged in wrongdoing"]},
+
+  // Ch. 6: Intellectual Property
+  {q: "A machine learning model is trained on a large corpus of copyrighted books without license. The company argues the training process is 'transformative' and therefore fair use. The strongest counterargument is:", a: ["The model ingests and reproduces the expressive core of copyrighted works as part of its learned weights, and the commercial nature of the application weighs against fair use", "Training AI on copyrighted data is explicitly prohibited under the DMCA's anti-circumvention provisions", "Fair use has never applied to commercial entities, regardless of how transformative the use is", "The model should have been trained only on public domain materials to avoid all IP exposure"]},
+
+  {q: "A software company embeds trade secret protections in its source code through obfuscation rather than filing for patents. What is the primary ethical implication of choosing trade secret over patent protection?", a: ["Trade secret protection lasts indefinitely but requires the company to maintain secrecy, whereas a patent requires public disclosure in exchange for time-limited exclusivity -- trade secrets withhold knowledge from the public domain permanently", "Trade secret protection is always superior because it cannot be challenged as prior art", "Patent protection is unethical for software because software patents stifle competition", "Trade secret protection does not prevent reverse engineering, making it a weaker ethical choice for the company"]},
+
+  // Ch. 7: Software Ethics
+  {q: "The Therac-25 radiation therapy machine killed and seriously injured multiple patients due to a software race condition. This case is central to software ethics education primarily because:", a: ["It demonstrates that software defects in safety-critical systems can cause direct physical harm, creating serious professional responsibility for developers and organizations", "It established the legal precedent for software product liability in the United States", "It led directly to the creation of the FDA's software device regulation framework", "It shows that formal verification methods are always required for medical software"]},
+
+  {q: "A developer is asked to implement a feature that uses dark pattern design to make premium subscription upgrades appear to be security warnings. She should:", a: ["Refuse and document her refusal in writing, as the design is intended to deceive users into unwanted purchases", "Implement the feature because UI design decisions are the responsibility of the product team, not individual developers", "Implement it but flag it in a code comment as a potential compliance risk", "Seek legal counsel to determine whether the design constitutes actionable deception before deciding"]},
+
+  {q: "Which of the following best describes the ethical principle of 'responsible innovation' as applied to emerging technology development?", a: ["Anticipating potential harms, engaging diverse stakeholders in design, and building in safeguards before deployment rather than responding to harms after they occur", "Delaying the release of new technology until all possible risks have been identified and mitigated", "Requiring government approval for all technology products before they can be offered to the public", "Applying existing ethical frameworks retroactively to determine whether deployed technology is harmful"]},
+
+  // Ch. 8: IT Impact on Society
+  {q: "Algorithmic systems that predict creditworthiness have been found to produce lower scores for applicants from certain ZIP codes, which correlate with race. The primary ethical objection is:", a: ["The system perpetuates historical discrimination by encoding geographic proxies for race into consequential financial decisions", "The system is inaccurate and would perform better if retrained on more recent data", "Using automated systems for credit decisions violates fair lending laws categorically", "The system should use race explicitly as a variable to correct for historical inequity"]},
+
+  {q: "The concept of 'surveillance capitalism,' described by Shoshana Zuboff, argues that the dominant business model of major technology platforms is ethically problematic because:", a: ["It converts human behavior and experience into data commodities to be sold to advertisers and other buyers, without users meaningfully understanding or consenting to this exchange", "Technology companies pay no taxes on the revenue generated by user data", "Surveillance capitalism is inherently monopolistic and violates antitrust law", "Users are harmed only if data breaches expose their behavioral profiles to unauthorized parties"]},
+
+  {q: "A technology company automates a manufacturing process, eliminating 3,000 jobs. The CEO argues the company has no obligation beyond legal severance payments. A stakeholder ethics perspective would hold that:", a: ["The company has broader obligations to the affected workers and community, including transition support, retraining investment, and community engagement", "The CEO is correct because corporations' only ethical obligation is to shareholders and applicable law", "The company should slow automation to preserve jobs, even at the cost of competitive disadvantage", "Automation decisions belong entirely to market forces and companies have no special responsibility for their outcomes"]},
+
+  // Ch. 9: Social Media Ethics
+  {q: "A social media company's recommendation algorithm is found to amplify outrage-inducing content because it maximizes engagement metrics. Users spend more time on the platform but report lower life satisfaction and increased anxiety. The ethical response to this finding is:", a: ["Redesign the recommendation objective to optimize for user well-being rather than raw engagement, even at the cost of reduced time-on-platform metrics", "Disclose the finding in the company's annual transparency report and continue current operations", "Treat the finding as proprietary research and make no changes to the algorithm", "Add a warning label to content the algorithm identifies as likely to increase negative emotions"]},
+
+  {q: "A journalist uses a fake identity to join a private online group and document extremist activity. This approach to 'undercover journalism' is ethically contested primarily because:", a: ["It involves deception, which violates the subject's autonomy, even when investigating genuine wrongdoing", "It is categorically prohibited by journalism ethics codes regardless of public interest value", "It is only ethical if the journalist obtains prior approval from an institutional review board", "Private online groups have no reasonable expectation of privacy, making the deception irrelevant"]},
+
+  {q: "Content moderation at scale requires platforms to make millions of daily decisions about speech with imperfect information and context. The most defensible approach from an ethical standpoint is:", a: ["Develop clear, publicly disclosed standards with consistent application, appeals mechanisms, and regular transparency reporting about moderation decisions", "Remove all ambiguous content by default to minimize the platform's legal and reputational risk", "Defer all moderation decisions to government agencies to remove private company discretion", "Apply no moderation beyond legally required removals to avoid all accusations of viewpoint discrimination"]},
+
+  // Ch. 10: Ethics of IT Organizations
+  {q: "A technology company's diversity, equity, and inclusion report shows consistent underrepresentation of women and people of color at the senior engineer and leadership levels, despite years of stated commitment to improvement. The ethical response is:", a: ["Conduct a structural audit of hiring, promotion, and retention processes to identify and address the systemic barriers producing these outcomes", "Increase the diversity of the company's external marketing materials and spokesperson selection", "Set numerical hiring targets and meet them as quickly as possible regardless of other considerations", "Accept that pipeline limitations are the root cause and focus resources on K-12 STEM education instead"]},
+
+  {q: "When an IT organization discovers that a vendor in its supply chain is engaging in labor violations, the organization's ethical obligations include:", a: ["Investigating the violations, requiring remediation as a contract condition, and ending the relationship if remediation does not occur within a defined timeline", "Reporting the violations to government labor authorities and continuing the vendor relationship pending investigation outcome", "Terminating the vendor relationship immediately regardless of supply chain disruption", "No obligations, because supply chain labor practices are the vendor's sole responsibility"]},
+
+  // Appendices / Codes of Ethics integration
+  {q: "The ACM Code of Ethics requires practitioners to 'avoid harm.' When a cloud architect realizes that a system she designed has a configuration vulnerability that could expose millions of users' data, the Code most directly requires her to:", a: ["Report the vulnerability to the appropriate parties within the organization and ensure it is addressed, even if the issue originated before her tenure", "Report only if she is the engineer of record responsible for the original design", "Disclose publicly if internal reporting does not result in remediation within 30 days", "Document the vulnerability and her knowledge of it to protect herself from personal liability"]},
+
+  {q: "The PMI Code of Ethics emphasizes 'fairness' as a core value. In an IT project management context, fairness most directly requires:", a: ["Making decisions based on merit and objective criteria, and disclosing and managing conflicts of interest transparently", "Distributing project resources equally across all team members regardless of role requirements", "Ensuring that all project stakeholders receive identical information at the same time", "Applying project management standards uniformly regardless of project scale or context"]},
+
+  // Integration and synthesis questions
+  {q: "A company's AI-driven hiring tool was trained on resumes of employees hired over the past 10 years. The company's workforce during that period was 82% male. The tool now systematically downgrades resumes containing signals associated with female candidates (e.g., gaps for childcare, women's college names). This scenario illustrates:", a: ["How historical bias in training data propagates and amplifies discrimination through automated systems, creating disparate impact on protected groups", "Why AI hiring tools should never be used without a human reviewer for each candidate", "The need for gender-neutral language requirements on all job applications", "Why AI tools trained on proprietary data should not be subject to external audit"]},
+
+  {q: "A senior engineer is aware that her company is preparing to deploy a facial recognition system to law enforcement clients. She has significant concerns about the system's accuracy disparities across demographic groups. She has raised these concerns internally twice and been told the product will ship. Applying the Reynolds ethics framework, the most defensible next escalation is:", a: ["Escalate in writing to the most senior available authority (e.g., board-level ethics committee or legal), document the full chain of communications, and consult an employment attorney about whistleblower protections", "Accept management's decision because the company has heard her concerns and made a business decision", "Go directly to the press because internal channels have been exhausted", "Resign from the company to avoid professional association with the product"]},
+
+  {q: "A startup is building a mental health app that uses AI to detect signs of depression from user messaging patterns. Users see a wellness benefit; the startup sees a dataset. The ethical obligations at the design stage include:", a: ["Designing genuine consent flows that explain the depression-detection feature explicitly, limiting data use to the stated purpose, and implementing data minimization and deletion rights", "Obtaining IRB approval because the app conducts clinical research on a vulnerable population", "Ensuring the depression detection feature achieves at least 90% accuracy before deployment", "Restricting the app to users 18 and over to avoid COPPA compliance obligations"]},
+
+  {q: "The 'dual use' dilemma in cybersecurity describes which recurring ethical challenge?", a: ["The same knowledge, tools, and techniques can serve both defensive and offensive purposes, making it difficult to draw clear lines between ethical and unethical security research", "Security professionals who work for both private and government clients face conflicts of interest", "Offensive and defensive security teams within the same organization have competing priorities", "Security vulnerabilities are useful to both vendors for patching and attackers for exploitation, creating a market dilemma"]},
+
+  {q: "An IT ethics professor asks her students: 'What would you do if you were the only person who knew about a catastrophic vulnerability in the world's most widely used banking software, and the vendor had gone bankrupt?' This thought experiment is designed to test students' understanding of:", a: ["Ethical decision-making under conditions of moral isolation, uncertainty, and competing obligations -- where no institutional framework provides guidance", "The legal requirements for vulnerability disclosure in the absence of a responsible vendor", "Why cybersecurity professionals should always work in teams to avoid individual moral burden", "The role of government in taking over critical software maintenance when vendors fail"]},
+
+  {q: "When evaluating the ethics of an AI system that makes parole recommendations, which combination of principles is MOST relevant?", a: ["Transparency (can the decision be explained), fairness (is there disparate impact), accountability (who is responsible for errors), and due process (can the decision be challenged)", "Accuracy (does the model perform better than chance), security (is the model tamper-proof), efficiency (does it reduce time per decision)", "Consent (did the prisoner agree to be evaluated by AI), privacy (is personal data protected), and data minimization (is only necessary data used)", "Regulatory compliance (is the system approved by the relevant parole authority), auditability (are logs maintained), and reliability (does it produce consistent outputs)"]},
+
+  {q: "After completing this course, you are asked to advise a small nonprofit on the ethics of adopting a free AI chatbot tool from a major tech company for client intake. The tool's terms of service state that all conversations may be used to improve the AI model. The most important ethical consideration you would raise is:", a: ["The nonprofit's clients are likely a vulnerable population whose sensitive disclosures could be used to train commercial AI without their meaningful consent -- the nonprofit must inform clients and likely cannot ethically use this tool for sensitive intake without a data processing agreement", "The tool is free, which means the nonprofit should accept it because their budget constraints justify the privacy tradeoff", "The tech company's terms of service are legally binding and ethics has nothing additional to add beyond legal compliance", "The nonprofit should require clients to create accounts so the tech company knows who the users are"]},
+
+  // Ch. 10 / Synthesis: codes of ethics in practice
+  {q: "A newly hired IT auditor discovers that her predecessor falsified compliance reports for three years and that senior management was aware. She has been told by her manager to 'move forward and not create problems.' She should:", a: ["Document her findings and the instruction to suppress them, consult legal counsel about whistleblower protections, and report through the highest available legitimate channel -- including the board's audit committee if necessary", "Comply with the manager's instruction because she lacks sufficient tenure to challenge established decisions", "Resign immediately and report to regulators on her way out the door", "Correct future reports going forward and take no action regarding the historical falsifications"]}
+];
+
+// Shuffle utility
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Render all 35 questions with shuffled answer order
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answer positions; preserve original index for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Countdown timer (75 minutes)
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'radio') {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  }
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Highlight correct and incorrect selections
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result locally
+  if (passed) {
+    localStorage.setItem('hexworth_divergent_eth_final_passed', 'true');
+    localStorage.setItem('hexworth_divergent_eth_final_score', percent);
+    localStorage.setItem('hexworth_divergent_eth_final_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Course Complete' : 'Keep Studying'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'You have completed Ethics in Information Technology. You demonstrated the ability to reason through real ethical dilemmas across all ten chapters -- from first principles through applied professional and organizational ethics.'
+        : `You need 70% (25/35) to pass. You scored ${score}/35. Review the chapters corresponding to the questions you missed and retake the exam when you are ready.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>Ethics in IT: Complete</h3>
+        <p>All course requirements have been satisfied. Return to the hub to review your full progress record.</p>
+        <a href="../index.html" class="btn-continue">Return to Ethics Hub &#8594;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../index.html" class="btn-continue">Review Course Materials</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  // Record course completion on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.complete('divergent', 'eth-final', { returnUrl: '../index.html' });
+  }
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethics Overview | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d001a 0%, #130020 50%, #160025 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 0, 26, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #0d001a; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Ethics Overview | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; ETH-W1-01 &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Ethics, Morals, and<br>
+                <span class="accent">Why IT Changes Everything</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Definitions &nbsp;&bull;&nbsp; Frameworks &nbsp;&bull;&nbsp; Business Ethics &nbsp;&bull;&nbsp; CSR &nbsp;&bull;&nbsp; Decision-Making
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Warehouse memo: A software engineer at a major automaker discovers the engine management software can be tuned to pass emissions tests automatically -- and fail them in real-world conditions. She tells her manager. The manager says to stay quiet. What does she do? That is not a technical question. That is an ethics question -- and the answer has consequences for millions of people.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>ETH-W1-01</span>
+            <span>Week 1</span>
+            <span>Ethics in IT</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY THIS COURSE EXISTS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">Why <span class="accent">Ethics in IT</span> Is Not Optional</div>
+        <div class="slide-subtitle">Technology amplifies human decisions. Good decisions scale well. Bad ones scale catastrophically.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Scale Changes Everything</div>
+                <div class="card-desc">A biased hiring manager affects dozens of people. A biased hiring algorithm trained on that manager's decisions affects millions, instantly, across every geography the company operates in. IT professionals are not just building tools -- they are building institutions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Invisibility Creates Risk</div>
+                <div class="card-desc">Software decisions are often invisible to the people they affect. A credit scoring algorithm denies a loan. A content moderation system suppresses a voice. A facial recognition system misidentifies a person. The harmed party often never knows the system was involved.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">You Will Face These Choices</div>
+                <div class="card-desc">Not in a philosophy class. On a Tuesday, in a sprint meeting, when someone asks you to implement a feature that feels wrong. You need frameworks before that moment -- not after. Ethical reasoning is a professional skill, not a personal preference.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Warehouse Question</div>
+            Who is responsible when a system causes harm -- the engineer who wrote the code, the manager who approved the spec, the executive who set the incentive, or the board that accepted the risk? The answer to that question determines who acts next time. This course develops the vocabulary to answer it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- ETHICS VS MORALS VS LAW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">Ethics, Morals, <span class="accent">and Law</span></div>
+        <div class="slide-subtitle">Three overlapping but distinct concepts. Confusing them leads to bad decisions and worse defenses.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Morals</div>
+                <div class="card-desc">Personal, internalized beliefs about right and wrong. Formed through upbringing, culture, religion, and experience. Morals are subjective -- they vary between individuals and across cultures. A person's morals guide their private behavior and judgment even when no one is watching.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ethics</div>
+                <div class="card-desc">Shared standards of conduct within a community, profession, or society. Ethics are externally defined and publicly defensible. Professional ethics are codified in codes of conduct. Unlike morals, ethics can be debated, revised, and enforced by professional bodies.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Law</div>
+                <div class="card-desc">Minimum standards of behavior enforced by the state, with codified penalties for violation. Law is prescriptive and reactive -- it defines what you must not do and imposes consequences after the fact. Law often lags technology by years or decades.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Critical Overlap</div>
+            Something can be legal but unethical. Something can be ethical but illegal. Something can be required by law while violating personal morals. IT professionals routinely operate in all three zones. The question "is it legal?" is necessary but not sufficient. The question is always: "should we?"
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- THREE ZONES MODEL ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">The <span class="accent">Three Zones</span> Model</div>
+        <div class="slide-subtitle">Mapping decisions across legal, ethical, and moral space reveals where conflicts actually occur.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Legal AND Ethical</div>
+                <div class="card-desc">The standard operating zone. Following data retention laws, protecting user passwords with appropriate hashing, disclosing breaches on schedule. These actions satisfy law, professional ethics, and most reasonable moral frameworks simultaneously.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Legal but Unethical</div>
+                <div class="card-desc">Selling user behavioral data to third parties without meaningful disclosure -- technically permitted by terms of service, ethically questionable. Building software that maximizes engagement by exploiting psychological vulnerabilities -- legal in most jurisdictions, widely criticized as harmful.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ethical but Technically Illegal</div>
+                <div class="card-desc">A security researcher discovers a critical vulnerability in medical device software and notifies the vendor. If no fix comes after 90 days, they disclose publicly. Depending on jurisdiction, this may violate computer fraud statutes even though it protects patients.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Ask yourself: where does "collect all data you can, store it forever, and figure out what to do with it later" fall on this map? It may be legal. It creates enormous ethical exposure. And when that data eventually leaks or gets subpoenaed, the moral cost lands on the users who trusted you.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- BUSINESS ETHICS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">Business <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">Ethical principles applied to commercial decision-making. Not charity -- structured accountability for how organizations affect stakeholders.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Business Ethics Addresses</div>
+                <div class="card-desc">Corporate governance, fair competition, honest marketing, supply chain accountability, environmental impact, employee treatment, and treatment of customers. Business ethics provides the framework for decisions that affect people who have no contract with the company.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stakeholder Theory</div>
+                <div class="card-desc">A business has obligations beyond shareholders. Employees, customers, suppliers, communities, and the environment are all stakeholders. Ethical business management balances these competing obligations rather than optimizing solely for shareholder return.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why It Matters in IT</div>
+                <div class="card-desc">IT departments build the systems that execute business decisions. Biased compensation algorithms, predatory subscription cancellation flows, dark patterns in privacy settings -- these are IT outputs with business ethics implications. The engineer is not neutral by building what is requested.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When Business Ethics Fails</div>
+                <div class="card-desc">Enron: financial engineers designed systems to obscure debt. Wells Fargo: IT systems automatically opened unauthorized customer accounts to meet internal quotas. The technology enabled the fraud. The engineers who built it bore moral accountability regardless of the instructions they received.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- CORPORATE SOCIAL RESPONSIBILITY ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">Corporate Social <span class="accent">Responsibility</span></div>
+        <div class="slide-subtitle">CSR is the commitment to operate in ways that enhance society and the environment rather than merely extracting value from them.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Economic Responsibility</div>
+                <div class="card-desc">Be profitable. A business that fails financially cannot fulfill any other responsibility. Economic responsibility is the foundation -- it enables the rest. But it does not override them. Profitability achieved through harm is not responsibility; it is extraction.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Legal Responsibility</div>
+                <div class="card-desc">Comply with all laws and regulations. This is the minimum bar, not the goal. Companies that celebrate regulatory compliance as an ethical achievement have set the bar at the floor. The question is what they do above the floor.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ethical Responsibility</div>
+                <div class="card-desc">Do what is right, fair, and just -- even when the law does not require it. Protect user privacy beyond what GDPR mandates. Pay suppliers fairly even in markets where exploitation is legal. Disclose data use in plain language even when legalese would suffice.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Philanthropic Responsibility</div>
+                <div class="card-desc">Contribute positively to society through programs, donations, and community investment. In IT: free educational resources, open-source contributions, discounted access for nonprofits, cybersecurity support for critical infrastructure. Desired but not required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- UTILITARIAN ETHICS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">Framework 1: <span class="accent">Utilitarianism</span></div>
+        <div class="slide-subtitle">The right action is the one that produces the greatest good for the greatest number. Outcome-focused. Consequentialist.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Core Principle</div>
+                <div class="card-desc">Judge actions by their consequences. An action is ethical if it maximizes overall well-being across all affected parties. The pain of the few can be justified by sufficient benefit to the many. Associated with Jeremy Bentham and John Stuart Mill.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Applied to IT</div>
+                <div class="card-desc">A platform removes content that harms a small group but keeps 99% of users engaged. A government deploys mass surveillance that prevents terrorism but violates privacy for millions. Utilitarianism requires calculating all outcomes -- the harm to the minority counts in the calculus, it just may be outweighed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Strengths</div>
+                <div class="card-desc">Practical. Quantifiable in principle. Forces consideration of all affected parties rather than just the decision-maker's interests. Supports cost-benefit analysis that organizations can act on. Aligns with public policy frameworks.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Weaknesses</div>
+                <div class="card-desc">Can justify harm to minorities if the aggregate benefit is large enough. Difficult to predict all consequences. Ignores rights and justice -- torturing one person to save ten can be "justified" under strict utilitarianism. Who counts in the calculation, and how much?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DEONTOLOGICAL ETHICS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">Framework 2: <span class="accent">Deontological Ethics</span></div>
+        <div class="slide-subtitle">The right action follows from duty and rules, not consequences. Some actions are right or wrong regardless of outcome.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Core Principle</div>
+                <div class="card-desc">Immanuel Kant: act only according to rules you would want universalized for everyone. Treat people as ends in themselves, never merely as means. The morality of an action is determined by the rule it follows, not the outcome it produces.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Applied to IT</div>
+                <div class="card-desc">Do not deceive users regardless of business benefit. Do not collect data without informed consent even if the data would be used for good. Do not build backdoors even for law enforcement -- if you would not want every actor to have that power, you should not build the mechanism.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Strengths</div>
+                <div class="card-desc">Protects individual rights absolutely. Provides clear rules that do not bend to situational pressure. Prevents "ends justify means" reasoning that enables the most harmful decisions. Consistent and predictable -- no calculation required in the moment.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Weaknesses</div>
+                <div class="card-desc">Rigid. Two deontological duties can conflict with no resolution mechanism. Cannot adapt to novel situations the rule-maker did not anticipate. In IT, rules written in 2010 may be actively harmful when applied to a 2025 technological context.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- VIRTUE ETHICS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34</div>
+        <div class="slide-title">Framework 3: <span class="accent">Virtue Ethics</span></div>
+        <div class="slide-subtitle">Focus on character, not rules or outcomes. The right action is what a person of good character would do in this situation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Core Principle</div>
+                <div class="card-desc">Aristotle: ethics is about cultivating virtuous character traits -- honesty, courage, prudence, justice, temperance. A virtuous person does the right thing not because a rule demands it but because it is who they are. Character precedes action.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Applied to IT</div>
+                <div class="card-desc">Would a person of integrity build this feature? Would an honest professional send this communication? Would a courageous engineer escalate this safety concern? Virtue ethics asks about the professional's character, not just the decision's compliance with rules or optimization of outcomes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Strengths</div>
+                <div class="card-desc">Handles novel situations where rules are absent. Recognizes that ethical behavior is a habit, not a one-time calculation. Aligns with professional identity and culture. Explains why codes of conduct matter: they cultivate virtuous professional character over time.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Weaknesses</div>
+                <div class="card-desc">Vague in hard cases -- reasonable people disagree about what a "virtuous" professional would do. Provides no clear action guidance in novel dilemmas. Can be used to justify inaction: "I am a good person, therefore my actions must be good."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- FRAMEWORKS COMPARED ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">Using <span class="accent">All Three</span> Frameworks</div>
+        <div class="slide-subtitle">Professional ethical reasoning applies multiple frameworks and looks for convergence. Single-framework analysis is fragile.</div>
+
+        <div class="scenario-strip">
+            Scenario: Your company wants to collect location data from users at all times, even when the app is backgrounded, to improve ad targeting. No law prohibits this. The privacy setting is buried in screen 4 of the onboarding flow.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Utilitarian View</div>
+                <div class="card-desc">Does it maximize aggregate benefit? Some users get relevant ads. The company earns revenue. But users did not meaningfully consent and may be harmed by surveillance, targeted manipulation, and data breach exposure. The harm distribution is highly unequal -- the company captures benefits, users bear risks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deontological View</div>
+                <div class="card-desc">Would you want this universalized? If every app silently tracked location, the result is a surveillance infrastructure no individual controls. Users are being treated as means -- their attention and location are raw material -- not as ends with rights. The rule fails the universalizability test.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Virtue Ethics View</div>
+                <div class="card-desc">Would an honest, prudent professional build this? No. Burying a consent choice in screen 4 is designed to prevent informed decision-making. A person of integrity would demand prominent disclosure. The design itself reveals that the engineers know users would reject it if asked clearly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ETHICAL DECISION-MAKING PROCESS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">Ethical <span class="accent">Decision-Making</span> Process</div>
+        <div class="slide-subtitle">A structured process prevents rationalization. Without a process, people justify what is convenient rather than what is right.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Identify the ethical issue.</strong> Is there a conflict between interests? Is someone being harmed? Is trust being violated? Name it explicitly before anything else.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Identify all stakeholders.</strong> Who is affected by this decision? Include people who have no voice in the room -- future users, affected communities, people who cannot yet anticipate the harm.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Consider the facts.</strong> What do you actually know versus what are you assuming? Many ethical failures rest on unchecked assumptions about user behavior, risk probability, or organizational intent.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Apply the frameworks.</strong> Evaluate through utilitarian, deontological, and virtue lenses. Look for convergence. Where frameworks diverge, examine why -- that divergence reveals the real ethical tension.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Consider alternatives.</strong> Is the choice binary, or are there options that reduce harm while meeting legitimate business needs? Most ethical dilemmas have more than two paths.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Make and document the decision.</strong> Record the reasoning, not just the outcome. If you must justify this decision later -- to an auditor, a court, the public -- the reasoning is what matters.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- THE NEWSPAPER TEST ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">Practical <span class="accent">Ethical Tests</span></div>
+        <div class="slide-subtitle">Heuristics for fast ethical screening in real-world settings where time is limited and pressure is high.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Newspaper Test</div>
+                <div class="card-desc">Would you be comfortable seeing this decision reported on the front page? Both versions of the test: would a journalist report it as harmful? And would a journalist report you for being overly cautious and failing to act when action was needed? Ethics runs in both directions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Reversibility Test</div>
+                <div class="card-desc">If this decision turns out to be wrong, can it be undone? Irreversible harms -- permanent deletion of data, public disclosure of private information, deployment of autonomous systems that cannot be recalled -- demand higher ethical scrutiny before action.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Disclosure Test</div>
+                <div class="card-desc">Would you make this decision the same way if all affected parties could see exactly what you were doing and why? Transparency pressure is a powerful ethical filter. If the answer changes when observers are present, the private version of the decision is suspect.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Warning</div>
+            These tests are filters, not verdicts. A decision can pass the newspaper test and still be wrong. Use them to catch obvious failures quickly -- not to certify that a decision is ethical. Deeper analysis is required for consequential choices.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- ETHICAL RELATIVISM VS UNIVERSALISM ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">Relativism vs. <span class="accent">Universalism</span></div>
+        <div class="slide-subtitle">One of the deepest questions in applied ethics: are there universal ethical standards, or does context determine everything?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Ethical Relativism</div>
+                <div class="card-desc">Ethical standards are culturally determined and vary between societies. What is right in one culture may be wrong in another. A global tech company operating across 150 countries must navigate deeply different local ethical norms around privacy, surveillance, political speech, and data rights.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ethical Universalism</div>
+                <div class="card-desc">Some ethical principles apply across all cultures. Prohibitions against torture, deception, exploitation of children, and denial of basic dignity are widely held to transcend cultural variation. Human rights frameworks attempt to codify universalist ethics into international law.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The IT Problem</div>
+            A US tech company builds a platform used in 80 countries. The government of Country X demands access to dissident user accounts. Relativism says: local law applies. Universalism says: some human rights do not yield to local law. The company must choose a position. That position is an ethical stance, whether it is acknowledged as one or not.
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Common Ground</div>
+            Most professionals operate in a middle ground: acknowledge cultural variation in many domains while maintaining universalist commitments in a small number of core areas. Defining those core areas is the hard work of professional ethics.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- INTRODUCTION TO THE VW CASE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">Case Study: <span class="accent">Volkswagen Emissions Scandal</span></div>
+        <div class="slide-subtitle">Dieselgate. The largest automotive scandal in history. A software decision with global consequences.</div>
+
+        <div class="scenario-strip">
+            In 2015, the EPA discovered that Volkswagen had installed software in approximately 11 million diesel vehicles that detected when the car was undergoing emissions testing and switched the engine to a low-emission mode. During normal driving, the engine operated in a high-performance mode that emitted nitrogen oxides at up to 40 times the legal limit.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Technical Decision</div>
+                <div class="card-desc">Engineers wrote a "defeat device" -- software that read steering input, vehicle speed, barometric pressure, and engine operating parameters to detect test conditions. This was not an accident or a bug. It required deliberate design, testing, and validation across multiple engine variants and model years.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Business Context</div>
+                <div class="card-desc">VW had marketed its TDI diesel engines as "clean diesel" -- a key competitive differentiator in the US market. The real-world emissions performance and the advertised performance were irreconcilable without the defeat device. The fraud was the product strategy, not a deviation from it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- VW CONSEQUENCES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">VW Dieselgate: <span class="accent">Consequences</span></div>
+        <div class="slide-subtitle">What happens when an engineering organization normalizes deception as a business practice.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">VW paid over $33 billion in fines, settlements, and remediation costs across the US, EU, and other markets -- the largest automotive industry legal settlement in history.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Multiple VW executives and engineers were criminally charged. Former CEO Martin Winterkorn was indicted in the United States on fraud and conspiracy charges. Several engineers received prison sentences.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Estimated additional NOx pollution from affected vehicles caused approximately 59 premature deaths in the US alone according to MIT analysis, plus thousands of additional cases of respiratory illness across Europe.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">VW's stock lost over 30% of its value in the days following the EPA disclosure, wiping out more than $25 billion in market capitalization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">The engineers who built the defeat device later testified that the decision was made at multiple levels of management. They followed orders -- and that defense did not prevent prosecution.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- VW ETHICAL ANALYSIS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">VW: <span class="accent">Ethical Framework</span> Analysis</div>
+        <div class="slide-subtitle">Apply the three frameworks to the decision made by VW engineers and executives.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Utilitarian Analysis</div>
+                <div class="card-desc">Did it maximize aggregate benefit? VW shareholders and dealers benefited from sales. Consumers got high-performance engines. But the public -- including children with asthma, elderly people near highways, communities downwind of vehicle traffic -- bore the health costs without consent or compensation. The calculation fails badly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deontological Analysis</div>
+                <div class="card-desc">VW deceived regulators, customers, and the public simultaneously. The universal rule being followed: "deceive test systems when real performance cannot meet standards." Universalized, this rule destroys the entire regulatory infrastructure designed to protect public health. It fails Kant's categorical imperative completely.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Virtue Ethics Analysis</div>
+                <div class="card-desc">What virtuous engineer builds a system designed to lie? Honesty, integrity, and professional responsibility are foundational engineering virtues. The engineers who built Dieselgate knew what they were building. The organizational culture had normalized deception to the point where engineers no longer recognized it as a violation of character.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            You are an engineer on the TDI emissions project. You are told to implement the defeat device logic. You understand what it does. Your manager says it is necessary to hit sales targets. What is your next action?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- WHISTLEBLOWING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">When to <span class="accent">Speak Up</span></div>
+        <div class="slide-subtitle">The ethical obligation to report misconduct -- and the professional and personal cost that comes with it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Obligation</div>
+                <div class="card-desc">Professional codes of ethics in IT universally include some form of obligation to report significant ethical violations to appropriate parties. ACM Code of Ethics (2.10): report violations in computer science to appropriate parties. IEEE Code: speak out against misconduct. Silence is not neutral -- it is complicity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Internal vs. External Reporting</div>
+                <div class="card-desc">The escalation path matters. Start internal: supervisor, compliance officer, ethics hotline, general counsel, board. If internal channels are compromised, captured, or unresponsive, external reporting to regulators, law enforcement, or the press may become the only ethical option.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Personal Cost</div>
+                <div class="card-desc">Whistleblowers face retaliation: termination, blacklisting, legal action, social isolation. Legal protections vary widely by jurisdiction and industry. The Dodd-Frank Act protects securities whistleblowers in the US. OSHA covers certain safety violations. Most IT professionals have minimal protection.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Ethical vs. Strategic Calculation</div>
+                <div class="card-desc">The utilitarian question: will this disclosure cause more good than harm? The deontological question: do I have a duty to disclose regardless of outcome? The virtue question: what would a person of integrity do? These questions rarely converge on "stay quiet and keep your job."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- ORGANIZATIONAL ETHICS CULTURE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34</div>
+        <div class="slide-title">Organizational <span class="accent">Ethics Culture</span></div>
+        <div class="slide-subtitle">Individual ethical decisions are shaped by organizational culture. Culture is the default behavior when no one is watching.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Tone at the Top</div>
+                <div class="card-desc">Executive behavior sets the ethical ceiling. If leadership bends rules, manipulates metrics, or retaliates against honest feedback, the organization learns. Employees are rational: they observe consequences, not speeches. Ethics programs without ethical leadership are theater.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Normalization of Deviance</div>
+                <div class="card-desc">Small ethical violations that go uncorrected become the new normal. Teams that ship features with known privacy problems "just this once" are conditioning themselves for larger violations. The Challenger disaster and Dieselgate both involved organizations that had normalized engineering warning signs over time.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Psychological Safety</div>
+                <div class="card-desc">Teams with psychological safety surface problems early. Teams without it hide problems until they become crises. Google's Project Aristotle identified psychological safety as the top predictor of high-performing teams. It is also the top predictor of ethical team behavior -- people only report problems when they believe they are safe to do so.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Warning Pattern</div>
+            When an organization talks about ethics constantly but punishes people for raising ethical concerns, the message employees receive is: ethics is for external audiences, not internal behavior. That gap between stated values and lived culture is where the most serious violations originate.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- CODES OF ETHICS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Professional <span class="accent">Codes of Ethics</span></div>
+        <div class="slide-subtitle">Codified standards that define minimum acceptable professional behavior. They are floors, not ceilings.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">ACM Code of Ethics</div>
+                <div class="card-desc">Association for Computing Machinery. General moral imperatives: contribute to society, avoid harm, be honest, be fair, honor intellectual property, protect privacy, honor confidentiality. Professional imperatives: improve professional competence, know and respect existing laws. Organizational leadership principles and compliance obligations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IEEE Code of Ethics</div>
+                <div class="card-desc">Institute of Electrical and Electronics Engineers. Ten commitments including: accept responsibility for decisions, avoid conflicts of interest, be honest and realistic in claims, improve understanding of technology, maintain and improve technical competence, seek, accept, and offer honest criticism.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Codes Cannot Do</div>
+                <div class="card-desc">Codes cannot replace judgment. They enumerate principles; they cannot enumerate every situation those principles apply to. A code that says "protect privacy" does not tell you what to do when your government demands user location data or when your data retention policy conflicts with a user's deletion request.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Enforcement Reality</div>
+                <div class="card-desc">Most IT professional codes are aspirational. Unlike law, they lack state enforcement. The ACM can rescind membership; it cannot impose fines or prison sentences. Real enforcement comes through employment consequences, regulatory action, and civil litigation -- not professional body sanction.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- ETHICAL REASONING UNDER PRESSURE ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">Ethics Under <span class="accent">Pressure</span></div>
+        <div class="slide-subtitle">Ethical reasoning in real organizations happens under time pressure, hierarchy pressure, and financial pressure. Abstract frameworks are not enough.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Rationalization Patterns</div>
+                <div class="card-desc">"Everyone does it." "It is not illegal." "I was just following orders." "The benefits outweigh the risks." "No one will find out." "Someone else will do it if I refuse." These are the standard patterns through which ethical violations get normalized in professional settings.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Obedience to Authority</div>
+                <div class="card-desc">Milgram's experiments: ordinary people administered apparent electric shocks to others when instructed by an authority figure. The IT equivalent: engineers build surveillance systems, write discriminatory algorithms, or deploy deceptive UX because their manager said to. Authority does not transfer moral responsibility.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Moral Disengagement</div>
+                <div class="card-desc">Bandura: people disengage morally by displacing responsibility ("it was management's call"), dehumanizing victims ("users are just data"), and distorting consequences ("the harm is minor or theoretical"). Recognizing these mechanisms in your own thinking is a prerequisite for resisting them.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Building Ethical Resilience</div>
+            Pre-commitment helps. Decide in advance how you will respond to certain categories of requests: "I will not build systems designed to deceive users." "I will escalate safety concerns regardless of project timeline." Pre-committed positions are far more durable than in-the-moment ethical reasoning under pressure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- ETHICS AND POWER ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Ethics and <span class="accent">Power Asymmetry</span></div>
+        <div class="slide-subtitle">IT systems concentrate power. The ethical obligations of those who build and control technology are proportional to that power.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Concentration of Control</div>
+                <div class="card-desc">A handful of technology companies control information access, communication infrastructure, financial systems, and increasingly physical infrastructure for billions of people. The engineers who build these systems exercise power over people who have no say in system design and often no alternative to using the system.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Algorithmic Power</div>
+                <div class="card-desc">A content recommendation algorithm decides what information billions of people see. A credit scoring model determines who gets housing and employment. An ad targeting system influences election behavior. These systems have more political and social influence than most government agencies.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Accountability Gaps</div>
+                <div class="card-desc">Traditional accountability mechanisms assume visible, attributable decision-makers. Automated systems are opaque, distributed, and often designed so no single person made the "decision" that caused harm. Accountability architecture must be intentionally designed into systems -- it does not emerge naturally.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Engineer's Responsibility</div>
+                <div class="card-desc">You will build systems that affect people who cannot examine or challenge them. That asymmetry creates ethical obligations that go beyond the employment contract. The professional's duty to public welfare, codified in every major engineering ethics code, exists precisely because of this power gap.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- SOCIAL CONTRACT AND TECHNOLOGY ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">The Social Contract <span class="accent">and Technology</span></div>
+        <div class="slide-subtitle">Technology companies enter implicit agreements with the societies that permit them to operate. What are the terms?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Society Provides</div>
+                <div class="card-desc">Infrastructure, educated workforce, legal system, market access, limited liability corporate structure, intellectual property protection, government contracts. Technology companies are not self-created -- they exist within a social and legal system that grants privileges with implicit conditions attached.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Is Expected in Return</div>
+                <div class="card-desc">Tax contribution, employment, compliance with regulations, non-exploitation of market power, respect for democratic institutions, protection of users from harms the company enables. When companies extract value while externalizing costs onto society, the social contract breaks down.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Current Tension</div>
+            Platforms profit from engagement driven by outrage, misinformation, and psychological exploitation while externalizing the social costs onto democratic institutions, public mental health systems, and news organizations. Whether this is an ethics failure, a market failure, or both -- and whose responsibility it is to fix -- is one of the defining policy questions of the decade.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            You are a product manager at a social platform. Your engagement data shows that outrage-inducing content drives 3x more session time than neutral content. Leadership is asking you to tune the algorithm to optimize for session time. What do you do?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- INTERNATIONAL ETHICS FRAMEWORKS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">International <span class="accent">Ethics Frameworks</span></div>
+        <div class="slide-subtitle">When technology crosses borders, whose ethical framework applies? Key international instruments that shape global IT ethics.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">UN Universal Declaration of Human Rights</div>
+                <div class="card-desc">Article 12: no arbitrary interference with privacy. Article 19: freedom of expression and opinion. Article 20: freedom of assembly. These rights predate the internet and have been interpreted to apply to digital contexts by the UN Human Rights Council. They represent the universalist anchor for digital rights debates.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OECD AI Principles</div>
+                <div class="card-desc">Adopted by 46 countries. AI systems should be transparent, explainable, robust, secure, and accountable. They should respect the rule of law, human rights, and democratic values. They should not be used in ways that undermine democratic institutions. Nonbinding but influential in regulatory design.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">EU AI Act (2024)</div>
+                <div class="card-desc">First legally binding AI regulation in a major jurisdiction. Risk-based classification: prohibited (social scoring, real-time biometric surveillance in public spaces), high-risk (employment, education, credit, law enforcement), limited and minimal risk. Fines up to 35M EUR or 7% of global revenue.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Practical Impact</div>
+            If you build AI systems used in the EU, the AI Act is your compliance floor. If you build systems that process EU resident data, GDPR applies regardless of where your company is located. Technology ethics is not local -- it is global, and the regulatory landscape reflects that.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- ALGORITHMIC BIAS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">Algorithmic <span class="accent">Bias</span> as an Ethics Issue</div>
+        <div class="slide-subtitle">Bias in automated systems is not a technical defect -- it is an ethical failure with distributional consequences.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">COMPAS Recidivism Tool</div>
+                <div class="card-desc">ProPublica analysis (2016): COMPAS risk scoring tool used in US sentencing predicted Black defendants as high-risk at nearly twice the rate of white defendants with similar criminal histories. The algorithm's bias was invisible to defendants, their attorneys, and often to judges relying on its scores.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Amazon Hiring Algorithm</div>
+                <div class="card-desc">Amazon's ML hiring tool trained on 10 years of resumes -- predominantly from men -- systematically downgraded resumes that included the word "women's" (as in "women's chess club"). Amazon scrapped the tool. The bias was not programmed; it was learned from historical human bias in the training data.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Facial Recognition Errors</div>
+                <div class="card-desc">NIST testing found that facial recognition systems from major vendors had error rates for Black women up to 100 times higher than for white men. Law enforcement use of these systems has produced wrongful arrests. The engineers did not intend bias -- the training data encoded existing societal disparities.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Ethics Obligation</div>
+                <div class="card-desc">Unintended does not mean unaccountable. Engineers who deploy systems affecting protected classes have an obligation to test for disparate impact before deployment, monitor for it during operation, and disclose it to decision-makers. Ignorance of bias in your own system is not a defense -- it is a failure of professional due diligence.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- AI AND EMERGING ETHICS CHALLENGES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">AI and <span class="accent">Emerging Ethics</span> Challenges</div>
+        <div class="slide-subtitle">Generative AI is introducing ethical challenges faster than frameworks can adapt. Core tensions to understand now.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Consent in Training Data</div>
+                <div class="card-desc">Generative models are trained on vast amounts of human-created content -- text, images, code, voice -- most of which was produced without consent to that use. The legal frameworks are contested. The ethics question is cleaner: should you use someone's creative work to build a competing system without permission or compensation?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deepfakes and Deception</div>
+                <div class="card-desc">Synthetic media creates the ability to generate realistic video and audio of people saying and doing things they never said or did. The technology is neutral. Its deployment for non-consensual intimate imagery, political disinformation, and fraud is not. The ethics of building and releasing generation tools is not separate from the ethics of the harms they enable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Autonomous Decision-Making</div>
+                <div class="card-desc">Systems that make decisions about employment, credit, bail, insurance, and healthcare without human review raise accountability questions that existing frameworks do not cleanly resolve. When the system is wrong, who is responsible? The answer must exist before deployment, not after.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Pace Problem</div>
+            Ethics frameworks develop over decades. Technology deploys in months. The gap between "this is possible" and "someone has thought carefully about whether this should exist" is where most current ethical crises in tech originate. Slowing down to think is not an obstacle to innovation -- it is a precondition for responsible innovation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- ETHICS AND PRIVACY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">Privacy as an <span class="accent">Ethical Value</span></div>
+        <div class="slide-subtitle">Privacy is not a compliance requirement -- it is a foundational human value that technology uniquely threatens.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Why Privacy Matters</div>
+                <div class="card-desc">Privacy is the condition under which individual autonomy, freedom of thought, and freedom of association are possible. Mass surveillance changes human behavior -- people self-censor, avoid associations, and alter beliefs when they know they are being watched. The harm is not just data exposure; it is the chilling of freedom itself.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Privacy Paradox</div>
+                <div class="card-desc">Studies consistently find that users express high concern about privacy but willingly trade personal data for minor conveniences. This does not indicate that privacy is not valued -- it indicates that privacy choices are systematically structured to be difficult and that the long-term consequences of data collection are not salient at the moment of exchange.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Design Implication</div>
+            If your system is designed so that the privacy-preserving choice requires more steps, more effort, or more confusion than the data-sharing choice, you have made an ethical decision -- you have structured behavior through architecture. Privacy by default is an ethical position. Data collection by default is also an ethical position. Own it.
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Professional Standard</div>
+            Build systems that collect only what is necessary for the stated purpose. Retain only for as long as required. Delete when no longer needed. Give users meaningful control. These are not just compliance requirements -- they are what an honest professional would do with other people's data.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- ETHICS AND INTELLECTUAL PROPERTY ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">IP and the <span class="accent">Ethics of Copying</span></div>
+        <div class="slide-subtitle">The line between learning from others' work, being inspired by it, and stealing it is both legal and ethical.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Software Licensing Ethics</div>
+                <div class="card-desc">Using open-source software under a GPL license in a closed-source commercial product without complying with GPL terms is not just a legal violation -- it is taking value from a community that offered it conditionally. The ethical obligation of license compliance exists whether or not the copyright holder is likely to discover the violation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Code Plagiarism</div>
+                <div class="card-desc">Copying substantial blocks of code from Stack Overflow, GitHub, or other sources without attribution, license compliance, or understanding is professional plagiarism. The ethical dimension goes beyond legality: code you do not understand is code you cannot maintain, secure, or take responsibility for.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Trade Secret Obligations</div>
+                <div class="card-desc">When you leave a company, you carry knowledge. The ethical obligation to protect former employer trade secrets is real and independent of whether you signed an NDA. Using proprietary algorithms, client lists, or system architectures at a competitor harms the people who trusted you with that information.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Ethical Violation Example</div>
+            An engineer memorizes database schemas, customer lists, and pricing algorithms before resigning to join a direct competitor. No data is physically taken. The ethical violation is complete regardless. The harm to former colleagues, shareholders, and customers who trusted the company with that information is real.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- SUSTAINABLE TECHNOLOGY ETHICS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">Technology and <span class="accent">Sustainability</span></div>
+        <div class="slide-subtitle">The environmental costs of technology are real, measurable, and largely borne by people who did not make the technology decisions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Energy and Carbon</div>
+                <div class="card-desc">A single large language model training run can emit hundreds of tons of CO2 equivalent. Global data centers consume approximately 200-250 TWh annually -- comparable to the entire electricity consumption of some mid-sized countries. These costs are externalized to communities near data centers and ultimately to global climate.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">E-Waste</div>
+                <div class="card-desc">Planned obsolescence in consumer electronics generates 53 million metric tons of e-waste annually. Most is exported to developing countries for processing under conditions that expose workers to toxic materials. The supply chain of your phone or laptop traces back through labor and environmental conditions you were not asked to approve.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Engineer's Question</div>
+            Is the additional server capacity required to serve this feature worth its energy cost? Is training a larger model justified by the marginal performance improvement? These are engineering optimization questions with environmental ethics dimensions. The ethical professional considers both.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- ETHICS IN EMERGING ROLES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">Ethics Across <span class="accent">IT Roles</span></div>
+        <div class="slide-subtitle">Ethical responsibilities are not uniform across roles -- they scale with access, influence, and the nature of decisions made.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Software Engineers</div>
+                <div class="card-desc">Build what is asked -- with full awareness of what is being built. Responsibility to flag harmful requirements, refuse to implement deceptive patterns, maintain code quality that others must trust with their careers, and document decisions that will outlast your employment at the company.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Scientists / ML Engineers</div>
+                <div class="card-desc">Audit training data for bias before deployment. Test for disparate impact across demographic groups. Document model limitations honestly. Refuse to deploy models in high-stakes contexts without human oversight. The asymmetry between model confidence scores and model reliability in edge cases is your ethical responsibility to communicate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">System Administrators / Security</div>
+                <div class="card-desc">Access to infrastructure and data creates disproportionate trust obligations. Confidentiality of user data seen during administration. Ethical use of access privileges. Responsibility to report system misuse even when the misuser is a superior. The privileged access you hold is held in trust for others.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- ETHICS AND SECURITY TRADEOFFS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34</div>
+        <div class="slide-title">Ethics of <span class="accent">Security Tradeoffs</span></div>
+        <div class="slide-subtitle">Security decisions often involve genuine ethical tensions between competing values, not just technical optimization problems.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Security vs. Privacy</div>
+                <div class="card-desc">More monitoring produces more security -- and more surveillance. Keyloggers catch insider threats and capture every private communication an employee sends. Full network inspection stops malware and reads encrypted messages. Where you draw the line is an ethical position about the relative weight of security and privacy, not a technical calculation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Encryption Backdoors</div>
+                <div class="card-desc">Governments regularly request backdoors in encryption systems for lawful intercept. The technical reality is that a backdoor for one government is a vulnerability exploitable by all. The ethical tension: law enforcement needs vs. security of billions of users and the integrity of global communications infrastructure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vulnerability Disclosure</div>
+                <div class="card-desc">A researcher discovers a critical vulnerability. Full immediate disclosure protects users who are currently at risk but gives malicious actors time to exploit before patches are deployed. Responsible disclosure (90-day embargo) balances these. But who decides the timeline, and what is the researcher's obligation when the vendor refuses to patch?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Offensive vs. Defensive</div>
+                <div class="card-desc">Security tools -- exploit frameworks, zero-day exploits, network scanners -- are used by both defenders and attackers. Building dual-use tools carries ethical responsibility for how they will be used. Selling vulnerabilities to the highest bidder without transparency about the buyer's intent is widely regarded as professionally unethical.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- APPLIED SCENARIOS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">Applied <span class="accent">Ethics Scenarios</span></div>
+        <div class="slide-subtitle">Apply the frameworks. No right answer is given -- you are expected to argue a defensible position using the tools from this module.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Your employer asks you to add a feature that makes subscription cancellation require 8 steps, a phone call, and a 24-hour waiting period. The legal team has approved it. What do you do? Which framework drives your answer?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">You discover your company's ML system is denying loan applications at significantly higher rates for applicants in zip codes with high minority populations. Your manager says the model has not been shown to be discriminatory in the legal sense. What is your ethical obligation?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Your government client is asking you to build a system that identifies political dissidents in social media posts using NLP. The contract is legal. Your personal moral position is that it will be used to harm people. What do you do?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A competitor's open-source project contains code that, if slightly modified, would give your company a major competitive advantage. The license is MIT. The original author is a solo developer who would be financially harmed by your use. Is it ethical to use it?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ETHICS AND PROFESSIONAL DEVELOPMENT ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">Ethics as a <span class="accent">Career-Long Practice</span></div>
+        <div class="slide-subtitle">Ethical reasoning is not a one-time course. It is a professional competency that requires continuous development.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Stay Current</div>
+                <div class="card-desc">The technologies you build change. The regulatory landscape changes. The social understanding of what constitutes harm changes. A professional who stopped thinking about AI ethics in 2018 is operating with obsolete frameworks in 2025. Continuous learning in ethics is as mandatory as continuous learning in technology.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Build an Ethical Network</div>
+                <div class="card-desc">Find colleagues who will tell you when your reasoning is weak. Participate in professional communities where ethical questions are openly discussed. Read across disciplines -- philosophy, law, sociology, psychology. The perspectives that will most improve your ethical reasoning are usually outside your immediate technical domain.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Document Your Positions</div>
+                <div class="card-desc">Keep notes on ethical decisions you face and how you resolved them. Review those notes periodically. Were your frameworks consistent? Did your reasoning hold up over time? Pattern analysis of your own ethical decision-making is a form of professional self-audit that few engineers practice but all benefit from.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Teach Others</div>
+                <div class="card-desc">The obligation to raise the ethical competency of your team is part of professional responsibility. An organization where only some individuals think about ethics is an organization where ethical behavior depends on who happens to be in the room. Distribute the capability broadly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before moving to the next module. Written responses required for exercises 2 and 3.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Identify one real-world IT decision from the past five years that was legal but widely criticized as unethical. Map it to at least two of the three ethical frameworks covered in this module. Does the analysis converge or diverge across frameworks?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Write a one-paragraph argument that the VW engineers who built the defeat device bore individual moral responsibility, even if ordered to do so. Use at least one named ethical framework. Address the "following orders" objection directly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Your company's leadership has asked you to implement a dark pattern -- a UX flow designed to make users accidentally opt-in to marketing emails. Write a one-paragraph internal communication to your manager explaining why you will not implement it as specified, citing professional ethics standards.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Carroll's CSR pyramid has four levels. Rank three current major technology companies on each level and justify your rankings with specific examples of their behavior in each category.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- SUMMARY ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Ethics is not a filter applied at the end of a project. It is a lens used throughout design, development, and deployment.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            Morals are personal. Ethics are shared and defensible. Law is the minimum enforced by the state. All three apply simultaneously to your work -- and they will not always agree. Your job is to reason through the conflict, not to pick the one that is most convenient.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Morals are personal. Ethics are professional standards. Law is the minimum floor. Confusing these leads to "it is legal" as the terminal ethical argument.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Utilitarianism: maximize aggregate good. Deontology: follow duties regardless of outcome. Virtue ethics: act as a person of good character would. Use all three; none is sufficient alone.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">CSR = economic + legal + ethical + philanthropic responsibilities. Companies that optimize only for profit while externalizing costs are failing three of the four levels.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">VW Dieselgate: a deliberate software deception caused $33B in penalties, criminal prosecutions, and real health harms. Following orders was not a defense for the engineers involved.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Rationalization patterns -- "everyone does it," "I was following orders," "no one will find out" -- are how ethical violations are normalized in organizations. Recognizing them is a prerequisite to resisting them.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Algorithmic bias is not a technical defect -- it is an ethical failure. Engineers who deploy systems affecting protected classes have a professional obligation to test for disparate impact before deployment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">The ethical decision-making process: identify the issue, identify all stakeholders, check your facts, apply frameworks, consider alternatives, document the decision and the reasoning.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Technology amplifies human decisions. Good ethical reasoning scales. Bad ethical reasoning at the system level scales catastrophically to millions of people who never consented to the decision.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w1-overview', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

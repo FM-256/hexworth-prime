@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Linux Administration // CTS4321C</title>
+
+    <style>
+        /* ── CSS Custom Properties: Matrix House palette ── */
+        :root {
+            --matrix-primary:   #00ff41;
+            --matrix-secondary: #00cc33;
+            --matrix-accent:    #33ff66;
+            --matrix-glow:      rgba(0, 255, 65, 0.3);
+            --matrix-bg:        rgba(0, 255, 65, 0.05);
+            --matrix-border:    rgba(0, 255, 65, 0.25);
+            --matrix-dark:      #003d0f;
+            --matrix-darker:    #001a06;
+            --bg-main:          #060d08;
+            --bg-deep:          #040b06;
+            --bg-card:          #0a130c;
+            --bg-card-hover:    #0f1e12;
+            --text-primary:     #e2f0e5;
+            --text-secondary:   #86a88c;
+            --text-muted:       #4a6650;
+            --border-color:     rgba(0, 255, 65, 0.12);
+            --border-hover:     rgba(0, 255, 65, 0.35);
+            --success:          #00ff41;
+            --danger:           #ff3333;
+            --danger-border:    rgba(255, 51, 51, 0.30);
+            --danger-bg:        rgba(255, 51, 51, 0.06);
+            --danger-hover-bg:  rgba(255, 51, 51, 0.12);
+            --shadow-md:        0 4px 6px -1px rgba(0, 0, 0, 0.55);
+            --shadow-lg:        0 10px 18px -3px rgba(0, 0, 0, 0.65);
+            --shadow-glow:      0 0 28px rgba(0, 255, 65, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Visually hidden: accessibility + SEO anchor */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ── Top navigation bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Single exit point back to Matrix house hub */
+        .dashboard-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--matrix-bg);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--matrix-accent);
+            border-color: var(--border-hover);
+            background: rgba(0, 255, 65, 0.10);
+        }
+
+        .dashboard-btn-icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            filter: hue-rotate(90deg) saturate(2);
+        }
+
+        /* ── Hero Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--matrix-darker) 0%, #002208 50%, var(--matrix-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--matrix-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Circuit board grid pattern: subtle repeating lines */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(0, 255, 65, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        /* Scan-line overlay: Matrix green horizontal bands */
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0, 255, 65, 0.025) 3px,
+                rgba(0, 255, 65, 0.025) 4px
+            );
+            pointer-events: none;
+        }
+
+        /* Course number pill */
+        .course-badge {
+            display: inline-block;
+            background: rgba(0, 255, 65, 0.15);
+            border: 1px solid rgba(0, 255, 65, 0.40);
+            color: var(--matrix-primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 18px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--matrix-accent);
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Course stat chips */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 26px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.22);
+            padding: 10px 22px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--matrix-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* ── Overall progress bar ── */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--matrix-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(0, 255, 65, 0.08);
+            border-radius: 10px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--matrix-dark), var(--matrix-secondary), var(--matrix-primary));
+            width: 0%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Section heading label ── */
+        .section-heading {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ── Week Cards (collapsible) ── */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        /* Week 0 gets a slightly different treatment: refresher, not a mission week */
+        .week-card.week-zero {
+            border-color: rgba(0, 255, 65, 0.08);
+            opacity: 0.85;
+        }
+
+        .week-card.week-zero:hover {
+            opacity: 1;
+            border-color: rgba(0, 255, 65, 0.25);
+        }
+
+        /* Always-visible clickable header */
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .week-header:hover {
+            background: rgba(0, 255, 65, 0.04);
+        }
+
+        .week-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Week number badge */
+        .week-num {
+            background: linear-gradient(135deg, var(--matrix-dark), var(--matrix-secondary));
+            color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-num.week-zero-num {
+            background: linear-gradient(135deg, #1a2e1d, #2a4d2f);
+            color: var(--text-secondary);
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--matrix-accent);
+            line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Objective and item count tags */
+        .week-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--matrix-secondary);
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.18);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(0, 255, 65, 0.04);
+            border: 1px solid rgba(0, 255, 65, 0.10);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Chevron: rotates 180deg when week is open */
+        .week-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Expand/collapse via max-height transition */
+        .week-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body {
+            max-height: 4200px;
+        }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(0, 255, 65, 0.06);
+        }
+
+        /* ── Per-week progress bar ── */
+        .week-progress {
+            margin: 14px 0 8px;
+        }
+
+        .week-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.70rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(0, 255, 65, 0.06);
+            border-radius: 6px;
+            height: 5px;
+            overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--matrix-dark), var(--matrix-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        /* ── Week Overview Card ── */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.04), rgba(0, 255, 65, 0.01));
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--matrix-primary);
+            margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── Subsection labels inside a week ── */
+        .subsection {
+            margin-top: 20px;
+        }
+
+        .subsection-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(74, 102, 80, 0.20);
+        }
+
+        /* Colored accent bar before label text */
+        .subsection-label::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .subsection-label.label-module::before        { background: var(--matrix-secondary); }
+        .subsection-label.label-lab::before          { background: #ff4444; }
+        .subsection-label.label-presentation::before { background: #60a5fa; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+        .subsection-label.label-exam::before         { background: #f97316; }
+
+        /* ── Content type badges (Slides / Quiz / Midterm / Final) ── */
+        .content-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        .badge-exam {
+            background: rgba(249, 115, 22, 0.12);
+            color: #fb923c;
+            border: 1px solid rgba(249, 115, 22, 0.30);
+        }
+
+        /* Exam card: gold border accent to stand out */
+        .exam-card {
+            border-color: rgba(249, 115, 22, 0.35) !important;
+            background: rgba(249, 115, 22, 0.04) !important;
+        }
+
+        .exam-card:hover {
+            border-color: rgba(249, 115, 22, 0.60) !important;
+            background: rgba(249, 115, 22, 0.09) !important;
+        }
+
+        /* ── Content link cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .content-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            background: rgba(0, 255, 65, 0.02);
+            border: 1px solid rgba(0, 255, 65, 0.07);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(0, 255, 65, 0.07);
+            border-color: rgba(0, 255, 65, 0.22);
+            transform: translateX(3px);
+        }
+
+        /* Module card completed state */
+        .content-card.is-complete {
+            border-color: rgba(0, 255, 65, 0.30);
+            background: rgba(0, 255, 65, 0.04);
+        }
+
+        /* Module ID badge: left side */
+        .card-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--matrix-secondary);
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.18);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Module icon */
+        .card-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.75;
+            filter: hue-rotate(90deg) saturate(3) brightness(1.2);
+        }
+
+        /* Card text block */
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-info .card-title {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Green checkmark: hidden until is-complete class is applied */
+        .card-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(90deg) saturate(3);
+        }
+
+        .content-card.is-complete .card-check {
+            opacity: 1;
+        }
+
+        /* ── Lab cards: distinct from module cards ── */
+        /* Red/danger accent, pulsing hover effect */
+        .lab-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: var(--danger-hover-bg);
+            border-color: rgba(255, 51, 51, 0.55);
+            transform: translateX(3px);
+            box-shadow: 0 0 12px rgba(255, 51, 51, 0.15);
+        }
+
+        /* Pulse animation on hover to signal interactive challenge */
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(255, 51, 51, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(255, 51, 51, 0.35); }
+        }
+
+        .lab-card:hover {
+            animation: pulse-border 1.4s ease infinite;
+        }
+
+        .lab-card.is-complete {
+            border-color: rgba(0, 255, 65, 0.30);
+            background: rgba(0, 255, 65, 0.04);
+        }
+
+        /* Lab ID badge */
+        .lab-id-badge {
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #ff6666;
+            background: rgba(255, 51, 51, 0.10);
+            border: 1px solid rgba(255, 51, 51, 0.28);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        .lab-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.80;
+            filter: hue-rotate(0deg) saturate(2) brightness(1.1);
+        }
+
+        /* Duration + flag count badge on lab cards */
+        .lab-stats {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .lab-stat-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #ff8888;
+            background: rgba(255, 51, 51, 0.08);
+            border: 1px solid rgba(255, 51, 51, 0.20);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Flag count badge: slightly brighter */
+        .flag-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #ffcc00;
+            background: rgba(255, 204, 0, 0.08);
+            border: 1px solid rgba(255, 204, 0, 0.22);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+
+        /* Checkmark for completed lab cards */
+        .lab-check {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.2s ease;
+            filter: hue-rotate(90deg) saturate(3);
+        }
+
+        .lab-card.is-complete .lab-check {
+            opacity: 1;
+        }
+
+        /* ── Course info block (bottom) ── */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 26px;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--matrix-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .objectives-list li::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--matrix-primary);
+            flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(0, 255, 65, 0.6);
+        }
+
+        /* ── Page footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 28px 0 10px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub {
+            margin-top: 4px;
+            font-size: 0.65rem;
+            opacity: 0.7;
+        }
+
+        /* ── Locked week state ── */
+        .week-card.locked {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .week-card.locked .week-header {
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .lock-msg {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 6px 22px;
+            font-style: italic;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Advanced Linux Administration, CTS4321C Course Hub, Matrix House</h1>
+
+    <div class="container">
+
+        <!-- ── Top Bar: course label + single exit point ── -->
+        <div class="top-bar">
+            <span class="course-label">CTS4321C // Matrix House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Matrix Hub
+            </a>
+        </div>
+
+        <!-- ── Hero Header ── -->
+        <div class="header">
+            <span class="course-badge">CTS4321C</span>
+            <h2>Advanced Linux Administration</h2>
+            <p class="subtitle">Your cell is your responsibility. The grid depends on you.</p>
+
+            <!-- Course stat chips -->
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">5</div>
+                    <div class="label">Weeks</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">24</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">12</div>
+                    <div class="label">Labs</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">32</div>
+                    <div class="label">Flags</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Overall Course Progress ── -->
+        <!-- JS fills this from ModuleProgress after DOM is ready -->
+        <div class="progress-section">
+            <h3>Grid Status: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- ── Learning Path ── -->
+        <div class="section-heading">Mission Path</div>
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 0: Cell Assignment (Foundations Refresher)
+        ════════════════════════════════════════════ -->
+        <div class="week-card week-zero" id="wk0">
+            <div class="week-header" onclick="toggleWeek('wk0')">
+                <div class="week-header-left">
+                    <div class="week-num week-zero-num">0</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Cell Assignment: Foundations Refresher</div>
+                        <div class="week-sub">WEEK 0 // REFRESHER</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Refresher</span>
+                            <span class="item-count-tag">5 modules</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 0 Progress</span>
+                            <span id="wk0-progress-text">0 / 5</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk0-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 0 // REFRESHER</div>
+                        <div class="week-overview-desc">
+                            You have been assigned a new cell. It is bare metal. Familiarize yourself with its systems before we bring it online. These five modules are prerequisite calibration. If you know the material, move fast. If anything feels unfamiliar, slow down.
+                        </div>
+                    </div>
+
+                    <!-- Refresher modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Refresher Modules</div>
+                        <div class="content-grid">
+
+                            <a href="ala-r1.html" class="content-card" data-module="ala-r1">
+                                <img src="../../../assets/images/icons/icon-folder.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-R1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cell Navigation</div>
+                                    <div class="card-sub">Filesystem hierarchy, cd, ls, find, locate</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-r2.html" class="content-card" data-module="ala-r2">
+                                <img src="../../../assets/images/icons/icon-lock.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-R2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Access Control</div>
+                                    <div class="card-sub">Users, groups, permissions, chmod, chown, ACLs</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-r3.html" class="content-card" data-module="ala-r3">
+                                <img src="../../../assets/images/icons/icon-gear.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-R3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Process Authority</div>
+                                    <div class="card-sub">ps, kill, jobs, fg/bg, systemctl basics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-r4.html" class="content-card" data-module="ala-r4">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-R4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Grid Basics</div>
+                                    <div class="card-sub">ifconfig/ip, ping, SSH, ports, /etc/hosts</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-r5.html" class="content-card" data-module="ala-r5">
+                                <img src="../../../assets/images/icons/icon-terminal.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-R5</span>
+                                <div class="card-info">
+                                    <div class="card-title">Signal Processing</div>
+                                    <div class="card-sub">grep, sed, awk, pipes, redirection</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk0 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 1: Grid Connection (CLI Operations + Networking)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk1">
+            <div class="week-header" onclick="toggleWeek('wk1')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Grid Connection: CLI Operations + Networking</div>
+                        <div class="week-sub">WEEK 1 // OBJECTIVES 1, 2</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 1</span>
+                            <span class="obj-tag">Obj 2</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 1 Progress</span>
+                            <span id="wk1-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk1-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 1 // OBJECTIVES 1, 2</div>
+                        <div class="week-overview-desc">
+                            Your cell is online. Establish grid connectivity. This week you drill advanced CLI operations, take full ownership of the systemd layer, configure network interfaces at depth, and learn to read the noise coming off the wire. Three labs put you inside broken cells and hostile grids.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="ala-01.html" class="content-card" data-module="ala-01">
+                                <img src="../../../assets/images/icons/icon-terminal.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-01</span>
+                                <div class="card-info">
+                                    <div class="card-title">Advanced Cell Navigation</div>
+                                    <div class="card-sub">Pipes, process substitution, tmux</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-02.html" class="content-card" data-module="ala-02">
+                                <img src="../../../assets/images/icons/icon-gear.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-02</span>
+                                <div class="card-info">
+                                    <div class="card-title">Service Authority</div>
+                                    <div class="card-sub">systemd deep dive, custom units, journalctl</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-03.html" class="content-card" data-module="ala-03">
+                                <img src="../../../assets/images/icons/icon-network.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-03</span>
+                                <div class="card-info">
+                                    <div class="card-title">Grid Interface Configuration</div>
+                                    <div class="card-sub">IP config, bonding, VLANs, netplan</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-04.html" class="content-card" data-module="ala-04">
+                                <img src="../../../assets/images/icons/icon-radar.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-04</span>
+                                <div class="card-info">
+                                    <div class="card-title">Grid Diagnostics</div>
+                                    <div class="card-sub">ss, ip route, traceroute, dig, tcpdump</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-05.html" class="content-card" data-module="ala-05">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-05</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Objectives 1 and 2</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ala-l01-dead-cell-recovery/index.html"
+                               class="lab-card" data-module="ala-l01">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 01</span>
+                                <div class="card-info">
+                                    <div class="card-title">Dead Cell Recovery</div>
+                                    <div class="card-sub">A cell has gone dark. Restore service and extract your flags.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">30 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l02-grid-handshake/index.html"
+                               class="lab-card" data-module="ala-l02">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 02</span>
+                                <div class="card-info">
+                                    <div class="card-title">Grid Handshake</div>
+                                    <div class="card-sub">Establish connectivity between two cells with misconfigured interfaces.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l03-signal-in-the-noise/index.html"
+                               class="lab-card" data-module="ala-l03">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 03</span>
+                                <div class="card-info">
+                                    <div class="card-title">Signal in the Noise</div>
+                                    <div class="card-sub">Parse live traffic. Extract the anomaly. Report the payload.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ala-w1-cli-operations.presentation.html"
+                               class="content-card" data-module="ala-w1-cli">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">CLI Operations</div>
+                                    <div class="card-sub">Advanced shell usage, pipes, tmux, process substitution</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w1-systemd.presentation.html"
+                               class="content-card" data-module="ala-w1-systemd">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">systemd Deep Dive</div>
+                                    <div class="card-sub">Unit files, service management, journalctl</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w1-network-config.presentation.html"
+                               class="content-card" data-module="ala-w1-network-config">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Configuration</div>
+                                    <div class="card-sub">IP, bonding, VLANs, netplan</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w1-network-diag.presentation.html"
+                               class="content-card" data-module="ala-w1-network-diag">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Network Diagnostics</div>
+                                    <div class="card-sub">ss, ip route, traceroute, dig, tcpdump</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ala-w1.quiz.html"
+                               class="content-card" data-module="ala-w1-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W1-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 1 Quiz</div>
+                                    <div class="card-sub">CLI, systemd, network configuration and diagnostics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk1 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 2: Perimeter Defense (Hardening + Package Management)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk2">
+            <div class="week-header" onclick="toggleWeek('wk2')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Perimeter Defense: Hardening + Package Management</div>
+                        <div class="week-sub">WEEK 2 // OBJECTIVES 3, 4</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 3</span>
+                            <span class="obj-tag">Obj 4</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 2 Progress</span>
+                            <span id="wk2-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk2-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 2 // OBJECTIVES 3, 4</div>
+                        <div class="week-overview-desc">
+                            Hostile traffic detected on the grid. Harden your cell before the next sync. This week you build firewall policy from scratch, lock down authentication, stand up antivirus scanning, and learn to compile and deploy packages from source. Three labs put your defenses under real pressure.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="ala-06.html" class="content-card" data-module="ala-06">
+                                <img src="../../../assets/images/icons/icon-firewall.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-06</span>
+                                <div class="card-info">
+                                    <div class="card-title">Perimeter Shield</div>
+                                    <div class="card-sub">iptables/nftables, UFW, zone policies</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-07.html" class="content-card" data-module="ala-07">
+                                <img src="../../../assets/images/icons/icon-padlock.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-07</span>
+                                <div class="card-info">
+                                    <div class="card-title">Dual-Lock Protocol</div>
+                                    <div class="card-sub">PAM, 2FA, SSH keys, fail2ban</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-08.html" class="content-card" data-module="ala-08">
+                                <img src="../../../assets/images/icons/icon-shield.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-08</span>
+                                <div class="card-info">
+                                    <div class="card-title">Threat Sentinel</div>
+                                    <div class="card-sub">ClamAV, real-time scanning, clamd</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-09.html" class="content-card" data-module="ala-09">
+                                <img src="../../../assets/images/icons/icon-package.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-09</span>
+                                <div class="card-info">
+                                    <div class="card-title">Grid Armory + Field Assembly</div>
+                                    <div class="card-sub">apt/yum, source compilation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-10.html" class="content-card" data-module="ala-10">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-10</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Objectives 3 and 4</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ala-l04-lockdown-protocol/index.html"
+                               class="lab-card" data-module="ala-l04">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 04</span>
+                                <div class="card-info">
+                                    <div class="card-title">Lockdown Protocol</div>
+                                    <div class="card-sub">A cell with no firewall policy. Lock it down before the attacker returns.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">35 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l05-the-insider/index.html"
+                               class="lab-card" data-module="ala-l05">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 05</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Insider</div>
+                                    <div class="card-sub">A rogue account is operating inside your cell. Find it. Revoke it. Flag it.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l06-field-assembly/index.html"
+                               class="lab-card" data-module="ala-l06">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 06</span>
+                                <div class="card-info">
+                                    <div class="card-title">Field Assembly</div>
+                                    <div class="card-sub">No package manager. Compile and deploy from source under time pressure.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ala-w2-firewalls.presentation.html"
+                               class="content-card" data-module="ala-w2-firewalls">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">Firewalls</div>
+                                    <div class="card-sub">iptables, nftables, UFW, zone policies</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w2-authentication.presentation.html"
+                               class="content-card" data-module="ala-w2-authentication">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Authentication Hardening</div>
+                                    <div class="card-sub">PAM, 2FA, SSH keys, fail2ban</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w2-antivirus.presentation.html"
+                               class="content-card" data-module="ala-w2-antivirus">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Antivirus and Threat Scanning</div>
+                                    <div class="card-sub">ClamAV, real-time scanning, clamd</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w2-packages.presentation.html"
+                               class="content-card" data-module="ala-w2-packages">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Package Management</div>
+                                    <div class="card-sub">apt, yum, source compilation and deployment</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ala-w2.quiz.html"
+                               class="content-card" data-module="ala-w2-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W2-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 2 Quiz</div>
+                                    <div class="card-sub">Firewalls, authentication, antivirus, package management</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Midterm Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Midterm Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/ala-midterm.exam.html"
+                               class="content-card exam-card" data-module="ala-midterm">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">MIDTERM</span>
+                                <div class="card-info">
+                                    <div class="card-title">Midterm Exam</div>
+                                    <div class="card-sub">Covers Weeks 1 and 2: CLI, systemd, networking, hardening</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Midterm</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk2 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 3: Sector Authority (DNS + Automation)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk3">
+            <div class="week-header" onclick="toggleWeek('wk3')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Sector Authority: DNS + Automation</div>
+                        <div class="week-sub">WEEK 3 // OBJECTIVES 5, 6</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 5</span>
+                            <span class="obj-tag">Obj 6</span>
+                            <span class="item-count-tag">5 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 3 Progress</span>
+                            <span id="wk3-progress-text">0 / 8</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk3-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 3 // OBJECTIVES 5, 6</div>
+                        <div class="week-overview-desc">
+                            Your cell has been promoted to sector DNS authority. Other cells depend on you now. This week you deploy BIND from scratch, write zone files under operational conditions, build Bash automation pipelines, and schedule work across the grid with cron and systemd timers. Three labs test your authority and your ability to hold it under attack.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="ala-11.html" class="content-card" data-module="ala-11">
+                                <img src="../../../assets/images/icons/icon-globe.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-11</span>
+                                <div class="card-info">
+                                    <div class="card-title">Name Authority Fundamentals</div>
+                                    <div class="card-sub">DNS hierarchy, record types</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-12.html" class="content-card" data-module="ala-12">
+                                <img src="../../../assets/images/icons/icon-database.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-12</span>
+                                <div class="card-info">
+                                    <div class="card-title">BIND Deployment</div>
+                                    <div class="card-sub">named.conf, zone files, rndc</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-13.html" class="content-card" data-module="ala-13">
+                                <img src="../../../assets/images/icons/icon-code.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-13</span>
+                                <div class="card-info">
+                                    <div class="card-title">Bash Operations</div>
+                                    <div class="card-sub">Variables, conditionals, loops, functions</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-14.html" class="content-card" data-module="ala-14">
+                                <img src="../../../assets/images/icons/icon-clock.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-14</span>
+                                <div class="card-info">
+                                    <div class="card-title">Automated Directives</div>
+                                    <div class="card-sub">cron, systemd timers, logrotate, backups</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-15.html" class="content-card" data-module="ala-15">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-15</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Checkpoint</div>
+                                    <div class="card-sub">Lab + Quiz: Objectives 5 and 6</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ala-l07-name-authority/index.html"
+                               class="lab-card" data-module="ala-l07">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 07</span>
+                                <div class="card-info">
+                                    <div class="card-title">Name Authority</div>
+                                    <div class="card-sub">Stand up BIND. Populate zone files. Prove you own your sector.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l08-the-night-shift/index.html"
+                               class="lab-card" data-module="ala-l08">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 08</span>
+                                <div class="card-info">
+                                    <div class="card-title">The Night Shift</div>
+                                    <div class="card-sub">Write and deploy a full Bash automation suite. Verify with timers.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l09-poisoned-records/index.html"
+                               class="lab-card" data-module="ala-l09">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 09</span>
+                                <div class="card-info">
+                                    <div class="card-title">Poisoned Records</div>
+                                    <div class="card-sub">DNS zone files have been tampered with. Find the corruption. Restore truth.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">2 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ala-w3-dns-fundamentals.presentation.html"
+                               class="content-card" data-module="ala-w3-dns-fundamentals">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">DNS Fundamentals</div>
+                                    <div class="card-sub">DNS hierarchy, record types, resolution chain</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w3-bind-deployment.presentation.html"
+                               class="content-card" data-module="ala-w3-bind-deployment">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">BIND Deployment</div>
+                                    <div class="card-sub">named.conf, zone files, rndc</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w3-bash-scripting.presentation.html"
+                               class="content-card" data-module="ala-w3-bash-scripting">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Bash Scripting</div>
+                                    <div class="card-sub">Variables, conditionals, loops, functions, error handling</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w3-automation.presentation.html"
+                               class="content-card" data-module="ala-w3-automation">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-P4</span>
+                                <div class="card-info">
+                                    <div class="card-title">Automation and Scheduling</div>
+                                    <div class="card-sub">cron, systemd timers, logrotate, backups</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ala-w3.quiz.html"
+                               class="content-card" data-module="ala-w3-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W3-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 3 Quiz</div>
+                                    <div class="card-sub">DNS, BIND deployment, Bash scripting, automation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk3 -->
+
+
+        <!-- ════════════════════════════════════════════
+             WEEK 4: Integrity Verification (Filesystem + Performance)
+        ════════════════════════════════════════════ -->
+        <div class="week-card" id="wk4">
+            <div class="week-header" onclick="toggleWeek('wk4')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Integrity Verification: Filesystem + Performance</div>
+                        <div class="week-sub">WEEK 4 // OBJECTIVES 6, 7</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Obj 6</span>
+                            <span class="obj-tag">Obj 7</span>
+                            <span class="item-count-tag">4 modules + 3 labs</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+
+            <div class="week-body">
+                <div class="week-inner">
+
+                    <!-- Per-week progress bar -->
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Week 4 Progress</span>
+                            <span id="wk4-progress-text">0 / 7</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="wk4-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Week overview -->
+                    <div class="week-overview">
+                        <div class="week-overview-title">WEEK 4 // OBJECTIVES 6, 7</div>
+                        <div class="week-overview-desc">
+                            An anomaly was detected in your cell's filesystem. Investigate, verify, and report. This week you establish integrity baselines with AIDE and auditd, monitor cell vitals in real time, centralize logging with rsyslog, and write a comprehensive audit report. The capstone lab requires full-spectrum cell analysis.
+                        </div>
+                    </div>
+
+                    <!-- Modules -->
+                    <div class="subsection">
+                        <div class="subsection-label label-module">Modules</div>
+                        <div class="content-grid">
+
+                            <a href="ala-16.html" class="content-card" data-module="ala-16">
+                                <img src="../../../assets/images/icons/icon-magnifier.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-16</span>
+                                <div class="card-info">
+                                    <div class="card-title">Integrity Sweep</div>
+                                    <div class="card-sub">Checksums, AIDE, tripwire, auditd</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-17.html" class="content-card" data-module="ala-17">
+                                <img src="../../../assets/images/icons/icon-barchart.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-17</span>
+                                <div class="card-info">
+                                    <div class="card-title">Vitals Dashboard</div>
+                                    <div class="card-sub">top, htop, iostat, vmstat, sar</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-18.html" class="content-card" data-module="ala-18">
+                                <img src="../../../assets/images/icons/icon-signal.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-18</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cell Telemetry</div>
+                                    <div class="card-sub">journalctl, rsyslog, centralized logging</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                            <a href="ala-19.html" class="content-card" data-module="ala-19">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">ALA-19</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Assessment</div>
+                                    <div class="card-sub">Comprehensive audit: all objectives</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Labs -->
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">CTF Labs</div>
+                        <div class="content-grid">
+
+                            <a href="labs/ala-l10-ghost-in-the-cell/index.html"
+                               class="lab-card" data-module="ala-l10">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 10</span>
+                                <div class="card-info">
+                                    <div class="card-title">Ghost in the Cell</div>
+                                    <div class="card-sub">Something modified your filesystem after the last baseline. Find what changed.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l11-flatline/index.html"
+                               class="lab-card" data-module="ala-l11">
+                                <img src="../../../assets/images/icons/icon-skull.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 11</span>
+                                <div class="card-info">
+                                    <div class="card-title">Flatline</div>
+                                    <div class="card-sub">Cell vitals are degraded. Diagnose the resource bottleneck. Restore normal function.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">40 min</span>
+                                    <span class="flag-badge">3 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                            <a href="labs/ala-l12-full-cell-audit/index.html"
+                               class="lab-card" data-module="ala-l12">
+                                <img src="../../../assets/images/icons/icon-skull-crossbones.webp"
+                                     alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">LAB 12</span>
+                                <div class="card-info">
+                                    <div class="card-title">Full Cell Audit: Capstone</div>
+                                    <div class="card-sub">Every skill. One cell. Audit, harden, document, and flag four critical findings.</div>
+                                </div>
+                                <div class="lab-stats">
+                                    <span class="lab-stat-badge">45 min</span>
+                                    <span class="flag-badge">4 flags</span>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Presentations -->
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentations</div>
+                        <div class="content-grid">
+
+                            <a href="presentations/ala-w4-file-integrity.presentation.html"
+                               class="content-card" data-module="ala-w4-file-integrity">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P1</span>
+                                <div class="card-info">
+                                    <div class="card-title">File Integrity Monitoring</div>
+                                    <div class="card-sub">Checksums, AIDE, tripwire, auditd</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w4-performance.presentation.html"
+                               class="content-card" data-module="ala-w4-performance">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P2</span>
+                                <div class="card-info">
+                                    <div class="card-title">Performance Monitoring</div>
+                                    <div class="card-sub">top, htop, iostat, vmstat, sar</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                            <a href="presentations/ala-w4-log-management.presentation.html"
+                               class="content-card" data-module="ala-w4-log-management">
+                                <img src="../../../assets/images/icons/icon-desktop.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-P3</span>
+                                <div class="card-info">
+                                    <div class="card-title">Log Management</div>
+                                    <div class="card-sub">journalctl, rsyslog, centralized logging</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Assessment -->
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+
+                            <a href="quizzes/ala-w4.quiz.html"
+                               class="content-card" data-module="ala-w4-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">W4-QZ</span>
+                                <div class="card-info">
+                                    <div class="card-title">Week 4 Quiz</div>
+                                    <div class="card-sub">File integrity, performance monitoring, log management</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <!-- Final Exam -->
+                    <div class="subsection">
+                        <div class="subsection-label label-exam">Final Exam</div>
+                        <div class="content-grid">
+
+                            <a href="exams/ala-final.exam.html"
+                               class="content-card exam-card" data-module="ala-final">
+                                <img src="../../../assets/images/icons/icon-graduation.webp"
+                                     alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">FINAL</span>
+                                <div class="card-info">
+                                    <div class="card-title">Final Exam</div>
+                                    <div class="card-sub">Comprehensive: all weeks, all objectives</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp"
+                                     alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-exam">Final</span>
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /wk4 -->
+
+
+        <!-- ── Course Objectives Block ── -->
+        <div class="course-info-block">
+            <h3>Course Objectives</h3>
+            <ul class="objectives-list">
+                <li>Operate the Linux CLI at an advanced level: pipes, process substitution, multiplexers, and shell scripting</li>
+                <li>Manage and extend the systemd service layer including custom unit files and journal analysis</li>
+                <li>Configure network interfaces, bonding, VLANs, and perform grid-level packet diagnostics</li>
+                <li>Implement host-level defense: firewall policy, PAM hardening, fail2ban, and antivirus integration</li>
+                <li>Deploy and administer a BIND DNS server as sector authority with correct zone file structure</li>
+                <li>Write production-grade Bash scripts with error handling, scheduling, and log management integration</li>
+                <li>Establish filesystem integrity baselines and detect unauthorized modifications with AIDE and auditd</li>
+            </ul>
+        </div>
+
+        <!-- ── Page Footer ── -->
+        <div class="page-footer">
+            House of the Matrix // Advanced Linux Administration // CTS4321C
+            <div class="footer-sub">Your cell is your responsibility.</div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── JavaScript ── -->
+    <script>
+        /**
+         * toggleWeek(id)
+         * Adds/removes the 'open' class on a week card to expand or collapse it.
+         * The max-height CSS transition handles the animation.
+         */
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        // ── Auto-open from URL hash ────────────────────────────────────────
+        // Supports links like index.html#wk2 to jump directly to that week.
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#wk[0-4]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card && !card.classList.contains('locked')) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        // ── Progress Tracking ─────────────────────────────────────────────
+        // Runs after DOM is ready so all [data-module] elements exist.
+        // Uses ModuleProgress.isCompleted('matrix', moduleId) to check state.
+        // Highlights completed cards, fills per-week bars, fills overall bar.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            // All module IDs, grouped by week card ID.
+            // Total: 5 + 13 + 14 + 13 + 13 = 58 items (includes presentations, quizzes, exams).
+            var weeks = {
+                wk0: [
+                    'ala-r1',
+                    'ala-r2',
+                    'ala-r3',
+                    'ala-r4',
+                    'ala-r5'
+                ],
+                wk1: [
+                    'ala-01',
+                    'ala-02',
+                    'ala-03',
+                    'ala-04',
+                    'ala-05',
+                    'ala-l01',
+                    'ala-l02',
+                    'ala-l03',
+                    'ala-w1-cli',
+                    'ala-w1-systemd',
+                    'ala-w1-network-config',
+                    'ala-w1-network-diag',
+                    'ala-w1-quiz'
+                ],
+                wk2: [
+                    'ala-06',
+                    'ala-07',
+                    'ala-08',
+                    'ala-09',
+                    'ala-10',
+                    'ala-l04',
+                    'ala-l05',
+                    'ala-l06',
+                    'ala-w2-firewalls',
+                    'ala-w2-authentication',
+                    'ala-w2-antivirus',
+                    'ala-w2-packages',
+                    'ala-w2-quiz',
+                    'ala-midterm'
+                ],
+                wk3: [
+                    'ala-11',
+                    'ala-12',
+                    'ala-13',
+                    'ala-14',
+                    'ala-15',
+                    'ala-l07',
+                    'ala-l08',
+                    'ala-l09',
+                    'ala-w3-dns-fundamentals',
+                    'ala-w3-bind-deployment',
+                    'ala-w3-bash-scripting',
+                    'ala-w3-automation',
+                    'ala-w3-quiz'
+                ],
+                wk4: [
+                    'ala-16',
+                    'ala-17',
+                    'ala-18',
+                    'ala-19',
+                    'ala-l10',
+                    'ala-l11',
+                    'ala-l12',
+                    'ala-w4-file-integrity',
+                    'ala-w4-performance',
+                    'ala-w4-log-management',
+                    'ala-w4-quiz',
+                    'ala-final'
+                ]
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            // Process each week: check completions, mark cards, update bars
+            Object.keys(weeks).forEach(function (weekId) {
+                var ids       = weeks[weekId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('matrix', moduleId)) {
+                        completed++;
+
+                        // Highlight the card via data-module attribute lookup
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) {
+                            el.classList.add('is-complete');
+                        }
+                    }
+                });
+
+                // Update per-week progress bar and text counter
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(weekId + '-progress-bar');
+                var weekText = document.getElementById(weekId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            // Update overall progress bar at the top of the page
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <!-- ── Shared Components ── -->
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/TrailHunter.js"></script>
+
+    <!-- Sun Tzu Bot (Matrix House advisor) -->
+    <script src="https://platform.aminos.ai/w/chat_plugin.js" data-bot-id="7990"></script>
+
+</body>
+</html>

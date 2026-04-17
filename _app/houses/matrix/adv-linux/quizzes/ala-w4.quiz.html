@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 4 Quiz: Filesystem + Performance | Advanced Linux Administration</title>
+    <style>
+        :root {
+            --bg: #060d08;
+            --bg-card: #0a130c;
+            --bg-option: #0f1a11;
+            --green: #00ff41;
+            --green-dim: rgba(0, 255, 65, 0.15);
+            --text: #e2f0e5;
+            --text-muted: #86a88c;
+            --success: #00ff41;
+            --danger: #ff3333;
+            --border: rgba(0, 255, 65, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(135deg, var(--bg) 0%, #040b06 50%, #061008 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--green); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #33ff66; transform: translateX(-5px); display: inline-block; }
+
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--green-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--green); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), #33ff66); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+        .score-label { font-size: 0.85rem; color: var(--green); font-weight: 600; white-space: nowrap; }
+
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.8rem; color: var(--green); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.05rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.6; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .question-text code { font-family: 'Courier New', Courier, monospace; background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.2); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; color: #66ff88; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+        .option { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-option); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .option:hover { border-color: rgba(0, 255, 65, 0.4); background: rgba(0, 255, 65, 0.05); }
+        .option.selected { border-color: var(--green); background: rgba(0, 255, 65, 0.08); }
+        .option.correct { border-color: var(--success); background: rgba(0, 255, 65, 0.10); }
+        .option.incorrect { border-color: var(--danger); background: rgba(255, 51, 51, 0.08); }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+        .option-letter { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--green); flex-shrink: 0; font-family: 'Courier New', Courier, monospace; }
+        .option.correct .option-letter { background: rgba(0, 255, 65, 0.25); color: var(--success); border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .feedback.correct { display: block; background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.30); color: #88ffaa; }
+        .feedback.incorrect { display: block; background: rgba(255, 51, 51, 0.06); border: 1px solid rgba(255, 51, 51, 0.30); color: #ff9999; }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+        .next-btn { padding: 10px 24px; background: rgba(0, 255, 65, 0.10); border: 1px solid rgba(0, 255, 65, 0.40); color: var(--green); border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Courier New', Courier, monospace; }
+        .next-btn:hover { background: rgba(0, 255, 65, 0.20); }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(0, 255, 65, 0.10); }
+
+        .results-card { display: none; text-align: center; background: var(--bg-card); border-radius: 14px; padding: 3rem 2rem; border: 1px solid var(--border); }
+        .results-card h2 { color: var(--green); font-size: 1.4rem; margin-bottom: 1rem; }
+        .score-big { font-size: 3.5rem; font-weight: 700; color: var(--success); margin-bottom: 0.5rem; font-family: 'Courier New', Courier, monospace; }
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .results-btns a, .results-btns button { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; font-family: 'Courier New', Courier, monospace; }
+        .btn-retry { background: rgba(0, 255, 65, 0.10); border: 1px solid rgba(0, 255, 65, 0.40) !important; color: var(--green); }
+        .btn-retry:hover { background: rgba(0, 255, 65, 0.25); }
+        .btn-hub { background: rgba(0, 255, 65, 0.15); border: 1px solid rgba(0, 255, 65, 0.40) !important; color: var(--success); }
+        .btn-hub:hover { background: rgba(0, 255, 65, 0.30); }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Advanced Linux Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 4 Quiz: Integrity Verification</h1>
+            <p class="subtitle">Filesystem Integrity, Performance Monitoring, and Centralized Logging</p>
+            <div class="meta">
+                <span>Week 4</span>
+                <span>10 Questions</span>
+                <span>Obj 7</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 10</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to ALA Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Answers are NOT stored in this file.
+           Server-graded via gradeQuiz Cloud Function.
+           Answer key stored in Firestore quiz_keys/matrix-ala-w4-quiz */
+        var QUIZ_ID = 'matrix-ala-w4-quiz';
+
+        var questions = [
+            {
+                q: 'An operator initializes AIDE with <code>aide --init</code> and then runs <code>aide --check</code> one week later. AIDE reports 47 changed files including files in <code>/var/log/</code> and <code>/var/cache/</code>. What is the most appropriate response?',
+                opts: [
+                    'Treat all 47 changes as a security incident and investigate each one',
+                    'Update the AIDE database and reconfigure it to exclude dynamic directories like /var/log/ and /var/cache/ from the baseline',
+                    'Reinstall AIDE because the database has been corrupted',
+                    'Disable AIDE as it generates too many false positives to be useful'
+                ],
+                ans: 1,
+                exp: 'Dynamic directories like /var/log, /var/cache, /tmp, and /proc change constantly. Including them in AIDE\'s monitored paths generates noise. The standard practice is to exclude these directories in /etc/aide/aide.conf and focus AIDE on directories that should not change: /bin, /sbin, /etc, /usr/bin, /usr/sbin.'
+            },
+            {
+                q: 'An operator runs <code>auditctl -w /etc/passwd -p wa -k passwd-changes</code>. What does this rule monitor?',
+                opts: [
+                    'All read access to /etc/passwd and logs it with the key "passwd-changes"',
+                    'Write and attribute change operations on /etc/passwd and tags them with the key "passwd-changes"',
+                    'Only failed attempts to write to /etc/passwd',
+                    'All syscalls performed by the passwd binary'
+                ],
+                ans: 1,
+                exp: '-w specifies the watched file. -p wa watches for write (w) and attribute change (a) operations. -k assigns a key for filtering logs with ausearch. This rule fires when any process writes to or changes permissions/ownership on /etc/passwd.'
+            },
+            {
+                q: 'Which command shows CPU utilization broken down by user, system, iowait, and idle percentages, updated every 2 seconds?',
+                opts: [
+                    'top -d 2 -b',
+                    'vmstat 2',
+                    'iostat -c 2',
+                    'sar -u 2'
+                ],
+                ans: 2,
+                exp: 'iostat -c reports CPU statistics: %user, %nice, %system, %iowait, %steal, %idle. The -c flag shows only CPU stats (not disk). The 2 is the interval in seconds. sar -u also works but requires sysstat to be collecting data. iostat -c provides the clearest CPU breakdown format.'
+            },
+            {
+                q: 'A cell shows high iowait in <code>iostat</code> output. Which command identifies which disk is experiencing the bottleneck?',
+                opts: [
+                    'df -h',
+                    'iostat -xz 2',
+                    'du -sh /*',
+                    'lsblk -o NAME,SIZE,TYPE'
+                ],
+                ans: 1,
+                exp: 'iostat -x shows extended statistics including %util (disk utilization), await (average I/O wait time), and tps (transfers per second) per device. The -z flag omits devices with no activity. High %util on a specific device pinpoints the bottleneck.'
+            },
+            {
+                q: 'An operator uses <code>vmstat 1 5</code> and observes consistently high values in the <code>si</code> and <code>so</code> columns. What does this indicate?',
+                opts: [
+                    'High software interrupt activity from network packets',
+                    'The system is actively swapping memory pages in and out of swap space',
+                    'CPU steal time is elevated due to hypervisor contention',
+                    'Storage I/O operations per second are abnormally high'
+                ],
+                ans: 1,
+                exp: 'In vmstat output, si = swap-in (pages read from swap) and so = swap-out (pages written to swap). High si/so values indicate the system is under memory pressure and actively using swap, which causes severe performance degradation due to disk I/O.'
+            },
+            {
+                q: 'An operator needs to forward all local syslog messages to a central logging server at <code>10.0.1.200</code> on UDP port 514 using rsyslog. Which line in <code>/etc/rsyslog.conf</code> accomplishes this?',
+                opts: [
+                    '*.* @10.0.1.200:514',
+                    '*.* @@10.0.1.200:514',
+                    '*.* forward(10.0.1.200, 514, udp)',
+                    '*.* | /dev/udp/10.0.1.200/514'
+                ],
+                ans: 0,
+                exp: 'In rsyslog legacy format, a single @ means UDP forwarding; @@ means TCP. *.* @10.0.1.200:514 sends all facility/severity combinations to the remote host via UDP 514. Use @@ for TCP if reliable delivery is required.'
+            },
+            {
+                q: 'Which <code>journalctl</code> command shows log entries generated in the last 30 minutes across all units?',
+                opts: [
+                    'journalctl --since "-30 minutes"',
+                    'journalctl --since "30 min ago"',
+                    'journalctl -n 30',
+                    'journalctl --since $(date -d "30 minutes ago" +"%Y-%m-%d %H:%M:%S")'
+                ],
+                ans: 1,
+                exp: 'journalctl --since accepts relative time strings like "30 min ago", "1 hour ago", and "yesterday". -n 30 shows the last 30 lines, not the last 30 minutes. Both options A and D would work but B is the cleanest human-readable form.'
+            },
+            {
+                q: 'An operator checks <code>top</code> and sees a process consuming 99% CPU with state <code>D</code> (uninterruptible sleep). What does this state indicate?',
+                opts: [
+                    'The process is deadlocked waiting for another process to release a mutex',
+                    'The process is waiting for I/O to complete and cannot be killed with SIGKILL',
+                    'The process has been stopped by a SIGSTOP signal',
+                    'The process is a zombie waiting for its parent to collect the exit code'
+                ],
+                ans: 1,
+                exp: 'State D (uninterruptible sleep) means the process is blocked waiting for I/O. Critically, processes in state D cannot be killed with SIGKILL because the signal is not delivered until the I/O completes. This is a common symptom of a hung NFS mount, a failing disk, or a storage driver issue.'
+            },
+            {
+                q: 'After establishing a new AIDE database, where should the database file be stored to prevent an attacker from modifying it and covering their tracks?',
+                opts: [
+                    'In /var/lib/aide/ on the same filesystem being monitored',
+                    'On read-only media or a remote server not accessible from the monitored host',
+                    'In /root/ with permissions 600',
+                    'Encrypted with GPG and stored in /tmp/aide.db.gpg'
+                ],
+                ans: 1,
+                exp: 'If an attacker can modify the AIDE database after compromising the system, they can regenerate the baseline to hide their changes. The database must be stored somewhere the attacker cannot reach: read-only media (USB, CD-ROM), a separate monitoring server, or an append-only remote log store. Local storage, even with restrictive permissions, is not sufficient.'
+            },
+            {
+                q: 'An operator uses <code>sar -r 1 5</code> to monitor memory. The output shows <code>%memused</code> consistently above 95%. Which follow-up command identifies which processes are consuming the most RAM?',
+                opts: [
+                    'vmstat -s',
+                    'ps aux --sort=-%mem | head -10',
+                    'free -m',
+                    'cat /proc/meminfo | grep Active'
+                ],
+                ans: 1,
+                exp: 'ps aux --sort=-%mem sorts all processes by memory usage in descending order (the - negates the sort direction). head -10 limits output to the top 10 consumers. The %MEM column shows the percentage of total RAM each process uses. This is the fastest way to identify memory-hungry processes.'
+            }
+        ];
+
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').innerHTML = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            document.getElementById('resultsCard').style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. Cell integrity and telemetry mastered.';
+            else if (pct >= 70) msg = 'Passing score. Integrity sweep complete.';
+            else if (pct >= 50) msg = 'Not yet. Review ALA-16 through ALA-18 and retry.';
+            else msg = 'Below threshold. Return to Week 4 modules before the final exam.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('matrix', 'ala-w4-quiz', score);
+            }
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

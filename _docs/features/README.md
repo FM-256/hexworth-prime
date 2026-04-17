@@ -32,3 +32,5 @@ internal architecture docs from being deployed to production via Firebase Hostin
 | [Sandbox Labs](SANDBOX_LABS.md) | lab-manager/server.js, docker-compose.yml, SandboxLauncher.js | Docker containers via Traefik + Cloudflare Tunnel, 4 images, idle management |
 | [Multiplayer & Hive](MULTIPLAYER_HIVE.md) | MultiplayerManager.js, HiveManager.js, CoOpSync.js, VsBridge.js | 2-player arcade, ghost replay, Hive facility exploration, Red vs Blue CTF |
 | [Digital Life](DIGITAL_LIFE.md) | digital-life/index.js + 30 modules | Binary firefly ecosystem, 8 phases, procedural audio, cosmic events, player tools |
+| [The Panopticon](CTF_ARENA.md#the-panopticon-live-spectator-gallery) | spectator.html, getLiveKitToken CF, LiveKit Cloud | Live streaming gallery — Twitch-style multi-channel view of tournament participants via WebRTC |
+| [EDTEngine (Case Room)](EDT_ENGINE.md) | EDTEngine.js, edt.css, submitEDTLab CF | Ethical Decision Training — 5-phase Case Room with evidence lock-in, framework collision, and code conflict analysis |

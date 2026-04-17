@@ -145,7 +145,13 @@ const ForensicsEngine = (() => {
             card.style.setProperty('--track-color', track.color);
             card.style.setProperty('--track-dim', track.colorDim);
 
+            // Favorites
+            const hasFav = typeof FavoritesManager !== 'undefined';
+            const isFav = hasFav && FavoritesManager.isFavorite(track.id);
+            const favHtml = hasFav ? `<button class="fh-fav-btn${isFav ? ' favorited' : ''}" data-track-id="${track.id}">${isFav ? '\u2665' : '\u2661'}</button>` : '';
+
             card.innerHTML = `
+                ${favHtml}
                 <div class="fh-track-header">
                     <img src="${track.icon}" alt="" class="fh-track-icon" width="24" height="24">
                     <div class="fh-track-info">
@@ -167,6 +173,24 @@ const ForensicsEngine = (() => {
                         </a>
                     `).join('')}
                 </div>`;
+
+            // Wire up favorite button
+            const favBtn = card.querySelector('.fh-fav-btn');
+            if (favBtn) {
+                favBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const meta = {
+                        title: track.name,
+                        house: 'forensics',
+                        type: 'forensics-track',
+                        href: 'forensics/index.html'
+                    };
+                    const nowFav = FavoritesManager.toggle(track.id, meta);
+                    favBtn.classList.toggle('favorited', nowFav);
+                    favBtn.textContent = nowFav ? '\u2665' : '\u2661';
+                });
+            }
 
             grid.appendChild(card);
         });
@@ -298,10 +322,20 @@ const ForensicsEngine = (() => {
             /* Track Grid */
             .fh-track-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 20px; }
             .fh-track-card {
+                position: relative;
                 background: ${BG_CARD}; border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 10px; padding: 20px; transition: border-color 0.2s;
             }
             .fh-track-card:hover { border-color: var(--track-color, ${ACCENT}); }
+            /* Favorite heart button */
+            .fh-fav-btn {
+                position: absolute; top: 10px; right: 10px;
+                background: none; border: none; font-size: 1.2rem;
+                cursor: pointer; opacity: 0.3; transition: all 0.2s;
+                padding: 2px 4px; line-height: 1; z-index: 2; color: #e0e0e0;
+            }
+            .fh-fav-btn:hover { opacity: 0.8; transform: scale(1.2); }
+            .fh-fav-btn.favorited { opacity: 1; color: #ef4444; }
             .fh-track-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .fh-track-icon { border-radius: 4px; }
             .fh-track-info { flex: 1; }

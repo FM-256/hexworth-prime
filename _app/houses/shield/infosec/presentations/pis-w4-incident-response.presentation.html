@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response &amp; Digital Forensics | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Incident Response &amp; Digital Forensics | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-16 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; SY0-701: 4.3, 4.4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Incident Response &amp;<br>
+                <span class="accent">Digital Forensics</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                IR Lifecycle &nbsp;&bull;&nbsp; Forensics &nbsp;&bull;&nbsp; Chain of Custody &nbsp;&bull;&nbsp; Recovery Planning &nbsp;&bull;&nbsp; Continuity
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Eta. At 02:17 facility time, automated sensors detected unauthorized modification of Vault 7 specimen logs. The duty officer has declared a Severity-1 incident. You have been paged. The clock is running. Every decision made in the next six hours will determine whether the facility recovers -- or whether the investigation is compromised before it begins.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-16</span>
+            <span>Week 4 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY IR EXISTS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title">Why <span class="accent">Incident Response</span> Exists</div>
+        <div class="slide-subtitle">Breaches are inevitable. The quality of the response determines the outcome.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Prevention Is Incomplete</div>
+                <div class="card-desc">No control set stops every attack. Adversaries iterate, misconfigurations occur, zero-days exist. IR acknowledges this reality and shifts focus to minimizing dwell time and impact when prevention fails.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Dwell Time Drives Damage</div>
+                <div class="card-desc">IBM Cost of a Data Breach 2024: mean breach lifecycle was 258 days. Organizations identifying breaches in under 200 days saved an average of $1.12M. Every hour of undetected activity multiplies attacker reach and remediation cost.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Legal and Regulatory Obligation</div>
+                <div class="card-desc">HIPAA, PCI DSS, GDPR, and US state laws impose mandatory notification timelines. The absence of a documented IR program is itself a compliance finding during audits and a factor in regulatory penalty calculations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Evidence Preservation</div>
+                <div class="card-desc">Untrained responders routinely destroy evidence by rebooting systems, overwriting logs, or contaminating the environment. A structured IR process ensures evidence survives and is admissible if law enforcement or litigation follows.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Organizational Learning</div>
+                <div class="card-desc">Post-incident review closes the loop. Lessons learned sessions generate actionable improvements to controls, detection rules, playbooks, and training -- transforming each breach into a hardening opportunity rather than a pure loss event.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Stakeholder Confidence</div>
+                <div class="card-desc">Investors, customers, and partners assess organizational competence partly by how incidents are handled. A well-executed response that limits damage and communicates transparently preserves trust in ways that preventing disclosure cannot.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — IR LIFECYCLE OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title">The <span class="accent">IR Lifecycle</span> -- Six Phases</div>
+        <div class="slide-subtitle">NIST SP 800-61r2 defines the standard IR lifecycle used across government and industry.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">1 -- Preparation</div>
+                <div class="card-desc">Build the capability before incidents occur: IR policy, trained team, communication plan, documented playbooks, tooling (SIEM/EDR/forensic kits), legal counsel retainer, and tabletop exercises. Preparation is the only phase with no time pressure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">2 -- Detection &amp; Analysis</div>
+                <div class="card-desc">Identify and confirm that an incident has occurred. Gather initial indicators, classify severity, determine scope, and notify the IR team. Many incidents are false positives -- rigorous triage avoids wasted effort and responder fatigue.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">3 -- Containment</div>
+                <div class="card-desc">Stop the bleeding without destroying evidence. Short-term containment (isolate host) followed by long-term containment (patch, rebuild, block IOCs at perimeter). Evidence must be preserved before aggressive remediation actions.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">4 -- Eradication</div>
+                <div class="card-desc">Remove the root cause: delete malware, close exploited vulnerabilities, rotate compromised credentials, revoke malicious OAuth grants, purge attacker persistence mechanisms (scheduled tasks, registry run keys, web shells, implanted accounts).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">5 -- Recovery</div>
+                <div class="card-desc">Restore affected systems to normal operation. Validate integrity before reconnecting, monitor for recurrence, confirm all persistence was removed. Recovery is not complete until the organization has verified -- not just assumed -- that the adversary is gone.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">6 -- Lessons Learned</div>
+                <div class="card-desc">Conduct a post-incident review within 2 weeks while memory is fresh. Document timeline, root cause, what worked, what failed, and specific remediation tasks with owners and due dates. Update playbooks and controls before closing the incident record.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — PREPARATION PHASE DEPTH ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Preparation</span> -- Building IR Capability</div>
+        <div class="slide-subtitle">Everything spent in preparation is recovered many times over during an actual incident.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IR Policy and Plan</div>
+                <div class="card-desc">Formal policy authorizes the IR function and defines scope. The IR plan documents roles and responsibilities, escalation paths, severity classification criteria, communication channels, and legal reporting obligations. Plans must be tested -- unexercised plans fail under pressure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IR Team Composition (CSIRT)</div>
+                <div class="card-desc">Computer Security Incident Response Team (CSIRT) roles: IR manager (owns the process), analysts (triage and investigation), forensic specialists, legal/compliance counsel, PR/communications, HR (for insider threat), and IT operations (execution). Document who to call at 2 AM.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Tooling and Jump Kits</div>
+                <div class="card-desc">SIEM with tuned alert rules, EDR deployed on all endpoints, network packet capture capability, forensic imaging tools (FTK Imager, dd, dc3dd), write blockers, hash validation tools, secure evidence storage media, incident tracking system, and out-of-band communication channel (assume primary email may be compromised).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Playbooks and Runbooks</div>
+                <div class="card-desc">Scenario-specific runbooks for: ransomware, data exfiltration, BEC/phishing, DDoS, insider threat, cloud compromise, and supply chain attack. Each runbook includes: immediate containment steps, evidence to collect, stakeholders to notify, external contacts (FBI IC3, CISA), and decision trees for escalation.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Exercise Types</div>
+            Tabletop: discussion-based scenario walkthrough (no live systems) -- lowest cost, broad participation, tests decision-making. Walk-through: team reviews procedures step-by-step against a scenario. Functional: activates real tools and partial IR functions with simulated inputs. Full interruption: complete cutover to DR site, maximum fidelity, highest cost and risk. Organizations should progress through all four types annually.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — DETECTION AND ANALYSIS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Detection &amp; Analysis</span> -- Confirming the Incident</div>
+        <div class="slide-subtitle">Not every alert is an incident. Rigorous triage separates signal from noise.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Incident Sources</div>
+                <div class="card-desc">SIEM alerts, EDR detections, IDS/IPS triggers, user reports (phishing email), third-party notifications (ISAC, vendor, law enforcement), threat intelligence feeds, bug bounty submissions, and log anomalies. Each source has different reliability and requires different validation steps.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Precursor vs. Indicator</div>
+                <div class="card-desc">Precursor: a sign that an incident may occur (scanning activity, recon patterns, dark web credential listings). Indicator of Compromise (IOC): evidence that an incident is occurring or has occurred (malware hash, C2 domain, lateral movement event, data staging at unusual endpoint).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Severity Classification</div>
+                <div class="card-desc">Sev-1 (Critical): active breach, data exfiltration in progress, ransomware detonation, safety system impact. Sev-2 (High): confirmed compromise, no active exfiltration, limited scope. Sev-3 (Medium): suspected compromise, investigation underway. Sev-4 (Low): anomaly, no confirmed malicious activity. Classification drives resource allocation and escalation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Initial Scoping</div>
+                <div class="card-desc">Answer: What systems are affected? What data may be involved? Is the attacker still present? What is the apparent attack vector? What is the business impact? Scoping drives containment strategy -- over-scoping wastes resources, under-scoping allows the attacker to persist on overlooked systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Notification Requirements</div>
+                <div class="card-desc">Internal: CISO, legal, HR (if insider), IT leadership. External: CISA (critical infrastructure), FBI (cyber), sector-specific ISAC, cyber insurance carrier, affected customers/partners (per regulation). Document all notifications -- timestamps and recipients are required for regulatory compliance.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Triage Documentation</div>
+                <div class="card-desc">Open an incident ticket immediately. Every action, finding, and decision must be recorded with actor, timestamp, and justification. This log becomes the foundation of the incident report, chain of custody documentation, and lessons learned session. Undocumented IR is untestifiable IR.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — CONTAINMENT STRATEGIES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Containment</span> -- Stopping Spread Without Destroying Evidence</div>
+        <div class="slide-subtitle">The tension: acting fast enough to limit damage while preserving forensic integrity.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Short-Term Containment</div>
+                <div class="card-desc">Immediate actions to halt active harm: isolate affected hosts (VLAN quarantine or network disconnect), block malicious IPs/domains at firewall, disable compromised accounts, halt exfiltration at DLP. Goal: stop the bleeding within minutes to hours. Preserve memory and network state before isolation where possible.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Isolation vs. Shutdown Decision</div>
+                <div class="card-desc">Isolate (network disconnect, not power-off) when: memory forensics are needed, malware behavior must be observed, system is business-critical and shutdown causes additional harm. Power off only when: ransomware is actively encrypting and isolation is impossible, or physical safety requires it. Rebooting without imaging destroys volatile evidence.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Long-Term Containment</div>
+                <div class="card-desc">Stabilize for extended investigation: patch the exploited vulnerability, apply emergency configuration changes, deploy additional monitoring on attacker-controlled pathways, maintain quarantined systems for forensic work while restoring business services from clean backups on parallel infrastructure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Segmentation as Containment</div>
+                <div class="card-desc">Network segmentation limits lateral movement. If the affected host is in a flat network, containment is harder -- the attacker may already be everywhere. Micro-segmentation (NSX, Illumio) and Zero Trust architectures provide containment capability by design rather than requiring emergency firewall rule creation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cloud Containment Actions</div>
+                <div class="card-desc">Revoke IAM keys and session tokens, detach instance from VPC, isolate security group (allow only forensic workstation inbound), snapshot EBS volume before modification, enable CloudTrail if not already active, quarantine S3 bucket policy to deny public access, and preserve CloudWatch logs before they age out.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Attacker Deception Option</div>
+                <div class="card-desc">In some cases, monitoring the attacker without containment ("watch and wait") yields intelligence on TTPs, additional targets, and exfiltration destinations. This must be authorized by legal counsel and senior leadership -- exposure of additional data during this window creates liability. Never a default choice; requires explicit sign-off.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — ERADICATION AND RECOVERY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Eradication &amp; Recovery</span> -- Removing the Threat, Restoring Operations</div>
+        <div class="slide-subtitle">Eradication without thorough verification leads to re-compromise within days.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Eradication Actions</div>
+                <div class="card-desc">Remove malware (quarantine, delete, reimage). Close the initial access vector (patch, MFA, disable service). Purge all persistence mechanisms: scheduled tasks, registry run keys, WMI subscriptions, web shells, startup folder entries, malicious services, rogue local accounts, backdoor SSH authorized_keys entries. Rotate ALL credentials that touched the compromised systems -- not just the one confirmed compromised account.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reimaging vs. Remediation</div>
+                <div class="card-desc">Reimaging (wipe and rebuild from known-good image) is always the safest path after a confirmed compromise. Attempting to "clean" a system risks missing persistence -- advanced implants survive antivirus scans. Reserve in-place remediation only for systems where reimaging is not feasible (OT/ICS, legacy, critical availability). Always validate via hash against a known baseline after any remediation attempt.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Recovery Validation</div>
+                <div class="card-desc">Before reconnecting: verify OS and application integrity, confirm patching, validate all accounts and credentials are clean, verify backup integrity (was the backup itself compromised?), confirm monitoring is active and generating alerts, and conduct a brief red-team check of the initial access vector. Document that validation occurred and who performed it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Post-Recovery Monitoring</div>
+                <div class="card-desc">Attackers frequently re-compromise during recovery, particularly if eradication was incomplete. Increase alert sensitivity on recovered systems for 30 days. Monitor for: same IOCs, similar TTPs using different infrastructure, attempts to re-establish C2 from other compromised hosts, and access patterns matching the original attacker. Recovery is not "done" until re-compromise risk has been formally assessed and accepted.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Eta -- Recovery Phase. Three servers have been reimaged and restored from the last clean backup (validated via hash). Before reconnecting to the facility network, the IR team must confirm that the exploited VPN appliance has been patched to the vendor-issued emergency firmware -- the same vulnerability was used in two subsequent attacks at partner facilities during the containment window.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — LESSONS LEARNED ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Lessons Learned</span> -- Closing the Loop</div>
+        <div class="slide-subtitle">Post-incident review is where an organization improves. Skipping it converts a breach into a recurring event.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Post-Incident Review (PIR)</div>
+                <div class="card-desc">Conduct within 1-2 weeks. Attendees: IR team, affected system owners, CISO, legal. Agenda: incident timeline walk-through, root cause analysis, what worked, what failed, what was unknown. Blameless in tone -- goal is learning, not accountability theater. Document all findings formally.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Root Cause Analysis</div>
+                <div class="card-desc">Identify the true root cause, not just the proximate cause. A phishing email is the proximate cause; the root cause is lack of phishing-resistant MFA, absent email filtering, or untrained users. Use 5-Whys or fishbone diagram to trace back to the correctable systemic failure. Each root cause must have an assigned remediation owner and deadline.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Incident Report</div>
+                <div class="card-desc">Formal written document: executive summary (1 page), detailed timeline, affected systems and data, attack vector and TTPs (mapped to MITRE ATT&CK), containment and eradication actions taken, regulatory notifications made, financial impact estimate, and remediation plan. Report is privileged when prepared under attorney direction -- classify accordingly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Playbook Updates</div>
+                <div class="card-desc">Every gap identified during the incident becomes a playbook update. If a runbook step was unclear or absent, rewrite it. If a tool was missing from the jump kit, procure it. If a notification went to the wrong person, update the contact list. The playbook that failed to prevent the last incident must not be the same playbook used in the next one.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Evidence Retention</div>
+                <div class="card-desc">Retain all incident artifacts per legal hold requirements: disk images, memory captures, log exports, network captures, malware samples, chain of custody documentation, and all IR communications. Minimum retention is typically 7 years for most regulatory frameworks, indefinitely for active litigation. Store in access-controlled, tamper-evident locations.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Metrics and Trending</div>
+                <div class="card-desc">Track over time: Mean Time to Detect (MTTD), Mean Time to Respond (MTTR), incident count by category, repeat incidents, playbook invocation frequency, and cost per incident. Report trends to leadership quarterly. Declining MTTD and MTTR demonstrate measurable IR program maturity and justify program investment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — FORENSICS FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Digital Forensics</span> -- Principles and Purpose</div>
+        <div class="slide-subtitle">Forensics answers: what happened, when, how, and who. Done correctly, those answers hold up in court.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Definition and Scope</div>
+                <div class="card-desc">Digital forensics (also computer forensics or DFIR -- Digital Forensics and Incident Response) is the application of scientific principles to the collection, preservation, analysis, and presentation of digital evidence. Forensics is both a technical discipline and a legal process -- evidence not collected correctly may be inadmissible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Four Forensic Principles</div>
+                <div class="card-desc">1. Minimize alteration of original evidence. 2. Document every action taken. 3. Maintain chain of custody from acquisition to courtroom. 4. Work from forensic copies, never originals. Violating any of these principles risks exclusion of evidence and exposes the examiner to challenge in testimony.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Legal Authorization</div>
+                <div class="card-desc">All forensic activity requires authorization. Enterprise: explicit policy granting IT the right to examine company-owned devices; employee acknowledgment in acceptable use agreement. Law enforcement: warrant or exigent circumstances. Never examine a system without confirming authorization in writing -- unauthorized access to computer systems may itself be criminal.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Locard's Exchange Principle</div>
+                <div class="card-desc">Every interaction leaves a trace. The attacker left artifacts on your systems; you will leave artifacts when examining those systems. This is why forensic copies (not originals) are used for analysis -- it is impossible to examine a system without modifying it. The goal is to minimize and document those modifications, not to pretend they did not occur.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Types of Forensic Investigation</div>
+                <div class="card-desc">Disk forensics (file system analysis, deleted file recovery). Memory forensics (process injection, credentials in RAM, encryption keys). Network forensics (packet captures, flow logs, DNS queries). Mobile forensics (device extraction, app data). Log forensics (SIEM, application, OS logs). Cloud forensics (API logs, object storage metadata, serverless execution logs).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">DFIR in IR Context</div>
+                <div class="card-desc">Forensics and IR are integrated in modern practice. IR drives urgency (stop the attacker); forensics drives rigor (preserve the evidence). The DFIR analyst must balance both -- taking forensic-quality images before reimaging, preserving logs before they rotate, and capturing memory before isolating a host. Speed and rigor are not opposites if the process is practiced.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — ORDER OF VOLATILITY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Order of Volatility</span> -- Collect the Ephemeral First</div>
+        <div class="slide-subtitle">RFC 3227 establishes the collection order: most volatile to least volatile.</div>
+        <div class="code-block"><span class="cm">-- Order of Volatility (RFC 3227, most volatile first) --</span>
+
+<span class="kw">1. CPU registers, cache</span>         <span class="cm">-- nanoseconds; lost on any interruption</span>
+<span class="kw">2. RAM (physical memory)</span>          <span class="cm">-- lost on power-off/reboot; contains: running processes,</span>
+                                    <span class="cm">   network connections, decryption keys, passwords in plaintext,</span>
+                                    <span class="cm">   injected code, clipboard, crypto wallet keys</span>
+<span class="kw">3. Swap / page file</span>               <span class="cm">-- on disk but can be overwritten; partial RAM artifacts</span>
+<span class="kw">4. Running processes</span>              <span class="cm">-- process list, open handles, loaded DLLs, command args</span>
+<span class="kw">5. Network state</span>                  <span class="cm">-- active connections (netstat), ARP cache, routing table,</span>
+                                    <span class="cm">   open sockets, DNS cache (ipconfig /displaydns)</span>
+<span class="kw">6. Disk (non-volatile storage)</span>    <span class="cm">-- persistent; survives reboot; includes deleted files,</span>
+                                    <span class="cm">   prefetch, event logs, registry, browser artifacts</span>
+<span class="kw">7. Optical media / USB</span>            <span class="cm">-- removable; may contain staging or exfil evidence</span>
+<span class="kw">8. Remote / cloud logs</span>            <span class="cm">-- least volatile; SIEM, CloudTrail, Azure Monitor;</span>
+                                    <span class="cm">   collect last but may be only surviving evidence</span>
+
+<span class="cm">-- Memory capture tools: WinPmem, DumpIt, LiME (Linux), osxpmem (macOS) --</span>
+<span class="cm">-- Disk imaging tools: FTK Imager, dc3dd (with hashing), Guymager --</span></div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Anchor</div>
+            The SY0-701 exam tests order of volatility directly. Memorize the sequence RAM -- swap -- processes -- network -- disk -- optical -- remote. The most common distractor is placing disk before network connections. Network state (ARP cache, open sockets) is more volatile than disk because it changes with every packet.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — CHAIN OF CUSTODY ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Chain of Custody</span> -- The Legal Foundation of Evidence</div>
+        <div class="slide-subtitle">Evidence without chain of custody is inadmissible. Chain of custody without documentation is undefendable.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Chain of Custody Means</div>
+                <div class="card-desc">A documented, unbroken record of every person who had custody of evidence from the moment it was collected to its presentation in court (or its destruction). Any gap -- undocumented transfer, unlocked storage, unaccounted period -- breaks the chain and may render the evidence inadmissible or subject to successful challenge.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Chain of Custody Form Fields</div>
+                <div class="card-desc">Evidence item ID/tag number, description (serial number, hash values, physical condition), date and time of acquisition, location of acquisition, name and signature of person acquiring, name and signature of all subsequent custodians, date and time of each transfer, storage location between transfers, and purpose of each examination. Form must accompany evidence at all times.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Integrity Verification -- Hashing</div>
+                <div class="card-desc">Compute cryptographic hash of evidence at acquisition (SHA-256 preferred; MD5 acceptable for chain-of-custody purposes though not collision-resistant). Re-verify hash before each examination and after each transfer. Any mismatch indicates evidence tampering or corruption -- the original must be re-acquired if intact or the discrepancy formally documented.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Write Blocking</div>
+                <div class="card-desc">Hardware write blockers (Tableau, WiebeTech) physically prevent any write operations to the evidence drive during imaging. Software write blockers are acceptable but carry higher challenge risk in court. Write blocking during acquisition is a foundational forensic control -- without it, the examiner cannot testify that the original was not modified.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Evidence Storage Requirements</div>
+                <div class="card-desc">Physical evidence: locked, access-logged evidence room. Digital evidence: encrypted storage (AES-256) with access logging. Mobile devices: Faraday bags to prevent remote wipe, network isolation. Cloud evidence: export with metadata preserved, store in WORM (write-once-read-many) storage. Temperature and humidity control for physical media. Documented destruction procedure when retention period expires.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Legal Admissibility Standards</div>
+                <div class="card-desc">US federal courts apply the Daubert standard: scientific methodology must be peer-reviewed, have known error rates, and be generally accepted in the forensics community. Frye standard (still used in some states): general acceptance in the relevant scientific community. Expert witnesses must demonstrate methodology, not just conclusions. Vendor tool validation reports support admissibility arguments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — FORENSIC ACQUISITION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Forensic Acquisition</span> -- Creating Verified Copies</div>
+        <div class="slide-subtitle">Work from copies, never originals. Verify integrity before and after every analysis step.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Disk Image Formats</div>
+                <div class="card-desc">Raw (dd) image: bit-for-bit copy including unallocated space, slack space, and deleted files. EWF/E01 (Expert Witness Format): compressed, segmented, with embedded metadata and hash verification per segment -- industry standard for most investigations. AFF4 (Advanced Forensic Format): open standard with cryptographic signing and compression. Always image the full disk, not just partitions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Memory Acquisition</div>
+                <div class="card-desc">Capture RAM before any other action when malware is suspected. Tools: WinPmem (Windows), LiME (Linux kernel module -- minimizes footprint), osxpmem (macOS). Output: raw memory dump or ELF/lime format. Immediately hash the dump. Challenges: ASLR and paging mean addresses are not static; hibernation files (hiberfil.sys) and crash dumps (MEMORY.DMP) may provide partial memory without a live capture.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Live Acquisition Considerations</div>
+                <div class="card-desc">Live acquisition (system running) is necessary for: encryption keys (BitLocker, FileVault, VeraCrypt), running malware analysis, network state, active processes. Caveat: the act of running acquisition tools modifies the system (loaded DLLs, written log entries). Document every change made during live acquisition -- this is the known contamination that courts accept as part of forensic process.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cloud and Virtual Acquisition</div>
+                <div class="card-desc">VM: snapshot via hypervisor (VMware/Hyper-V/KVM) before any changes. AWS: create EBS volume snapshot and attach to forensic instance; collect VPC Flow Logs, CloudTrail, S3 access logs, GuardDuty findings. Azure: VM disk snapshot, Azure Monitor/Sentinel exports, Activity Log download. Cloud provider forensic readiness varies -- engage cloud IR team early in major incidents (AWS CIRT, Microsoft Detection and Response Team).</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">-- Example: verified disk image with dc3dd --</span>
+<span class="fn">dc3dd</span> <span class="kw">if=</span>/dev/sdb <span class="kw">of=</span>/mnt/evidence/disk001.dd <span class="kw">hof=</span>/mnt/evidence/disk001.sha256 <span class="kw">hash=</span>sha256 <span class="kw">log=</span>/mnt/evidence/disk001.log
+
+<span class="cm">-- Hash output stored separately from image for chain of custody documentation --</span>
+<span class="cm">-- Verify after copy: sha256sum disk001.dd | diff - disk001.sha256 --</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — DISK FORENSICS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Disk Forensics</span> -- Extracting the Story from Storage</div>
+        <div class="slide-subtitle">Files are only part of the story. File system metadata, slack space, and deleted data tell the rest.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">File System Artifacts</div>
+                <div class="card-desc">NTFS: MFT (Master File Table) -- records every file's metadata (name, timestamps, attributes, permissions, data location). $LogFile: NTFS journal of recent metadata changes. $UsnJrnl: USN change journal recording file operations. $Recycle.Bin: deleted files with original path and deletion timestamp. LNK files: shortcut files recording accessed files by date. Prefetch: Windows execution evidence (tool: WinPrefetchView).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MACB Timestamps</div>
+                <div class="card-desc">NTFS maintains four timestamps per file: Modified (last write), Accessed (last read), Changed ($MFT entry modified), Born (creation). MACB analysis traces file activity timeline. Attackers use timestomping to alter Modified and Born times to blend in -- but $MFT Changed time is harder to forge and often reveals the forgery. Cross-reference with USN journal for validation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deleted File Recovery</div>
+                <div class="card-desc">File deletion in most file systems only removes the directory entry and marks clusters as available -- data persists until overwritten. Recovery tools: Autopsy (Sleuth Kit), FTK, PhotoRec (file carving by magic bytes). File carving reconstructs files from raw disk sectors without relying on file system structures -- effective even after MFT damage or deliberate deletion of records.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Slack Space and Unallocated Space</div>
+                <div class="card-desc">File slack: unused space between end-of-file and end-of-allocated-cluster. May contain fragments of previously stored data. Unallocated space: clusters not currently assigned to any file -- primary recovery target for deleted files. Volume slack: space between end of file system and end of partition. Steganographic data or hidden tools may be stored in slack or unallocated space.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Browser and User Activity Artifacts</div>
+                <div class="card-desc">Browser: history, downloads, cookies, cache, IndexedDB (stored offline app data). Windows: Recent files (shellbags), jump lists (MRU), UserAssist (program execution frequency/timestamps, ROT13 encoded), registry MRU keys, AppCompatCache/Shimcache (program execution history), AmCache (installed application and execution metadata). Each artifact answers a different question about user activity.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Anti-Forensic Techniques</div>
+                <div class="card-desc">Timestomping, secure deletion (overwrite with random data), encryption of evidence, use of volatile execution (fileless malware in memory only), living-off-the-land (LOL) binaries that leave minimal artifacts, clearing event logs (Event ID 1102/104), log rotation manipulation, and counter-forensic tools (SDelete, Eraser, DBAN). Detecting anti-forensics is itself an artifact -- the absence of expected artifacts is suspicious.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — MEMORY FORENSICS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Memory Forensics</span> -- What Lives in RAM</div>
+        <div class="slide-subtitle">Fileless malware, injected shellcode, and encryption keys only exist in memory. Miss memory; miss the attack.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Memory Contains</div>
+                <div class="card-desc">Running processes and their full memory space. Loaded DLLs and their base addresses (ASLR shifts these per session). Network socket state (srcIP:srcPort --&gt; dstIP:dstPort, process binding). Decrypted content from encrypted files/communications. Credentials in plaintext or crackable hashes (Mimikatz harvests LSASS). Injected shellcode (no file on disk). Open handles to files, registry, mutexes. Clipboard contents. C2 communication buffers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Volatility Framework</div>
+                <div class="card-desc">Industry-standard open-source memory forensics framework. Key plugins: pslist/pstree (process list, parent-child relationships), netscan/connections (network state), cmdline/consoles (process command arguments), dlllist (loaded DLLs per process), malfind (find executable memory not backed by file -- hallmark of injection), hivelist/printkey (registry hives), dumpfiles (extract files from memory cache), hashdump (SAM database hashes).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Process Injection Indicators</div>
+                <div class="card-desc">MEM_EXECUTE_READWRITE pages not backed by a file on disk (malfind detects this). Processes with no parent or unexpected parent (e.g., cmd.exe spawned by svchost.exe). DLLs loaded without a corresponding file path. Hollowed processes: legitimate process with replaced image (psxview cross-checks multiple process lists -- discrepancies reveal hidden processes). Thread injection into remote processes via CreateRemoteThread.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Credential Harvesting from Memory</div>
+                <div class="card-desc">Windows LSASS (Local Security Authority Subsystem Service) caches credential material in memory for SSO. Mimikatz sekurlsa::logonpasswords dumps NTLM hashes and plaintext passwords from LSASS. Defenses: Credential Guard (virtualizes LSASS in isolated VM), Protected Users security group (disables NTLM and DES/RC4), lsass.exe as PPL (Protected Process Light -- prevents non-admin memory access), and removing WDigest registry key to prevent plaintext caching.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Eta -- Memory Analysis. The IR team captured a 32 GB RAM dump from the compromised server before isolation. Volatility analysis reveals a process named "svchost.exe" with PID 4921 -- whose parent is explorer.exe rather than services.exe. The malfind plugin shows a 512-byte executable region within that process not backed by any disk file. This is process injection. The dump is preserved as forensic evidence.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — NETWORK FORENSICS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Network Forensics</span> -- Reconstructing What Crossed the Wire</div>
+        <div class="slide-subtitle">Packets cannot lie. Logs can be deleted. Full packet capture is the gold standard; flow data is the practical alternative.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Full Packet Capture (PCAP)</div>
+                <div class="card-desc">Complete capture of all packet headers and payloads. Tools: Wireshark (analysis), tcpdump (capture), Zeek (formerly Bro -- protocol analysis and log generation), NetworkMiner (passive OS fingerprinting, file extraction from PCAP). Provides: full session reconstruction, payload inspection, exact data exfiltration content. Constraint: storage volume -- 1 Gbps link generates ~400 GB/hr of PCAPs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NetFlow / IPFIX</div>
+                <div class="card-desc">Flow records capture connection metadata without payload: srcIP, dstIP, srcPort, dstPort, protocol, byte count, packet count, start/end time, interface. Suitable for long-term retention (100x smaller than PCAP). Analysis: identify C2 beaconing (periodic outbound connections at regular intervals), data exfiltration (unusual volume to external IP), lateral movement (internal host initiating connections to many other internal hosts).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DNS Analysis</div>
+                <div class="card-desc">DNS queries reveal: which domains a host communicated with, DGA (Domain Generation Algorithm) malware (high-entropy domain names queried in sequence), DNS tunneling (data encoded in DNS query/response -- anomalously high query volume, long subdomains), and C2 domain patterns. Passive DNS correlation (VirusTotal, Farsight DNSDB) maps IP-to-domain history, revealing infrastructure reuse across attack campaigns.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Beaconing Detection</div>
+                <div class="card-desc">C2 implants beacon home at regular intervals for tasking. Detection: sort outbound connections by destination IP, filter to regular time intervals (jitter-aware -- malware adds random delay, but mean interval remains detectable), flag connections to unusual destinations at consistent intervals. Small payload size (heartbeat) distinguishes beaconing from legitimate traffic. Zeek and RITA (Real Intelligence Threat Analytics) automate beacon detection.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Log Sources for Network IR</div>
+                <div class="card-desc">Firewall logs (allow/deny with srcIP:port, dstIP:port, bytes). Proxy logs (URL, user-agent, referrer, response code, bytes transferred). Email gateway logs (sender, recipient, subject hash, attachment hash, link tracking). Web application firewall (WAF) logs (attack signatures triggered, payloads). VPN logs (user, srcIP, auth method, duration). Wireless authentication logs (802.1X, RADIUS accounting). Aggregate in SIEM for correlation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Evidence Preservation for Network Data</div>
+                <div class="card-desc">PCAP files: hash at acquisition, store immutably. SIEM logs: export to immutable storage before retention window expires (many SIEMs have 90-day hot storage). Cloud logs: AWS CloudTrail delivers to S3 with SNS integrity notifications; enable log file validation. Router/switch logs: syslog to central server (logs on device are erasable). Priority: export cloud logs within 24 hours of incident -- provider retention windows vary from 7 to 90 days.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — LOG ANALYSIS AND SIEM ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35 &nbsp;|&nbsp; SY0-701: 4.3, 4.4</div>
+        <div class="slide-title"><span class="accent">Log Analysis</span> &amp; SIEM in IR</div>
+        <div class="slide-subtitle">Logs are the primary timeline reconstruction source. A missing log is as telling as a present one.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Key Windows Event IDs</div>
+                <div class="card-desc">
+                    4624: Successful logon (includes logon type: 2=interactive, 3=network, 10=remote interactive). 4625: Failed logon. 4648: Logon with explicit credentials (pass-the-hash indicator). 4672: Special privileges assigned to new logon (admin logon). 4698/4702: Scheduled task created/modified. 4720: User account created. 4728/4732: User added to security/local group. 4776: NTLM authentication attempt. 4768/4769: Kerberos TGT/service ticket requests. 1102: Audit log cleared.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Linux Log Sources</div>
+                <div class="card-desc">auth.log / secure: SSH logins, sudo usage, PAM authentication. syslog: system events. /var/log/audit/audit.log: auditd records (syscall-level if configured). wtmp/btmp/lastlog: login history, failed logins, last login per user. cron logs: scheduled task execution. Application-specific logs in /var/log/. journald: systemd unified logging (journalctl queries). Key: correlation of cron entries, new files in /tmp, and outbound connections.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SIEM Correlation Rules</div>
+                <div class="card-desc">SIEM aggregates logs and applies correlation rules to generate alerts. Examples: "5 failed logons followed by 1 success from same source" (brute force). "New admin account created outside change window." "Outbound traffic to TOR exit node." "Lateral movement: single host connecting to &gt;20 internal hosts in 10 minutes." Rule quality is a direct function of SIEM tuning investment -- out-of-box rules generate unacceptable false positive rates in most environments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Log Integrity and Gaps</div>
+                <div class="card-desc">Attackers clear logs (Event ID 1102, /var/log/* deletion). Detect: log source goes silent (no events from host that was logging 10K/day is suspicious, not normal). SIEM should alert on log source health, not only on threat events. Forward logs to central SIEM in real-time -- local logs can be cleared, but forwarded logs cannot be retroactively removed. Sign log batches cryptographically for tamper evidence.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">-- Splunk SPL: detect brute force followed by successful login --</span>
+<span class="fn">index=</span>windows EventCode=<span class="nb">4625</span>
+| <span class="fn">stats</span> count <span class="kw">as</span> failures <span class="kw">by</span> src_ip, user
+| <span class="fn">where</span> failures &gt; <span class="nb">5</span>
+| <span class="fn">join</span> src_ip [ <span class="fn">search</span> index=windows EventCode=<span class="nb">4624</span>
+    | <span class="fn">stats</span> <span class="fn">min</span>(_time) <span class="kw">as</span> success_time <span class="kw">by</span> src_ip ]
+| <span class="fn">where</span> success_time &gt; <span class="nb">now</span>() - <span class="nb">3600</span>  <span class="cm">-- success within last hour</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — MITRE ATT&CK FRAMEWORK ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">MITRE ATT&amp;CK</span> -- Common Language for Threat Behavior</div>
+        <div class="slide-subtitle">ATT&amp;CK maps attacker behavior to observable techniques. It is the standard vocabulary for IR documentation and detection engineering.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Framework Structure</div>
+                <div class="card-desc">Tactics: attacker's high-level objectives (14 enterprise tactics: Reconnaissance, Resource Development, Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Collection, C2, Exfiltration, Impact). Techniques: specific methods to achieve tactics (e.g., T1566 Phishing under Initial Access). Sub-techniques: granular variants (T1566.001 Spearphishing Attachment).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IR Documentation Use</div>
+                <div class="card-desc">Map every confirmed attacker action to an ATT&CK technique in the incident report. Benefits: standardized communication with law enforcement and threat intelligence partners, feeds detection gap analysis, enables comparison against threat actor profiles, and provides structured input for post-incident detection engineering. ATT&CK Navigator creates visual coverage maps.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Detection Engineering</div>
+                <div class="card-desc">Each ATT&CK technique has associated data sources (process creation, file modification, network traffic, registry). Map your logging coverage to ATT&CK to identify blind spots. Sigma rules (SIEM-agnostic detection rule format) are often tagged with ATT&CK techniques, enabling rapid import of community detections. CAR (Cyber Analytics Repository) provides pseudocode analytics for ATT&CK techniques.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Threat Actor Profiles</div>
+                <div class="card-desc">MITRE maintains Group profiles linking threat actors to observed techniques (e.g., G0007 APT28, G0032 Lazarus Group). During IR, matching attacker TTPs to a known group narrows attribution probability and predicts likely next actions. Law enforcement uses ATT&CK mappings to correlate cases across jurisdictions. CTI teams produce threat actor TTP matrices to inform defensive priorities.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cyber Kill Chain vs. ATT&CK</div>
+                <div class="card-desc">Lockheed Martin Cyber Kill Chain (7 stages: Reconnaissance/Weaponization/Delivery/Exploitation/Installation/C2/Actions on Objectives) provides a linear view of attack progression. ATT&CK is non-linear, more granular, and focused on observable behaviors post-exploitation. Use Kill Chain for strategic framing, ATT&CK for tactical analysis and detection. Both are useful; neither is sufficient alone.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Diamond Model</div>
+                <div class="card-desc">Adversary -- Infrastructure -- Capability -- Victim. The Diamond Model structures intelligence around the relationships between these four elements. Events (individual attack actions) are plotted as diamonds. Pivoting: if you know the infrastructure (IP/domain), the Diamond Model guides pivoting to find other victims using the same infrastructure or the adversary's other capabilities. Complements ATT&CK for CTI analysis.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — INCIDENT CLASSIFICATION AND TYPES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Incident Classification</span> -- Knowing What You Are Facing</div>
+        <div class="slide-subtitle">Different incident types require different playbooks, tools, and stakeholder involvement.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Ransomware</div>
+                <div class="card-desc">Encryption of files followed by ransom demand. Modern ransomware is double-extortion: data is exfiltrated before encryption and threatened for publication. IR priorities: immediate isolation to stop spread, identify patient zero, determine if backup infrastructure is also encrypted, engage outside counsel before any ransom communication, notify FBI Cyber Division (IC3), consider data extortion notification obligations separately from encryption event.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Breach / Exfiltration</div>
+                <div class="card-desc">Unauthorized access and exfiltration of sensitive data. Detection lag is often months. IR priorities: determine exact scope of exfiltrated data (DLP logs, proxy logs, DNS logs), identify whether data is PII/PHI/PCI-in-scope (triggers regulatory notification), assess whether attacker still has access, and engage legal counsel for notification obligations analysis before external disclosure. Preserve all exfiltration artifacts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Business Email Compromise (BEC)</div>
+                <div class="card-desc">Attacker compromises or impersonates executive email to redirect wire transfers or request fraudulent action. IR: reset compromised account, revoke all OAuth grants (graph.microsoft.com/.default scope = dangerous), review all email rules (forwarding rules hiding in inbox), search for additional compromised accounts, notify financial institution immediately for wire recall (FBI 2023: $2.9B in BEC losses, only 10% recovered), file IC3 complaint.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Insider Threat</div>
+                <div class="card-desc">Malicious or negligent employee/contractor causing harm. IR differences: legal complexity (employment law, union agreements), HR involvement from the start, search warrant may be required even for company-owned devices if criminal prosecution is intended, employee-facing communication is controlled by HR/legal, and evidence preservation must anticipate both civil and criminal proceedings. Notify HR before interviewing the subject.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DDoS</div>
+                <div class="card-desc">Volumetric (bandwidth exhaustion), protocol (SYN flood, reflection amplification), or application layer (HTTP/S request flooding) attack. IR: engage upstream ISP or DDoS mitigation provider (Cloudflare, Akamai, Radware) for traffic scrubbing, apply ACLs to block attack sources, implement rate limiting, scale out behind CDN/anycast. DDoS is often a diversion -- verify no concurrent intrusion activity while focusing on availability restoration.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Supply Chain Compromise</div>
+                <div class="card-desc">Attack enters through trusted vendor or software dependency. SolarWinds (2020): malicious update to Orion software deployed to 18,000 organizations, gave SUNBURST backdoor to APT29. 3CX (2023): supply chain attack of a VOIP client via upstream Node.js dependency. IR: determine blast radius (which systems ran the affected software/version), treat all systems touched by compromised software as potentially compromised, engage vendor IR team.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — IR TEAM STRUCTURE AND ROLES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">IR Team</span> -- Structure, Roles, and External Partners</div>
+        <div class="slide-subtitle">IR is a team sport. Every role must be pre-assigned and trained -- not improvised during a crisis.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Internal CSIRT Roles</div>
+                <div class="card-desc">IR Manager: owns the incident process, coordinates all functions, manages external communications. Lead Analyst: drives technical investigation, produces timeline. Forensic Specialist: evidence acquisition, chain of custody. Malware Analyst: reverse engineers payloads to determine capabilities and IOCs. Threat Intel Analyst: contextualizes attack against known threat landscape. Communications Lead (PR/Corp Comms): external disclosure drafts, media queries. Legal/Compliance: notification obligations, litigation hold, regulatory contact.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">External IR Partners</div>
+                <div class="card-desc">Retained IR firm (CrowdStrike Falcon Complete, Mandiant, Palo Alto Unit 42, Secureworks Taegis): engage on day 1 for major incidents -- they have seen your attacker before. Cyber insurance carrier: notify immediately -- most carriers have incident response hotlines and preferred vendor networks. Coverage may not apply if you do not notify in time. Law enforcement: FBI (T: 1-855-292-3937), CISA (888-282-0870), Secret Service ECTF for financial crimes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Communication Management</div>
+                <div class="card-desc">Assume primary email and internal communication channels may be compromised -- use out-of-band channels for IR communication (Signal, dedicated response Slack workspace with MFA, phone trees). Restrict incident knowledge to need-to-know until scope is determined. Do not discuss the incident over corporate email if email is part of the suspected compromise. Legal privilege: route written communications through legal counsel during active response to protect from discovery.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Regulatory and Sector Contacts</div>
+                <div class="card-desc">Healthcare: HHS OCR (hipaa-ocr@hhs.gov, 60-day notification). Financial: OCC / FDIC / NCUA (36-hour notification for computer security incidents per OCC 12 CFR Part 53). Critical Infrastructure: CISA (ICS-CERT for OT/ICS incidents). Securities: SEC (Form 8-K filing within 4 business days for material cybersecurity incidents per final rule effective Dec 2023). State: all 50 US states have breach notification laws -- most require 30-90 days.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Coordination Model Options</div>
+            Central coordination model: single CSIRT receives all reports, coordinates all responses -- best for large organizations. Distributed model: business unit security teams handle local incidents with central escalation path -- best for geographically dispersed organizations. Hybrid: central policy and tooling with regional responders. Virtual/coordinating CSIRT: no full-time team, activates outside personnel on demand -- lowest ongoing cost, highest activation latency.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — FORENSIC TOOLS OVERVIEW ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Forensic Tooling</span> -- The Analyst's Toolkit</div>
+        <div class="slide-subtitle">Tools are not methodology. Know why you are running each tool and what question it answers.</div>
+        <div class="code-block"><span class="cm">-- DFIR Tool Reference --</span>
+
+<span class="kw">Disk Imaging:</span>
+  <span class="fn">FTK Imager</span>          <span class="cm">Windows; GUI; EWF/raw/AFF; hash verification; live preview</span>
+  <span class="fn">dc3dd</span>               <span class="cm">Linux; dd variant with hashing and logging; court-accepted</span>
+  <span class="fn">Guymager</span>            <span class="cm">Linux GUI; fast; EWF; multi-threaded; free</span>
+
+<span class="kw">Memory Analysis:</span>
+  <span class="fn">Volatility 3</span>        <span class="cm">Cross-platform; Python; 100+ plugins; community maintained</span>
+  <span class="fn">Rekall</span>              <span class="cm">Volatility fork; live and offline; Google-developed</span>
+
+<span class="kw">Disk / File Analysis:</span>
+  <span class="fn">Autopsy (Sleuth Kit)</span><span class="cm">Open source; timeline, keyword search, hash lookup, carved files</span>
+  <span class="fn">FTK (Forensic TK)</span>  <span class="cm">Commercial; indexed search; email analysis; distributed processing</span>
+  <span class="fn">X-Ways Forensics</span>   <span class="cm">Commercial; extremely fast; low footprint; Europe-dominant</span>
+
+<span class="kw">Network:</span>
+  <span class="fn">Wireshark</span>           <span class="cm">PCAP analysis; protocol dissection; follow stream; filter language</span>
+  <span class="fn">Zeek (Bro)</span>          <span class="cm">Network traffic analysis; structured logs (conn, dns, http, files)</span>
+  <span class="fn">NetworkMiner</span>        <span class="cm">Passive OS fingerprinting; file extraction from PCAP</span>
+  <span class="fn">RITA</span>                <span class="cm">Beacon detection from Zeek logs; open source; ActiveCountermeasures</span>
+
+<span class="kw">Log Analysis / SIEM:</span>
+  <span class="fn">Splunk / Elastic SIEM</span>  <span class="cm">Aggregation, correlation, alerting, threat hunting</span>
+  <span class="fn">Chainsaw</span>            <span class="cm">Fast Windows event log triage; SIGMA rule support; Rust</span>
+  <span class="fn">DeepBlueCLI</span>        <span class="cm">PowerShell; Windows event log threat detection; free</span>
+
+<span class="kw">Malware Analysis:</span>
+  <span class="fn">ANY.RUN / Joe Sandbox</span> <span class="cm">Dynamic analysis sandbox; behavioral reports; API calls</span>
+  <span class="fn">Ghidra / IDA Pro</span>    <span class="cm">Static reverse engineering / disassembly</span>
+  <span class="fn">CAPE Sandbox</span>        <span class="cm">Open source; automated config extraction; C2 IOC recovery</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — BUSINESS CONTINUITY PLANNING ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Business Continuity Planning</span> -- Staying Operational Under Attack</div>
+        <div class="slide-subtitle">BCP ensures the organization continues to function while IR teams address the incident. DR restores systems. BCP keeps the business alive.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">BCP vs. DRP</div>
+                <div class="card-desc">Business Continuity Plan (BCP): organizational scope -- how the business continues to operate (with manual processes, alternate locations, reduced capacity) while IT systems are unavailable. Disaster Recovery Plan (DRP): IT scope -- how IT systems and data are restored after a disruption. BCP is the broader plan; DRP is a component of it. NIST SP 800-34 governs federal contingency planning; ISO 22301 is the international BCP standard.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Business Impact Analysis (BIA)</div>
+                <div class="card-desc">BIA quantifies the impact of losing each business process. Key outputs: RTO (Recovery Time Objective -- maximum tolerable downtime before business harm becomes unacceptable), RPO (Recovery Point Objective -- maximum tolerable data loss, measured as time since last backup), MTD (Maximum Tolerable Downtime -- absolute ceiling beyond which the organization cannot recover), and MTPD (Maximum Tolerable Period of Disruption -- BCMS equivalent of MTD). RTO must be achievable by the DRP.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Critical Asset Identification</div>
+                <div class="card-desc">Not all systems have equal priority for recovery. Tier 1 (mission-critical): emergency failover within RTO (e.g., patient records in healthcare, trading systems in finance). Tier 2 (important): restore within hours to days. Tier 3 (normal): restore within days to weeks. BIA determines tier assignment based on revenue impact, regulatory requirement, safety implication, and customer SLA obligation. Priority drives DR resource investment.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Dependencies and Single Points of Failure</div>
+                <div class="card-desc">Map all technical and business dependencies for each critical process: network paths, external vendors, SaaS services, power circuits, cooling, staffing dependencies (key-person risk). Single points of failure must be eliminated for Tier 1 processes. Dependency mapping is also essential for IR scope determination -- a compromised dependency may affect processes that appear unrelated.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Alternate Processing Sites</div>
+                <div class="card-desc">Manual workarounds: paper processes, offline systems. Alternate work locations: hot-site, warm-site, cold-site, mobile site. Cloud failover: cloud provides rapid scalable alternate processing but must be pre-configured for failover (active-active or active-passive). Mutual aid agreements: contracts with peer organizations to provide processing capacity during disasters (common in healthcare and financial cooperatives).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Communication Plan</div>
+                <div class="card-desc">BCP must include a communication plan for all stakeholders: employees (work location, status, instructions), customers (service availability, expected restoration, alternate contact methods), regulators (incident notification per applicable law), media (single spokesperson, approved talking points), and key vendors (SLA invocation, expedited support). Assume primary communication channels (email, internal Slack) may be down during a major incident.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — DR SITE TYPES ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">DR Site Types</span> -- Recovery Infrastructure Options</div>
+        <div class="slide-subtitle">Site type determines cost, recovery time, and the fidelity of the recovered environment.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Hot Site</div>
+                <div class="card-desc">Fully operational duplicate of the primary environment: identical hardware, running systems, replicated data (near-real-time via synchronous or asynchronous replication). Failover time: minutes to hours. Cost: highest -- essentially a second full data center. Use case: organizations with RTOs measured in minutes (stock exchanges, air traffic control, tier-1 financial systems). Active-active configuration means both sites serve traffic simultaneously with no recovery time.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Warm Site</div>
+                <div class="card-desc">Infrastructure is partially pre-configured: hardware present, connectivity established, OS and application layers installed, but data must be loaded from backup before activation. Failover time: hours to days. Cost: moderate. Use case: RTO of 4-72 hours is acceptable (most enterprise workloads). Requires periodic testing -- warm sites that are not exercised are frequently discovered to be de facto cold sites when needed.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Cold Site</div>
+                <div class="card-desc">A physical space with power, cooling, and connectivity -- but no pre-configured hardware or software. Equipment must be procured, shipped, racked, configured, and loaded with data before any recovery can occur. Failover time: days to weeks. Cost: lowest. Use case: organizations with RTOs measured in weeks (non-critical workloads, small businesses). Cold sites become irrelevant if hardware lead times have increased -- validate supply chain assumptions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cloud as DR Site</div>
+                <div class="card-desc">On-demand cloud provides hot/warm/cold capabilities without capital expenditure. Warm cloud DR: pre-created VPC, IAM roles, and configuration in IaC (Terraform/CloudFormation) -- spin up from clean state in hours. Active-active: multi-region architecture with Route 53 or Azure Traffic Manager failover. Pilot light: minimal running infrastructure (DR AMIs ready to scale). AWS CloudEndure / Azure Site Recovery automate failover.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mobile and Modular Sites</div>
+                <div class="card-desc">Containerized or truck-mounted data center modules deployable to any location with power and connectivity. Used by military, public safety, and utilities where fixed alternate sites are not viable. Also: colocation agreements (pre-contracted rack space at a carrier hotel) and managed DR services (vendor maintains and tests the recovery environment on behalf of the subscriber, invoiced monthly).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Site Type Comparison</div>
+                <div class="card-desc">Hot: highest cost, lowest RTO, continuous data replication required. Warm: moderate cost, hours-days RTO, periodic data sync sufficient. Cold: lowest cost, days-weeks RTO, full configuration effort required. Cloud (warm): moderate cost, hours RTO, IaC drives repeatability, elastic capacity. Active-active: zero RTO for end-users, highest complexity and cost, requires load balancing and data consistency architecture. Choice must align with BIA-derived RTO and budget.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — BACKUP STRATEGY ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Backup Strategy</span> -- Ensuring Recovery Data Survives the Attack</div>
+        <div class="slide-subtitle">Ransomware specifically targets backups. A backup that is reachable from the compromised environment is not a backup.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">3-2-1-1-0 Backup Rule</div>
+                <div class="card-desc">3: maintain three copies of data (production + two backups). 2: store on two different media types (e.g., disk + tape, or local SAN + cloud object storage). 1: keep one copy offsite. 1: keep one copy offline / air-gapped (not accessible from the network -- ransomware cannot encrypt what it cannot reach). 0: verify with zero errors on restoration tests. The original 3-2-1 rule (Veeam/Peter Krogh) predates ransomware; the 1 (offline) and 0 (verified) additions reflect modern threat reality.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Backup Types</div>
+                <div class="card-desc">Full backup: complete copy of all selected data -- slowest to create, fastest to restore, largest storage. Incremental: only data changed since the last backup (full or incremental) -- fastest to create, smallest storage, longest restore chain. Differential: data changed since the last full backup -- compromise between incremental speed and restore simplicity. Synthetic full: created by combining a full and subsequent incrementals on the backup server -- no production system overhead.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Immutable Backups</div>
+                <div class="card-desc">Immutable storage prevents modification or deletion for a defined retention period. AWS S3 Object Lock (WORM) with governance or compliance mode, Azure Blob immutability policies, Wasabi immutable storage, and tape WORM media. Ransomware operators increasingly target backup software consoles -- immutable storage at the object level survives even if the backup application itself is compromised. Required by PCI DSS v4.0 and CIS Control 11.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Backup Testing and RPO Validation</div>
+                <div class="card-desc">An untested backup is not a backup. Test restore procedures quarterly at minimum. Automated restoration testing (Veeam SureBackup, Zerto Journal-Based Recovery) continuously verifies backup integrity without manual effort. Validate that the time required to restore from backup does not exceed RTO, and that the backup age (last backup point) does not exceed RPO. Document each test with the technician name, date, and restoration validation result.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Ransomware Backup Attack Pattern</div>
+            Stage 1: Gain initial access (phishing, VPN exploit). Stage 2: Establish persistence (weeks of quiet dwell time). Stage 3: Identify and access backup infrastructure (backup server credentials from AD, Veeam console access). Stage 4: Delete or corrupt all online backups. Stage 5: Deploy ransomware to production. If offline/immutable backups were not maintained, the organization's only recovery option is paying the ransom or accepting total data loss.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — TABLETOP AND EXERCISES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Exercises</span> -- Testing IR Capability Before the Real Event</div>
+        <div class="slide-subtitle">The first time you exercise your IR plan should not be during an actual incident.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Tabletop Exercise</div>
+                <div class="card-desc">Discussion-based scenario walkthrough. Facilitator presents an evolving scenario (e.g., "You have received an alert that 50 GB of data was uploaded to a personal Dropbox account from a finance workstation at 11 PM"). Participants discuss: what would they do, who would they call, what information would they need, what are the decision points? No live systems involved. Duration: 2-4 hours. Excellent for training new team members, testing decision-making, and validating escalation paths.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Walk-Through Exercise</div>
+                <div class="card-desc">Team walks through each step of a specific playbook (e.g., ransomware response runbook) verbally, verifying that each step is accurate, that all tools referenced are available and functional, and that all roles know their responsibilities. Reveals outdated contact information, missing tool access, and unclear decision points without requiring live systems. Conduct when a new playbook is created or substantially revised.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Functional Exercise</div>
+                <div class="card-desc">Activates real IR functions with simulated inputs (synthetic alerts injected into SIEM, simulated emails to IR inbox, staged indicators fed to analysts). Team executes actual investigation, containment, and notification steps against the simulated scenario. Validates tool integrations, SIEM detection rules, and runbook usability under realistic conditions. Greater fidelity than tabletop; lower risk and cost than full interruption. Conduct semi-annually for critical playbooks.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Full Interruption Exercise</div>
+                <div class="card-desc">Complete cutover to DR site -- primary systems are taken offline (or shut down) and all operations run from the recovery environment. Maximum fidelity: exposes actual RTO/RPO gaps, network path issues, data freshness problems, and staff unfamiliarity with DR systems. Highest risk (if DR failover fails, the organization has an actual outage) and cost (operations disruption). Conduct annually with executive sign-off and rollback plan ready.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Red Team / Purple Team</div>
+                <div class="card-desc">Red team: adversarial simulation testing both offensive capability and defensive detection/response. Purple team: collaborative red-blue exercise where red team attacks while blue team defenses are evaluated in real-time -- most efficient for detection coverage improvement. Red team engagements produce ATT&CK-mapped findings that drive detection engineering. External red teams provide unbiased assessment; internal adversarial simulation provides continuous validation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Exercise Documentation</div>
+                <div class="card-desc">Every exercise must produce: pre-exercise objectives and success criteria, scenario documentation (inject timeline), participant list and roles, exercise log (actions taken, time stamps), findings (gaps, failures, confusion points), corrective action items with owners and deadlines, and executive summary. Regulators (NIST, FFIEC, HIPAA) may request exercise documentation as evidence of program maturity. Undocumented exercises did not happen from a compliance perspective.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — CLOUD INCIDENT RESPONSE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35 &nbsp;|&nbsp; SY0-701: 4.3, 4.4</div>
+        <div class="slide-title"><span class="accent">Cloud IR</span> -- Responding in Shared Responsibility Environments</div>
+        <div class="slide-subtitle">Cloud IR is different: the hypervisor and physical infrastructure are not yours. Evidence collection, containment, and scope determination all require cloud-native approaches.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Shared Responsibility and IR Scope</div>
+                <div class="card-desc">AWS/Azure/GCP are responsible for security of the cloud (hypervisor, physical, availability zones). Customer is responsible for security in the cloud: IAM policy correctness, S3 bucket policies, network ACLs, instance patching, application security. IR scope: customer investigates their data plane (VMs, containers, functions, storage). Provider investigates control plane on request (via support ticket or law enforcement request). Cross-tenant attacks are a provider responsibility -- escalate via security ticket, not support ticket.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cloud Evidence Sources</div>
+                <div class="card-desc">AWS: CloudTrail (API calls -- who called what, when, from which IP, with which credentials), VPC Flow Logs (network flow metadata), CloudWatch Logs (application and OS logs), S3 Server Access Logs, ELB access logs, GuardDuty findings, Security Hub aggregations. Azure: Activity Log (ARM API calls), Azure AD Sign-in Logs, Microsoft Defender for Cloud alerts, Network Watcher NSG Flow Logs. GCP: Cloud Audit Logs (Admin Activity, Data Access), VPC Flow Logs, Security Command Center. Export all immediately -- retention windows vary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IAM Incident Patterns</div>
+                <div class="card-desc">Credential theft via IMDS (Instance Metadata Service): <span class="ic">curl http://169.254.169.254/latest/meta-data/iam/security-credentials/role-name</span> returns temporary credentials from any process on the instance. Exfiltrated IAM keys: attacker creates new IAM users, access keys, or role trust policies before the original key is revoked. Cross-account role assumption: attacker pivots from compromised account to others via misconfigured assume-role policies. GuardDuty UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration detects external use of instance credentials.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cloud Containment Actions</div>
+                <div class="card-desc">Compromised IAM key: immediately apply DenyAll policy via IAM explicit deny, then rotate/revoke. Compromised EC2 instance: modify security group to allow only forensic workstation inbound/outbound, take EBS snapshot, isolate VPC. Compromised S3 bucket: apply restrictive bucket policy, enable S3 Object Lock on evidence objects, disable public access block bypass. Compromised Lambda: disable function (set reserved concurrency to 0), review execution role permissions, capture CloudWatch log stream before rotation. For all: disable the ability to create new IAM credentials from the affected principal.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Eta -- Cloud Extension. Analysis of CloudTrail logs reveals that the compromised server's EC2 instance role was used to call sts:AssumeRole on a cross-account role in the organization's production AWS account -- an account the compromised server had no legitimate reason to access. The production account's CloudTrail shows iam:CreateUser was called 4 hours ago. The new user account must be immediately disabled while the IR team determines what it was used for.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — MALWARE ANALYSIS BASICS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Malware Analysis</span> -- Understanding What the Attacker Deployed</div>
+        <div class="slide-subtitle">Malware analysis converts a binary into IOCs, TTPs, and C2 infrastructure intelligence.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Static Analysis</div>
+                <div class="card-desc">Examine the malware without executing it: file type identification (file command, magic bytes), string extraction (printable strings -- may reveal C2 domains, registry keys, filenames, error messages), hash lookup in VirusTotal/MalwareBazaar, PE header analysis (import table, section entropy -- high entropy in .text section suggests packing/encryption), code disassembly (Ghidra, IDA Pro, Binary Ninja). No risk of infection. Limited by obfuscation, packing, and encryption.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dynamic Analysis</div>
+                <div class="card-desc">Execute the malware in an isolated sandbox and observe behavior: file system changes, registry modifications, network connections (C2 beaconing, DNS lookups, HTTP/HTTPS callbacks), process creation (child processes, injected processes), API calls (CreateRemoteThread, WriteProcessMemory). Tools: ANY.RUN (interactive cloud sandbox), Cuckoo Sandbox (self-hosted), Joe Sandbox (commercial). Limitation: evasion-aware malware detects sandbox environments and alters behavior.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IOC Extraction</div>
+                <div class="card-desc">From analysis, extract: file hashes (MD5/SHA1/SHA256), IP addresses and domains (C2 infrastructure), URL patterns, mutex names (process-level persistence detection), registry keys and values, file paths and names, service names, scheduled task names, and behavioral signatures (YARA rules, Sigma rules). IOCs are shared via STIX/TAXII (Structured Threat Information eXpression / Trusted Automated eXchange of Intelligence Information) to partner organizations and ISAC threat feeds.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Fileless Malware</div>
+                <div class="card-desc">Executes entirely in memory without writing files to disk. Common delivery: malicious Office macro loads PowerShell which reflectively loads shellcode or a .NET assembly into memory. Detection: memory forensics (malfind), PowerShell ScriptBlock logging (Event ID 4104), AMSI (Antimalware Scan Interface -- intercepts PowerShell/VBScript before execution), enhanced PowerShell logging, and EDR process behavior monitoring. Traditional AV signatures ineffective -- no file to hash.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">YARA Rules</div>
+                <div class="card-desc">Pattern-matching language for malware identification. Rules define: string patterns (hex, text, regex) and logical conditions for their presence. Example: a YARA rule matching a known ransomware family checks for the ransom note filename string, encryption API imports, and characteristic byte sequences. YARA rules are deployed in AV engines, EDR, email gateways, sandbox platforms, and memory forensics tools (Volatility yarascan plugin). Community rules: VirusTotal YARA, THOR, YaraForge.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Threat Intelligence Integration</div>
+                <div class="card-desc">Malware analysis outputs feed threat intelligence platforms (TIPs: MISP, OpenCTI, ThreatConnect, Anomali). TIPs correlate IOCs across incidents, enrich with external intelligence (VirusTotal, Shodan, Recorded Future), and push curated IOC feeds to security controls (SIEM, firewall, EDR). Automation via STIX 2.1 / TAXII 2.1 enables near-real-time IOC sharing between organizations -- particularly valuable within sector ISACs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — REGULATORY NOTIFICATION REQUIREMENTS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Regulatory Notifications</span> -- What You Must Report and When</div>
+        <div class="slide-subtitle">Missing a notification deadline adds regulatory liability to an already costly incident. Know your timelines before the event.</div>
+        <div class="code-block"><span class="cm">-- Incident Notification Timeline Reference --</span>
+
+<span class="kw">Regulation       Trigger                              Timeline      Recipient</span>
+<span class="fn">GDPR (EU)</span>       Personal data breach (any risk)         72 hours      Supervisory Authority (SA)
+                 High risk to individuals               Without delay  Data subjects
+<span class="fn">HIPAA/HITECH</span>    Unsecured PHI breach, &gt;500 individuals  60 days       HHS OCR + media in state
+                 Unsecured PHI breach, &lt;500             60 days       HHS OCR (annual report)
+<span class="fn">PCI DSS v4.0</span>    Confirmed CHD compromise                Immediately   Card brands (Visa/MC) + acquirer
+<span class="fn">SEC Rule</span>        Material cybersecurity incident         4 business days  Form 8-K (public companies)
+<span class="fn">NYDFS 23 NYCRR</span>  Cybersecurity event (defined broadly)   72 hours      NYDFS
+<span class="fn">OCC 12 CFR 53</span>   Computer security incident              36 hours      OCC (primary federal regulator)
+<span class="fn">EU NIS2</span>         Significant incident (OES/DSP)          24 hrs initial  National CSIRT + competent authority
+                                                        72 hrs detail
+                                                        1 month final
+<span class="fn">CMMC/DFARS</span>      Cyber incident on CUI systems           72 hours      DoD (dibnet.dod.mil)
+<span class="fn">US State Laws</span>   PII breach (all 50 states + DC/PR/VI)  30-90 days    State AG + affected residents
+<span class="fn">CISA CIRCIA</span>     Critical infrastructure covered entity  72 hrs (breach) CISA
+  (final rule 2026) Ransom payment                      24 hours      CISA</div>
+        <div class="box box-gold">
+            <div class="box-label">Practice Point</div>
+            CIRCIA (Cyber Incident Reporting for Critical Infrastructure Act) final rules were under development as of 2024-2025. Check current effective dates. The 72-hour and 24-hour ransom payment notification requirements represent the most aggressive federal reporting obligations enacted to date.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — INSIDER THREAT AND HR IR ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Insider Threat IR</span> -- When the Attacker Has a Badge</div>
+        <div class="slide-subtitle">Insider incidents require a fundamentally different IR approach: HR, legal, and employment law govern the response, not just technical process.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Types of Insider Threats</div>
+                <div class="card-desc">Malicious insider: deliberate theft, sabotage, or unauthorized disclosure for personal gain, ideology, or coercion (MICE -- Money, Ideology, Compromise, Ego). Negligent insider: accidental data loss, misconfiguration, clicking phishing links -- responsible for majority of insider incidents. Compromised insider: legitimate user whose credentials were stolen -- externally-driven but appears internal. Contractor/supply chain insider: third-party with elevated access who acts maliciously. Detection and IR approach differs by type.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Legal and HR Coordination</div>
+                <div class="card-desc">Before any investigative action: notify HR and legal counsel. Employment law varies by jurisdiction -- interviewing an employee without HR present may invalidate findings or expose the organization to wrongful termination liability. In union environments, workers may have right to union representation during investigations. Do not tip off the subject before preserving evidence. Federal employees: additional protections under Weingarten rights and Merit Systems Protection Board rules.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Evidence Preservation for Insider Cases</div>
+                <div class="card-desc">Covert preservation before the subject is aware of the investigation: image endpoint without user notification, preserve email mailbox (litigation hold), capture DLP logs, preserve badge/physical access logs, collect UEBA baselines. If criminal prosecution is intended, engage law enforcement for search warrant guidance before examining personally-owned devices, even if connected to corporate network. Chain of custody is as critical as in any external breach case.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Termination Procedure</div>
+                <div class="card-desc">Coordinate access termination with HR to occur simultaneously with employee notification (or slightly before for high-risk subjects). Sequence: disable all access (AD, SSO, cloud, VPN, physical badge) -- then inform -- then escort. Revoke certificates, SSH keys, API keys, shared account passwords. Recover company-owned devices and media at the same time. Post-termination monitoring: watch for access attempts from personal devices, cloud application logins with corporate credentials, or contact with sensitive former colleagues.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">UEBA Indicators for Insider Threat Detection</div>
+            Anomalous access patterns: accessing data outside normal job function or hours. Large volume downloads to removable media or cloud sync apps. Printing sensitive documents to non-standard printers. After-hours logins from unusual IP addresses. Access to systems shortly before scheduled departure/termination. Repeated failed access to restricted resources. Searching for keywords related to competitors or legal proceedings. Excessive email to personal accounts. These are probabilistic signals -- no single indicator warrants action without HR and legal assessment.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — FORENSIC REPORTING AND TESTIMONY ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35 &nbsp;|&nbsp; SY0-701: 4.4</div>
+        <div class="slide-title"><span class="accent">Forensic Reporting</span> -- From Analysis to Court</div>
+        <div class="slide-subtitle">Technical findings are only useful if they can be clearly communicated to non-technical decision makers -- and to a jury.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Report Structure</div>
+                <div class="card-desc">Executive summary: 1 page, non-technical, conclusion and key findings. Scope and methodology: tools used, systems examined, limitations acknowledged. Chain of custody: evidence acquisition details and hash values. Timeline: chronological reconstruction of attacker actions with specific timestamps and evidence citations. Technical findings: artifacts found, tools used to find them, significance. Appendices: raw evidence exports, tool outputs, screenshots with metadata.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Expert Witness Standards</div>
+                <div class="card-desc">Under Federal Rules of Evidence 702, expert testimony must be: based on sufficient facts or data, the product of reliable methodology, applied reliably to the facts of the case. The examiner must be able to testify to: their qualifications, the tools used (and their validation), the process followed, why the process is reliable, and the basis for each conclusion. Opinions must be stated with appropriate certainty -- not as facts. "The evidence is consistent with..." vs. "The defendant definitely did..."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Limitations and Caveats</div>
+                <div class="card-desc">All forensic reports must acknowledge limitations: timestamps may be inaccurate if system clock was manipulated; deleted files not recovered may contain exculpatory evidence; examination of live system modified the evidence; cloud provider data is authenticated by provider, not directly verified by examiner; attribution to a specific individual requires more than device evidence alone (keyboard, not the person, typed the command). Honest limitation acknowledgment strengthens credibility.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Attribution Challenges</div>
+                <div class="card-desc">Technical forensics proves a device was used, a credential was used, or a file was accessed. It does not directly prove who was sitting at the keyboard. Corroboration required for attribution to a person: physical access logs placing the subject at the location, witness testimony, additional digital evidence linking to the individual (account credentials, email communications, browser authentication), and elimination of alternative explanations (shared device, remote access, session hijacking).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Working with Law Enforcement</div>
+                <div class="card-desc">FBI Cyber Division and USSS ECTF have specialized digital forensics capabilities beyond most enterprise teams. Engagement benefits: federal investigative authorities, access to national intelligence databases, ability to pursue international cases, and public prosecutorial resources. Costs: loss of control over investigation timeline, public disclosure if prosecution occurs, and possible evidence seizure (law enforcement may remove equipment needed for operations). Engage legal counsel before contacting law enforcement to assess trade-offs.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">eDiscovery and Litigation Hold</div>
+                <div class="card-desc">When litigation is anticipated, legal counsel issues a litigation hold: a directive to preserve all potentially relevant electronically stored information (ESI). IR teams must understand that normal retention schedules are suspended for all systems in scope of the hold. FRCP (Federal Rules of Civil Procedure) Rule 37(e) sanctions parties who fail to preserve ESI due to a reasonably anticipated action. eDiscovery platforms (Relativity, Exterro) process large ESI volumes for attorney review.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — IR METRICS AND PROGRAM MATURITY ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">IR Program Maturity</span> -- Measuring and Improving</div>
+        <div class="slide-subtitle">What gets measured gets managed. IR metrics drive investment decisions and demonstrate program value to leadership.</div>
+        <div class="code-block"><span class="cm">-- IR Program Key Performance Indicators --</span>
+
+<span class="kw">Metric                    Definition                          Target</span>
+<span class="fn">MTTD</span>                      Mean Time to Detect                 &lt; 24 hours (mature orgs)
+<span class="fn">MTTR</span>                      Mean Time to Respond/Contain        &lt; 4 hours for Sev-1
+<span class="fn">MTTREC</span>                    Mean Time to Recover                &lt; RTO per BIA
+<span class="fn">Incident Volume</span>          Total incidents per period          Track trend; rising = gap
+<span class="fn">False Positive Rate</span>      Alerts closed without action (%)   &lt; 10% analyst time on FP
+<span class="fn">Repeat Incidents</span>         Same root cause recurrence (%)     &lt; 5% -- PIR quality metric
+<span class="fn">Playbook Coverage</span>        % of incident types with playbook  100% for top 10 types
+<span class="fn">Exercise Cadence</span>         Exercises per year                 Tabletop 4x; functional 2x
+<span class="fn">Notification Compliance</span>  % of reportable incidents notified  100% on time
+<span class="fn">Cost Per Incident</span>        Total IR cost / incident count     Benchmark against IBM report
+
+<span class="cm">-- Maturity Levels (NIST NICE / CMM adaptation) --</span>
+<span class="st">Level 1 -- Initial:</span>  Ad hoc response, no documented plan, reactive only
+<span class="st">Level 2 -- Managed:</span> Documented IR plan, defined roles, basic tooling deployed
+<span class="st">Level 3 -- Defined:</span> Playbooks for major incident types, exercises conducted
+<span class="st">Level 4 -- Quantitative:</span> Metrics tracked, trend analysis, continuous improvement
+<span class="st">Level 5 -- Optimizing:</span> Threat-intel-driven, proactive hunting, industry contribution</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — SPECIAL TOPICS: OT/ICS AND RANSOMWARE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Special IR Topics</span> -- OT/ICS and Ransomware</div>
+        <div class="slide-subtitle">Two scenarios where standard enterprise IR procedures can cause harm if applied without adaptation.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">OT/ICS Incident Response</div>
+                <div class="card-desc">Operational Technology (OT) and Industrial Control Systems (ICS) control physical processes: power grids, water treatment, manufacturing lines, facility HVAC and safety systems. IR differences: network isolation may cause physical harm (cutting power to HVAC during containment may damage specimens). Reimaging a PLC may require vendor re-commissioning (weeks, not hours). Air-gapped OT environments have limited log forwarding. Engage ICS-CERT (CISA) immediately -- they have specialized OT forensics teams. Never apply IT IR procedures to OT without OT engineer involvement. Safety takes precedence over containment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ransomware-Specific IR</div>
+                <div class="card-desc">1. Isolate immediately -- do not let encryption spread. 2. Identify variant (ransom note text, extension, ID Ransomware tool) to check for decryptors on nomoreransom.org. 3. Determine blast radius of encrypted files and backup integrity. 4. Do NOT pay ransom without: legal counsel review, OFAC sanctions check (some threat actors are sanctioned -- paying is illegal), insurance carrier notification, and FBI engagement. 5. Assume exfiltration occurred -- double extortion is now standard. 6. If paying: document the decision chain. Many ransom payments do not result in working decryptors.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OT Network Architecture and IR Impact</div>
+                <div class="card-desc">Purdue Model (ISA-99) zones: Level 0 (physical process) -- Level 1 (sensors/actuators) -- Level 2 (DCS/SCADA) -- Level 3 (plant network/historian) -- DMZ -- Level 4 (enterprise IT). IR containment must respect zone boundaries and safety interlocks. Unidirectional security gateways (data diodes) may physically prevent network isolation commands from reaching Level 0-2. Coordinate with plant engineers, safety officers, and OEM vendor before any containment action in OT networks.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Wiper Malware</div>
+                <div class="card-desc">Designed to destroy data rather than hold it for ransom. Examples: NotPetya (2017, $10B+ damage, Sandworm/GRU), Shamoon (Saudi Aramco 2012, 35,000 drives wiped), HermeticWiper (Ukraine 2022, pre-invasion). IR: wiper detection is difficult -- by the time symptoms are visible, damage is complete. Defense: immutable backups (wipers cannot reach offline backups), canary files (early detection of bulk file modification), and EDR behavioral rules blocking MBR/VBR overwrite attempts. Recovery is entirely backup-dependent.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Eta -- Ransomware Vector Confirmed. The malware sample extracted from memory matches BlackCat/ALPHV variant. Backup server logs confirm that the actor accessed the Veeam console 11 days prior and deleted all online recovery points. The IR manager checks nomoreransom.org: no decryptor available. Three offline tape backups from the prior week are confirmed unaffected. RTO from tape: 36 hours. The decision is escalated to the executive team with FBI Cyber Division on the call.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — THREAT HUNTING ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35 &nbsp;|&nbsp; SY0-701: 4.3</div>
+        <div class="slide-title"><span class="accent">Threat Hunting</span> -- Proactive IR Before the Alert</div>
+        <div class="slide-subtitle">Hunting assumes compromise and looks for adversaries already inside -- before they trigger an alert or cause harm.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Hunting vs. Monitoring</div>
+                <div class="card-desc">Monitoring: reactive -- wait for an alert and investigate. Threat hunting: proactive -- analyst-led search for signs of adversary presence based on hypotheses about attacker behavior. Hunting finds attackers that have evaded detection controls. The average dwell time before detection demonstrates that monitoring alone is insufficient: well-resourced attackers specifically operate below detection thresholds.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hypothesis-Driven Hunting</div>
+                <div class="card-desc">Start with a hypothesis: "APT29 is known to use WMI subscriptions for persistence -- do any of our endpoints have WMI event subscriptions created in the last 30 days?" or "Our VPN appliance was vulnerable for 3 months before patching -- were any sessions used to access internal systems that no legitimate user accesses?" Hypotheses come from: threat intelligence, ATT&CK technique coverage gaps, recent CVE disclosures for your technology stack, and IOCs from ISAC feeds.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SIEM and EDR Hunting Queries</div>
+                <div class="card-desc">Common hunts: PowerShell with encoded command (base64 in -EncodedCommand flag). LOLBin abuse (certutil/wmic/regsvr32 with unusual arguments). Scheduled tasks created by non-standard processes. Parent-child process anomalies (Word spawning cmd.exe). Network connections from unusual processes (notepad.exe initiating outbound TCP 443). New services installed outside change window. RDP logins from internal systems that are not administrative workstations. Tool: Osquery (endpoint query framework), SentinelOne Deep Visibility, CrowdStrike Threat Graph.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Hunt Outputs</div>
+                <div class="card-desc">A hunt that finds nothing is still valuable: it confirms the hypothesized attacker behavior is not present (or not detectable) in the environment. Document hunts: hypothesis, data sources queried, query logic, results, conclusion, and follow-on action. If malicious activity is found, convert the hunt into an IR event. If benign but anomalous activity is found, document it as a finding for the system owner. Detection engineering: successful hunt queries that reliably detect attacker behavior are converted to automated SIEM detection rules.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Threat Intelligence for Hunting</div>
+                <div class="card-desc">Finished intelligence products: sector-specific ISAC advisories, government advisories (CISA KEV, NSA/CISA joint advisories), vendor reports (CrowdStrike Global Threat Report, Mandiant M-Trends). Hunting with intelligence: take a specific reported TTP or IOC (e.g., "APT41 is targeting VPN appliances CVE-2024-XXXX in healthcare sector") and hunt for indicators of exploitation in your environment before a breach is confirmed. Proactive response to intelligence reports reduces dwell time to near zero for known TTPs.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Hunting Program Maturity</div>
+                <div class="card-desc">Level 1: IOC-based hunting (search for known bad hashes/IPs/domains) -- reactive to existing intelligence, low analyst skill required. Level 2: TTP-based hunting (search for attacker behaviors regardless of specific IOCs). Level 3: Analytics-based hunting (statistical anomaly detection, ML-assisted baselining). Level 4: Custom intelligence-driven hunting (organization-generated threat models drive bespoke hunt campaigns). Most organizations operate at Level 1-2; Level 3-4 requires significant data engineering and analyst capability investment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — SCENARIO ANALYSIS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; SY0-701: 4.3, 4.4</div>
+        <div class="slide-title"><span class="accent">Scenario Analysis</span> -- Applying IR and Forensics Principles</div>
+        <div class="slide-subtitle">Each scenario has a single best answer. Work through the reasoning before checking the answer.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Scenario A: Ransomware at 3 AM</div>
+                <div class="card-desc">An EDR alert fires at 03:14 for bulk file encryption on a file server. The on-call analyst confirms the signature matches a known ransomware family. What is the FIRST action?
+<br><br>
+<strong>Analysis:</strong> Immediate isolation to stop spread. The file server must be network-isolated before examining evidence or notifying stakeholders. Every minute of delay allows the ransomware to reach additional shares and backup mounts. Isolation preserves memory state for later forensics -- do not power off. Notification and forensics are next, not first.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scenario B: Memory Evidence Decision</div>
+                <div class="card-desc">A compromised Linux server is suspected of running fileless malware. The analyst must power off the system to reimage it per policy. What should be done before power-off?
+<br><br>
+<strong>Analysis:</strong> Capture a memory image (using LiME) before powering off. Fileless malware exists only in RAM -- power-off destroys it. Memory image preserves: the malware code, C2 connection state, injected process details, and potentially decryption keys. Hash the image immediately. Then power off and reimage. The memory image is the primary forensic evidence for this incident type.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Scenario C: Chain of Custody Break</div>
+                <div class="card-desc">An analyst imaged a suspect drive but forgot to document the chain of custody. The drive was left unattended in a shared lab overnight before the oversight was discovered. What is the impact?
+<br><br>
+<strong>Analysis:</strong> The chain of custody is broken. Evidence that was unattended and undocumented cannot be proven unmodified. In criminal or civil proceedings, opposing counsel will challenge the evidence's integrity and potentially succeed in having it excluded. The organization should acknowledge the break in documentation, re-hash the drive, document the gap formally, and note the limitation in the forensic report.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Scenario D: DR Site Selection</div>
+                <div class="card-desc">A hospital's BIA establishes that the EHR system must be restored within 2 hours (RTO=2h) and no more than 30 minutes of data can be lost (RPO=30m). Which DR site type is required?
+<br><br>
+<strong>Analysis:</strong> A hot site (active-active or near-real-time replication) is required. A warm site with 2-8 hour activation time cannot meet a 2-hour RTO. An RPO of 30 minutes requires near-continuous replication -- not daily or hourly backup schedules. Cold site is completely infeasible. Cloud active-active with synchronous replication would satisfy both RTO and RPO requirements.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; SY0-701: 4.3, 4.4</div>
+        <div class="slide-title"><span class="accent">Practice Exercises</span></div>
+        <div class="slide-subtitle">CompTIA SY0-701 format -- one best answer per question. Review the entire slide before selecting.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Q1: Order of Volatility</div>
+                <div class="card-desc">A forensic analyst arrives at a compromised workstation that is still powered on and connected to the network. In what order should evidence be collected?<br><br>
+                A. Disk image, then memory dump, then network state<br>
+                B. Network state, then memory dump, then disk image<br>
+                C. Memory dump, then network state, then disk image<br>
+                D. Disk image, then network state, then memory dump<br><br>
+                <strong>Answer: C.</strong> RFC 3227 order of volatility: RAM first (lost on power-off), then network state (changes with each packet), then disk (persistent). Option C follows this correctly.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Q2: IR Lifecycle Phase</div>
+                <div class="card-desc">After identifying that attacker persistence was established via a WMI event subscription, the IR team removes the subscription, reimages the affected hosts, rotates all credentials, and patches the exploited vulnerability. Which IR phase describes these actions?<br><br>
+                A. Containment<br>
+                B. Eradication<br>
+                C. Recovery<br>
+                D. Lessons Learned<br><br>
+                <strong>Answer: B.</strong> Eradication removes the root cause and all attacker artifacts. Containment (earlier) isolated the systems. Recovery (next) restores them to production. Removing persistence mechanisms, reimaging, rotating credentials, and patching = eradication.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Q3: Backup Strategy</div>
+                <div class="card-desc">An organization's online backups were encrypted during a ransomware attack. A review finds all backups were stored on network shares accessible from the production domain. Which control would have MOST effectively prevented this outcome?<br><br>
+                A. Increasing backup frequency to hourly<br>
+                B. Encrypting backup files at rest<br>
+                C. Maintaining offline, air-gapped backup copies<br>
+                D. Storing backups in a different folder on the same server<br><br>
+                <strong>Answer: C.</strong> The attack succeeded because backups were network-reachable. Air-gapped/offline backups are physically inaccessible to malware operating on the network. Options A, B, and D do not address network accessibility.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Q4: DR Site Type</div>
+                <div class="card-desc">A company needs a recovery site that can be activated within 4-8 hours but wants to minimize ongoing costs compared to running a full duplicate environment. Hardware is pre-installed and connectivity is in place, but systems are not running and data must be loaded from backup. Which site type is described?<br><br>
+                A. Hot site<br>
+                B. Cold site<br>
+                C. Warm site<br>
+                D. Mobile site<br><br>
+                <strong>Answer: C.</strong> Warm site: hardware present, connectivity established, but systems not running, data loaded from backup. 4-8 hour activation time is characteristic. Hot sites are fully running. Cold sites have no pre-configured hardware. Option C is correct.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; PIS-16 &nbsp;|&nbsp; Week 4 of 8</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Incident Response &amp; Digital Forensics -- Key Concepts for SY0-701</div>
+        <div class="summary-facts">
+            <div class="fact-row"><div class="fact-num">1</div><div class="fact-text">The NIST SP 800-61r2 IR lifecycle has six phases: <code>Preparation -- Detection/Analysis -- Containment -- Eradication -- Recovery -- Lessons Learned</code>. Each phase has distinct objectives and must not be skipped, even under time pressure.</div></div>
+            <div class="fact-row"><div class="fact-num">2</div><div class="fact-text">Order of volatility (RFC 3227): <code>RAM -- swap -- processes -- network state -- disk -- optical -- remote logs</code>. Always collect most volatile evidence first; rebooting before memory capture destroys fileless malware and credential material.</div></div>
+            <div class="fact-row"><div class="fact-num">3</div><div class="fact-text">Chain of custody requires: documented acquisition with hash verification (<code>SHA-256</code>), write blocking, tamper-evident storage, signed transfer records, and re-verification of hash values before each examination. Any undocumented gap breaks the chain.</div></div>
+            <div class="fact-row"><div class="fact-num">4</div><div class="fact-text">DR site types by recovery time: <code>Hot</code> (minutes, full replication) -- <code>Warm</code> (hours, hardware present, data loaded from backup) -- <code>Cold</code> (days to weeks, space only). RTO from the BIA must drive site type selection.</div></div>
+            <div class="fact-row"><div class="fact-num">5</div><div class="fact-text">The <code>3-2-1-1-0</code> backup rule adds offline (air-gapped) and verified (zero errors on restore test) requirements to the classic 3-2-1 rule. Ransomware specifically targets network-reachable backups -- offline copies are the primary ransomware defense.</div></div>
+            <div class="fact-row"><div class="fact-num">6</div><div class="fact-text">Forensic acquisition tools: <code>FTK Imager / dc3dd</code> for disk, <code>WinPmem / LiME</code> for memory. Work from forensic copies, never originals. Use hardware write blockers during acquisition to prevent evidence modification.</div></div>
+            <div class="fact-row"><div class="fact-num">7</div><div class="fact-text">MITRE ATT&amp;CK maps attacker behaviors across 14 enterprise tactics. IR reports must map confirmed attacker actions to ATT&amp;CK technique IDs. This enables detection gap analysis, threat actor comparison, and standardized communication with law enforcement.</div></div>
+            <div class="fact-row"><div class="fact-num">8</div><div class="fact-text">Incident notification timelines: <code>GDPR 72h</code> to SA, <code>HIPAA 60 days</code> (HHS OCR), <code>PCI DSS immediately</code> (card brands), <code>SEC 4 business days</code> (Form 8-K), <code>CMMC/DFARS 72h</code> (DoD). Know your applicable regulations before the incident occurs.</div></div>
+            <div class="fact-row"><div class="fact-num">9</div><div class="fact-text">BCP addresses organizational continuity; DRP addresses IT system recovery. RTO (maximum tolerable downtime) and RPO (maximum tolerable data loss) are BIA outputs that must be achievable by the DRP. RTO drives DR site type; RPO drives backup frequency and replication strategy.</div></div>
+        </div>
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()" style="display:inline-block;">Mark Module Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== NAV BAR ==================== -->
+<div id="nav-bar">
+    <button class="nav-btn back-btn" onclick="window.location.href='../index.html'">&larr; Back</button>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Prev</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</div>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+<script>
+    // Track current slide position
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    // Navigate to a specific slide number, updating progress bar and counter
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    // Keyboard navigation: left/right arrow keys
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    // Mark this module complete via ModuleProgress and return to index
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-incident-response', { returnUrl: '../index.html' });
+        }
+    }
+
+    // Initialize first slide
+    goToSlide(1);
+</script>
+</body>
+</html>

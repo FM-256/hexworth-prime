@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infosec Midterm Exam - Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f172a;
+    --card: #1e293b;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #c9a83a;
+    --accent2: #a8821e;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f172a 50%, #1a1400 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+
+  .exam-info ul { list-style: none; color: var(--muted); }
+
+  .exam-info li { padding: 4px 0; }
+
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.1);
+    border-color: rgba(201, 168, 58, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass { background: rgba(46, 213, 115, 0.15); color: var(--ok); border: 1px solid var(--ok); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.15); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(168, 130, 30, 0.2));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Infosec Hub</a>
+  <span class="brand">
+    <img src="/assets/images/icons/icon-lock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+    Hexworth Prime
+  </span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/25 answered</span>
+  <span class="timer" id="timer">45:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>
+      <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+      Principles of Information Security Midterm
+    </h1>
+    <div class="header-meta">
+      <span class="tag">Security+ SY0-701</span>
+      <span class="tag">25 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">45 Minutes</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers Weeks 1-2: Security Fundamentals, Threat Actors, Attacks, and Cryptography (SY0-701 Domains 1.0-3.0)</li>
+      <li>You need 70% (18/25) to pass</li>
+      <li>Passing awards the <strong>Shield Operative</strong> badge</li>
+      <li>Time limit: 45 minutes (timer starts when page loads)</li>
+      <li>Review your answers before submitting - you only get one attempt!</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Hexworth Prime</a> | Principles of Information Security
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/shield-pis-midterm
+const QUIZ_ID = 'shield-pis-midterm';
+
+const examData = [
+  // Domain 1.0 - General Security Concepts
+  {q: "Which component of the CIA Triad is violated when an attacker encrypts files and holds them for ransom?", a: ["Confidentiality", "Integrity", "Availability", "Non-repudiation"]},
+  {q: "What security principle dictates that a user account should only have the permissions absolutely required to perform their assigned job function?", a: ["Defense in depth", "Separation of duties", "Least privilege", "Need to know"]},
+  {q: "Which type of control prevents a security incident from occurring in the first place?", a: ["Detective control", "Corrective control", "Preventive control", "Compensating control"]},
+  {q: "A policy requires two employees to be present whenever the server room is accessed. This is an example of:", a: ["Least privilege", "Dual control (two-person integrity)", "Job rotation", "Mandatory access control"]},
+  {q: "What does non-repudiation mean in the context of information security?", a: ["Ensuring data is only accessible to authorized users", "Ensuring a user cannot deny having performed a documented action", "Preventing unauthorized modification of data", "Ensuring systems remain available during an attack"]},
+
+  // Domain 2.0 - Threats
+  {q: "A nation-state actor compromises a defense contractor's network and remains dormant for 11 months before exfiltrating data. This is best described as:", a: ["A script kiddie attack", "An Advanced Persistent Threat (APT)", "A hacktivist campaign", "A supply chain attack"]},
+  {q: "An attacker sends a highly personalized email to a C-level executive, appearing to come from the company's law firm, requesting a wire transfer. This is known as:", a: ["Phishing", "Vishing", "Whaling (spear phishing targeting executives)", "Smishing"]},
+  {q: "Which type of malware conceals itself and other malicious code from the operating system to maintain undetected privileged access?", a: ["Worm", "Ransomware", "Rootkit", "Adware"]},
+  {q: "A CDC analyst discovers that the outbreak surveillance dashboard is slow and eventually crashes due to thousands of simultaneous fake requests. This attack is known as:", a: ["SQL injection", "Denial of Service (DoS)", "Man-in-the-Middle", "ARP poisoning"]},
+  {q: "What is the key difference between a virus and a worm?", a: ["A virus is more dangerous; a worm is less harmful", "A worm self-replicates across networks without a host file; a virus requires a host file", "A virus attacks hardware; a worm attacks software", "A worm requires user interaction; a virus does not"]},
+
+  // Domain 3.0 - Cryptography and PKI
+  {q: "Which encryption algorithm uses a single shared key for both encryption and decryption and is typically faster than asymmetric algorithms?", a: ["RSA", "ECC", "AES (symmetric)", "Diffie-Hellman"]},
+  {q: "An organization needs to verify that a software package has not been modified during download. Which cryptographic mechanism should they use?", a: ["Symmetric encryption", "Asymmetric encryption", "Cryptographic hash (e.g., SHA-256)", "Digital envelope"]},
+  {q: "What is the purpose of a digital signature?", a: ["To encrypt the message content so only the recipient can read it", "To provide authentication and non-repudiation by signing with the sender's private key", "To compress data for faster transmission", "To generate a symmetric session key"]},
+  {q: "Which hashing algorithm is currently considered broken and should not be used for any security-sensitive application?", a: ["SHA-256", "SHA-3", "MD5", "BLAKE2"]},
+  {q: "A user's password 'p@ssword' is stored as a hash in a database. An attacker uses a precomputed table of password-to-hash mappings to crack it. What defense would have prevented this?", a: ["Using a longer password", "Salting the password before hashing", "Encrypting the hash with AES", "Storing the hash in a separate database"]},
+
+  // Mixed application questions
+  {q: "Which asymmetric algorithm is widely used for key exchange and digital signatures and relies on the mathematical difficulty of factoring large prime numbers?", a: ["AES", "RSA", "SHA-256", "DES"]},
+  {q: "A threat actor calls an employee pretending to be an IT technician needing remote access credentials to fix a critical server issue. This is an example of:", a: ["Vishing (voice phishing)", "Pretexting", "Tailgating", "Both A and B -- it uses both voice deception and a fabricated scenario"]},
+  {q: "What is a zero-day vulnerability?", a: ["A vulnerability that has been patched for zero days", "A flaw that is actively exploited before the vendor has issued a patch or is even aware of it", "A vulnerability found only in legacy operating systems", "A bug with a CVSS score of 0.0"]},
+  {q: "Which of the following BEST describes defense in depth?", a: ["Granting users the minimum permissions required", "Using a single, highly capable security control", "Layering multiple overlapping security controls so the failure of one does not compromise the whole system", "Encrypting all data at rest and in transit"]},
+  {q: "The Conficker worm spread across hospital networks by exploiting an unpatched Windows vulnerability. Which threat category does this represent?", a: ["Insider threat", "Supply chain threat", "External network-borne threat exploiting a known vulnerability", "Physical security threat"]},
+
+  // Scenario-based
+  {q: "A security analyst notices that an employee badge is being used to access the building at 03:00 AM from a city 900 miles away, while the employee is confirmed to be in the office. This indicates:", a: ["A malfunctioning badge reader", "A credential compromise or stolen badge attack", "Normal remote access behavior", "A VPN configuration error"]},
+  {q: "Confidentiality, Integrity, and Availability are the three pillars of the CIA Triad. Which pillar is MOST directly at risk when an organization experiences a ransomware attack that destroys backups?", a: ["Confidentiality only", "Integrity only", "Availability (and potentially integrity if data is corrupted)", "None -- ransomware only affects financial assets"]},
+  {q: "Which of the following is an example of a technical (logical) access control?", a: ["Requiring security awareness training annually", "Installing a badge reader on the server room door", "Configuring role-based access control (RBAC) in an Active Directory environment", "Conducting background checks on all new hires"]},
+  {q: "An employee intentionally exfiltrates proprietary research data to a competitor. Which threat category does this fall under?", a: ["External threat", "Nation-state threat", "Malicious insider threat", "Script kiddie attack"]},
+  {q: "Which term describes the total monetary value of assets lost multiplied by the probability of occurrence, used in quantitative risk analysis?", a: ["ALE (Annualized Loss Expectancy)", "SLE (Single Loss Expectancy)", "ARO (Annualized Rate of Occurrence)", "EF (Exposure Factor)"]},
+];
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answers but preserve original index for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 45 minutes
+let timeLeft = 45 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark user selections correct/incorrect based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_shield_pis_midterm_passed', 'true');
+    localStorage.setItem('hexworth_shield_pis_midterm_score', percent);
+    localStorage.setItem('hexworth_shield_pis_midterm_date', new Date().toISOString());
+  }
+
+  // Trigger ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('shield', 'pis-midterm', score);
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed
+      ? '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Midterm Passed!'
+      : '<img src="/assets/images/icons/icon-alert.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep Studying'
+    }</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'You passed the Principles of Information Security Midterm! You have earned the Shield Operative badge.'
+        : `You need 70% (18/25) to pass. Review Weeks 1-2 materials and try again. You scored ${score}/25.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Shield Operative Badge Earned!</h3>
+        <p>You have demonstrated mastery of Security Fundamentals, Threats, and Cryptography. Continue to Weeks 3-4.</p>
+        <a href="../index.html" class="btn-continue">Continue to Week 3 &rarr;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/pis-w1.quiz.html" class="btn-continue" style="margin-right: 10px;">Review Week 1</a>
+        <a href="../quizzes/pis-w2.quiz.html" class="btn-continue">Review Week 2</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

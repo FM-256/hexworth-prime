@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptography | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Cryptography | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-08 &nbsp;|&nbsp; Week 2 of 8 &nbsp;|&nbsp; SY0-701: 1.4, 5.1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Cryptography<br>
+                <span class="accent">Foundations</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Symmetric &nbsp;&bull;&nbsp; Asymmetric &nbsp;&bull;&nbsp; Hashing &nbsp;&bull;&nbsp; Salting &nbsp;&bull;&nbsp; AES &nbsp;&bull;&nbsp; RSA &nbsp;&bull;&nbsp; ECC &nbsp;&bull;&nbsp; DH &nbsp;&bull;&nbsp; PFS
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Specimen Manifest Integrity Protocol. Every specimen transfer must be accompanied by a cryptographically signed manifest that proves the contents have not been altered since the signing authority authorized the transfer. The signature uses an asymmetric key pair held in a hardware security module. If the manifest is modified by even a single byte in transit, the signature verification fails and the transfer is automatically quarantined. This is cryptography doing exactly what it was designed to do.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-08</span>
+            <span>Week 2 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- CRYPTOGRAPHY FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Cryptography <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Cryptography provides mathematical guarantees about confidentiality, integrity, and authentication. It is the technical foundation of information security.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Plaintext and Ciphertext</div>
+                <div class="card-desc">Plaintext: the original, readable data. Ciphertext: the transformed, unreadable output of encryption. The encryption algorithm and key transform plaintext into ciphertext. Decryption with the correct key reverses the transformation. The ciphertext reveals nothing about the plaintext without the key -- this is the fundamental security property of encryption.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Encryption vs. Encoding</div>
+                <div class="card-desc">Encoding (Base64, URL encoding, hex) transforms data into a different representation without a key. Anyone who knows the encoding format can reverse it -- there is no secret. Encoding is not security. Encryption requires a key that is not publicly known. A system that "encodes" credentials is not protecting them. This distinction is frequently confused and frequently tested on SY0-701.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Kerckhoffs's Principle</div>
+                <div class="card-desc">A cryptographic system should be secure even if everything about the system, except the key, is public knowledge. Security must reside in the key, not in the secrecy of the algorithm. This means: use publicly vetted algorithms (AES, RSA, SHA-256), not proprietary or obscure ones. Home-grown encryption is almost always broken. The algorithm's publication invites scrutiny that builds confidence in its strength.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Symmetric vs. Asymmetric: The Core Tradeoff</div>
+            Symmetric encryption uses one key for both encryption and decryption -- fast, efficient, but requires secure key exchange. Asymmetric encryption uses a key pair (public and private) -- solves key distribution but is computationally expensive. Real-world protocols combine both: asymmetric encryption establishes a shared secret, then symmetric encryption protects the actual data stream.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- SYMMETRIC ENCRYPTION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Symmetric <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">One key is used for both encryption and decryption. The key must be shared securely between parties before communication begins.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How Symmetric Encryption Works</div>
+                <div class="card-desc">Sender and receiver share the same secret key. The sender encrypts: Encrypt(key, plaintext) = ciphertext. The receiver decrypts: Decrypt(key, ciphertext) = plaintext. Security depends entirely on the secrecy of the key. Anyone who obtains the key can decrypt all messages encrypted with it -- past, present, and future unless keys are regularly rotated.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Key Distribution Problem</div>
+                <div class="card-desc">How do two parties who have never communicated before securely share a symmetric key? If the key is sent over an insecure channel, an eavesdropper captures it. This is symmetric encryption's fundamental limitation. Solutions: out-of-band key exchange (physical transfer), asymmetric key exchange (Diffie-Hellman), or key encapsulation (encrypt the symmetric key with an asymmetric public key). All real protocols solve this problem before symmetric encryption begins.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Performance Characteristics</div>
+                <div class="card-desc">Symmetric algorithms are computationally efficient -- AES on modern CPUs with hardware acceleration (AES-NI instructions) processes multiple gigabytes per second. This makes symmetric encryption suitable for bulk data: disk encryption, file encryption, stream encryption, VPN tunnels after key exchange. Asymmetric encryption is 100x-1000x slower and is impractical for bulk data operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Block vs. Stream Ciphers</div>
+                <div class="card-desc">Block cipher: encrypts fixed-size blocks (AES: 128-bit blocks). The same input block always produces the same ciphertext block when using the same key -- this property requires modes of operation (CBC, GCM) to add randomness and prevent pattern leakage. Stream cipher: encrypts one bit or byte at a time using a keystream (ChaCha20). Stream ciphers are efficient for variable-length data and streaming applications.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- AES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">AES -- Advanced Encryption <span class="accent">Standard</span></div>
+        <div class="slide-subtitle">The gold standard symmetric cipher. Selected by NIST in 2001 after an open competition. No practical attack against AES exists.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AES Specifications</div>
+                <div class="card-desc">Block size: 128 bits (fixed). Key sizes: 128-bit (10 rounds), 192-bit (12 rounds), 256-bit (14 rounds). AES-256 is the government standard for Top Secret data. AES-128 provides adequate security for most commercial applications. The number of rounds increases with key size -- more rounds means more operations per block but also more security margin.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AES Modes of Operation</div>
+                <div class="card-desc">ECB (Electronic Codebook): same block same ciphertext -- reveals patterns (never use). CBC (Cipher Block Chaining): XOR with previous ciphertext block before encrypting -- requires IV, sequential only, no integrity. CTR (Counter): turns block cipher into stream cipher -- parallelizable, requires unique nonce. GCM (Galois/Counter Mode): CTR + authentication tag -- provides both encryption and integrity. Use AES-GCM for new designs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AES-GCM -- Authenticated Encryption</div>
+                <div class="card-desc">AES-GCM provides confidentiality, integrity, and authentication simultaneously. The authentication tag (128 bits) detects any modification to the ciphertext or associated data. Decryption fails if the tag is invalid -- the application never processes modified ciphertext. This is authenticated encryption with associated data (AEAD). ChaCha20-Poly1305 is an alternative AEAD with similar properties and better performance on platforms without AES hardware acceleration.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">-- AES ECB mode weakness: same plaintext block produces same ciphertext</span>
+<span class="cm">-- ECB encrypted Linux Tux penguin image reveals the original outline</span>
+<span class="cm">-- because identical pixel blocks encrypt to identical ciphertext blocks</span>
+
+<span class="cm">-- AES-GCM: correct mode for new designs</span>
+<span class="kw">nonce</span>     = <span class="fn">random_bytes</span>(12)        <span class="cm">-- never reuse with same key</span>
+<span class="kw">ciphertext</span>, <span class="nb">tag</span> = <span class="fn">AES_GCM_encrypt</span>(key, nonce, plaintext)
+<span class="kw">verified</span>  = <span class="fn">AES_GCM_decrypt</span>(key, nonce, ciphertext, tag)
+<span class="cm">-- decryption raises exception if tag is invalid -- never process on failure</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DES AND 3DES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">DES, 3DES, and <span class="accent">Cipher History</span></div>
+        <div class="slide-subtitle">Understanding deprecated algorithms is required because they appear in legacy systems and on the exam as contrast to current standards.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">DES -- Data Encryption Standard</div>
+                <div class="card-desc">56-bit key, 64-bit block. Selected by NIST in 1977. The 56-bit key was deliberately shortened under NSA pressure (or so the allegation goes). By 1998, EFF's Deep Crack cracked a DES key in 22 hours for $250,000. Today, DES brute force is practical with commodity hardware. DES is completely broken -- no legitimate use case remains. Do not confuse "DES is broken" with "AES is the same algorithm but bigger" -- AES is a completely different algorithm designed from scratch.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">3DES (Triple DES)</div>
+                <div class="card-desc">Applies DES three times with two or three independent keys: Encrypt(K1) - Decrypt(K2) - Encrypt(K3). Effective key length: 112 bits (two-key) or 168 bits (three-key). Designed as a stopgap when DES was broken but before AES was ready. NIST deprecated 3DES in 2023 -- legacy only. Performance is 3x worse than single DES and far slower than AES. SWEET32 attack (2016) demonstrated practical attacks against 64-bit block ciphers including 3DES in long sessions.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">RC4 -- Stream Cipher (Broken)</div>
+                <div class="card-desc">RC4 was widely used in WEP (Wi-Fi) and early TLS. Multiple biases in its key stream make statistical attacks practical. RC4 in TLS was prohibited by RFC 7465 in 2015. WEP using RC4 was broken within seconds with captured traffic (aircrack-ng). Never use RC4. Its presence in any active protocol is an automatic critical vulnerability finding. Understand its weaknesses because WEP appears on the exam.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Blowfish and Twofish</div>
+                <div class="card-desc">Blowfish: Bruce Schneier's 1993 algorithm. 64-bit blocks (SWEET32 risk in long sessions), variable key length. No known serious weaknesses but the 64-bit block size is a limitation. Twofish: Schneier's improved 128-bit block cipher, AES finalist. No known attacks. Still used in some contexts (Truecrypt successor VeraCrypt). Neither is recommended for new designs -- use AES-GCM. Understanding these for exam context: they are stronger than DES, weaker recommendation than AES.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ASYMMETRIC ENCRYPTION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Asymmetric <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">Two mathematically related keys: a public key (freely distributed) and a private key (never shared). Data encrypted with one key can only be decrypted with the other.</div>
+
+        <div class="scenario-strip">
+            A researcher sends a sealed specimen transfer order to the command center. The order is encrypted with the command center's public key -- anyone can encrypt to them, but only the command center's private key can decrypt it. The command center signs the authorization with its private key -- anyone can verify the signature with the public key, but only the command center could have signed it. Two operations. Two different uses of the key pair.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Encryption with Public Key</div>
+                <div class="card-desc">Alice wants to send Bob a confidential message. She encrypts with Bob's public key. Only Bob's private key can decrypt it. Bob's public key is truly public -- Alice does not need to have met Bob or shared a secret with him to send him an encrypted message. This solves the key distribution problem of symmetric encryption. Anyone can send encrypted messages to Bob; only Bob can read them.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Signing with Private Key</div>
+                <div class="card-desc">Bob wants to prove a message came from him. He signs with his private key. Anyone with Bob's public key can verify the signature. Verification confirms: the message was not modified since signing (integrity) AND only the holder of Bob's private key could have created this signature (authentication and non-repudiation). Signing does not encrypt the message -- it authenticates it. These are different operations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Key Pair Properties</div>
+                <div class="card-desc">Mathematical relationship: a message encrypted with the public key can only be decrypted with the private key, and vice versa. The private key cannot be derived from the public key within a reasonable computational timeframe (given current algorithms and key lengths). The security relies on the computational hardness of factoring large numbers (RSA) or solving discrete logarithms (ECC, DH).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Private Key Protection</div>
+                <div class="card-desc">The entire security of asymmetric cryptography rests on the private key remaining secret. Compromise of the private key allows decryption of all past messages encrypted to that key (unless Perfect Forward Secrecy was used) and allows forgery of signatures. Private keys must be stored encrypted (password-protected key files or hardware security modules). Never transmit private keys. Regular key rotation limits exposure window.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RSA ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">RSA -- Rivest-Shamir-Adleman <span class="accent">Algorithm</span></div>
+        <div class="slide-subtitle">The dominant asymmetric algorithm since 1977. Security based on the difficulty of factoring the product of two large prime numbers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">RSA Math Overview</div>
+                <div class="card-desc">Key generation: choose two large primes p and q. Compute n = p * q. Choose public exponent e. Private key d is derived such that (e * d) mod phi(n) = 1. Public key: (n, e). Private key: (n, d). Factoring n to recover p and q is computationally infeasible for large values. Quantum computers running Shor's algorithm can factor n efficiently -- RSA is quantum-vulnerable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RSA Key Lengths</div>
+                <div class="card-desc">1024-bit RSA: equivalent to approximately 80-bit symmetric security. Considered inadequate -- factor attacks are approaching feasibility. 2048-bit RSA: equivalent to approximately 112-bit symmetric security. Current minimum recommended by NIST through 2030. 3072-bit RSA: equivalent to 128-bit symmetric security. 4096-bit RSA: common for CA root keys. Longer keys mean more computational cost -- RSA key operations scale poorly with key size (O(k^3) where k is key size).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RSA in Practice</div>
+                <div class="card-desc">RSA is used for: TLS certificate signature and key exchange (being replaced by ECDHE), code signing, email encryption (S/MIME, PGP), SSH key authentication, digital signatures in PKI. RSA directly encrypts small data (session key encapsulation). For larger data, RSA encrypts a symmetric key (AES-256), which then encrypts the data. This hybrid approach combines RSA's key distribution advantage with AES's performance advantage.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">RSA Vulnerabilities</div>
+                <div class="card-desc">RSA without proper padding is deterministic and malleable -- identical plaintexts produce identical ciphertexts, and ciphertexts can be manipulated. PKCS#1 v1.5 padding is vulnerable to Bleichenbacher oracle attacks (ROBOT vulnerability). OAEP (Optimal Asymmetric Encryption Padding) is the correct padding for RSA encryption. PSS (Probabilistic Signature Scheme) is the correct padding for RSA signatures. Never use textbook RSA without padding.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DIFFIE-HELLMAN ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Diffie-Hellman <span class="accent">Key Exchange</span></div>
+        <div class="slide-subtitle">A method for two parties to establish a shared secret over an insecure channel without ever transmitting the secret. The foundational breakthrough that enabled modern cryptography.</div>
+
+        <div class="code-block"><span class="cm">-- Diffie-Hellman conceptual model (paint mixing analogy)</span>
+<span class="kw">Public params</span>: prime p, generator g  (both parties agree, public)
+<span class="fn">Alice</span> picks private a,  computes A = g^a mod p  (sends A to Bob)
+<span class="fn">Bob</span>   picks private b,  computes B = g^b mod p  (sends B to Alice)
+
+<span class="fn">Alice</span>: shared_secret = B^a mod p  =  (g^b)^a mod p  =  g^(ab) mod p
+<span class="fn">Bob</span>:   shared_secret = A^b mod p  =  (g^a)^b mod p  =  g^(ab) mod p
+
+<span class="cm">-- Attacker sees: g, p, A, B  -- cannot compute 'a' or 'b' (discrete log problem)</span>
+<span class="cm">-- Shared secret is identical on both sides and was never transmitted</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">DH Groups and Security</div>
+                <div class="card-desc">DH security depends on the difficulty of the discrete logarithm problem. Larger groups are more secure but more computationally expensive. DH group 1 and 2 (768 and 1024-bit) are deprecated. Group 14 (2048-bit) is the current minimum. Groups 19, 20, 21 use elliptic curves (ECDH) -- much stronger per bit. ECDH with P-256 (Group 19) is the current standard for TLS and IKE key exchange.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DH Without Authentication</div>
+                <div class="card-desc">Basic DH establishes a shared secret but does not authenticate who you established it with. An attacker performing MITM can establish separate DH exchanges with Alice and Bob, becoming the man in the middle. DH must be combined with authentication (certificates, pre-shared keys) to be secure. In TLS, the server's certificate authenticates the DH exchange -- you are establishing a shared secret with a verified identity, not an unknown party.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Ephemeral DH and PFS</div>
+                <div class="card-desc">Static DH uses long-term key pairs -- a compromised private key decrypts all past sessions. Ephemeral DH (DHE, ECDHE) generates a new key pair for each session. The session key is never stored. Past sessions cannot be decrypted even if the long-term private key is later compromised. This property is Perfect Forward Secrecy -- each session's key is independent of all others.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- ECC ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Elliptic Curve <span class="accent">Cryptography (ECC)</span></div>
+        <div class="slide-subtitle">ECC achieves equivalent security to RSA with dramatically shorter keys, making it efficient for constrained devices and modern protocols.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ECC Mathematical Basis</div>
+                <div class="card-desc">Security based on the elliptic curve discrete logarithm problem (ECDLP). Given point P on a curve and point Q = k*P (scalar multiplication of P k times), finding k given P and Q is computationally infeasible. The ECDLP is harder than the integer factorization problem (RSA) or classic discrete logarithm (DH) per bit of key -- ECC provides more security with shorter keys.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Key Size Comparison</div>
+                <div class="card-desc">ECC 256-bit provides approximately the same security as RSA 3072-bit. ECC 384-bit is equivalent to RSA 7680-bit. ECC 521-bit is equivalent to RSA 15360-bit. Smaller keys mean: faster key generation, faster signing and verification, smaller signature sizes, less storage and bandwidth. This is why ECDHE has replaced DHE and ECDSA has replaced RSA signatures in modern TLS configurations and mobile applications.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common ECC Curves</div>
+                <div class="card-desc">P-256 (secp256r1 / prime256v1): NSA Suite B standard. Most widely deployed. P-384: higher security margin, NSA Suite B for Top Secret. P-521: maximum NSA-approved security. Curve25519 (X25519): designed by Daniel Bernstein for ECDH -- favored in TLS 1.3, WireGuard, Signal Protocol for its resistance to implementation errors and absence of suspicious parameter choices. Ed25519: EdDSA signature scheme based on Curve25519.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ECC and Quantum Computing</div>
+                <div class="card-desc">Like RSA and DH, ECC is vulnerable to quantum attacks (Shor's algorithm solves ECDLP efficiently). NIST's Post-Quantum Cryptography standardization selected algorithms based on lattice problems (CRYSTALS-Kyber for key encapsulation, CRYSTALS-Dilithium for signatures) that are believed to be quantum-resistant. Transition planning for post-quantum algorithms should begin now for systems with long data lifetimes -- a "harvest now, decrypt later" strategy allows current intercepts to be decrypted when quantum computers mature.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- PERFECT FORWARD SECRECY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Perfect Forward <span class="accent">Secrecy (PFS)</span></div>
+        <div class="slide-subtitle">A property of key exchange protocols where compromise of long-term keys does not compromise past session keys.</div>
+
+        <div class="scenario-strip">
+            An intelligence agency has been recording all encrypted traffic between the facility and its remote offices for three years, waiting until they can crack the encryption. If the facility uses static RSA key exchange (no PFS), obtaining the facility's RSA private key decrypts all three years of recorded traffic retroactively. If the facility uses ECDHE (ephemeral keys with PFS), each session used a unique key that was discarded after use -- the private key is useless against the recorded traffic.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">How PFS Works</div>
+                <div class="card-desc">In PFS, ephemeral (temporary) key pairs are generated for each session's DH exchange. The session key is derived from the ephemeral DH values. After the session ends, the ephemeral private key is discarded. The long-term private key (certificate key) is only used to authenticate the DH exchange, not to derive the session key. Even if the long-term key is later compromised, there is no way to derive past session keys.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">PFS in TLS</div>
+                <div class="card-desc">TLS 1.3 mandates ephemeral key exchange -- PFS is not optional, it is the only mode available. TLS 1.2 with DHE or ECDHE cipher suites provides PFS. TLS 1.2 with static RSA key exchange (RSA_WITH_xxx cipher suites) does NOT provide PFS. Configuring TLS 1.2 servers: disable RSA key exchange cipher suites, enable only ECDHE and DHE suites. TLS 1.3 eliminates this configuration burden by removing static key exchange entirely.</split></div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PFS Performance Cost</div>
+                <div class="card-desc">Ephemeral DH requires generating a new key pair per session. This adds computational cost compared to static key exchange, which can reuse long-term keys. With modern ECDHE implementations (particularly Curve25519), the performance overhead is minimal -- microseconds per session on modern hardware. The security benefit dramatically outweighs the performance cost. PFS should be enabled on all TLS-protected services.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">PFS and SSL Inspection</div>
+                <div class="card-desc">Corporate SSL inspection proxies must decrypt TLS traffic to inspect it. With PFS, the proxy cannot passively decrypt recorded traffic using the server's certificate key -- it must be inline to capture the session key at session establishment time. This is one reason some network security appliances have difficulty with PFS -- passive decryption tap architectures break. Active inline inspection with TLS termination and re-encryption is required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- HASHING OVERVIEW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Cryptographic <span class="accent">Hashing</span></div>
+        <div class="slide-subtitle">A hash function maps input of any length to a fixed-length output. It is a one-way function -- the input cannot be recovered from the hash.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Hash Function Properties</div>
+                <div class="card-desc">Deterministic: same input always produces same hash. One-way (pre-image resistant): given hash h, cannot find input m such that hash(m) = h. Collision resistant: cannot find two different inputs that produce the same hash. Avalanche effect: a single-bit change in input completely changes the output. Fixed output length: SHA-256 always produces 256 bits regardless of input size (1 byte or 1 GB produce the same-length hash).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hash vs. Encryption</div>
+                <div class="card-desc">Encryption is reversible with the key. Hashing is a one-way function -- there is no "unhash" operation. This makes hashing suitable for integrity verification (detect changes without revealing content) and password storage (verify the password matches without storing the password). When someone says "passwords are hashed," they mean the password is not stored -- only the hash is stored, and the hash cannot be reversed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Collision Attacks</div>
+                <div class="card-desc">A collision: two different inputs produce the same hash output. For a 256-bit hash, the birthday bound is 2^128 operations to find a collision -- computationally infeasible. MD5 has practical collision attacks -- producing colliding documents takes seconds. SHA-1 collisions were demonstrated by Google's SHAttered attack (2017). MD5 and SHA-1 must never be used for security purposes -- only for non-cryptographic checksums where collision resistance is not required.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">-- Hash outputs for "hello" using different algorithms</span>
+<span class="kw">MD5</span>    ("hello") = <span class="er">5d41402abc4b2a76b9719d911017c592</span>  <span class="cm">-- BROKEN, 128-bit</span>
+<span class="kw">SHA-1</span>  ("hello") = <span class="er">aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d</span>  <span class="cm">-- BROKEN, 160-bit</span>
+<span class="st">SHA-256</span>("hello") = <span class="st">2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824</span>  <span class="cm">-- current</span>
+<span class="st">SHA-3-256</span>("hello")= <span class="st">3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392</span>  <span class="cm">-- current</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SHA FAMILY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">The SHA <span class="accent">Family</span></div>
+        <div class="slide-subtitle">Secure Hash Algorithm standards published by NIST. The current standards are SHA-2 (SHA-256, SHA-384, SHA-512) and SHA-3.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">MD5 -- Broken</div>
+                <div class="card-desc">128-bit output. Collision attacks are practical -- two different files can have the same MD5 hash. The Flame malware used an MD5 collision to forge a Microsoft code signing certificate. MD5 is still used for non-security purposes (file transfer checksums where collision resistance is not required) but must never be used for digital signatures, password hashing, or certificate fingerprinting. Legacy systems still use MD5 -- flag all occurrences.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">SHA-1 -- Broken</div>
+                <div class="card-desc">160-bit output. Theoretical weaknesses known since 2005. Google SHAttered project (2017) created the first practical SHA-1 collision -- two different PDF files with the same SHA-1 hash. Major browsers removed SHA-1 certificate support. Git uses SHA-1 internally (transitioning to SHA-256). SHA-1 must not be used for digital signatures, TLS certificates, or password hashing. Its presence in active security infrastructure is an automatic finding.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SHA-2 Family -- Current Standard</div>
+                <div class="card-desc">SHA-256: 256-bit output. SHA-384: 384-bit output (truncated SHA-512). SHA-512: 512-bit output. SHA-512/256: 256-bit output using SHA-512 internals (more efficient than SHA-256 on 64-bit processors). No practical attacks against SHA-2. SHA-256 is used in Bitcoin mining, TLS certificates, code signing, and HMAC. SHA-512 is used where longer digests are required (e.g., password hashing where we want to maximize attacker work).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SHA-3 -- Alternative Standard</div>
+                <div class="card-desc">NIST selected SHA-3 (Keccak) in 2012 as an alternative to SHA-2, not a replacement. SHA-3 uses a completely different internal construction (sponge function) than SHA-2 (Merkle-Damgard). If a theoretical attack is discovered against SHA-2's construction, SHA-3 would be unaffected. SHA-3 is slower than SHA-2 in software but has hardware efficiency advantages. Both are approved and secure for current use.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- PASSWORD HASHING ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Password Hashing <span class="accent">and Salting</span></div>
+        <div class="slide-subtitle">Storing passwords as hashes protects them if the database is compromised. But not all hash functions are appropriate for passwords. Speed is the enemy.</div>
+
+        <div class="scenario-strip">
+            The facility's personnel database is exfiltrated by an attacker. The database contains SHA-256 hashes of all passwords. The attacker runs the breach dump through hashcat with a GPU cluster. SHA-256 processes 10 billion hashes per second on modern hardware. In 8 hours, all passwords under 10 characters and common passwords are cracked. SHA-256 is a fast hash -- designed for speed, which is exactly wrong for passwords.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why Fast Hashes Fail for Passwords</div>
+                <div class="card-desc">General-purpose hash functions (SHA-256, MD5) are designed to be as fast as possible. GPU acceleration processes billions of SHA-256 hashes per second. A dictionary attack against unsalted SHA-256 password hashes is trivial on a breach database -- common passwords crack in seconds. Password hashing requires deliberately slow functions that are prohibitively expensive to brute-force at scale.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Password Hashing Algorithms</div>
+                <div class="card-desc">bcrypt: work factor (cost) is configurable -- doubling the cost doubles the cracking time. Designed for passwords, resistant to GPU acceleration (memory-intensive). scrypt: memory-hard -- requires large amounts of RAM per hash, making GPU/ASIC acceleration expensive. Argon2 (NIST recommended, winner of Password Hashing Competition 2015): three variants for different threat models. All three are appropriate; Argon2id is the current recommendation.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Salting</div>
+                <div class="card-desc">A salt is a unique random value generated per password and stored alongside the hash. The hash is computed as hash(salt + password). Two users with the same password have different hashes because their salts differ. This prevents: rainbow table attacks (precomputed hash tables are useless when each hash has a unique salt) and bulk cracking (each salt-password combination must be cracked independently). Salts do not need to be secret -- they are stored with the hash.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Peppering</div>
+                <div class="card-desc">A pepper is a secret value added to every password hash (unlike salt, which is unique per user). The pepper is stored separately from the database -- typically in application configuration or hardware. Even if the database is exfiltrated, the attacker cannot crack passwords without the pepper value. A leaked database plus an unknown pepper is still computationally uncrackable. Salt is stored per-row in the database; pepper is stored in the application configuration.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- HMAC AND MAC ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">HMAC and <span class="accent">Message Authentication Codes</span></div>
+        <div class="slide-subtitle">A MAC provides both integrity and authentication. Unlike a simple hash, a MAC requires a key -- only parties with the key can compute or verify it.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">HMAC -- Hash-based MAC</div>
+                <div class="card-desc">HMAC(key, message) = hash((key XOR opad) || hash((key XOR ipad) || message)). The key is mixed with the message before hashing. Without the key, an attacker cannot compute a valid HMAC for any message. HMAC provides both integrity (any message modification changes the HMAC) and authentication (only parties with the key can produce a valid HMAC). HMAC-SHA256 is the current standard. TLS uses HMAC for record authentication.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">HMAC vs. Hash</div>
+                <div class="card-desc">A plain hash provides integrity only -- anyone can hash a modified message and replace the hash. Without a secret key, the hash provides no authentication. An attacker who intercepts data can modify it and recompute the hash. HMAC requires the key to recompute -- an attacker without the key cannot produce a valid HMAC for modified data. Use HMAC (or AEAD) wherever data integrity and authentication are required together.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HMAC Applications</div>
+                <div class="card-desc">API request signing (AWS Signature v4, GitHub webhook signatures). JWT signatures (HMAC-SHA256 in HS256 algorithm). TLS record authentication. TOTP and HOTP (time-based and counter-based one-time passwords -- RFC 6238 and RFC 4226 both use HMAC internally). Cookie tamper protection. Any scenario where a server must verify that data was not modified since it created it, without revealing the key to the client.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Length Extension Attack</div>
+            A naive MAC construction of hash(key || message) is vulnerable to length extension attacks -- an attacker can append data to the message and compute a valid hash without knowing the key (for MD5, SHA-1, SHA-256, SHA-512). HMAC's double-hashing construction prevents this. SHA-3 (Keccak) is inherently resistant to length extension due to its sponge construction. Use HMAC or SHA-3-based constructions, not naive key-prepended hashing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- DIGITAL SIGNATURES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Digital <span class="accent">Signatures</span></div>
+        <div class="slide-subtitle">Combining hashing with asymmetric cryptography to provide integrity, authentication, and non-repudiation.</div>
+
+        <div class="code-block"><span class="cm">-- Digital Signature Creation (Sender)</span>
+<span class="fn">hash</span>      = <span class="fn">SHA-256</span>(message)            <span class="cm">-- create fixed-size digest</span>
+<span class="nb">signature</span> = <span class="fn">RSA_sign</span>(private_key, hash)  <span class="cm">-- encrypt hash with private key</span>
+<span class="cm">-- Send: message + signature</span>
+
+<span class="cm">-- Digital Signature Verification (Receiver)</span>
+<span class="fn">hash_from_msg</span>  = <span class="fn">SHA-256</span>(message)                    <span class="cm">-- recompute hash</span>
+<span class="fn">hash_from_sig</span>  = <span class="fn">RSA_verify</span>(public_key, signature)   <span class="cm">-- decrypt signature</span>
+<span class="kw">valid</span> = (hash_from_msg == hash_from_sig)    <span class="cm">-- compare digests</span>
+<span class="cm">-- If equal: message unmodified AND signed by holder of private key</span></div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Digital Signatures Prove</div>
+                <div class="card-desc">Integrity: any modification to the message after signing invalidates the signature (the recomputed hash will not match). Authentication: only the holder of the private key could have created the signature. Non-repudiation: the signer cannot later deny signing -- the signature is mathematically tied to their private key. All three properties require that the signer's private key has not been compromised.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DSA and ECDSA</div>
+                <div class="card-desc">DSA (Digital Signature Algorithm): NIST standard, 1024-3072 bit. Being superseded. ECDSA (Elliptic Curve DSA): signature equivalent using ECC. ECDSA P-256 provides equivalent security to RSA-3072 with much smaller signature and key sizes. Used in TLS certificates (EC certificates are smaller and faster than RSA). Bitcoin uses ECDSA with secp256k1 for transaction signing. Ed25519 (EdDSA on Curve25519) is faster and more implementation-resistant than ECDSA.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ECDSA Randomness Requirement</div>
+                <div class="card-desc">ECDSA requires a unique random nonce k for each signature. If the same k is used twice for different messages, the private key can be mathematically recovered from the two signatures. Sony's PS3 used a fixed k value -- all ECDSA keys were extracted. A weak random number generator that produces predictable k values has the same consequence. Ed25519 (EdDSA) is deterministic -- the nonce is derived from the private key and message, eliminating this vulnerability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- PKI OVERVIEW ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Public Key Infrastructure <span class="accent">(PKI)</span></div>
+        <div class="slide-subtitle">PKI is the organizational and technical framework that binds public keys to verified identities via trusted Certificate Authorities.</div>
+
+        <div class="scenario-strip">
+            A researcher connects to the facility portal and sees a padlock in their browser. The browser verified: the server's certificate was issued by a CA the browser trusts, the certificate's CN/SAN matches portal.cdc-facility.int, the certificate is not expired, and it has not been revoked. This chain of trust allows the researcher to trust that they are communicating with the genuine facility portal, not an impersonator -- even though they have never previously communicated with the portal and have no pre-shared secret.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Certificate Anatomy</div>
+                <div class="card-desc">X.509 certificate fields: Subject (who the certificate is for), Issuer (which CA signed it), Validity period (Not Before / Not After), Public Key (the subject's public key), Subject Alternative Names (additional hostnames), Key Usage and Extended Key Usage (what the certificate is authorized for), Serial Number (unique within the issuer), Signature (CA's digital signature over all fields).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CA Hierarchy</div>
+                <div class="card-desc">Root CA: the trust anchor. Root CA certificates are self-signed and distributed in OS/browser trust stores. Root CAs are kept offline in HSMs -- if compromised, all trust is broken. Intermediate CA: issued by the root, signs end-entity certificates. Intermediate CAs are online and operational. Using intermediates limits exposure -- if an intermediate is compromised, only its issued certificates are affected, not the root's trust.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certificate Validation</div>
+                <div class="card-desc">Chain validation: verify each certificate in the chain is signed by the next CA up to a trusted root. Hostname validation: CN/SAN must match the accessed hostname. Validity period: current time must be within Not Before and Not After. Revocation check: OCSP (Online Certificate Status Protocol) or CRL (Certificate Revocation List) verify the certificate has not been revoked. All four checks must pass for a certificate to be trusted.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- CERTIFICATE REVOCATION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Certificate <span class="accent">Revocation</span></div>
+        <div class="slide-subtitle">When a private key is compromised or a certificate is misissued, revocation removes it from trust before the validity period expires.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">CRL -- Certificate Revocation List</div>
+                <div class="card-desc">A signed list published by the CA containing serial numbers of all revoked certificates. Clients download the CRL and check whether the certificate's serial number is listed. CRLs can grow large and are downloaded infrequently (scheduled, not real-time). A compromised certificate remains trusted until the CRL is next downloaded and checked. CRL checking is the legacy mechanism -- replaced by OCSP for time-sensitive revocation.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">OCSP -- Online Certificate Status Protocol</div>
+                <div class="card-desc">Real-time certificate status check. The client sends the certificate's serial number to the CA's OCSP responder and receives: good (valid), revoked (invalid), or unknown (no information). OCSP provides more current status than CRL. Privacy concern: the CA learns which sites the client is visiting with every OCSP request. OCSP Stapling addresses this -- the server pre-fetches its own OCSP response and staples it to the TLS handshake, eliminating the client's direct CA query.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">OCSP Must-Staple and Hard Fail</div>
+                <div class="card-desc">Standard OCSP: if the responder is unreachable, the client accepts the certificate (soft fail). An attacker who can block OCSP traffic can prevent revocation checking. OCSP Must-Staple: a certificate extension requiring the server to include a valid OCSP staple in the TLS handshake. If absent, the client rejects the connection. This eliminates the OCSP blocking attack. Hard-fail OCSP policies provide similar protection but reduce availability if the OCSP responder is genuinely unavailable.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- TLS PROTOCOL ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">TLS <span class="accent">Protocol</span></div>
+        <div class="slide-subtitle">Transport Layer Security combines asymmetric cryptography (key exchange, authentication), symmetric cryptography (bulk encryption), and hashing (integrity). TLS 1.3 is the current standard.</div>
+
+        <div class="code-block"><span class="cm">-- TLS 1.3 Handshake (simplified)</span>
+<span class="kw">Client</span>  --> ClientHello (supported cipher suites, key_share)
+<span class="fn">Server</span>  --> ServerHello (chosen cipher suite, key_share)
+              <span class="cm">-- DH key shares exchanged, shared secret computed</span>
+<span class="fn">Server</span>  --> Certificate (server's X.509 cert)
+<span class="fn">Server</span>  --> CertificateVerify (signature over handshake with private key)
+<span class="fn">Server</span>  --> Finished (HMAC over handshake transcript)
+<span class="kw">Client</span>  --> Finished (HMAC over handshake transcript)
+              <span class="cm">-- Application data now encrypted with derived symmetric keys</span>
+<span class="cm">-- TLS 1.3: 1 RTT handshake (down from TLS 1.2's 2 RTT)</span>
+<span class="cm">-- TLS 1.3: removed RSA key exchange, weak ciphers, renegotiation</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">TLS 1.3 Improvements</div>
+                <div class="card-desc">Removed: RSA key transport (no PFS), all export cipher suites, MD5 and SHA-1, static DH, SSL compression, renegotiation. Added: 0-RTT resumption (performance), mandatory AEAD cipher suites (AES-GCM, ChaCha20-Poly1305), mandatory ephemeral DH (ECDHE or DHE only). TLS 1.3 is simpler, faster, and more secure than TLS 1.2. TLS 1.0 and 1.1 are formally deprecated (RFC 8996).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Cipher Suite Selection</div>
+                <div class="card-desc">TLS 1.3 cipher suites: TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256. Three cipher suites, all strong. Compare to TLS 1.2 which had hundreds of cipher suites including weak ones (RC4, DES, NULL encryption, anonymous DH). A misconfigured TLS 1.2 server enabling weak cipher suites is exploitable. TLS 1.3 eliminates this configuration complexity by removing all weak options from the standard.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certificate Transparency (CT)</div>
+                <div class="card-desc">All publicly trusted TLS certificates must be logged to public Certificate Transparency logs. Browsers enforce CT by requiring Signed Certificate Timestamps (SCTs) in the TLS handshake. Any fraudulent certificate issued by a compromised CA appears in public logs within hours. Domain owners can monitor CT logs for unauthorized certificates for their domains. CT makes rogue certificate issuance detectable -- previously, only the targeted organization would know to look for a fraudulent certificate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- KEY MANAGEMENT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Key <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Strong cryptographic algorithms provide no security if keys are mismanaged. Key management is the operational science of cryptography.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Key Generation</div>
+                <div class="card-desc">Keys must be generated using cryptographically secure random number generators (CSPRNG). Weak entropy during generation leads to predictable keys. In VMs and containers, early boot entropy starvation is a known issue -- RDRAND, /dev/urandom with virtio-rng, or kernel entropy collection must be verified. Never derive cryptographic keys from predictable data (timestamps, hostnames, sequential values).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Storage</div>
+                <div class="card-desc">Private keys must be stored encrypted (password-protected) or in hardware (HSM, TPM, secure element). Never store private keys in plaintext in filesystems accessible to the application (and therefore accessible if the application is compromised). Cloud services: AWS KMS, Azure Key Vault, GCP Cloud KMS store keys in managed HSMs with access control and audit logging. Key access is logged -- who accessed which key, when, and for what operation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Key Rotation</div>
+                <div class="card-desc">Regularly replacing keys limits the window of exposure if a key is compromised. Data encrypted with a rotated key remains protected only if the old key is securely destroyed (or retained only for decryption of legacy data, not new encryption). Certificate rotation: public certificates have defined validity periods (maximum 398 days for public TLS as of 2020). Symmetric keys in enterprise environments: rotate annually at minimum, quarterly for high-sensitivity systems.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Key Escrow and Recovery</div>
+                <div class="card-desc">Key escrow stores a copy of encryption keys with a trusted third party for recovery. Law enforcement key escrow was proposed in the Clipper Chip era -- widely rejected on security grounds (a back door is a back door regardless of who holds the key). Enterprise key escrow is legitimate: if an employee encrypts data and leaves, the organization needs to recover that data. Recovery agents in AD Certificate Services hold data recovery certificates for this purpose.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- STEGANOGRAPHY AND OBFUSCATION ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Steganography and <span class="accent">Obfuscation</span></div>
+        <div class="slide-subtitle">Hiding the existence of communication or data. Distinct from encryption, which protects content but reveals communication is occurring.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Steganography</div>
+                <div class="card-desc">Hiding secret data within ordinary data in a way that conceals the existence of the hidden data. Text steganography: hide messages in first letters of words. Image steganography: least-significant bit modification in pixel values -- invisible to the eye, detectable by statistical analysis. Network steganography: hide data in protocol header unused fields, timing of packets. Malware has used DNS query steganography to exfiltrate data through corporate DNS resolvers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Through Obscurity Limitation</div>
+                <div class="card-desc">Steganography provides security only as long as the hiding method remains secret. Once the method is known, detection and extraction are trivial. Steganography is not a substitute for encryption -- it should layer on top of encryption. Encrypted data that is also steganographically hidden provides both message security and traffic security. Relying on steganography alone (security through obscurity) is not a security control.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Homomorphic Encryption</div>
+                <div class="card-desc">A form of encryption that allows computation on ciphertext without decryption -- the result of operating on encrypted data is the encrypted result of the same operation on plaintext. Practical for: privacy-preserving cloud computation, secure database queries on encrypted data, medical data analysis without revealing individual records. Fully homomorphic encryption (FHE) is computationally expensive; partially homomorphic schemes (ElGamal, Paillier) are more practical.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- QUANTUM CRYPTOGRAPHY ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Quantum Computing and <span class="accent">Post-Quantum Cryptography</span></div>
+        <div class="slide-subtitle">Quantum computers threaten the mathematical foundations of current asymmetric cryptography. The transition to quantum-resistant algorithms must begin now.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Quantum Threat to Current Algorithms</div>
+                <div class="card-desc">Shor's algorithm (quantum) efficiently solves integer factorization (breaks RSA) and discrete logarithm (breaks DH and ECC). A sufficiently powerful quantum computer runs Shor's algorithm and recovers any RSA, DH, or ECC private key. Grover's algorithm (quantum) provides a quadratic speedup for brute-force symmetric key search -- AES-128 effectively becomes AES-64, AES-256 becomes AES-128. Symmetric algorithms survive with doubled key sizes; asymmetric algorithms require replacement.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST Post-Quantum Standards (2024)</div>
+                <div class="card-desc">CRYSTALS-Kyber (FIPS 203): Key Encapsulation Mechanism (KEM) based on learning with errors (LWE). Replaces DH and RSA for key exchange. CRYSTALS-Dilithium (FIPS 204): Digital signature based on module lattices. Replaces RSA and ECDSA. SPHINCS+ (FIPS 205): Hash-based signatures, more conservative but larger signatures. FALCON: compact lattice-based signatures (anticipated FIPS standard). These are selected, not experimental -- begin planning integration now.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Harvest Now, Decrypt Later</div>
+                <div class="card-desc">An adversary can record encrypted traffic today and decrypt it when quantum computers are sufficiently capable. This is the "harvest now, decrypt later" threat model. Any data that must remain confidential for more than 10-15 years is at risk from intercepts occurring today. Government classified communications, long-term financial records, and medical data are high-priority candidates for early migration to PQC algorithms.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Crypto Agility</div>
+                <div class="card-desc">Crypto agility means designing systems so cryptographic algorithms can be upgraded without architectural changes. Hard-coding algorithm identifiers in protocols (rather than negotiating them) creates migration pain. TLS's cipher suite negotiation is crypto-agile -- new algorithms can be added by both parties supporting them. Hardware security modules must support algorithm upgrades. Enterprise PKI must plan for parallel operation of current and PQC algorithm profiles during the transition period.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- COMMON CRYPTO MISTAKES ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Common Cryptographic <span class="accent">Mistakes</span></div>
+        <div class="slide-subtitle">Most cryptographic failures in real systems are not attacks on the algorithm -- they are implementation and usage errors.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Reusing an IV/Nonce:</strong> AES-GCM with the same key and nonce twice is catastrophic. XOR of two ciphertexts reveals the XOR of plaintexts. Nonces must be unique per key per encryption operation. Use random 96-bit nonces (2^48 encryptions before collision probability exceeds 1%) or a counter with strict tracking.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Using ECB mode:</strong> Same plaintext block always produces same ciphertext block. Pattern-preserving. The Linux Tux penguin is a famous demonstration. Never use ECB for anything except single-block operations where the pattern property is irrelevant. Use CBC or GCM.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Using fast hash for passwords:</strong> SHA-256, MD5, SHA-1 process billions of passwords per second on GPU hardware. Use bcrypt, scrypt, or Argon2id for password hashing. Add a salt to every password hash to prevent rainbow table attacks.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Non-constant-time comparison:</strong> Comparing authentication tokens character by character and returning early on the first mismatch leaks timing information. Use constant-time comparison functions (Python: hmac.compare_digest, Java: MessageDigest.isEqual). Timing oracles have broken real-world systems.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Rolling your own crypto:</strong> Implementing cryptographic algorithms from scratch almost always introduces vulnerabilities. Use well-reviewed libraries (OpenSSL, libsodium, BoringSSL, Python cryptography). The algorithm may be correct; the implementation will contain subtle bugs. Cryptographic implementation requires expertise and extensive testing that general software developers do not possess.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ENCRYPTION IN PRACTICE ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Encryption <span class="accent">in Practice</span></div>
+        <div class="slide-subtitle">How the cryptographic primitives combine in real applications. Algorithm selection by use case.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">HTTPS / TLS</div>
+                <div class="card-desc">TLS 1.3 handshake: X25519 ECDHE key exchange (PFS). Server certificate: ECDSA P-256 or RSA 2048+. Bulk encryption: AES-256-GCM or ChaCha20-Poly1305. Certificate signing hash: SHA-256. The combination provides: confidentiality (AES-GCM), integrity (GCM auth tag), authentication (certificate), forward secrecy (ephemeral DH), non-repudiation (server's private key signature on the handshake).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SSH</div>
+                <div class="card-desc">Key exchange: ECDHE (curve25519) or DH group 14+. Server host key: Ed25519 or RSA 4096 (identifies the server and prevents MITM). User authentication: Ed25519 or RSA key-based auth preferred over password. Session encryption: AES-256-GCM or ChaCha20-Poly1305. SSH known_hosts file stores server host key fingerprints -- alerts when a server's key changes (potential MITM or key rotation). The TOFU (Trust on First Use) model is SSH's trust bootstrap.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">S/MIME and PGP</div>
+                <div class="card-desc">Email end-to-end encryption. S/MIME: uses X.509 certificates (same PKI as TLS). PGP (Pretty Good Privacy): web of trust model instead of hierarchical CA. Both provide message encryption (recipient's public key) and signing (sender's private key). S/MIME is enterprise-friendly (integrates with AD Certificate Services). PGP is decentralized. Both require key exchange before communication -- the deployment challenge that has limited adoption.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Hybrid Encryption -- The Real-World Pattern</div>
+            In practice, asymmetric encryption is used only to establish a symmetric key. The sender generates a random AES-256 session key, encrypts the data with AES-256-GCM, then encrypts the AES session key with the recipient's RSA public key. Both the encrypted data and the encrypted key are transmitted. The recipient decrypts the AES key with their RSA private key, then decrypts the data with the AES key. Every real protocol (TLS, PGP, S/MIME) uses this hybrid pattern.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- CRYPTANALYSIS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Cryptanalysis and <span class="accent">Attack Types</span></div>
+        <div class="slide-subtitle">Understanding how cryptographic systems are attacked guides the selection of appropriate algorithms and key lengths.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Brute Force Attack</div>
+                <div class="card-desc">Try every possible key until the correct one is found. A 56-bit key has 2^56 possible values -- modern hardware can exhaust this space quickly (DES cracked in 22 hours in 1998). AES-128 has 2^128 keys -- current estimates require more energy than the entire solar system produces to brute-force. Key length determines resistance to brute force: add one bit to double the search space. Brute force is the attack all key length recommendations are designed against.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Birthday Attack</div>
+                <div class="card-desc">Based on the birthday paradox: in a group of 23 people, there is a 50% chance two share a birthday. For a hash function with n-bit output, a collision can be found in approximately 2^(n/2) operations. MD5 (128-bit) has collision resistance of 2^64 -- practical. SHA-256 (256-bit) has collision resistance of 2^128 -- computationally infeasible. This is why SHA-256 and longer are required and why hash truncation must maintain adequate length.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Known-Plaintext Attack</div>
+                <div class="card-desc">The attacker has access to both plaintext and corresponding ciphertext. They use this to derive the key or build a function to decrypt other ciphertext. In WWII, Enigma operators were required to encrypt the same message twice at the start (a key indicator) -- this known structure helped Bletchley Park crack the cipher. Modern ciphers (AES) are designed to be secure even when the attacker has unlimited known plaintext-ciphertext pairs.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Padding Oracle Attack</div>
+                <div class="card-desc">If an application leaks whether decryption padding is valid (via different error messages or response times), the attacker can decrypt any ciphertext one byte at a time without knowing the key. POODLE exploited CBC padding oracles in SSLv3. BEAST, CRIME, and LUCKY13 are related padding-oracle style attacks. Use AEAD (authenticated encryption) modes (AES-GCM) instead of CBC with separate MAC -- AEAD detects tampering before decryption, eliminating padding oracle attacks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- RANDOM NUMBER GENERATION ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Random Number <span class="accent">Generation</span></div>
+        <div class="slide-subtitle">Cryptography depends on true randomness. Weak random number generation has broken real systems across every algorithm class.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Pseudorandom vs. Cryptographically Secure</div>
+                <div class="card-desc">PRNG (Pseudorandom Number Generator): deterministic algorithm that produces random-looking output from a seed. If the seed is known, all output is predictable. math.random() in JavaScript, random.random() in Python -- suitable for games, not cryptography. CSPRNG (Cryptographically Secure PRNG): unpredictable output, forward-secure (knowing the current state does not reveal past output), backward-secure (compromising current state does not reveal future output). Use only CSPRNGs for cryptographic operations.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">OS-Provided Randomness</div>
+                <div class="card-desc">Linux /dev/random (blocks when entropy pool is low -- historical; modern kernels behave like /dev/urandom). /dev/urandom (non-blocking, cryptographically secure, the correct choice for applications). Windows: CryptGenRandom, BCryptGenRandom. Node.js: crypto.randomBytes(). Python: secrets module (uses os.urandom internally). Always use the OS or standard library CSPRNG. Never seed a PRNG with time() or process ID for cryptographic key generation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Entropy Starvation</div>
+                <div class="card-desc">Freshly booted virtual machines and containers may have insufficient entropy at startup. The guest kernel has not had time to accumulate entropy from hardware events. Keys generated immediately after VM startup may be weak. Solutions: virtio-rng passes host entropy to guests, RDRAND hardware instruction provides processor-based randomness, haveged provides entropy from CPU hardware performance counters. Cloud VMs should use hardware-backed entropy sources.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Debian Random Number Bug (2008)</div>
+            A Debian maintainer patched OpenSSL to suppress a valgrind memory warning, accidentally removing two lines that added entropy to the random number generator. For two years, Debian-based systems generated RSA and ECDSA keys from only 32,768 possible values instead of 2^2048. All SSH host keys, TLS certificates, and code signing keys generated on those systems were effectively broken. Weak randomness caused more practical breaks than direct attacks on AES or SHA-256.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- CRYPTOGRAPHIC PROTOCOLS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Cryptographic <span class="accent">Protocol Reference</span></div>
+        <div class="slide-subtitle">SY0-701 requires recognizing which algorithm or protocol applies to each use case. Map use case to correct technology.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text"><strong>Bulk data encryption (at rest and in transit):</strong> AES-256-GCM. Streaming use (no hardware AES): ChaCha20-Poly1305. Both are AEAD -- integrity and confidentiality together.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text"><strong>Key exchange over insecure channel:</strong> ECDHE (Curve25519 / P-256). Provides PFS. Requires authentication (certificates or PSK) to prevent MITM. DH group 14+ for IKE.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text"><strong>Digital signatures:</strong> Ed25519 (preferred for new systems). ECDSA P-256 (widely deployed in TLS). RSA-PSS 2048+ (legacy compatibility). All stronger than DSA 1024.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">D</span>
+                <span class="fact-text"><strong>File and data integrity:</strong> SHA-256 or SHA-3-256 for hash. HMAC-SHA256 for authenticated integrity (key required). SHA-1 and MD5 are broken -- never use for security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">E</span>
+                <span class="fact-text"><strong>Password storage:</strong> Argon2id (NIST recommended). bcrypt (widely deployed). scrypt (memory-hard). Never SHA-256 or MD5 directly -- too fast, enabling brute force. Always add unique salt per password.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">F</span>
+                <span class="fact-text"><strong>TLS configuration:</strong> TLS 1.3 only (or TLS 1.2 with ECDHE cipher suites). HSTS header. OCSP Stapling. Certificate Transparency logs. Disable TLS 1.0, 1.1, and all export/null/RC4/DES cipher suites.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- CRYPTOGRAPHY IN SPECIFIC TECHNOLOGIES ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Cryptography in <span class="accent">Specific Technologies</span></div>
+        <div class="slide-subtitle">SY0-701 tests cryptography in context -- knowing that a technology uses a specific algorithm is required for exam scenarios.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">WPA3 Wi-Fi Security</div>
+                <div class="card-desc">WPA3 replaces WPA2's 4-way handshake with SAE (Simultaneous Authentication of Equals). SAE uses Dragonfly key exchange (based on Diffie-Hellman) -- provides forward secrecy and prevents offline dictionary attacks against captured handshakes. Even if the PSK is recovered, past sessions cannot be decrypted. WPA3-Enterprise uses 192-bit security suite (Suite B: GCMP-256, HMAC-SHA384, ECDH/ECDSA P-384). WPA2 PSK is still vulnerable to offline dictionary attack; WPA3 is not.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BitLocker and FDE</div>
+                <div class="card-desc">BitLocker uses AES-CBC 128-bit (legacy) or AES-XTS 128-bit or 256-bit (current). XTS (XEX-based tweaked-codebook mode with ciphertext stealing) is designed for disk encryption -- prevents alignment attacks possible with CBC. The Volume Master Key is protected by the TPM (measured boot), user password, recovery key, or network unlock (for domain-joined systems). AES-XTS-256 is the recommended configuration for high-sensitivity data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Signal Protocol / End-to-End Messaging</div>
+                <div class="card-desc">The Signal Protocol (used in Signal, WhatsApp) uses: X3DH (Extended Triple Diffie-Hellman) for initial key agreement, Double Ratchet for forward and break-in recovery. Curve25519 for ECDHE. Ed25519 for signatures. AES-256-CBC and HMAC-SHA256 (or ChaCha20-Poly1305) for message encryption. Each message uses a fresh key derived from the ratchet -- compromise of one message key does not compromise others. Forward secrecy and break-in recovery.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Blockchain and Cryptocurrencies</div>
+                <div class="card-desc">Bitcoin: ECDSA secp256k1 for transaction signing, SHA-256 double-hash for address derivation and proof-of-work, SHA-256 for Merkle tree hash commitments. Ethereum: ECDSA secp256k1 for signatures, Keccak-256 (SHA-3 variant) for address derivation and state commitments. The blockchain's immutability relies on the computational infeasibility of finding SHA-256 collisions and the economic cost of proof-of-work. Cryptographic integrity, not physical immutability, is the guarantee.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- OBFUSCATION VS ENCRYPTION ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Obfuscation vs. <span class="accent">True Encryption</span></div>
+        <div class="slide-subtitle">Obfuscation and encoding are often confused with encryption in the wild. Understanding the difference is a foundational security skill.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Obfuscation Is NOT</div>
+                <div class="card-desc">Base64 encoding a password is not encryption. ROT13 is not encryption. XOR with a constant key is not encryption (unless the key is as long as the plaintext and used only once -- one-time pad). Obfuscation changes the representation of data but provides no cryptographic guarantee. Anyone who understands the transformation can reverse it. Obfuscation may slow down a casual observer; it will not stop a motivated attacker for more than minutes.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Real-World Obfuscation Failures</div>
+                <div class="card-desc">Developers Base64-encode API keys in mobile app bundles -- extractable in seconds with strings. Developers store passwords as MD5 hashes in databases -- rainbow tables crack common passwords instantly. Applications "encrypt" configuration files by XOR with a fixed key -- extractable by examining the code that reads the file. Proprietary "encryption" algorithms invented by developers -- broken by cryptanalysis in hours. Use established algorithms; do not invent your own.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Code Obfuscation in Malware</div>
+                <div class="card-desc">Malware uses obfuscation to evade AV signature detection: base64-encoded PowerShell commands, XOR-obfuscated shellcode, packed executables that decompress at runtime. This is not encryption -- it has no key. A sandbox or dynamic analysis reverses the obfuscation automatically by running the code. Static signature detection can identify common obfuscation patterns. Obfuscation raises the bar for analysis but does not prevent it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- KEY EXCHANGE COMPARISON ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Key Exchange <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Different key exchange mechanisms have different security properties. SY0-701 tests selection for specific requirements.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Static RSA Key Exchange (Deprecated)</div>
+                <div class="card-desc">Client generates a random pre-master secret, encrypts with server's RSA public key, sends it. Server decrypts with private key. Session key derived from pre-master secret. No forward secrecy: if server's private key is later compromised, all past sessions are decryptable. TLS 1.3 removed this completely. TLS 1.2 configurations must explicitly disable RSA key exchange cipher suites. Any TLS_RSA_WITH_* cipher suite lacks PFS.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DHE -- Ephemeral Diffie-Hellman</div>
+                <div class="card-desc">Server generates ephemeral DH key pair per session, sends public value in ServerKeyExchange message, signed with long-term certificate key. Client generates ephemeral key pair. Both derive shared session key. Ephemeral keys discarded after session. PFS achieved. DHE with 2048-bit groups is secure but slower than ECDHE. DHE_EXPORT cipher suites were limited to 512-bit DH groups (Logjam attack) -- always disable export cipher suites.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ECDHE -- Elliptic Curve Ephemeral DH</div>
+                <div class="card-desc">Same as DHE but using ECC groups. X25519 ECDHE provides strong security with faster key generation and smaller key shares than DHE. TLS 1.3 mandates ephemeral key exchange (ECDHE or DHE only). ECDHE P-256 or X25519 are the standard choices. X25519 is the preferred curve -- designed to resist implementation errors, no patent concerns, co-designed with Curve448 for ultra-high security. All TLS 1.3 connections have PFS by design.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">SY0-701 Exam: PFS Selection</div>
+            When the exam asks which cipher suite or key exchange provides PFS: the answer always involves ephemeral keys (DHE or ECDHE). Static RSA key exchange does NOT provide PFS. Any cipher suite containing ECDHE or DHE DOES provide PFS. TLS 1.3 mandates PFS -- all TLS 1.3 sessions have it. A question asking "which control prevents retroactive decryption if the server's private key is compromised?" -- the answer is PFS via ephemeral key exchange.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- CRYPTOGRAPHIC ALGORITHM SELECTION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Algorithm Selection <span class="accent">Guide</span></div>
+        <div class="slide-subtitle">Matching algorithm to requirement. The wrong algorithm for a use case is as dangerous as using a broken algorithm.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Symmetric Recommendations</div>
+                <div class="card-desc">Bulk data encryption: AES-256-GCM (AEAD -- provides both confidentiality and integrity). Streaming or non-AES-hardware systems: ChaCha20-Poly1305. Disk encryption (BitLocker/LUKS): AES-XTS-256. Never: DES (56-bit, broken), 3DES (deprecated, sweet32), RC4 (biased keystream, broken), AES-ECB (pattern-preserving). Legacy 3DES in TLS: disable immediately.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Asymmetric Recommendations</div>
+                <div class="card-desc">Key exchange: X25519 ECDHE. Signatures: Ed25519 (new systems), ECDSA P-256 (widely deployed), RSA-PSS 3072+ (legacy compatibility). Certificates: EC P-256 preferred (smaller, faster). Never: RSA 1024 (factored), DSA 1024 (weak parameters), Diffie-Hellman 1024 (Logjam), EC curves with suspicious parameters (NIST curves have unverified constants -- Curve25519 is user-verifiable). Transitioning to: CRYSTALS-Kyber (KEM), CRYSTALS-Dilithium (signatures).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hash Recommendations</div>
+                <div class="card-desc">General integrity: SHA-256 or SHA-3-256. Longer digests: SHA-512 or SHA-3-512. Message authentication: HMAC-SHA256. Password hashing: Argon2id, bcrypt (cost factor 12+), scrypt. Never: MD5 (collision attacks practical), SHA-1 (SHAttered -- collision attack demonstrated), CRC32 (checksum, not cryptographic). HMAC-MD5 and HMAC-SHA1 retain some security for MAC purposes but SHA-256 is preferred for new designs.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Key Length Requirements (Current)</div>
+                <div class="card-desc">Symmetric: 128-bit minimum (NIST through 2031). 256-bit recommended for post-2031 or high-sensitivity. Asymmetric RSA: 2048-bit minimum (NIST through 2030), 3072-bit preferred for new systems. ECC: 256-bit (P-256 or Curve25519) for current, 384-bit for post-2031. Hash: 256-bit minimum, 384-bit for higher assurance. Post-quantum: NIST PQC algorithms (Kyber-768+, Dilithium-3+) for new deployments requiring long-term security.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- CDC SCENARIO: CRYPTOGRAPHIC IMPLEMENTATION ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">CDC Scenario: <span class="accent">Cryptographic Review</span></div>
+        <div class="slide-subtitle">Audit the facility's cryptographic implementations. Identify weaknesses, explain the risk, and specify the remediation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The personnel database stores passwords as MD5(password) with no salt. Risk and fix? <strong>(MD5 is fast and broken for security. No salt means identical passwords have identical hashes -- rainbow table attack. Fix: re-hash all passwords using Argon2id with unique random salt per password. Force password reset on next login.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The facility's HTTPS uses TLS 1.2 with cipher suite TLS_RSA_WITH_AES_256_CBC_SHA. Which security property is missing and how is it provided? <strong>(Perfect Forward Secrecy. RSA key exchange is static -- compromise of server's private key decrypts all past sessions. Fix: enable TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 and disable RSA key exchange suites. Migrate to TLS 1.3 which mandates PFS.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The specimen transfer API signs data with ECDSA P-256 but uses the same nonce k for every signature. What is the consequence and fix? <strong>(The private key is mathematically recoverable from two signatures sharing the same nonce. Fix: use Ed25519 (EdDSA -- deterministic, nonce-free) or ensure cryptographically random unique nonces per signature. This is a critical vulnerability -- retire the exposed key immediately.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A developer encrypted configuration files using AES-ECB to "hide" credentials. Assessment? <strong>(AES-ECB is pattern-preserving -- identical plaintext blocks produce identical ciphertext. Also: if the same key encrypts all config files, all decrypt to the same patterns. Correct approach: AES-256-GCM with a unique random nonce per file, with the key stored in a secrets manager (not in the codebase).)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- CRYPTOGRAPHIC STANDARDS LANDSCAPE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Cryptographic <span class="accent">Standards Landscape</span></div>
+        <div class="slide-subtitle">The authoritative bodies and standards that define acceptable cryptography for compliance and best practice.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NIST Recommendations</div>
+                <div class="card-desc">NIST SP 800-131A: Transitioning the Use of Cryptographic Algorithms and Key Lengths. Defines approved, deprecated, and disallowed algorithm status. NIST SP 800-57: Key Management recommendations. FIPS 140-2 / 140-3: Cryptographic module validation (required for federal government). NIST CAVP: Cryptographic Algorithm Validation Program. For SY0-701: NIST standards represent the baseline for all US federal and most enterprise cryptographic requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NSA Suite B (Commercial National Security Algorithm)</div>
+                <div class="card-desc">NSA's recommended algorithms for protecting national security systems. Current (CNSA 2.0 for post-quantum transition): AES-256 (symmetric), SHA-384 (hash), P-384/RSA-3072 until post-quantum available, then Kyber and Dilithium. Suite B was the previous standard. Understanding Suite B is important for federal and defense contractor security contexts. SY0-701 may reference Suite B algorithm requirements for government systems.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PCI DSS Cryptography Requirements</div>
+                <div class="card-desc">PCI DSS 4.0 Requirement 4: Protect cardholder data with strong cryptography. Prohibits: SSL, TLS 1.0, TLS 1.1, early TLS 1.2 configurations with weak ciphers. Requires: TLS 1.2+ with strong cipher suites. Requirement 3: Render stored cardholder data unreadable using AES-256, TDES 112-bit, or stronger. Requirement 3.7: manage all cryptographic keys used for protection of stored cardholder data. Key management lifecycle documentation is required for PCI compliance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SY0-701 SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Cryptography exam questions test algorithm selection, property identification, and attack recognition. Apply the framework to each scenario.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">An organization's TLS certificate was compromised. They need to ensure that past TLS sessions cannot be decrypted even if the private key is now known. Which key exchange property is required and which TLS configuration provides it? <strong>(Perfect Forward Secrecy. TLS 1.3 (mandatory PFS) or TLS 1.2 with ECDHE cipher suites. Static RSA key exchange cipher suites do not provide PFS.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A developer uses SHA-256 to store passwords in a database. Why is this insufficient and which algorithm should be used instead? <strong>(SHA-256 is too fast -- GPUs process billions of SHA-256 hashes per second, enabling rapid brute-force. Use Argon2id, bcrypt (cost factor 12+), or scrypt with a unique random salt per password.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">An auditor needs to verify that a 10 GB specimen log file has not been modified since it was archived. Which cryptographic control is appropriate and what property does it provide? <strong>(SHA-256 or SHA-3-256 hash of the file. Provides integrity -- any modification, however small, changes the hash. Store the hash separately, signed with a private key, for non-repudiation.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Two parties communicate over the internet and need to establish a shared symmetric key without any prior contact. Which algorithm solves this problem and why is authentication required alongside it? <strong>(Diffie-Hellman or ECDHE establishes shared secret over insecure channel. Authentication (certificates or PSK) is required because unauthenticated DH is vulnerable to MITM -- an attacker can establish separate DH sessions with each party.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Which asymmetric cryptographic operation provides non-repudiation, and how is it implemented? <strong>(Digital signature with the sender's private key. The recipient verifies with the sender's public key. The signer cannot deny signing because only they possess the private key that produced the valid signature.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next module. Exercises 3 and 4 require written analysis.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Using Python's hashlib, compute the SHA-256 and MD5 hash of the string "hello world." Change one character and recompute. Verify the avalanche effect -- document how many bits changed in each hash output. Repeat with a 1 MB file.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Generate an RSA 2048-bit key pair and an EC P-256 key pair using OpenSSL. Compare the key sizes in bytes. Sign the same test file with each. Compare signature sizes. Document the performance characteristics of each algorithm for the signing and verification operation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Analyze the TLS configuration of three websites using SSL Labs (ssllabs.com/ssltest). For each: document the TLS version, cipher suites supported, whether PFS is provided, certificate type and key size, whether HSTS is enabled, and the overall grade. Identify any weaknesses and specify the remediation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A healthcare organization stores patient records encrypted with AES-128-CBC with a static IV shared across all records. Write a technical analysis explaining: why AES-128-CBC with a static IV is insecure, what attack it enables, and specify the correct replacement configuration with justification for each parameter choice.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Design the cryptographic architecture for a secure document storage system: specify algorithms for at-rest encryption, key management, integrity verification, access control via digital signatures, and audit logging. Justify each algorithm choice against the alternatives and address the key rotation strategy.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Cryptography is the mathematical backbone of every security control. Understanding which algorithm to apply, why it works, and where it fails is non-negotiable for security professionals.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            Cryptographic failures in real systems are almost never attacks on the algorithm itself -- they are failures of key management, algorithm selection, implementation errors, and protocol design. Strong algorithms combined with poor key management, wrong modes of operation, or weak randomness produce broken systems. Apply the correct algorithm to the correct use case, manage keys diligently, and use vetted implementations.
+        </div>
+
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Symmetric encryption (one key): AES-256-GCM for bulk data. Fast, efficient, key distribution problem. Asymmetric encryption (key pair): RSA, ECC for key exchange and signatures. Slow, solves key distribution. Real protocols combine both (hybrid encryption).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">AES-GCM is AEAD -- provides confidentiality and integrity together. Never use AES-ECB (pattern-preserving). AES-XTS for disk encryption. ChaCha20-Poly1305 as AES-GCM alternative.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Diffie-Hellman establishes a shared secret over an insecure channel without transmitting the secret. Requires authentication to prevent MITM. ECDHE is the current preferred implementation. Ephemeral keys provide PFS.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">ECC provides equivalent security to RSA with shorter keys. P-256 = RSA-3072 security. Curve25519/Ed25519 preferred for new systems. All current asymmetric algorithms are quantum-vulnerable.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">PFS: ephemeral key exchange so past session keys cannot be recovered even if long-term private key is compromised. TLS 1.3 mandates PFS. ECDHE and DHE provide PFS; static RSA does not.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">SHA-256 and SHA-3 are current hash standards. MD5 and SHA-1 are broken (collision attacks demonstrated). Never use MD5 or SHA-1 for security. SHA-256 minimum for all new designs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Password hashing: Argon2id (recommended), bcrypt, scrypt. Always add unique salt per password. Never SHA-256 directly -- too fast, enables brute force. Pepper is optional additional secret value in application config.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Digital signatures: hash the message, sign the hash with private key. Recipient verifies with public key. Provides integrity, authentication, and non-repudiation. ECDSA requires unique random nonce per signature; Ed25519 is deterministic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">HMAC requires a key to compute -- provides authenticated integrity. Hash alone provides integrity only -- anyone can recompute after modification. Use HMAC-SHA256 or AEAD mode for authenticated message integrity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">Post-quantum threat: Shor's algorithm breaks RSA, DH, and ECC. NIST PQC standards (CRYSTALS-Kyber, CRYSTALS-Dilithium) are final. Begin crypto agility planning now. Symmetric AES-256 survives with doubled effective key size via Grover's algorithm.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w2-cryptography', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

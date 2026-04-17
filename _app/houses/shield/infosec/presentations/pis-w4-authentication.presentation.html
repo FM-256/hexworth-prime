@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication &amp; Access Protocols | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px;
+            border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+        .ic { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Authentication &amp; Access Protocols | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-13 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; SY0-701: 5.3, 5.4</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Authentication &amp;<br>
+                <span class="accent">Access Protocols</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Auth Factors &nbsp;&bull;&nbsp; MFA &nbsp;&bull;&nbsp; SSO &nbsp;&bull;&nbsp; SAML / OAuth / OIDC &nbsp;&bull;&nbsp; Kerberos &nbsp;&bull;&nbsp; Biometrics
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Delta-4. A researcher claims to hold Level-4 clearance. The inner vault accepts only verified identity -- not claimed identity. Before the airlock cycles, the facility demands proof of something you know, something you have, and something you are. Three factors. One admission.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-13</span>
+            <span>Week 4 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AUTHENTICATION FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Authentication <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Authentication answers the question "Are you who you claim to be?" -- distinct from authorization (what you can do).</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Identification</div>
+                <div class="card-desc">Claiming an identity -- presenting a username, badge number, or account name. No proof required yet. The system cannot act on this claim alone.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authentication</div>
+                <div class="card-desc">Proving the claim -- providing a password, token, or biometric. The system verifies the proof against a stored credential. Only then is identity established.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Authorization</div>
+                <div class="card-desc">Determining what the authenticated identity is allowed to do. Enforced by access control policies (RBAC, ABAC). Happens after authentication.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Accounting (Auditing)</div>
+                <div class="card-desc">Recording what the authenticated, authorized subject did. Supports forensic investigation, compliance reporting, and anomaly detection. Completes the AAA triad.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Non-Repudiation</div>
+                <div class="card-desc">Preventing denial of an action. Achieved through digital signatures and audit logs. Critical for legal admissibility of access records and transaction disputes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Trust Anchor</div>
+                <div class="card-desc">The root of the verification chain -- a CA, identity provider, or hardware root of trust. If the trust anchor is compromised, all authentication derived from it is invalid.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">AAA Protocol Note</div>
+            Identification + Authentication + Authorization + Accounting = complete access control. RADIUS and TACACS+ implement all four elements for network access management.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — AUTHENTICATION FACTORS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">The Five <span class="accent">Authentication Factors</span></div>
+        <div class="slide-subtitle">SY0-701 requires knowledge of all five factor categories and their strengths and weaknesses.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Something You Know</div>
+                <div class="card-desc">Passwords, PINs, passphrases, security questions. Easiest to implement, easiest to attack. Vulnerable to phishing, brute force, credential stuffing, and shoulder surfing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Something You Have</div>
+                <div class="card-desc">Hardware token (RSA SecurID, YubiKey), smart card, PIV/CAC, mobile authenticator app (TOTP), SMS OTP. Lost or stolen device breaks access. Physical possession required.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Something You Are</div>
+                <div class="card-desc">Biometrics -- fingerprint, retina, iris, facial geometry, voice, palm vein. Stored as a template, not the raw biometric. Cannot be reset if compromised -- choose storage carefully.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Somewhere You Are</div>
+                <div class="card-desc">Location-based -- GPS coordinates, IP geolocation, network segment. Used as a secondary signal: is this login from an expected location? Not reliable as the sole factor.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Something You Do</div>
+                <div class="card-desc">Behavioral biometrics -- typing cadence, mouse movement patterns, gait analysis. Passive, continuous authentication. Useful for insider threat detection without user friction.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Factor Combination Rules</div>
+                <div class="card-desc">True MFA requires factors from different categories. Two passwords = two-step, not MFA. Password + SMS OTP = two different categories = MFA. Exam: count category diversity, not factor count.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — PASSWORD SECURITY ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Password Security &amp; <span class="accent">Storage</span></div>
+        <div class="slide-subtitle">Passwords are the most common authentication factor -- and the most commonly attacked. Secure storage is non-negotiable.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NIST SP 800-63B Password Guidance</div>
+                <div class="card-desc">Minimum 8 characters for user-chosen; 6+ for machine-generated. Allow up to 64+ characters. Check against breached password lists (HaveIBeenPwned API). Do NOT require complexity rules that reduce entropy (random passphrases are stronger). No mandatory periodic rotation without evidence of compromise.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Attack Methods</div>
+                <div class="card-desc">Brute force (exhaustive trial), dictionary attack (wordlist), credential stuffing (breach replay), rainbow table (precomputed hash lookup), password spraying (one common password against many accounts -- avoids lockout), pass-the-hash (replay NTLM hash without cracking).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Secure Password Storage</div>
+                <div class="card-desc">Never store plaintext. MD5/SHA-1 hashing alone = insecure (rainbow table attackable). Correct approach: bcrypt, Argon2, or PBKDF2 -- all are adaptive, slow-by-design, per-credential salted KDFs. Salt prevents precomputation and makes identical passwords produce different hashes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Account Lockout vs. Progressive Delay</div>
+                <div class="card-desc">Account lockout after N failed attempts (NIST suggests caution -- can be weaponized for DoS). Progressive delay / captcha is preferred for online attacks. Hardware tokens (FIDO2) are phishing-resistant and eliminate password-based attack surface entirely.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm"># Password hashing comparison -- work factors matter</span>
+<span class="fn">MD5</span>(<span class="st">"password123"</span>)         <span class="cm">= instant (GPU can check billions/sec)</span>
+<span class="fn">bcrypt</span>(<span class="st">"password123"</span>, cost=<span class="nb">12</span>) <span class="cm">= ~250ms (attacker gets 4 guesses/sec)</span>
+<span class="fn">Argon2id</span>(<span class="st">"password123"</span>)       <span class="cm">= configurable memory + time cost</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — MULTI-FACTOR AUTHENTICATION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Multi-Factor <span class="accent">Authentication (MFA)</span></div>
+        <div class="slide-subtitle">MFA is the single highest-impact control for account takeover prevention. Microsoft reports it blocks over 99.9% of automated attacks.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">TOTP (RFC 6238)</div>
+                <div class="card-desc">Time-based One-Time Password. Shared secret + current 30-second window + HMAC-SHA1 = 6-digit code. Apps: Google Authenticator, Authy, Microsoft Authenticator. Vulnerable to real-time phishing relay (AiTM attacks).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HOTP (RFC 4226)</div>
+                <div class="card-desc">HMAC-based OTP using a counter instead of time. Hardware tokens (RSA SecurID classic model). Counter sync issues can cause lockouts. Less common than TOTP in modern deployments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Push Notification MFA</div>
+                <div class="card-desc">Server sends push to registered mobile app (Duo, Microsoft Authenticator). User approves. Convenience-focused but vulnerable to MFA fatigue attacks -- sending rapid repeated prompts until user accidentally approves.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">FIDO2 / WebAuthn</div>
+                <div class="card-desc">Public key cryptography -- private key stored in device hardware (TPM, Secure Enclave, hardware key). No shared secret transmitted. Phishing-resistant by design: credential is bound to the specific origin (domain). YubiKey, Windows Hello, Touch ID.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SMS OTP</div>
+                <div class="card-desc">One-time code delivered via text message. Weakest MFA option -- vulnerable to SIM swapping, SS7 protocol attacks, and carrier social engineering. NIST deprecated SMS OTP as a sole second factor in SP 800-63B. Better than no MFA but should be replaced.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">MFA Bypass Attacks</div>
+                <div class="card-desc">Adversary-in-the-Middle (AiTM) proxy relays credentials and MFA tokens in real time. MFA fatigue (push bombing). SIM swap. Pass-the-cookie (steal session post-authentication). Only FIDO2/hardware keys resist AiTM attacks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — SINGLE SIGN-ON ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Single Sign-On <span class="accent">(SSO)</span></div>
+        <div class="slide-subtitle">SSO allows one authentication event to grant access to multiple applications -- reducing password fatigue and centralizing authentication policy enforcement.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">How SSO Works</div>
+                <div class="card-desc">User authenticates once to an Identity Provider (IdP). The IdP issues a session token or assertion. When the user accesses a Service Provider (SP), the SP redirects to the IdP, which confirms the existing session without re-prompting for credentials. Session lifetime is controlled by the IdP, not individual apps.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SSO Benefits and Risks</div>
+                <div class="card-desc">Benefits: one strong credential + MFA enforced centrally, reduced password reuse, faster login UX, centralized session revocation. Risks: IdP is now a single point of failure -- compromise of the IdP compromises all connected apps simultaneously. Requires high availability and strong IdP security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Enterprise SSO Flows</div>
+                <div class="card-desc">Browser-based: SAML 2.0 or OIDC redirect flows. Desktop/native: Kerberos tickets (Windows domain). Mobile: OAuth 2.0 + OIDC device flow. Hybrid: federated identity bridging on-premises AD to cloud IdP (Azure AD, Okta, Ping Identity).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SSO Session Management</div>
+                <div class="card-desc">IdP issues a session cookie with a configured max age. SP applications maintain shorter local sessions. Absolute timeout limits maximum session duration regardless of activity. Idle timeout ends session after inactivity. Logout must invalidate both IdP session and all SP sessions (SLO -- Single Logout).</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Sector-7 access node. The CDC researcher authenticated at the facility checkpoint this morning. When they now approach the specimen vault terminal, the vault queries the central identity server -- and the server confirms the existing session is valid and has not expired. No second password prompt. One authentication, facility-wide access.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — SAML 2.0 ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">SAML 2.0 — <span class="accent">Security Assertion Markup Language</span></div>
+        <div class="slide-subtitle">SAML 2.0 is the dominant enterprise web SSO standard. XML-based assertion format exchanged between IdP and SP.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SAML Actors</div>
+                <div class="card-desc">Principal (user/browser), Identity Provider (IdP -- authenticates the user, e.g., Okta, ADFS), Service Provider (SP -- the application being accessed, e.g., Salesforce). Trust is established via pre-exchanged metadata including X.509 certificates.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SP-Initiated Flow</div>
+                <div class="card-desc">User accesses SP URL. SP detects no active session, redirects browser to IdP with an AuthnRequest. User authenticates at IdP. IdP posts a signed XML Response (containing Assertions) to the SP's Assertion Consumer Service (ACS) URL. SP validates signature, creates session.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SAML Assertion Types</div>
+                <div class="card-desc">Authentication Assertion -- proves who authenticated and when. Attribute Assertion -- carries user attributes (email, role, department) the SP uses for authorization. Authorization Assertion -- states what the principal is permitted to do (less common, usually done at SP).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SAML Binding Methods</div>
+                <div class="card-desc">HTTP-Redirect binding: SAML message Base64-encoded in URL query string (small messages only). HTTP-POST binding: SAML message in form body (supports larger assertions with attributes). Artifact binding: SP/IdP exchange a reference, then retrieve assertion over back-channel SOAP call.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SAML Security Considerations</div>
+                <div class="card-desc">Assertions must be signed (and optionally encrypted). Validate Issuer, NotBefore, NotOnOrAfter timestamps, AudienceRestriction. Guard against XML signature wrapping attacks. ACS URL must match pre-registered metadata -- redirect-open vulnerabilities can forward assertions to attacker-controlled endpoints.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common SAML Exam Points</div>
+                <div class="card-desc">SAML = XML, enterprise, browser-based SSO. IdP provides assertions; SP consumes them. SP-initiated vs. IdP-initiated flows. Assertions contain authentication + attribute data. Used with Okta, ADFS, Azure AD, Shibboleth. Not OAuth -- those are separate protocols.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — OAUTH 2.0 ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">OAuth 2.0 — <span class="accent">Authorization Framework</span></div>
+        <div class="slide-subtitle">OAuth 2.0 is an authorization delegation framework -- not an authentication protocol. It allows apps to access resources on behalf of a user without sharing credentials.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">OAuth 2.0 Roles</div>
+                <div class="card-desc">Resource Owner (user), Client (third-party app requesting access), Authorization Server (issues tokens -- e.g., Google, GitHub), Resource Server (holds the protected resource, validates tokens). The client never sees the user's credentials at the resource server.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorization Code Flow (PKCE)</div>
+                <div class="card-desc">Recommended for all clients. User authorizes at Authorization Server. Server returns code to client. Client exchanges code + PKCE verifier for access token via back-channel. PKCE (RFC 7636) prevents authorization code interception attacks -- required for public/mobile clients.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Token Types</div>
+                <div class="card-desc">Access Token: short-lived bearer token (minutes to hours) granting specific scopes. Refresh Token: long-lived, used to obtain new access tokens without re-authentication. ID Token: OIDC extension -- JWT containing user identity claims (not used by pure OAuth). Bearer = anyone holding the token can use it -- protect in transit and at rest.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Scopes and Consent</div>
+                <div class="card-desc">Scopes define what the access token authorizes (e.g., read:email, write:calendar). User grants consent at the Authorization Server. Apps should request minimal scopes (principle of least privilege). Users can revoke individual app authorizations without changing password.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">OAuth is NOT Authentication</div>
+                <div class="card-desc">OAuth access tokens prove authorization to access a resource -- they do not authenticate the user to the client app. Using an access token as an authentication credential is a security antipattern. OIDC (next slide) adds the ID Token and UserInfo endpoint to enable authentication on top of OAuth.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Client Credentials Flow</div>
+                <div class="card-desc">Machine-to-machine scenarios -- no user involved. Client authenticates directly to Authorization Server with client_id + client_secret or mTLS certificate. Receives access token for service-to-service calls. Used in microservices, daemon processes, and API integrations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — OIDC ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">OpenID Connect <span class="accent">(OIDC)</span></div>
+        <div class="slide-subtitle">OIDC is an identity layer on top of OAuth 2.0. It adds authentication to OAuth's authorization. The result: modern federated login for web and mobile apps.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">OIDC vs. OAuth 2.0</div>
+                <div class="card-desc">OAuth 2.0 provides delegation and authorization (access tokens for resources). OIDC adds: ID Token (JWT with user claims), UserInfo endpoint (returns additional claims), and a standardized authentication event. The combo enables "Sign in with Google/GitHub/Okta" flows. Always use OIDC when you need to know WHO the user is.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ID Token Structure</div>
+                <div class="card-desc">JWT (JSON Web Token) with three Base64-encoded sections: Header (algorithm), Payload (claims), Signature. Key claims: iss (issuer), sub (unique subject identifier), aud (audience -- must match client_id), exp (expiration), iat (issued at), nonce (replay protection), email, name. Validate all claims before trusting.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Discovery and JWKS</div>
+                <div class="card-desc">OIDC providers publish a well-known configuration document at <span class="ic">/.well-known/openid-configuration</span>. This includes the JWKS URI (JSON Web Key Set) -- the public keys used to verify ID Token signatures. Applications retrieve these keys to validate tokens without calling the IdP on every request.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Protocol Stack Summary</div>
+                <div class="card-desc">HTTP/TLS (transport) -- OAuth 2.0 (authorization framework) -- OIDC (identity layer) -- Application. For enterprise web SSO: compare SAML (XML, older, enterprise-centric) vs. OIDC (JSON/JWT, developer-friendly, mobile-ready). Both are valid -- know when each is preferred and exam differences.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Exam Anchor -- Protocol Quick Map</div>
+            SAML = XML + enterprise + browser SSO &nbsp;|&nbsp; OAuth 2.0 = authorization delegation + tokens &nbsp;|&nbsp; OIDC = OAuth + identity + ID Token (JWT) &nbsp;|&nbsp; Kerberos = tickets + on-premises domain auth &nbsp;|&nbsp; RADIUS/TACACS+ = AAA for network access
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — LDAP & ACTIVE DIRECTORY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">LDAP &amp; <span class="accent">Active Directory</span></div>
+        <div class="slide-subtitle">LDAP is the protocol for querying and modifying directory services. Active Directory is Microsoft's directory implementation widely used for enterprise identity.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">LDAP Fundamentals</div>
+                <div class="card-desc">Lightweight Directory Access Protocol (RFC 4511). Client-server model: LDAP client binds to LDAP server (directory), performs operations (search, add, modify, delete, compare). Hierarchical DIT (Directory Information Tree) structure. TCP port 389 (LDAP), TCP port 636 (LDAPS -- TLS). All queries are plaintext without TLS.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Distinguished Names and Schema</div>
+                <div class="card-desc">Every LDAP object has a DN (Distinguished Name): <span class="ic">cn=Alice,ou=Research,dc=cdc,dc=local</span>. Attribute types: cn (common name), ou (organizational unit), dc (domain component), uid (user ID), sn (surname), mail. objectClass determines required and optional attributes. Schema defines the directory's "database schema."</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Active Directory Architecture</div>
+                <div class="card-desc">AD = LDAP + Kerberos + DNS + Group Policy + Certificate Services + Replication. Domain Controller (DC) holds the directory database and authentication services. Forest (trust boundary) contains Domains. Sites represent physical locations for replication optimization. SYSVOL + NETLOGON shares distribute policy and scripts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AD Authentication Protocols</div>
+                <div class="card-desc">Kerberos (default for domain members since Windows 2000). NTLM (legacy -- used when Kerberos is unavailable: workgroup computers, IP-address-based connections, cross-forest without trust). NTLMv2 minimum -- NTLMv1 must be disabled. NTLM hashes can be relayed (NTLM relay attacks, Pass-the-Hash).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">LDAP Injection</div>
+                <div class="card-desc">Input containing special LDAP filter characters can manipulate directory queries, similar to SQL injection. Attacker modifying <span class="ic">(&(uid=admin)(userPassword=*))</span> by injecting <span class="ic">*)(uid=*</span> can bypass authentication. Always sanitize LDAP filter input and use parameterized queries via directory SDK.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Securing LDAP</div>
+                <div class="card-desc">Require LDAPS (port 636) or LDAP+STARTTLS. Disable anonymous binds. Use service accounts with minimal permissions for LDAP queries -- never domain admin. Enable LDAP signing and channel binding (Microsoft KB4520412). Monitor for LDAP reconnaissance (mass enumeration queries) via SIEM.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — KERBEROS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Kerberos <span class="accent">Authentication</span></div>
+        <div class="slide-subtitle">Kerberos is the default domain authentication protocol in Windows environments. Ticket-based -- passwords are never transmitted over the network.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Kerberos Components</div>
+                <div class="card-desc">KDC (Key Distribution Center): combines the AS (Authentication Service) and TGS (Ticket Granting Service). Typically runs on the Domain Controller. Realm: Kerberos term for domain. Principal: user or service identified by a unique name. SPN (Service Principal Name): identifier for service instances (e.g., <span class="ic">HTTP/webserver.cdc.local</span>).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Kerberos Authentication Flow</div>
+                <div class="card-desc">1. AS-REQ: client sends username + timestamp encrypted with password-derived key. 2. AS-REP: KDC returns TGT (Ticket Granting Ticket) encrypted with KDC secret + session key encrypted with client key. 3. TGS-REQ: client presents TGT, requests service ticket. 4. TGS-REP: KDC returns service ticket encrypted with service secret. 5. AP-REQ: client presents service ticket to application server. No password on the wire at any step.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Kerberos Attacks</div>
+                <div class="card-desc">Pass-the-Ticket: steal TGT/service ticket from memory (Mimikatz), replay on another system. Kerberoasting: request service tickets for SPNs, crack offline -- service accounts often have weak passwords. AS-REP Roasting: accounts with pre-auth disabled return encrypted material crackable offline. Golden Ticket: forge TGT with compromised KRBTGT hash -- provides persistent domain access. Silver Ticket: forge service ticket with compromised service account hash.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Kerberos Hardening</div>
+                <div class="card-desc">Enable pre-authentication (should be on by default -- check for accounts with it disabled). Use long, complex passwords for service accounts, or better: Managed Service Accounts (MSA) / Group MSAs (gMSA) which auto-rotate passwords. Monitor for anomalous TGS requests (Kerberoasting indicators). Protect KRBTGT account -- change password twice to invalidate existing Golden Tickets.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Key Kerberos Timeframe</div>
+            Default ticket lifetime: TGT = 10 hours, service tickets = 10 hours, renewable for 7 days. Clock skew tolerance: +/- 5 minutes. Systems outside this window cannot authenticate -- time sync (NTP) is a Kerberos dependency.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — RADIUS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">RADIUS — Remote Authentication <span class="accent">Dial-In User Service</span></div>
+        <div class="slide-subtitle">RADIUS provides centralized AAA for network access control -- used for VPN, 802.1X, and wireless authentication.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">RADIUS Architecture</div>
+                <div class="card-desc">Client (NAS -- Network Access Server: VPN concentrator, wireless controller, switch) sends authentication requests to RADIUS Server. Server responds: Access-Accept, Access-Reject, or Access-Challenge. User never communicates directly with RADIUS server -- NAS is the proxy. Backend: LDAP, AD, or local user database.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RADIUS Ports and Transport</div>
+                <div class="card-desc">Authentication and Authorization: UDP 1812 (legacy: UDP 1645). Accounting: UDP 1813 (legacy: UDP 1646). UDP transport means no guaranteed delivery -- RADIUS clients must handle retransmission. Shared secret between NAS and RADIUS server authenticates the NAS. Only user password is obfuscated (MD5-based) -- not the entire packet.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RADIUS Attributes</div>
+                <div class="card-desc">RADIUS uses typed attribute-value pairs (AVPs) for rich policy data. Key attributes: User-Name, User-Password (hashed), NAS-IP-Address, Called-Station-Id (SSID for wireless), Framed-IP-Address (assign VPN IP), Filter-Id (assign ACL), Tunnel-Type and VLAN assignment for dynamic VLAN on 802.1X. Vendor-Specific Attributes (VSAs) extend the standard for vendor-specific features.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">802.1X and RADIUS</div>
+                <div class="card-desc">802.1X (Port-Based Network Access Control): supplicant (endpoint), authenticator (switch/AP), authentication server (RADIUS). EAP (Extensible Authentication Protocol) messages are carried from supplicant to authenticator via EAPOL, then encapsulated in RADIUS between authenticator and server. Result: dynamic VLAN assignment, policy enforcement, and certificate-based auth.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">RADIUS Accounting</div>
+                <div class="card-desc">Accounting-Start: session begins (user, NAS, timestamp). Accounting-Interim-Update: periodic updates (bytes transferred, session duration). Accounting-Stop: session ends (termination reason, total usage). Accounting data used for billing, compliance, capacity planning, and forensic investigation of network access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">RADIUS Weaknesses</div>
+                <div class="card-desc">Shared secret with MD5-based password obfuscation is not full encryption -- replay attacks possible without additional protection. Solution: use RADSEC (RADIUS over TLS, RFC 6614) to encrypt the entire RADIUS conversation. RADIUS server is a high-value target -- protect with network segmentation and strong shared secrets (minimum 32 random characters).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — TACACS+ ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">TACACS+ — Terminal Access <span class="accent">Controller Access-Control System</span></div>
+        <div class="slide-subtitle">TACACS+ is a Cisco-developed AAA protocol designed for device administration -- providing granular command authorization that RADIUS lacks.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">TACACS+ vs. RADIUS Comparison</div>
+                <div class="card-desc">TACACS+: TCP 49, encrypts ENTIRE payload (only header unencrypted), separates Authentication / Authorization / Accounting into distinct phases (can use different servers for each), granular per-command authorization on network devices, Cisco-proprietary origin but now RFC 8907. RADIUS: UDP 1812/1813, encrypts only password, combines authentication + authorization in one response, designed for user network access (not device admin), IETF standard with broad vendor support.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use Case Differentiation</div>
+                <div class="card-desc">RADIUS: user authentication for VPN, 802.1X wireless/wired access, remote dialup, RADIUS clients include NAS, AP controllers, VPN concentrators. TACACS+: administrator login to network devices (router, switch, firewall CLI), per-command authorization (allow "show" commands, deny "configure"), command accounting log for compliance (who ran what command on which device).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TACACS+ Authorization Flow</div>
+                <div class="card-desc">Admin connects to device CLI (SSH). Device sends auth request to TACACS+ server. On success, device sends authorization request for each command typed. TACACS+ responds PASS (allowed) or FAIL (denied) for each command individually. All activity (login, commands) is sent to accounting. Full audit trail of privileged activity maintained centrally.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Deployment Considerations</div>
+                <div class="card-desc">Cisco ISE (Identity Services Engine) and Cisco ACS are common TACACS+ server implementations. Backup TACACS+ server essential -- if primary fails and local fallback isn't configured, admins are locked out of all devices. Define privilege levels (Cisco 0-15) mapped to TACACS+ authorization policies. Log all accounting data to SIEM for SOC visibility.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC network operations. A technician attempts to issue a "no shutdown" command on the quarantine zone firewall. The command is relayed to the TACACS+ server, which checks the technician's role. The policy returns FAIL -- only senior network engineers may modify firewall interface state. The command is blocked and logged.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — BIOMETRICS DEEP DIVE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Biometrics — <span class="accent">FRR, FAR, and CER</span></div>
+        <div class="slide-subtitle">Biometric authentication accuracy is measured by error rates. Understanding FRR, FAR, and CER is essential for exam questions and real-world system selection.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">False Rejection Rate (FRR)</div>
+                <div class="card-desc">Type I Error. The system rejects a legitimate, authorized user. High FRR = users frustrated by frequent re-scan prompts. Acceptable threshold depends on security-usability balance. A wet fingerprint reader denying access to a facility worker during an emergency is an FRR failure with real consequences.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">False Acceptance Rate (FAR)</div>
+                <div class="card-desc">Type II Error. The system accepts an unauthorized user as legitimate. High FAR = security failure. An attacker using a silicone fingerprint replica gaining access is an FAR failure. FAR and FRR are inversely related -- reducing one increases the other as the sensitivity threshold shifts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Crossover Error Rate (CER)</div>
+                <div class="card-desc">Also called Equal Error Rate (EER). The sensitivity point at which FAR equals FRR. Lower CER = better overall biometric system accuracy. CER is the primary metric for comparing biometric systems. A system with CER of 0.1% is more accurate than one with CER of 1%. Used as a single comparative metric independent of threshold setting.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Biometric Modalities</div>
+                <div class="card-desc">Fingerprint: fast, low cost, widely deployed. FRR issues with dirty/wet/injured fingers. Retina scan: highly accurate, expensive, requires proximity -- low FAR. Iris scan: contactless, high accuracy, works with glasses. Facial recognition: passive, convenient, spoofable with photos (2D systems). Voice: behavioral + physiological, vulnerable to recording replay. Vein pattern (palm, finger): very low FAR, costly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Biometric Template Security</div>
+                <div class="card-desc">Templates are mathematical representations, not raw images. Should never be transmitted as-is. Biometric cryptosystems (fuzzy extractors) can derive cryptographic keys from templates. Store templates in a dedicated, access-controlled biometric database -- never co-mingled with application user tables. Compromised biometric data cannot be "reset" -- catastrophic breach consequence.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Liveness Detection</div>
+                <div class="card-desc">Prevents presentation attacks (spoofing with photos, masks, replicas). Passive liveness: analyzes micro-expressions, blinking, pupil response without user action. Active liveness: prompts user to blink, turn head, smile. Challenge-response liveness is more secure but adds friction. Required for high-security biometric deployments (border control, banking).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — CERTIFICATE-BASED AUTH ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Certificate-Based &amp; <span class="accent">Token Authentication</span></div>
+        <div class="slide-subtitle">Certificates and hardware tokens elevate authentication above password-based credentials -- providing phishing resistance and cryptographic proof of identity.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Smart Cards and PIV/CAC</div>
+                <div class="card-desc">PIV (Personal Identity Verification -- FIPS 201) and CAC (Common Access Card) are US federal/DoD smart card standards. Card contains X.509 certificate + private key stored in tamper-resistant chip. Authentication uses private key challenge-response -- key never leaves card. Requires card reader + PIN (something you have + something you know = MFA). Used for Windows logon, VPN, email signing/encryption.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FIDO2 / WebAuthn / Passkeys</div>
+                <div class="card-desc">W3C + FIDO Alliance standard. Authenticator (device TPM, Secure Enclave, hardware key) generates key pair per origin. Public key registered with relying party. Authentication: relying party sends challenge, authenticator signs with private key, server verifies with registered public key. Keys are origin-bound -- cannot be used on phishing site. Passkeys extend this to cross-device credentials via cloud sync.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hardware Security Keys</div>
+                <div class="card-desc">YubiKey, Google Titan Key, SoloKey. Support FIDO2/WebAuthn, TOTP (via Yubico Authenticator), PIV (smart card emulation), OpenPGP card. USB-A/USB-C/NFC form factors. Touch or PIN confirmation required for each use. Cannot be remotely cloned or phished. Single key used across hundreds of services. Recommended: deploy two keys per user (primary + backup).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IEEE 802.1X with EAP-TLS</div>
+                <div class="card-desc">EAP-TLS requires both supplicant (client) and authentication server to present X.509 certificates -- mutual authentication. Strongest 802.1X method. Client cert issued by enterprise CA (via SCEP or GPO auto-enrollment). Private key protected by device TPM. Eliminates shared secrets from the wireless/wired access authentication path entirely.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Phishing Resistance Spectrum</div>
+            Passwords only (no MFA) -- worst &nbsp;|&nbsp; SMS OTP -- better (SIM swap risk) &nbsp;|&nbsp; TOTP app -- better (AiTM relay risk) &nbsp;|&nbsp; Push notification -- better (fatigue risk) &nbsp;|&nbsp; FIDO2 hardware key -- best (phishing-resistant by design)
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — FEDERATED IDENTITY ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Federated Identity &amp; <span class="accent">Trust Models</span></div>
+        <div class="slide-subtitle">Federation extends identity trust across organizational and system boundaries -- enabling cross-domain authentication without credential sharing.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Federation Solves</div>
+                <div class="card-desc">Without federation: users need separate accounts in every system, each with its own password. Partners accessing your systems need separate local accounts. With federation: your IdP is trusted by the partner's SP. User authenticates once at home IdP, assertion is presented to partner SP. No shared credentials, no duplicated accounts, centralized revocation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Trust Establishment</div>
+                <div class="card-desc">SAML federation: exchange metadata XML containing certificates, ACS URLs, entity IDs. OIDC federation: register client application with Authorization Server, receive client_id and configure redirect_uris. Trust is established out-of-band (not over the login protocol itself). Metadata must be refreshed when certificates rotate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Identity Provider Products</div>
+                <div class="card-desc">On-premises: ADFS (Active Directory Federation Services), Shibboleth (higher ed), Ping Identity. Cloud: Okta, Azure AD/Entra ID, Google Workspace, Auth0. ADFS is commonly tested on SY0-701. Azure AD (now Entra ID) provides cloud-native federation with conditional access policies. Most enterprises run hybrid: on-prem AD synced to cloud IdP.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Provisioning and Deprovisioning</div>
+                <div class="card-desc">SCIM (System for Cross-domain Identity Management) automates account provisioning and deprovisioning across federated systems via REST API. When a user is disabled in the IdP, SCIM pushes the change to all connected SPs -- removing access immediately. Without SCIM, orphan accounts persist in SPs after the user leaves. JIT (just-in-time) provisioning creates accounts on first login.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Attribute Release Policies</div>
+                <div class="card-desc">What user attributes does the IdP release to each SP? Principle of least privilege applies to attributes too. Release only what the SP needs: email for most apps, department/role for authorization-aware apps, employee ID for HR integration. Excessive attribute release enables cross-site user correlation and privacy risk.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Federation Attack Vectors</div>
+                <div class="card-desc">Token forgery (if signing keys compromised -- Golden SAML attack in SolarWinds breach). Assertion replay (no nonce / short NotOnOrAfter window protects this). IdP compromise propagates to all federated SPs simultaneously (blast radius amplification). Open redirect in SP's ACS endpoint can forward assertion to attacker domain. Monitor IdP sign-in logs for impossible travel and anomalous app access patterns.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — CONDITIONAL ACCESS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Conditional Access &amp; <span class="accent">Adaptive Authentication</span></div>
+        <div class="slide-subtitle">Conditional access evaluates context signals at authentication time and enforces policy -- granting, denying, or step-up authenticating based on risk score.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Conditional Access Signals</div>
+                <div class="card-desc">User and group membership. Device compliance status (MDM-managed, patch level, AV present). Location (IP range, named location, country). Application being accessed (risk level). Real-time risk score (login from new device, impossible travel, leaked credentials). Time of day and frequency of access. Client application type (browser vs. legacy protocol).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Policy Enforcement Outcomes</div>
+                <div class="card-desc">Allow: context matches low-risk policy -- proceed. Block: context fails policy -- deny access (e.g., login from sanctioned country). Require MFA: step-up authentication for sensitive app or risky signal. Require compliant device: block until device enrolls in MDM. Require password change: leaked credential detected. Require terms of use acknowledgment: first access to external system.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk-Based Authentication</div>
+                <div class="card-desc">Uses ML signals to assign a risk score (low/medium/high) to each authentication event. Low risk (known device, familiar location, normal hours): no step-up required. High risk (new device, anonymous IP, impossible travel): require MFA or block. Balances security with user experience -- low-friction for normal activity, high-friction for anomalies.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Device Trust Integration</div>
+                <div class="card-desc">Azure AD Conditional Access, Okta Device Trust, and similar solutions integrate with MDM/UEM (Microsoft Intune, Jamf, VMware Workspace ONE). Device compliance certificate or MDM token presented at authentication. Unmanaged or non-compliant devices blocked from accessing sensitive applications, regardless of valid user credentials.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Zero Trust Connection</div>
+            Conditional access is the enforcement plane of Zero Trust identity. Every request is evaluated in context -- no implicit trust from being on the corporate network. Network location is one signal among many, not a trust boundary.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — SESSION MANAGEMENT ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Session Management &amp; <span class="accent">Token Security</span></div>
+        <div class="slide-subtitle">Authentication creates a session. Session management determines how long that authenticated state persists and how it is protected from hijacking.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Session Token Properties</div>
+                <div class="card-desc">Must be random, unpredictable (minimum 128 bits entropy, CSPRNG-generated). Must be unique per session -- never reused. Session ID in URL: insecure (leaked in logs, referrer headers, browser history) -- always use cookies. Cookie flags: Secure (HTTPS only), HttpOnly (no JavaScript access -- XSS mitigation), SameSite=Strict/Lax (CSRF mitigation).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Session Timeout Types</div>
+                <div class="card-desc">Idle (inactivity) timeout: session expires after no activity (e.g., 15 minutes for banking). Absolute timeout: maximum session lifetime regardless of activity (e.g., 8 hours for enterprise apps). Concurrent session control: limit to N active sessions per user -- detect account sharing or session theft. Re-authentication required for sensitive operations (password change, payment, privileged action).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Session Hijacking Attacks</div>
+                <div class="card-desc">Cookie theft via XSS: injected JavaScript reads document.cookie (blocked by HttpOnly). Network sniffing (blocked by Secure flag + HTTPS). Session fixation: attacker forces victim to use attacker-known session ID -- mitigate by regenerating session ID on login. Cross-site request forgery (CSRF): tricks authenticated user into making unintended requests -- mitigate with SameSite cookies + CSRF tokens.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Token-Based Authentication</div>
+                <div class="card-desc">Stateless alternative to server-side sessions. JWT (JSON Web Token): header.payload.signature. Server signs token with secret (HMAC) or private key (RS256/ES256). Client stores token (localStorage is vulnerable to XSS -- prefer HttpOnly cookie). Server validates signature on each request -- no database lookup needed. Revocation is the challenge: use short expiry + refresh token rotation or token blocklist.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Refresh Token Rotation</div>
+                <div class="card-desc">Best practice for OAuth/OIDC. On each access token refresh, old refresh token is invalidated and new one issued. If a stolen refresh token is used: the original user's next refresh will fail (double-use detection). System revokes all tokens for that session, forcing re-authentication. Significantly reduces the window of refresh token theft exploitation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Pass-the-Cookie Attack</div>
+                <div class="card-desc">Attacker steals authenticated session cookies (from malware on endpoint, AiTM proxy, or browser sync compromise) and replays them from a different machine. Bypasses MFA entirely -- MFA was completed by the original session. Detection: impossible travel on session cookie reuse, device fingerprint mismatch. Mitigation: device-bound session tokens, conditional access device compliance check.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — PAM (PRIVILEGED ACCESS) ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Privileged Access Management <span class="accent">(PAM)</span></div>
+        <div class="slide-subtitle">PAM controls, monitors, and audits privileged account usage -- one of the most impactful security controls in an enterprise identity program.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why PAM Matters</div>
+                <div class="card-desc">Privileged accounts (domain admin, root, database SA, service accounts) are the highest-value targets. Verizon DBIR data shows credential abuse is the top initial access vector in breaches. PAM addresses the privileged account attack surface by vaulting credentials, enforcing just-in-time access, recording sessions, and providing centralized oversight.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Credential Vaulting</div>
+                <div class="card-desc">Privileged account passwords stored in encrypted vault (CyberArk, BeyondTrust, Delinea). Users never see the actual password -- PAM tool injects credentials into sessions. Passwords rotated automatically after each use or on schedule. Eliminates shared admin passwords written on sticky notes or stored in spreadsheets. Break-glass access procedures for emergency admin.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Just-in-Time (JIT) Access</div>
+                <div class="card-desc">Privileged access is not persistent -- it is granted for a specific task window (15 minutes, 1 hour) and automatically revoked. Eliminates standing privileged access. Workflow: user requests elevation, manager approves (or auto-approval for low-risk), JIT access granted, session recorded, access revoked at timeout. Significantly reduces exposure window from compromised admin accounts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Session Recording and Monitoring</div>
+                <div class="card-desc">PAM solutions record all privileged sessions (video-like recording of terminal/RDP sessions, keylogging of commands). Recordings stored in tamper-evident repository. Real-time monitoring can alert or terminate sessions on anomalous activity (data exfiltration commands, file deletion, unauthorized access attempts). Essential for insider threat investigation and forensic reconstruction.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC containment breach. The system administrator account is compromised in a phishing attack. Without PAM, the attacker has persistent, unmonitored domain admin access. With PAM: the account is vaulted, JIT access is time-limited, and every command is recorded. The intrusion is detected within minutes as the attacker's behavior deviates from baseline.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — AUTHENTICATION ATTACKS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Authentication <span class="accent">Attack Patterns</span></div>
+        <div class="slide-subtitle">Understanding how authentication is attacked informs both defense design and exam answers.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Credential Stuffing</div>
+                <div class="card-desc">Automated replay of username/password pairs obtained from previous breaches (HaveIBeenPwned lists). Effective because most users reuse passwords. Defense: MFA (eliminates credential stuffing), breached password check at login, bot detection (CAPTCHA, rate limiting by IP/ASN), anomaly detection on failed login volume.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Password Spraying</div>
+                <div class="card-desc">One or few common passwords tried against many accounts. Avoids per-account lockout thresholds. Common targets: VPN, OWA/Outlook Web Access, Azure AD legacy auth endpoints. Detection: large number of failed logins spread across accounts from single source, or geographically distributed through proxies. Mitigate: disable legacy authentication protocols, enforce MFA.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Adversary-in-the-Middle (AiTM)</div>
+                <div class="card-desc">Reverse proxy (EvilGinx, Modlishka) positioned between user and legitimate IdP. User authenticates -- including MFA -- while attacker relays credentials and captures session cookie. Cookie replayed from attacker infrastructure. Bypasses TOTP and push MFA. Only FIDO2 hardware keys are resistant (credential is origin-bound -- different domain = authentication fails).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">MFA Fatigue (Push Bombing)</div>
+                <div class="card-desc">Attacker has valid password, triggers repeated push MFA notifications until user approves out of fatigue or confusion. Defense: number matching (user must enter code shown in notification to approve), additional context in push (app name, IP location), rate-limit push attempts, require tap-to-deny acknowledgment on suspicious pushes, migrate to FIDO2.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Kerberoasting / AS-REP Roasting</div>
+                <div class="card-desc">Kerberoasting: authenticated attacker requests service tickets for SPNs, extracts encrypted portion, cracks offline to get service account password. AS-REP Roasting: accounts without Kerberos pre-auth send crackable response to unauthenticated requesters. Defense: managed service accounts (gMSA -- auto-rotating passwords), enable pre-auth on all accounts, monitor for mass TGS requests.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Token Theft and Replay</div>
+                <div class="card-desc">Steal JWT, SAML assertion, OAuth token, or Kerberos ticket from memory (Mimikatz), disk, or network capture. Replay from attacker machine -- no re-authentication needed. Defense: short token lifetimes, token binding to device/IP, session anomaly detection, device compliance checks, rotate KRBTGT password to invalidate Kerberos tickets.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — PASSWORDLESS AUTHENTICATION ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Passwordless <span class="accent">Authentication</span></div>
+        <div class="slide-subtitle">Passwordless authentication eliminates the shared secret that most attacks target -- replacing it with cryptographic proof tied to a hardware authenticator.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Passwordless</div>
+                <div class="card-desc">Passwords are vulnerable at every point: creation (reuse, weak), transmission (phishing, relay), storage (breach, cracking), and recovery (social engineering helpdesk). A cryptographic key pair eliminates the shared secret model. No secret to steal from the server side. No secret to relay via phishing. Authentication is bound to hardware and origin.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FIDO2 Architecture</div>
+                <div class="card-desc">Platform authenticator: built-in device hardware (Windows Hello TPM, Apple Touch ID / Face ID Secure Enclave). Roaming authenticator: detachable hardware key (YubiKey). Both generate key pair per relying party (RP) origin. RP stores public key only. Authentication: RP challenge -- authenticator signs with private key -- RP verifies with public key. No password, no server-stored secret to steal.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Passkeys</div>
+                <div class="card-desc">FIDO2 credentials synced across devices via cloud keychain (iCloud Keychain, Google Password Manager). Trade-off: phishing resistance maintained (origin-bound), but hardware binding is relaxed (key no longer isolated to one device). Passkeys enable passwordless authentication at scale for consumer use cases. Device-bound passkeys (hardware keys) remain the strongest option for high-security environments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Enterprise Passwordless Deployment</div>
+                <div class="card-desc">Stage 1: Enroll all users in MFA. Stage 2: Deploy phishing-resistant MFA (FIDO2, Windows Hello for Business, PIV). Stage 3: Configure authentication policies to block legacy auth protocols. Stage 4: Eliminate password-based authentication for targeted user populations. Stage 5: Extend passwordless to privileged accounts (break-glass procedures needed). NIST SP 800-207 and CISA guidance support this progression.</div>
+            </div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">NIST AAL Levels (SP 800-63B)</div>
+            AAL1: single-factor (password). AAL2: MFA required (any second factor). AAL3: hardware cryptographic authenticator required + verifier impersonation resistance. FIDO2 hardware keys achieve AAL3. Government systems handling sensitive data often require AAL2 minimum, AAL3 for privileged access.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — EAP VARIANTS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">EAP Variants — <span class="accent">Extensible Authentication Protocol</span></div>
+        <div class="slide-subtitle">EAP is a framework for authentication methods used in wireless (802.11) and wired (802.1X) network access control. Multiple EAP methods exist with different security properties.</div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">EAP-TLS</div>
+                <div class="card-desc">Strongest EAP method. Requires X.509 certificates on both client and authentication server (mutual TLS). No shared secrets. Client certificate issued by enterprise CA. Private key protected by device TPM. Resistant to all credential-based attacks. High deployment cost (PKI required for all clients). Preferred for high-security environments.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">PEAP (Protected EAP)</div>
+                <div class="card-desc">Creates TLS tunnel using server certificate only (client certificate optional). Inner method: MSCHAPv2 (most common) or GTC. PEAP-MSCHAPv2 = server proves identity via cert, user proves via password inside the tunnel. Clients MUST validate server certificate to prevent evil twin attacks. Most common enterprise wireless EAP method.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">EAP-TTLS</div>
+                <div class="card-desc">Similar to PEAP but supports more inner authentication methods (PAP, CHAP, MSCHAPv2, EAP). Outer TLS tunnel protects identity (username not visible until tunnel established). Requires server certificate validation by client. Slightly more flexible than PEAP for heterogeneous environments. Less natively supported than PEAP on Windows.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">EAP-FAST</div>
+                <div class="card-desc">Flexible Authentication via Secure Tunneling -- Cisco proprietary. Uses PAC (Protected Access Credential) file instead of certificate for tunnel establishment (phase 0: PAC provisioning). Avoids PKI requirement. Inner phase: MSCHAPv2 or GTC. Weaker than EAP-TLS but easier to deploy without full PKI. Largely replaced by PEAP in modern deployments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">EAP-MD5</div>
+                <div class="card-desc">Legacy. Authentication using MD5 hash of credentials. No server authentication (no certificate) -- vulnerable to evil twin/rogue AP attacks. No encryption of the EAP conversation. Cannot be used with 802.1X wireless (no key generation). Considered insecure and deprecated. Never deploy for wireless. May appear in exam as a "do not use" example.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">EAP Tunnel vs. Non-Tunnel</div>
+                <div class="card-desc">Tunneled EAP methods (EAP-TLS, PEAP, EAP-TTLS, EAP-FAST) protect the inner authentication method inside an outer TLS tunnel. Non-tunneled (EAP-MD5, EAP-OTP) provide no outer protection. Key difference for exam: tunneled methods provide identity protection and resistance to wireless eavesdropping; server cert validation is critical for tunneled methods.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — AUTHENTICATION PROTOCOL COMPARISON ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Authentication Protocol <span class="accent">Comparison Reference</span></div>
+        <div class="slide-subtitle">High-density reference for exam and practical differentiation of the major authentication protocols covered in this module.</div>
+        <div class="code-block"><span class="cm">PROTOCOL     | TRANSPORT | PURPOSE                    | ENCRYPTS       | KEY EXAM POINT</span>
+<span class="cm">-------------|-----------|----------------------------|----------------|---------------------------</span>
+<span class="fn">Kerberos</span>     | TCP       | Domain auth (tickets)      | Ticket payload | No password on wire; ticket-based
+<span class="fn">NTLM</span>         | TCP       | Legacy Windows auth        | Challenge only | Pass-the-Hash; avoid NTLMv1
+<span class="fn">LDAP</span>         | TCP 389   | Directory query/bind       | None           | Use LDAPS (636) or STARTTLS
+<span class="fn">LDAPS</span>        | TCP 636   | LDAP over TLS              | Full session   | Preferred; cert required
+<span class="fn">RADIUS</span>       | UDP 1812  | Network access AAA         | Password only  | NAS is proxy; shared secret
+<span class="fn">TACACS+</span>      | TCP 49    | Device admin AAA           | Full payload   | Per-command authz; Cisco
+<span class="fn">SAML 2.0</span>    | HTTP/S    | Browser SSO (enterprise)   | Transport/XML  | XML assertions; IdP/SP roles
+<span class="fn">OAuth 2.0</span>    | HTTPS     | Authorization delegation   | Transport      | NOT authentication alone
+<span class="fn">OIDC</span>         | HTTPS     | OAuth + identity (ID Token)| Transport      | JWT; adds auth to OAuth
+<span class="fn">FIDO2</span>        | HTTPS     | Passwordless/MFA           | Asymmetric     | Phishing-resistant; origin-bound</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — IDENTITY FEDERATION ATTACKS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Identity Federation <span class="accent">Attack Case Studies</span></div>
+        <div class="slide-subtitle">Real-world attacks on authentication infrastructure illustrate why protocol choice and implementation hygiene matter.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">SolarWinds Golden SAML (2020)</div>
+                <div class="card-desc">NOBELIUM (APT29) compromised ADFS token signing certificate private keys. Generated forged SAML assertions that were indistinguishable from legitimate ones -- "Golden SAML." Forged assertions granted any identity access to any ADFS-federated app including Azure AD and Microsoft 365. Persisted for months. Lesson: protect ADFS signing keys as critically as domain admin credentials; monitor for impossible federation logins.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Uber MFA Fatigue Attack (2022)</div>
+                <div class="card-desc">Attacker obtained contractor credentials via phishing. Bombarded contractor with Duo push MFA requests. Contractor accepted to stop the noise. Attacker gained initial access, escalated to privileged admin via unsecured secrets found on internal file shares. Lesson: implement number matching, user education on approving unexpected MFA pushes, secrets scanning on internal repositories.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Lapsus$ AiTM Campaign (2021-2022)</div>
+                <div class="card-desc">Used adversary-in-the-middle phishing kits to bypass MFA at Microsoft, Okta, Nvidia, and others. Captured session tokens post-authentication. Targeted help desk agents via social engineering to reset MFA enrollment. Lesson: FIDO2 would have blocked AiTM; help desk authentication resets require strong identity verification; privileged identity enrollments need approval workflow.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Okta Support Breach (2023)</div>
+                <div class="card-desc">Threat actor accessed Okta's customer support system using stolen service account credentials. Viewed HAR files (HTTP archive -- contain session cookies) uploaded by customers for support tickets. Used session cookies to access customer tenants. Lesson: scrub sensitive data from support artifacts before sharing; monitor service account access; short-lived session tokens limit replay window.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Common Thread</div>
+            In each case, the attacker bypassed authentication by compromising the authentication infrastructure itself (token signing keys, session cookies, help desk reset workflows) rather than attacking cryptographic algorithms. The weakest link is operational, not mathematical.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — ZERO TRUST AND IDENTITY ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Zero Trust &amp; <span class="accent">Identity as the New Perimeter</span></div>
+        <div class="slide-subtitle">In a Zero Trust architecture, identity is the primary security boundary -- replacing the network perimeter as the primary enforcement point.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Identity-Centric Zero Trust</div>
+                <div class="card-desc">NIST SP 800-207 defines seven ZT tenets. Identity verification is the first: all subjects (users, devices, services) must be authenticated and authorized for every resource request. Network location (VPN, internal network) provides no implicit trust elevation. Each access decision is made in context: who, what device, what resource, what risk level.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Continuous Authentication</div>
+                <div class="card-desc">ZT principle: trust is not granted once and held -- it is continuously re-evaluated. Session risk signals (new location, anomalous behavior, endpoint compliance change) can trigger step-up authentication mid-session. Behavioral analytics (UEBA) monitors for deviation from baseline. High-risk detected: require re-authentication, restrict access scope, alert SOC.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Policy Enforcement Point (PEP)</div>
+                <div class="card-desc">ZT architecture components: Policy Decision Point (PDP -- evaluates context, makes allow/deny decision), Policy Enforcement Point (PEP -- enforces the decision between subject and resource), Policy Information Point (PIP -- feeds signals: IdP, MDM, threat intel, CMDB). ZTNA gateway, cloud proxy, or identity-aware proxy implement PEP functionality in front of applications.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ZTNA vs. VPN</div>
+                <div class="card-desc">VPN: grants network-level access (entire subnet). User can reach any resource on the "inside." ZTNA: grants application-level access per request. User sees only authorized applications -- no lateral movement possible through network. ZTNA outbound connector model: application initiates encrypted tunnel to cloud broker -- no inbound firewall rules, no exposed infrastructure. VPN is perimeter-based; ZTNA is identity-based.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Microsegmentation + Identity</div>
+                <div class="card-desc">Workload identity (not just user identity) for east-west traffic. Service accounts, service meshes (Istio), and SPIFFE/SPIRE provide workload identity and mTLS enforcement. Every service call is authenticated. Zero standing network access between workloads. Policy: allow WebApp service account to call DatabaseService -- deny all else. Limits blast radius of compromised container/VM.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IAM as Attack Surface</div>
+                <div class="card-desc">Centralized identity (IdP, AD, cloud IAM) is also a centralized attack target. IAM compromise has enterprise-wide blast radius. Apply defense-in-depth to IAM: privileged access for IAM admins, MFA enforcement including for IdP admin console, monitoring of IAM changes (new federation trusts, new admin grants, bulk policy changes), immutable audit trail, regular access review.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — AUTHENTICATION LOGGING ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Authentication Logging &amp; <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Authentication events are the richest data source for detecting account compromise. Every login, MFA event, and policy enforcement decision should be logged and analyzed.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Critical Events to Log</div>
+                <div class="card-desc">Successful authentication (user, timestamp, source IP, device, MFA method). Failed authentication (user, reason -- bad password vs. bad MFA vs. locked account). MFA enrollment and de-enrollment (high-value: attacker may enroll their own device). Account lockout and unlock. Privilege escalation. Conditional access policy trigger (what rule fired). Session termination and SLO events.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Detection Use Cases</div>
+                <div class="card-desc">Brute force: N failures in T seconds for single account. Password spray: distributed failures across accounts from single source. Impossible travel: login from NYC, then login from Tokyo 30 minutes later. New device enrollment: first-time device for established user. Off-hours privileged access. MFA bypass: successful auth without MFA for policy-protected app. Dormant account login (accounts inactive for 90+ days suddenly active).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SIEM Integration</div>
+                <div class="card-desc">Forward IdP logs (Okta System Log, Azure AD Sign-in Logs, ADFS Security Event Log), VPN authentication logs, and 802.1X RADIUS accounting logs to SIEM. Correlate authentication events with endpoint telemetry (EDR) and network flows. Identity-centric correlation: same user authenticated to IdP but EDR shows lateral movement -- high-fidelity alert. User entity behavior analytics (UEBA) builds user baselines automatically.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Retention and Compliance</div>
+                <div class="card-desc">Authentication logs are subject to retention requirements: PCI DSS requires 1 year (3 months immediately available). HIPAA: 6 years. SOC 2: typically 1 year. NIST 800-53 AU-11 requires organization-defined retention period. Store in tamper-evident (WORM) log storage. Authentication logs are primary evidence in account compromise investigations -- insufficient retention can mean no forensic data available.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC network. 04:17 local time -- SIEM alert fires: impossible travel detected. Researcher account successfully authenticated from Atlanta at 23:45, then successfully authenticated from a Singapore IP 3.5 hours later. Transit time: minimum 20 hours. The session is from a different timezone, a different ISP, and a browser agent not previously seen. SOC analyst initiates account investigation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — BIOMETRICS IN PRACTICE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Biometrics in <span class="accent">Practice</span></div>
+        <div class="slide-subtitle">Deploying biometrics requires understanding the complete system -- scanner quality, template storage, template extraction, liveness detection, and failure modes.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Biometric System Components</div>
+                <div class="card-desc">Sensor/scanner (hardware quality directly affects accuracy). Feature extraction algorithm (converts raw scan to mathematical template -- proprietary to vendor). Template storage (local device / centralized database / distributed). Matching engine (compares live scan to stored template -- threshold configurable). Decision logic (accept/reject/challenge based on match score). Audit log (all match attempts regardless of outcome).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Accuracy Factors</div>
+                <div class="card-desc">Sensor quality: contact (fingerprint platen) vs. swipe vs. non-contact. Environmental factors: lighting (iris/face), moisture (fingerprint), background noise (voice). User population variation: age-related changes to fingerprint ridges, skin conditions. Training data diversity: facial recognition systems have documented higher FAR for certain demographic groups -- bias testing required in acquisition.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">On-Device vs. Centralized Storage</div>
+                <div class="card-desc">On-device (Apple Face ID / Touch ID model): template stored in Secure Enclave on device, never leaves device, never transmitted to server. Centralized: template stored in biometric database, enables cross-device use and centralized management, but creates high-value breach target (biometric data cannot be reset). Match-on-card (smart card stores template) is a hybrid approach for PIV.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">GDPR and Biometric Data</div>
+                <div class="card-desc">GDPR Article 9 classifies biometric data processed for unique identification as "special category data" requiring explicit consent and additional safeguards. US: BIPA (Illinois Biometric Information Privacy Act) provides private right of action for biometric data violations -- significant financial exposure. Privacy impact assessment (PIA) required before deploying biometric systems in many jurisdictions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Biometric Failure Scenarios</div>
+                <div class="card-desc">Scanner failure: provide alternative authentication path (PIN backup). Injury/change: fingerprint with a cut fails -- sensor or user registration quality matters. Template drift over time: facial recognition degrades as users age -- periodic re-enrollment may be required. Revocation impossible: if centralized template database breaches, those biometric identifiers are permanently compromised for all uses. Backup auth must always exist.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Presentation Attack Detection</div>
+                <div class="card-desc">2D photo attacks: defeated by 3D depth sensing (Face ID structured light / time-of-flight). Silicone fingerprint molds: defeated by capacitive liveness (reads electrical conductivity of living skin tissue). Voice replay: defeated by challenge-response prompts, voice liveness detection (breath, micro-tremors). NIST FRVT (Face Recognition Vendor Testing) and NIST PBAD programs evaluate commercial biometric systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — ACCOUNT PROVISIONING ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Account Provisioning &amp; <span class="accent">Lifecycle</span></div>
+        <div class="slide-subtitle">Authentication only works if accounts are provisioned correctly and deprovisioned promptly. Lifecycle gaps create persistent unauthorized access.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Provisioning Process</div>
+                <div class="card-desc">HR event (hire) triggers identity workflow. Account created in authoritative source (AD, HR system). Role assigned based on job function (RBAC). Access provisioned to required applications via SCIM or manual process. MFA enrollment required before first login. Onboarding checklist with manager sign-off. Initial password delivered via secure channel (not email).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Deprovisioning Failures</div>
+                <div class="card-desc">Orphan accounts: former employee accounts left active -- a common finding in audits. Must be disabled immediately on departure (HR-triggered automated deprovisioning is best). Shared accounts: multiple people using one credential -- no accountability, cannot be revoked individually. Service accounts: often overlooked in offboarding, may have excessive privileges accumulated over years. Contractor accounts: no end date set at creation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Access Reviews (Certification)</div>
+                <div class="card-desc">Periodic review of all user access rights -- typically quarterly for privileged, annually for standard. Manager certifies that each direct report still requires each assigned access. Automated "access certification" campaigns via IGA tools (Saviynt, SailPoint). Recertification prompts manager to explicitly approve or revoke. Unreviewed accounts auto-revoked after deadline. Required by SOX, PCI DSS, HIPAA.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IGA (Identity Governance and Administration)</div>
+                <div class="card-desc">IGA platforms (SailPoint, Saviynt, IBM IGI) automate the full identity lifecycle: provisioning, access request workflows, role management, access certification, segregation of duties (SoD) enforcement, and audit reporting. IGA provides the governance layer above the IAM infrastructure (IdP, AD). Essential for regulated industries requiring demonstrable access control evidence.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">NIST SP 800-63A -- Identity Proofing</div>
+            IAL1: no identity proofing required. IAL2: remote identity proofing (document + selfie match). IAL3: in-person identity proofing with biometric binding. IAL level governs how strongly the identity claim is verified at account creation -- different from AAL (authentication assurance).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — CROSS-REALM AUTH ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Cross-Realm Authentication &amp; <span class="accent">Trust</span></div>
+        <div class="slide-subtitle">Enterprises span multiple directories, domains, and cloud tenants. Cross-realm trust controls who can authenticate across boundaries.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Active Directory Trust Types</div>
+                <div class="card-desc">One-way trust: Domain A trusts Domain B (users in B can access resources in A; not vice versa). Two-way trust: bidirectional access. Transitive trust: if A trusts B and B trusts C, then A trusts C. Forest trusts: created between root domains of forests. External trusts: between domains in different forests (not transitive). Shortcut trusts: within a forest to speed up authentication across distant domain trees.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Azure AD / Entra ID B2B</div>
+                <div class="card-desc">External identity collaboration: invite partner users (via email) as guest accounts in your tenant. Guest authenticates at their home IdP; your tenant trusts the external IdP via B2B federation. Access controlled by conditional access policies targeting guest users. Guest accounts should have regular access reviews. B2B federation: configure trust with specific external Azure AD tenants or IdPs (SAML, OIDC).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cloud Tenant Boundary</div>
+                <div class="card-desc">Cloud IAM tenants (Azure AD, AWS Organizations, GCP Organization) are trust boundaries. Cross-tenant access requires explicit federation or trust configuration. AWS cross-account: IAM roles with trust policy allowing external account to assume the role (STS:AssumeRole). Scope the trust to specific principals and use external-id to prevent confused deputy attacks in cross-account access.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Trust Attack Vectors</div>
+                <div class="card-desc">SID history injection: in AD trust migrations, SID history allows old SIDs to be honored -- attackers can inject privileged SIDs to gain access across trust boundary (SIDHistory attack). Golden ticket with inter-realm keys: if cross-realm Kerberos keys are compromised. Trust SID filtering (Quarantine Mode) blocks SID history from trusted domains. Enable SID filter quarantine for all external trusts.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Hybrid Identity Design</div>
+                <div class="card-desc">Entra ID Connect (formerly Azure AD Connect) synchronizes on-premises AD objects to Azure AD. Sync modes: Password Hash Sync (PHS -- hash of hash synced), Pass-through Authentication (PTA -- auth forwarded to on-prem), Federation (ADFS handles all auth). PHS simplest and most resilient -- no on-prem dependency for cloud auth. Password writeback enables SSPR to update on-prem passwords.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Least Privilege Across Trusts</div>
+                <div class="card-desc">Trust relationship does not mean access is granted -- trust means authentication can cross the boundary. Authorization is still enforced on the resource side. Minimize trust scope: prefer one-way, non-transitive, and time-limited trusts for partner access. Regular trust audit: enumerate all existing trusts, justify each, remove orphaned trusts (ex-partners, past acquisitions). Trusts rarely removed once created -- they accumulate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — AUTH IN CLOUD ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Authentication in <span class="accent">Cloud Environments</span></div>
+        <div class="slide-subtitle">Cloud IAM introduces new authentication surfaces -- API credentials, service identities, and machine authentication at massive scale.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Human vs. Machine Identity</div>
+                <div class="card-desc">Human IAM: federated to enterprise IdP via SAML/OIDC SSO. Never use cloud console root account or long-term user credentials for human access. Use role assumption (AWS), managed identity (Azure), or workload identity federation (GCP). Machine IAM: EC2 instance roles, Azure managed identities, GCP service accounts. Bound to the compute resource -- no static credentials to manage or leak.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Account Misuse</div>
+                <div class="card-desc">Top cloud auth failure: long-lived service account keys stored in code, config files, CI/CD pipelines, or Docker images. Exposed to source code repositories (GitHub secret scanning catches these). Defense: use workload identity federation (OIDC token exchange -- no long-lived key needed), cloud-native managed identity, secrets management (HashiCorp Vault, AWS Secrets Manager), regularly rotate and audit service account keys.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Instance Metadata API Attacks</div>
+                <div class="card-desc">AWS IMDS (Instance Metadata Service) provides temporary credentials to EC2 instances via <span class="ic">169.254.169.254</span>. SSRF (Server-Side Request Forgery) vulnerability can allow attacker to retrieve instance credentials remotely. Mitigation: require IMDSv2 (session-oriented -- one-hop only, blocks SSRF), use IAM permission boundaries, block metadata API access from untrusted app containers.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cloud Console Auth Controls</div>
+                <div class="card-desc">Federate all user access (no local cloud IAM users for humans). Enforce MFA at the IdP (conditional access policy). Enable CloudTrail / Azure Activity Log / GCP Audit Log for all IAM actions. Alert on root account usage (should be never except for emergency break-glass procedures with documented reason). Use SCPs (AWS Service Control Policies) or Azure Policy to prevent MFA disablement at tenant level.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Top Cloud Auth Misconfigurations</div>
+            Root account without MFA -- long-lived access keys in source code -- service accounts with owner/editor permissions -- no audit logging on IAM changes -- forgotten test accounts with excessive access -- cross-account roles with wildcard principal -- publicly readable S3 buckets with application credentials inside
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — WIRELESS AUTH SCENARIO ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Wireless Authentication <span class="accent">Architecture Scenario</span></div>
+        <div class="slide-subtitle">Designing a wireless authentication system requires integrating 802.1X, EAP, RADIUS, and certificate infrastructure.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Enterprise Wireless Architecture</div>
+                <div class="card-desc">Wireless controller or cloud-managed APs (Cisco Meraki, Aruba, Juniper Mist). 802.1X enabled on all enterprise SSIDs. RADIUS server cluster (Cisco ISE, FreeRADIUS) as authentication server. Backend: LDAP/AD for user lookup, PKI (CA) for certificate validation. Dynamic VLAN assignment: employee to corp VLAN, contractor to guest VLAN, IoT device to isolated VLAN -- all from RADIUS response attributes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Certificate Deployment (EAP-TLS)</div>
+                <div class="card-desc">Enterprise CA issues device certificates via auto-enrollment (Group Policy or MDM SCEP). Device cert loaded into system certificate store and protected by TPM. RADIUS server has separate server certificate from enterprise CA. Supplicant validates RADIUS server cert (pinned CA, specific CN). RADIUS validates device cert (issued by enterprise CA, not revoked, valid SAN). Both sides authenticated -- no password required.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BYOD and Guest Access</div>
+                <div class="card-desc">BYOD (personally owned devices): no enterprise cert -- use PEAP-MSCHAPv2 with user credentials + MFA integration via RADIUS proxy to IdP. Guest users: separate SSID with captive portal (web redirect), WPA2/WPA3-Personal PSK, or MPSK (Multi-PSK: unique PSK per device for tracking). Guest VLAN completely isolated from corporate resources. Captive portal collects email for accountability.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NAC Enforcement</div>
+                <div class="card-desc">Cisco ISE or Aruba ClearPass evaluates device posture during 802.1X auth. Posture checks: antivirus active and current, OS patch level, disk encryption enabled, certificate validity. Device passes: full VLAN. Device fails posture: quarantine VLAN with remediation instructions. Unknown device: limited guest access. Continuous posture: can re-evaluate mid-session and move device between VLANs.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC facility wireless. The specimen lab is a WPA3-Enterprise SSID. Research laptops authenticate via EAP-TLS using device certificates enrolled by the facility CA. The RADIUS server dynamically assigns them to the Lab-VLAN. A visitor's personal device presents no certificate -- RADIUS falls back to a captive portal on the Guest-VLAN. Lab resources are never reachable from Guest-VLAN.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — REGULATORY REQUIREMENTS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Authentication <span class="accent">Regulatory Requirements</span></div>
+        <div class="slide-subtitle">Compliance frameworks specify authentication requirements. Meeting them requires understanding what each framework mandates and how to demonstrate compliance.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">PCI DSS v4.0</div>
+                <div class="card-desc">Requirement 8: Identify users and authenticate access. MFA required for all access into CDE (Cardholder Data Environment). Unique IDs -- no shared accounts. Passwords: minimum 12 characters, complexity, 90-day rotation OR continuous behavioral monitoring. Account lockout after 6 failed attempts. Session idle timeout: 15 minutes. Privileged access reviewed every 6 months.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIPAA Security Rule</div>
+                <div class="card-desc">Access Control (164.312(a)(1)): unique user identification, emergency access procedure, automatic logoff, encryption/decryption. Authentication (164.312(d)): implement procedures to verify a person/entity seeking access to ePHI is who they claim to be. No specific password policy mandated (addressable) -- but CEs must implement a reasonable policy and document it. Audit controls required.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NIST SP 800-63B</div>
+                <div class="card-desc">Authenticator Assurance Levels. AAL1: single-factor. AAL2: MFA, phishing-resistant for high-risk use cases. AAL3: hardware crypto authenticator + verifier impersonation resistance. Memorized secret requirements: 8+ chars, check against breach lists, no complexity rules, no periodic rotation. Remove security questions (knowledge-based authentication) -- easily researched. Allow paste in password fields.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CMMC / NIST 800-171</div>
+                <div class="card-desc">3.5.3 (CMMC AC.2.007): Use multifactor authentication for local and network access to privileged accounts and for network access to non-privileged accounts. 3.5.4: Employ replay-resistant authentication mechanisms. 3.5.5: Employ automated tools to support management of authenticators. CMMC Level 2 (110 controls): full NIST 800-171 compliance. Level 3: adds 800-172 controls for high-value targets.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Zero Trust Executive Order 14028</div>
+                <div class="card-desc">May 2021 EO requires US federal agencies to move toward Zero Trust architecture. CISA Zero Trust Maturity Model: five pillars including Identity. OMB M-22-09: phishing-resistant MFA required for agency staff. Deadline for federal agency compliance with identity pillar requirements. Influences enterprise security standards as government requirements often become industry best practice.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">SOC 2 Type II</div>
+                <div class="card-desc">Trust Services Criteria CC6.1: Logical and Physical Access Controls. Must demonstrate: unique user IDs, MFA for remote/privileged access, regular access reviews, prompt deprovisioning. SOC 2 Type II: auditor tests controls over 6-12 month observation period -- controls must be in place and operating effectively throughout. Authentication logs are primary evidence for auditor review.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — SCENARIO ANALYSIS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Scenario <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Apply authentication concepts to realistic design and response scenarios.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Scenario A: Post-Breach Response</div>
+                <div class="card-desc">Attacker compromised a user account with MFA (TOTP) via an AiTM phishing kit. Stolen session cookie replayed for 4 hours before detection. Required actions: revoke all active sessions, force re-authentication across all SPs (SAML SLO), rotate session signing keys if static, enroll user in FIDO2 hardware key, implement conditional access device compliance requirement, review for lateral movement during the 4-hour window.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Scenario B: Wireless Design</div>
+                <div class="card-desc">Hospital network. Staff on corporate SSID (EAP-TLS, device certs, corporate VLAN, EHR access). Medical devices (IoT) on device SSID (MPSK per device, isolated VLAN, outbound only). Visitors on guest SSID (captive portal, guest VLAN, internet only). Code carts (offline emergency) documented exception with time-limited PSK, reviewed quarterly. Separate SSID for telemedicine kiosks (patient-facing, traffic isolated from clinical systems).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Scenario C: Protocol Selection</div>
+                <div class="card-desc">Partner university needs access to 3 web applications. Requirements: no shared credentials, attribute release (department + role), access revocable from one place, future additional apps without reconfiguration. Best answer: SAML 2.0 federation with their IdP. Each SP trusts the shared IdP. User authenticates once at their university IdP. Assertions carry role attributes. Central revocation: disable at IdP. New apps join federation without credential changes.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scenario D: High-Assurance Login</div>
+                <div class="card-desc">Nuclear facility control system access. Regulatory requirement: AAL3, phishing-resistant, hardware-bound, non-repudiation required. Solution: PIV/CAC smart card (FIPS 201, contains X.509 cert + private key in tamper-resistant chip). Two-factor: physical card (have) + PIN (know). Authentication via TLS client certificate. All commands logged with digital signature for non-repudiation. No password resets via helpdesk -- only in-person with full ID proofing (IAL3).</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Exam Decision Heuristic</div>
+            For any authentication scenario: 1. How many factors from different categories? 2. Is there phishing resistance? 3. Is the authentication protocol appropriate for the use case (web/device/admin)? 4. What is the blast radius of compromise? 5. Is revocation prompt and complete?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Work through each scenario before checking the answer reasoning.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Q1 -- MFA Factor Classification</div>
+                <div class="card-desc">A user logs in with a password, then receives a 6-digit code via SMS. Is this true MFA? Why or why not? What would you recommend instead and why? Consider: what attacks does SMS OTP fail to prevent that FIDO2 would prevent?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Q2 -- Protocol Matching</div>
+                <div class="card-desc">Match each use case to the correct protocol: (A) A network switch authenticates administrators with per-command authorization. (B) A web app provides "Sign in with GitHub." (C) Enterprise employees use one login for Salesforce, Workday, and Zoom. (D) A domain workstation authenticates to a file server using tickets. Protocols: TACACS+, OIDC, SAML, Kerberos.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Q3 -- Biometric Trade-offs</div>
+                <div class="card-desc">A hospital is deploying biometric authentication for medication dispensing cabinets. FRR is currently 8% -- nurses are frustrated and using the PIN fallback constantly. If you lower the sensitivity threshold to reduce FRR, what happens to FAR? What is the clinical consequence of high FAR in this context? What is the metric that represents the optimal sensitivity setting?</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Q4 -- Kerberos Attack Analysis</div>
+                <div class="card-desc">An attacker has domain user credentials and discovers the file server has a Service Principal Name registered. They request a service ticket for this SPN, extract the encrypted ticket data, and take it offline. What attack is this? What makes it work? What two defenses would most effectively mitigate it?</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Q5 -- Federation Design</div>
+                <div class="card-desc">Your organization uses on-premises AD and is migrating email to Microsoft 365. You want users to use their existing AD credentials. HR says accounts must be disabled in AD and immediately lose M365 access. You also need conditional access policies enforced. What synchronization model do you choose for Azure AD Connect, and why does Password Hash Sync meet the requirements better than ADFS in this scenario?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Q6 -- RADIUS vs. TACACS+</div>
+                <div class="card-desc">You are designing AAA for a large network with 200 routers, 500 switches, and a campus wireless network serving 3,000 users. The network team requires granular command authorization on all network devices. The wireless team needs dynamic VLAN assignment for user roles. Which protocol do you deploy for each use case? What is the key differentiator that determines the correct choice?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; PIS-13 &nbsp;|&nbsp; Module Complete</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Authentication proves identity. The five factors: something you know, have, are, somewhere you are, something you do. True MFA requires factors from different categories -- two passwords is two-step, not MFA.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">FIDO2/WebAuthn provides phishing-resistant authentication via public key cryptography bound to the hardware authenticator and the origin URL. The only factor that blocks AiTM (adversary-in-the-middle) attacks.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">SSO centralizes authentication at an IdP. Protocols: SAML 2.0 (XML, enterprise, browser-based), OIDC (JSON/JWT, OAuth-based, developer-friendly), Kerberos (tickets, on-premises domain). Know when to use each.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">OAuth 2.0 is authorization delegation, not authentication. OIDC adds the ID Token (JWT) to enable authentication on top of OAuth. Never use an OAuth access token alone to authenticate a user to your application.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">RADIUS: UDP 1812/1813, encrypts only password, used for user network access (VPN, wireless, 802.1X). TACACS+: TCP 49, encrypts full payload, separates AAA phases, used for device administration with per-command authorization.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Kerberos attacks: Kerberoasting (service ticket offline cracking), AS-REP Roasting (pre-auth disabled), Pass-the-Ticket, Golden Ticket (KRBTGT hash), Silver Ticket (service account hash). Defenses: gMSA, enable pre-auth, KRBTGT rotation.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Biometrics accuracy: FRR (Type I -- reject legitimate user), FAR (Type II -- accept impostor), CER/EER (crossover point where FAR = FRR) -- lower CER = better system. Biometric templates cannot be reset if compromised.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Conditional access evaluates context signals (device, location, risk score, user group) at authentication time. Zero Trust: identity is the new perimeter -- no implicit trust from network location. ZTNA provides per-app access, not network-level access.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Password storage: bcrypt, Argon2, or PBKDF2 with unique salt per credential. NIST SP 800-63B: check breach lists, allow passphrases up to 64+ chars, no mandatory rotation without compromise evidence, no complexity rules that reduce entropy.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-authentication', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

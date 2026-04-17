@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires all 5 gates -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XML Bomb Lab -- Bug Hunting // Dark Arts</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x2623;</text></svg>">
+    <style>
+        /* --- Reset & Base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:       #0a0508;
+            --bg-panel:      #0f0812;
+            --bg-card:       #120a18;
+            --bg-input:      #0d0710;
+            --border-dim:    rgba(100, 60, 130, 0.15);
+            --border-mid:    rgba(147, 51, 234, 0.25);
+            --border-bright: rgba(147, 51, 234, 0.5);
+            --accent:        #9333ea;
+            --accent-light:  #a855f7;
+            --accent-glow:   rgba(147, 51, 234, 0.3);
+            --text-bright:   #c4a0d8;
+            --text-mid:      #9a7aaa;
+            --text-dim:      #6a4a7a;
+            --text-faint:    #3a2a4a;
+            --green:         #22c55e;
+            --green-dim:     rgba(34, 197, 94, 0.15);
+            --red:           #ef4444;
+            --red-dim:       rgba(239, 68, 68, 0.12);
+            --amber:         #f59e0b;
+            --amber-dim:     rgba(245, 158, 11, 0.12);
+            --mono:          'Courier New', 'Consolas', monospace;
+            --serif:         'Georgia', 'Times New Roman', serif;
+        }
+
+        body {
+            height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--mono);
+            color: #a080b0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- Header (fixed, no filter on body so position:fixed works fine) --- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-link {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover { color: var(--accent); border-color: rgba(147, 51, 234, 0.4); }
+
+        .header-badge {
+            font-size: 0.65rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+            font-family: var(--serif);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.72rem;
+        }
+
+        .score-display { color: var(--accent-light); }
+        .obj-display   { color: var(--text-dim); }
+        .obj-display span { color: var(--green); font-weight: 700; }
+
+        /* --- Ethics Banner --- */
+        .ethics-banner {
+            position: fixed;
+            top: 50px; left: 0; right: 0;
+            background: linear-gradient(90deg, rgba(239,68,68,0.10), rgba(239,68,68,0.05));
+            border-bottom: 1px solid rgba(239,68,68,0.2);
+            padding: 6px 20px;
+            font-size: 0.67rem;
+            color: #fca5a5;
+            letter-spacing: 0.04em;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ethics-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        /* --- Main Layout: two-pane split --- */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: calc(100vh - 78px);
+            margin-top: 78px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Left: Challenge Workspace --- */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        /* Challenge tabs along the top of the workspace */
+        .challenge-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .challenge-tab {
+            flex: 1;
+            padding: 9px 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.67rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .challenge-tab:hover {
+            color: var(--text-mid);
+            background: rgba(147, 51, 234, 0.04);
+        }
+
+        .challenge-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .challenge-tab .tab-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-right: 5px;
+            vertical-align: middle;
+            transition: background 0.3s;
+        }
+
+        .challenge-tab.done .tab-dot { background: var(--green); }
+        .challenge-tab.locked { opacity: 0.4; cursor: not-allowed; }
+
+        /* Challenge panel content area */
+        .challenge-panels {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .challenge-panel { display: none; }
+        .challenge-panel.active { display: flex; flex-direction: column; height: 100%; }
+
+        /* --- Right: Info Panel (instructions + defense) --- */
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-panel);
+        }
+
+        .info-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.6);
+            flex-shrink: 0;
+        }
+
+        .info-tab {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .info-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+        }
+
+        .info-pane { display: none; flex: 1; overflow-y: auto; padding: 20px; }
+        .info-pane.active { display: block; }
+
+        /* Info pane typography */
+        .info-pane h3 {
+            color: var(--text-bright);
+            font-size: 0.85rem;
+            font-weight: normal;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+            margin-top: 20px;
+            border-bottom: 1px solid var(--border-dim);
+            padding-bottom: 6px;
+            font-family: var(--serif);
+        }
+
+        .info-pane h3:first-child { margin-top: 0; }
+
+        .info-pane p {
+            font-size: 0.82rem;
+            color: var(--text-mid);
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+
+        .info-pane ul {
+            list-style: none;
+            padding-left: 12px;
+            margin-bottom: 14px;
+        }
+
+        .info-pane li {
+            font-size: 0.8rem;
+            color: var(--text-mid);
+            padding: 4px 0 4px 16px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .info-pane li::before {
+            content: '\25B8';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 0.7rem;
+        }
+
+        /* --- Code blocks in info panel --- */
+        .info-code {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 12px 14px;
+            margin: 10px 0;
+            font-family: var(--mono);
+            font-size: 0.77rem;
+            color: #b090c0;
+            overflow-x: auto;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .info-code .kw      { color: #a855f7; }
+        .info-code .str     { color: #86efac; }
+        .info-code .comment { color: #5a3a6a; font-style: italic; }
+        .info-code .ent     { color: #fbbf24; }
+        .info-code .good    { color: #22c55e; }
+        .info-code .bad     { color: #ef4444; }
+
+        /* --- Challenge content layout --- */
+        .challenge-header {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(5, 2, 10, 0.5);
+            flex-shrink: 0;
+        }
+
+        .challenge-id {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .challenge-title {
+            font-size: 1rem;
+            color: var(--text-bright);
+            font-family: var(--serif);
+            margin-bottom: 4px;
+        }
+
+        .challenge-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .difficulty-badge {
+            font-size: 0.62rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .diff-easy   { background: rgba(34,197,94,0.12);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .diff-medium { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .diff-hard   { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        .challenge-points { font-size: 0.7rem; color: var(--text-dim); }
+
+        /* Challenge body: scrollable instructions + interactive area */
+        .challenge-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .challenge-desc {
+            font-size: 0.85rem;
+            color: var(--text-mid);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        /* Scenario context block (simulated server output / context) */
+        .scenario-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-label {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .scenario-code {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: #b090c0;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .scenario-code .kw      { color: #a855f7; }
+        .scenario-code .str     { color: #86efac; }
+        .scenario-code .comment { color: #5a3a6a; font-style: italic; }
+        .scenario-code .ent     { color: #fbbf24; }
+        .scenario-code .blank   { color: #ef4444; font-weight: bold; }
+        .scenario-code .good    { color: #22c55e; }
+        .scenario-code .bad     { color: #ef4444; }
+        .scenario-code .num     { color: #f97316; }
+
+        /* Input row for answer fields */
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            align-items: flex-start;
+        }
+
+        .input-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding-top: 9px;
+            flex-shrink: 0;
+            min-width: 80px;
+        }
+
+        .answer-input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: var(--mono);
+            font-size: 0.83rem;
+            color: var(--text-bright);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .answer-input:focus { border-color: var(--border-mid); }
+        .answer-input.correct { border-color: rgba(34,197,94,0.6); background: rgba(34,197,94,0.04); }
+        .answer-input.wrong   { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.04); }
+
+        /* Multi-line code editor textarea */
+        .code-editor {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: #b090c0;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 14px;
+        }
+
+        .code-editor:focus { border-color: var(--border-mid); }
+        .code-editor.correct { border-color: rgba(34,197,94,0.6); }
+        .code-editor.wrong   { border-color: rgba(239,68,68,0.5); }
+
+        /* Submit button */
+        .submit-btn {
+            padding: 9px 22px;
+            background: rgba(80, 40, 100, 0.25);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            color: var(--accent-light);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: rgba(100, 50, 130, 0.4);
+            border-color: var(--border-bright);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Feedback area below the interaction */
+        .feedback-area {
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.83rem;
+            line-height: 1.65;
+            display: none;
+        }
+
+        .feedback-area.show { display: block; }
+
+        .feedback-area.success {
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.35);
+            color: #86efac;
+        }
+
+        .feedback-area.error {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+        }
+
+        .feedback-area.hint {
+            background: rgba(147,51,234,0.08);
+            border: 1px solid rgba(147,51,234,0.3);
+            color: #c4a0d8;
+        }
+
+        .feedback-area strong { font-weight: bold; }
+
+        /* Checkbox list for C3: multi-select vulnerable parsers */
+        .parser-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(10, 5, 15, 0.6);
+            border: 1px solid var(--border-dim);
+            border-radius: 5px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .parser-option:hover { border-color: var(--border-mid); }
+        .parser-option.selected { border-color: var(--accent); background: rgba(147,51,234,0.06); }
+
+        .parser-option input[type="checkbox"] {
+            accent-color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+            width: 14px;
+            height: 14px;
+        }
+
+        .parser-option-body { flex: 1; }
+
+        .parser-option-lang {
+            font-size: 0.68rem;
+            color: var(--accent);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .parser-option-code {
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: #b090c0;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Result indicators for C3 checked state */
+        .parser-option.correct-pick { border-color: rgba(34,197,94,0.6); background: rgba(34,197,94,0.06); }
+        .parser-option.wrong-pick   { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.06); }
+        .parser-option.missed-pick  { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.06); }
+
+        /* Score panel (right info column lower section) */
+        .score-panel {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-dim);
+            flex-shrink: 0;
+            background: rgba(5, 2, 10, 0.5);
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .score-label {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            color: var(--accent-light);
+            font-weight: 700;
+        }
+
+        .progress-track {
+            height: 3px;
+            background: var(--text-faint);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .challenge-status-list { list-style: none; padding: 0; margin-top: 12px; }
+
+        .challenge-status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .challenge-status-item:last-child { border-bottom: none; }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .status-dot.done   { background: var(--green); }
+        .status-dot.active { background: var(--accent-light); }
+
+        .status-name  { flex: 1; }
+        .status-pts   { color: var(--text-mid); }
+
+        /* Completion flash notification */
+        .obj-flash {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(34,197,94,0.10);
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            font-weight: 600;
+            z-index: 500;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.8s forwards;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* --- Completion overlay --- */
+        .completion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 2, 10, 0.92);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .completion-overlay.show { display: flex; }
+
+        .completion-box {
+            background: rgba(15, 8, 20, 0.98);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            border-radius: 12px;
+            padding: 48px 56px;
+            text-align: center;
+            max-width: 520px;
+        }
+
+        .completion-icon {
+            width: 3rem;
+            height: 3rem;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+
+        .completion-title {
+            font-size: 1.6rem;
+            color: var(--text-bright);
+            font-family: var(--serif);
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+
+        .completion-score {
+            font-size: 2.5rem;
+            color: var(--accent-light);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .completion-meta {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .completion-summary {
+            font-size: 0.85rem;
+            color: var(--text-mid);
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+
+        .completion-btn {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none;
+            border-radius: 6px;
+            color: #f3e8ff;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .completion-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(147,51,234,0.4);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(147,51,234,0.5); }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">XML Bomb Lab</h1>
+
+<!-- Fixed header -->
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+        <span class="header-badge">Lab</span>
+        <span class="header-title">XML Bomb Lab</span>
+    </div>
+    <div class="header-right">
+        <div class="obj-display">Challenges: <span id="obj-count">0</span>/4</div>
+        <div class="score-display">Score: <span id="score-display">0</span></div>
+    </div>
+</div>
+
+<!-- Ethics reminder banner -->
+<div class="ethics-banner">
+    <div class="ethics-dot"></div>
+    <strong>AUTHORIZED TRAINING ENVIRONMENT</strong>
+    &mdash; All targets are simulated. Entity expansion attacks against real systems without authorization is illegal. Educational purposes only.
+</div>
+
+<!-- Main two-pane layout -->
+<div class="lab-body">
+
+    <!-- ================================================================ -->
+    <!-- LEFT: Challenge Workspace                                          -->
+    <!-- ================================================================ -->
+    <div class="workspace">
+
+        <!-- Challenge selector tabs -->
+        <div class="challenge-tabs">
+            <button class="challenge-tab active" data-challenge="1" onclick="Lab.switchChallenge(1)">
+                <span class="tab-dot" id="dot-1"></span>C1: Count the Laughs
+            </button>
+            <button class="challenge-tab" data-challenge="2" onclick="Lab.switchChallenge(2)">
+                <span class="tab-dot" id="dot-2"></span>C2: Build the Bomb
+            </button>
+            <button class="challenge-tab" data-challenge="3" onclick="Lab.switchChallenge(3)">
+                <span class="tab-dot" id="dot-3"></span>C3: Spot the Vuln
+            </button>
+            <button class="challenge-tab" data-challenge="4" onclick="Lab.switchChallenge(4)">
+                <span class="tab-dot" id="dot-4"></span>C4: SVG Trojan
+            </button>
+        </div>
+
+        <!-- Challenge content panels -->
+        <div class="challenge-panels">
+
+            <!-- ================================================ -->
+            <!-- Challenge 1: Count the Laughs                     -->
+            <!-- ================================================ -->
+            <div class="challenge-panel active" id="panel-1">
+                <div class="challenge-header">
+                    <div class="challenge-id">Challenge 01 &bull; Entity Expansion Math</div>
+                    <div class="challenge-title">Count the Laughs</div>
+                    <div class="challenge-meta">
+                        <span class="difficulty-badge diff-easy">Easy</span>
+                        <span class="challenge-points">25 points</span>
+                    </div>
+                </div>
+
+                <div class="challenge-body">
+                    <p class="challenge-desc">
+                        The following XML document contains a 3-level entity expansion. Study
+                        the entity definitions carefully and calculate how many times the string
+                        <strong style="color:#c4a0d8;">"lol"</strong> appears in the fully
+                        expanded output.
+                    </p>
+
+                    <div class="scenario-block">
+                        <div class="scenario-label">XML Payload</div>
+                        <div class="scenario-code">&lt;?xml version="1.0"?&gt;
+<span class="kw">&lt;!DOCTYPE bomb [</span>
+  <span class="comment">&lt;!-- Layer 0: base value --&gt;</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">a</span>  <span class="str">"lol"</span><span class="kw">&gt;</span>
+
+  <span class="comment">&lt;!-- Layer 1 --&gt;</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">b</span>  <span class="str">"&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;&amp;a;"</span><span class="kw">&gt;</span>
+
+  <span class="comment">&lt;!-- Layer 2 --&gt;</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">c</span>  <span class="str">"&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;&amp;b;"</span><span class="kw">&gt;</span>
+
+  <span class="comment">&lt;!-- Layer 3 --&gt;</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">d</span>  <span class="str">"&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;&amp;c;"</span><span class="kw">&gt;</span>
+<span class="kw">]&gt;</span>
+&lt;root&gt;<span class="ent">&amp;d;</span>&lt;/root&gt;</div>
+                    </div>
+
+                    <div class="input-row">
+                        <span class="input-label">Answer</span>
+                        <input
+                            type="text"
+                            class="answer-input"
+                            id="c1-answer"
+                            placeholder="How many copies of &quot;lol&quot; appear?"
+                        >
+                    </div>
+                    <button class="submit-btn" onclick="Lab.check1()">Submit Answer</button>
+
+                    <div class="feedback-area" id="c1-feedback"></div>
+                </div>
+            </div>
+
+            <!-- ================================================ -->
+            <!-- Challenge 2: Build the Bomb                       -->
+            <!-- ================================================ -->
+            <div class="challenge-panel" id="panel-2">
+                <div class="challenge-header">
+                    <div class="challenge-id">Challenge 02 &bull; Entity Construction</div>
+                    <div class="challenge-title">Build the Bomb</div>
+                    <div class="challenge-meta">
+                        <span class="difficulty-badge diff-medium">Medium</span>
+                        <span class="challenge-points">50 points</span>
+                    </div>
+                </div>
+
+                <div class="challenge-body">
+                    <p class="challenge-desc">
+                        Complete the XML entity definitions to create a 5-level expansion
+                        that produces exactly <strong style="color:#c4a0d8;">100,000</strong>
+                        copies of the base string "kaboom". Layers 1 and 2 are already
+                        written. You must fill in layers 3, 4, and 5 correctly.
+                    </p>
+                    <p class="challenge-desc" style="color:#7a5a8a;font-size:0.8rem;">
+                        Each layer must reference exactly 10 copies of the previous entity.
+                        Entity names follow the pattern: e1, e2, e3, e4, e5.
+                        The final document reference must use &amp;e5;.
+                    </p>
+
+                    <div class="scenario-block">
+                        <div class="scenario-label">Template (fill in the blanks)</div>
+                        <div class="scenario-code">&lt;?xml version="1.0"?&gt;
+<span class="kw">&lt;!DOCTYPE target [</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">e1</span>  <span class="str">"kaboom"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;!ENTITY</span> <span class="ent">e2</span>  <span class="str">"&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;&amp;e1;"</span><span class="kw">&gt;</span>
+
+  <span class="comment">&lt;!-- You complete e3, e4, e5 below --&gt;</span>
+  <span class="blank">_______________</span>
+  <span class="blank">_______________</span>
+  <span class="blank">_______________</span>
+<span class="kw">]&gt;</span>
+&lt;target&gt;<span class="ent">&amp;e5;</span>&lt;/target&gt;</div>
+                    </div>
+
+                    <p style="font-size:0.8rem;color:#6a4a7a;margin-bottom:10px;">
+                        Write the three missing entity lines. One entity per line, exactly as they
+                        would appear in the XML document (start with &lt;!ENTITY ...).
+                    </p>
+
+                    <textarea
+                        class="code-editor"
+                        id="c2-editor"
+                        rows="5"
+                        spellcheck="false"
+                        placeholder="&lt;!ENTITY e3 &quot;...&quot;&gt;&#10;&lt;!ENTITY e4 &quot;...&quot;&gt;&#10;&lt;!ENTITY e5 &quot;...&quot;&gt;"
+                    ></textarea>
+
+                    <button class="submit-btn" onclick="Lab.check2()">Validate Entities</button>
+                    <div class="feedback-area" id="c2-feedback"></div>
+                </div>
+            </div>
+
+            <!-- ================================================ -->
+            <!-- Challenge 3: Spot the Vulnerable Parser            -->
+            <!-- ================================================ -->
+            <div class="challenge-panel" id="panel-3">
+                <div class="challenge-header">
+                    <div class="challenge-id">Challenge 03 &bull; Parser Hardening Review</div>
+                    <div class="challenge-title">Spot the Vulnerable Parser</div>
+                    <div class="challenge-meta">
+                        <span class="difficulty-badge diff-medium">Medium</span>
+                        <span class="challenge-points">50 points</span>
+                    </div>
+                </div>
+
+                <div class="challenge-body">
+                    <p class="challenge-desc">
+                        Four code snippets are shown below &mdash; each initializes an XML parser
+                        in a different language. Identify which parsers are <strong style="color:#f87171;">vulnerable</strong>
+                        to entity expansion attacks. Select all that apply, then submit.
+                    </p>
+
+                    <!-- Option A: Python stdlib (vulnerable) -->
+                    <div class="parser-option" id="opt-A" onclick="Lab.toggleOption('A')">
+                        <input type="checkbox" id="chk-A">
+                        <div class="parser-option-body">
+                            <div class="parser-option-lang">Python</div>
+                            <div class="parser-option-code"><span class="kw">from</span> xml.etree <span class="kw">import</span> ElementTree
+tree = ElementTree.parse(user_file)
+root = tree.getroot()</div>
+                        </div>
+                    </div>
+
+                    <!-- Option B: Java with disallow-doctype (safe) -->
+                    <div class="parser-option" id="opt-B" onclick="Lab.toggleOption('B')">
+                        <input type="checkbox" id="chk-B">
+                        <div class="parser-option-body">
+                            <div class="parser-option-lang">Java</div>
+                            <div class="parser-option-code">SAXParserFactory spf = SAXParserFactory.newInstance();
+spf.setFeature(
+    "http://apache.org/xml/features/disallow-doctype-decl",
+    true
+);
+SAXParser parser = spf.newSAXParser();</div>
+                        </div>
+                    </div>
+
+                    <!-- Option C: Node.js fast-xml-parser no entity processing (safe) -->
+                    <div class="parser-option" id="opt-C" onclick="Lab.toggleOption('C')">
+                        <input type="checkbox" id="chk-C">
+                        <div class="parser-option-body">
+                            <div class="parser-option-lang">Node.js</div>
+                            <div class="parser-option-code"><span class="kw">const</span> { XMLParser } = require(<span class="str">'fast-xml-parser'</span>);
+<span class="kw">const</span> parser = <span class="kw">new</span> XMLParser({
+    processEntities: <span class="kw">false</span>
+});
+<span class="kw">const</span> result = parser.parse(userXml);</div>
+                        </div>
+                    </div>
+
+                    <!-- Option D: C# XmlReader default (vulnerable) -->
+                    <div class="parser-option" id="opt-D" onclick="Lab.toggleOption('D')">
+                        <input type="checkbox" id="chk-D">
+                        <div class="parser-option-body">
+                            <div class="parser-option-lang">C# / .NET</div>
+                            <div class="parser-option-code"><span class="kw">var</span> settings = <span class="kw">new</span> XmlReaderSettings();
+<span class="comment">// No DtdProcessing restriction set</span>
+<span class="kw">using var</span> reader = XmlReader.Create(stream, settings);
+<span class="kw">var</span> doc = XDocument.Load(reader);</div>
+                        </div>
+                    </div>
+
+                    <br>
+                    <button class="submit-btn" onclick="Lab.check3()">Submit Selection</button>
+                    <div class="feedback-area" id="c3-feedback"></div>
+                </div>
+            </div>
+
+            <!-- ================================================ -->
+            <!-- Challenge 4: The SVG Trojan                       -->
+            <!-- ================================================ -->
+            <div class="challenge-panel" id="panel-4">
+                <div class="challenge-header">
+                    <div class="challenge-id">Challenge 04 &bull; Format Obfuscation</div>
+                    <div class="challenge-title">The SVG Trojan</div>
+                    <div class="challenge-meta">
+                        <span class="difficulty-badge diff-hard">Hard</span>
+                        <span class="challenge-points">75 points</span>
+                    </div>
+                </div>
+
+                <div class="challenge-body">
+                    <p class="challenge-desc">
+                        An image upload endpoint accepts SVG files. SVG is XML. The endpoint
+                        passes uploads to an unprotected XML parser before rendering.
+                    </p>
+                    <p class="challenge-desc" style="color:#7a5a8a;font-size:0.8rem;">
+                        A valid SVG file structure is shown below with a gap in the DTD section.
+                        Complete the file by writing the entity definitions that would turn this
+                        SVG into a 4-level entity expansion bomb. The final entity must be
+                        referenced in the document body using a text element.
+                    </p>
+
+                    <div class="scenario-block">
+                        <div class="scenario-label">SVG Template (fill in the DTD section)</div>
+                        <div class="scenario-code">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+<span class="kw">&lt;!DOCTYPE svg [</span>
+  <span class="comment">&lt;!-- YOUR ENTITY DEFINITIONS GO HERE --&gt;</span>
+  <span class="blank">???</span>
+<span class="kw">]&gt;</span>
+&lt;svg xmlns="http://www.w3.org/2000/svg"
+     width="100" height="100"&gt;
+  &lt;title&gt;Logo&lt;/title&gt;
+  &lt;text x="10" y="20"&gt;
+    <span class="comment">&lt;!-- Final entity referenced here --&gt;</span>
+    <span class="blank">???</span>
+  &lt;/text&gt;
+&lt;/svg&gt;</div>
+                    </div>
+
+                    <p style="font-size:0.8rem;color:#6a4a7a;margin-bottom:10px;">
+                        Write a complete SVG with embedded entity bomb. Use entity names x1, x2,
+                        x3, x4 (4 layers, each referencing 10 of the previous). Base string:
+                        "boom". Reference &amp;x4; inside the &lt;text&gt; element.
+                    </p>
+
+                    <textarea
+                        class="code-editor"
+                        id="c4-editor"
+                        rows="18"
+                        spellcheck="false"
+                        placeholder="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE svg [&#10;  ...your entity definitions...&#10;]&gt;&#10;&lt;svg ...&gt;&#10;  ...&#10;&lt;/svg&gt;"
+                    ></textarea>
+
+                    <button class="submit-btn" onclick="Lab.check4()">Analyze Payload</button>
+                    <div class="feedback-area" id="c4-feedback"></div>
+                </div>
+            </div>
+
+        </div><!-- /challenge-panels -->
+    </div><!-- /workspace -->
+
+    <!-- ================================================================ -->
+    <!-- RIGHT: Info Panel                                                  -->
+    <!-- ================================================================ -->
+    <div class="info-panel">
+
+        <!-- Info tabs: Instructions / Theory / Defense -->
+        <div class="info-tabs">
+            <button class="info-tab active" data-pane="instructions" onclick="Lab.switchInfo('instructions')">Instructions</button>
+            <button class="info-tab" data-pane="theory"       onclick="Lab.switchInfo('theory')">Theory</button>
+            <button class="info-tab" data-pane="defense"      onclick="Lab.switchInfo('defense')">Defense</button>
+        </div>
+
+        <!-- Instructions pane -->
+        <div class="info-pane active" id="pane-instructions">
+            <h3>Lab Overview</h3>
+            <p>
+                Four challenges covering entity expansion math, payload construction, parser
+                hardening identification, and format obfuscation via SVG. Each challenge
+                builds conceptual depth on the previous one.
+            </p>
+
+            <h3>Challenge 1 &mdash; Easy</h3>
+            <p>
+                Read the XML entity chain and trace through the expansion manually. Count
+                the fan-out at each layer. The answer is a single integer.
+            </p>
+
+            <h3>Challenge 2 &mdash; Medium</h3>
+            <p>
+                Write three <code>&lt;!ENTITY&gt;</code> declarations to complete a 5-level
+                chain. Each entity must reference exactly 10 copies of the previous one.
+                Validation checks both the syntax and the expansion count.
+            </p>
+
+            <h3>Challenge 3 &mdash; Medium</h3>
+            <p>
+                Read four real-world parser initialization patterns. Select every snippet
+                that would allow entity expansion. A parser is vulnerable if it processes
+                DTD entity definitions without a limit.
+            </p>
+
+            <h3>Challenge 4 &mdash; Hard</h3>
+            <p>
+                Write a valid, complete SVG file with an embedded XML entity bomb in its
+                DTD section. The SVG must be syntactically valid XML and the entity
+                chain must appear in the DOCTYPE block. This demonstrates how bombs
+                hide inside apparently-innocent file formats.
+            </p>
+
+            <h3>Scoring</h3>
+            <ul>
+                <li>Challenge 1: 25 points</li>
+                <li>Challenge 2: 50 points</li>
+                <li>Challenge 3: 50 points</li>
+                <li>Challenge 4: 75 points</li>
+                <li>Maximum: 200 points</li>
+            </ul>
+        </div>
+
+        <!-- Theory pane -->
+        <div class="info-pane" id="pane-theory">
+            <h3>Entity Expansion Rules</h3>
+            <p>
+                An XML entity defined in a DOCTYPE block is expanded recursively. If entity
+                <code>b</code> references 10 copies of entity <code>a</code>, and entity
+                <code>c</code> references 10 copies of entity <code>b</code>, the parser
+                must materialize 100 copies of whatever <code>a</code> resolves to before
+                it can return the parsed document.
+            </p>
+
+            <h3>Exponential Growth Formula</h3>
+            <div class="info-code">Expansion count = copies_per_layer ^ layers
+
+For 10 copies per layer, 9 layers:
+  10^9 = 1,000,000,000 copies
+
+For 10 copies per layer, 5 layers:
+  10^5 = 100,000 copies
+
+For 10 copies per layer, 4 layers:
+  10^4 = 10,000 copies</div>
+
+            <h3>Why SVGs Are XML</h3>
+            <p>
+                Scalable Vector Graphics (SVG) is an XML-based image format defined by
+                the W3C. Every valid SVG file is a valid XML document. A file named
+                <code>logo.svg</code> with a <code>DOCTYPE</code> block at the top is
+                processed by any XML parser exactly the same as a file named
+                <code>payload.xml</code>.
+            </p>
+
+            <h3>Quadratic vs Exponential</h3>
+            <p>
+                The billion laughs attack grows exponentially. A quadratic blowup variant
+                uses one large entity value referenced many thousands of times in the body,
+                avoiding deep nesting. Growth is slower (N x K instead of N^K) but bypasses
+                entity depth limits that stop the exponential form.
+            </p>
+
+            <h3>SAML Attack Surface</h3>
+            <p>
+                SAML assertions are XML documents sent from an Identity Provider to a Service
+                Provider. An attacker who can submit a crafted SAML response (e.g., in an
+                open redirect or IdP confusion scenario) may reach the SP's XML parser before
+                signature verification runs. This makes SAML processing a high-value target
+                for XML bomb testing.
+            </p>
+        </div>
+
+        <!-- Defense pane -->
+        <div class="info-pane" id="pane-defense">
+            <h3>Primary Defense: Disable DTDs</h3>
+            <div class="info-code"><span class="comment"># Python: use defusedxml</span>
+<span class="good">from defusedxml import ElementTree
+tree = ElementTree.parse(user_file)</span>
+
+<span class="comment"># Blocks: entity expansion, XXE, DTD-based attacks</span></div>
+
+            <div class="info-code"><span class="comment">// Java: disallow DOCTYPE entirely</span>
+<span class="good">SAXParserFactory spf =
+    SAXParserFactory.newInstance();
+spf.setFeature(
+  "http://apache.org/xml/features/disallow-doctype-decl",
+  true
+);</span></div>
+
+            <div class="info-code"><span class="comment">// C#: set DtdProcessing.Prohibit</span>
+<span class="good">var settings = new XmlReaderSettings {
+    DtdProcessing = DtdProcessing.Prohibit
+};
+using var reader =
+    XmlReader.Create(stream, settings);</span></div>
+
+            <div class="info-code"><span class="comment">// Node.js: processEntities: false</span>
+<span class="good">const parser = new XMLParser({
+    processEntities: false
+});</span></div>
+
+            <h3>Fallback: Expansion Limits</h3>
+            <p>
+                If DTDs cannot be disabled, set a maximum expansion count and a maximum
+                total expanded output size. Most mature XML libraries expose these as
+                configuration options. The limit should be orders of magnitude below the
+                bomb threshold (e.g., 10,000 entities maximum).
+            </p>
+
+            <h3>File Upload Defense</h3>
+            <p>
+                Validate content type at the parser level, not just at the file extension
+                or HTTP header level. An SVG that contains a DOCTYPE block must be
+                handled by a parser with DTD processing disabled, regardless of what
+                the client declared in the Content-Type header.
+            </p>
+
+            <h3>Size Validation Before Parsing</h3>
+            <p>
+                Reject documents above a reasonable size limit before passing them to the
+                parser. A 1KB SVG file that would expand to 3GB is a policy violation the
+                parser should never need to evaluate. Document a reasonable maximum for your
+                use case (e.g., 100KB for SVG uploads) and enforce it upstream.
+            </p>
+        </div>
+
+        <!-- Score panel at the bottom of the right column -->
+        <div class="score-panel">
+            <div class="score-row">
+                <span class="score-label">Score</span>
+                <span class="score-value" id="sidebar-score">0</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="sidebar-progress"></div>
+            </div>
+
+            <ul class="challenge-status-list">
+                <li class="challenge-status-item">
+                    <div class="status-dot active" id="sdot-1"></div>
+                    <span class="status-name">C1: Count the Laughs</span>
+                    <span class="status-pts" id="spts-1">25 pts</span>
+                </li>
+                <li class="challenge-status-item">
+                    <div class="status-dot" id="sdot-2"></div>
+                    <span class="status-name">C2: Build the Bomb</span>
+                    <span class="status-pts" id="spts-2">50 pts</span>
+                </li>
+                <li class="challenge-status-item">
+                    <div class="status-dot" id="sdot-3"></div>
+                    <span class="status-name">C3: Spot the Vuln</span>
+                    <span class="status-pts" id="spts-3">50 pts</span>
+                </li>
+                <li class="challenge-status-item">
+                    <div class="status-dot" id="sdot-4"></div>
+                    <span class="status-name">C4: SVG Trojan</span>
+                    <span class="status-pts" id="spts-4">75 pts</span>
+                </li>
+            </ul>
+        </div>
+
+    </div><!-- /info-panel -->
+
+</div><!-- /lab-body -->
+
+<!-- Completion overlay -->
+<div class="completion-overlay" id="completion-overlay">
+    <div class="completion-box">
+        <img class="completion-icon" src="/assets/images/icons/icon-trophy.webp" alt="Complete">
+        <div class="completion-title">Lab Complete</div>
+        <div class="completion-score" id="final-score">0</div>
+        <div class="completion-meta">points earned</div>
+        <p class="completion-summary">
+            You traced entity expansion math, constructed a multi-layer bomb payload,
+            identified vulnerable parser configurations across four languages, and
+            demonstrated how an XML bomb can hide inside an SVG file. These are the
+            skills that distinguish a scanner jockey from a researcher who understands
+            the underlying mechanism.
+        </p>
+        <button class="completion-btn" onclick="Lab.finalize()">Complete Lab</button>
+    </div>
+</div>
+
+<script>
+    /* ================================================================
+     * Lab State
+     * Tracks score, completed challenges, and active UI selections.
+     * ================================================================ */
+    var Lab = (function() {
+        var state = {
+            score: 0,
+            completed: { 1: false, 2: false, 3: false, 4: false },
+            activeChallenge: 1,
+            activeInfo: 'instructions',
+            c3Selections: new Set()   /* tracks which parser options are checked */
+        };
+
+        var POINTS = { 1: 25, 2: 50, 3: 50, 4: 75 };
+        var MAX_SCORE = 200;
+
+        /* -----------------------------------------------------------
+         * Challenge 1: Count the Laughs
+         * Correct answer: 10^3 = 1000 copies of "lol"
+         * Entity d = 10 * entity c
+         * Entity c = 10 * entity b
+         * Entity b = 10 * entity a
+         * entity a = 1 copy of "lol"
+         * Therefore: d = 10*10*10 = 1000
+         * ----------------------------------------------------------- */
+        function check1() {
+            var raw = document.getElementById('c1-answer').value.trim();
+            var fb  = document.getElementById('c1-feedback');
+            var inp = document.getElementById('c1-answer');
+
+            if (!raw) {
+                showFeedback(fb, 'hint', 'Trace the expansion: each entity references 10 copies of the previous. Start at &a; and multiply upward.');
+                return;
+            }
+
+            var answer = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+
+            if (answer === 1000) {
+                inp.classList.add('correct');
+                inp.classList.remove('wrong');
+                showFeedback(fb, 'success',
+                    '<strong>Correct.</strong> Entity &amp;d; expands 3 times at 10x per layer: ' +
+                    '10&sup1; = 10, 10&sup2; = 100, 10&sup3; = 1,000. ' +
+                    'At "lol" = 3 bytes each, the expanded output is exactly 3,000 bytes &mdash; ' +
+                    'trivial compared to the 9-layer billion laughs which reaches ~3GB. ' +
+                    'This demonstrates why even shallow entity expansion is proof of a vulnerable parser configuration.'
+                );
+                awardPoints(1);
+            } else if (answer === 10) {
+                inp.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'You only counted one layer. Entity &amp;b; = 10 copies of &amp;a;, but &amp;c; = 10 copies of &amp;b;, ' +
+                    'and &amp;d; = 10 copies of &amp;c;. Multiply all three layers together.'
+                );
+            } else if (answer === 100) {
+                inp.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Two layers multiplied correctly, but there are three layers in total. ' +
+                    'Count the entities: a, b, c, d. That is 3 expansion steps above the base.'
+                );
+            } else if (answer === 10000 || answer === 100000) {
+                inp.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'You counted too many layers. The document defines &amp;a; through &amp;d; &mdash; ' +
+                    'that is 3 levels of expansion above the base string, not 4 or 5.'
+                );
+            } else {
+                inp.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Not quite. Tip: count how many entity definitions exist above the base string "lol". ' +
+                    'Each layer multiplies by 10. The exponent equals the number of expansion steps.'
+                );
+            }
+        }
+
+        /* -----------------------------------------------------------
+         * Challenge 2: Build the Bomb
+         * Correct: e3 refs 10x e2, e4 refs 10x e3, e5 refs 10x e4
+         * Total expansion: 10^5 = 100,000 copies of "kaboom"
+         * Validation: parse entity names and reference counts.
+         * ----------------------------------------------------------- */
+        function check2() {
+            var raw = document.getElementById('c2-editor').value;
+            var fb  = document.getElementById('c2-feedback');
+            var ed  = document.getElementById('c2-editor');
+
+            if (!raw.trim()) {
+                showFeedback(fb, 'hint', 'Write three &lt;!ENTITY&gt; lines. Follow the same pattern as e1 and e2 already shown in the template.');
+                return;
+            }
+
+            /* Normalize whitespace for analysis */
+            var text = raw.replace(/\s+/g, ' ').toLowerCase();
+
+            /* Check that e3, e4, e5 are all present */
+            var hasE3 = /<!entity\s+e3\s+/.test(text);
+            var hasE4 = /<!entity\s+e4\s+/.test(text);
+            var hasE5 = /<!entity\s+e5\s+/.test(text);
+
+            if (!hasE3 || !hasE4 || !hasE5) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Missing entity definition(s). You need all three: e3, e4, and e5. ' +
+                    'Check that each line starts with &lt;!ENTITY followed by the entity name.'
+                );
+                return;
+            }
+
+            /* Count how many times e2 appears in e3's value */
+            var e3match = text.match(/<!entity\s+e3\s+"([^"]*)"/);
+            var e4match = text.match(/<!entity\s+e4\s+"([^"]*)"/);
+            var e5match = text.match(/<!entity\s+e5\s+"([^"]*)"/);
+
+            if (!e3match || !e4match || !e5match) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Entity values could not be parsed. Ensure each entity uses double quotes: &lt;!ENTITY e3 "&amp;e2;&amp;e2;..."&gt;'
+                );
+                return;
+            }
+
+            /* Count &e2; references in e3 value (after decoding HTML entities in the textarea) */
+            var e3val = e3match[1];
+            var e4val = e4match[1];
+            var e5val = e5match[1];
+
+            /* Count references &eN; — each appears as &amp;eN; in the decoded value or &eN; */
+            function countRefs(val, name) {
+                /* match both &name; and &amp;name; */
+                var re = new RegExp('(?:&amp;|&)' + name + ';', 'g');
+                var m = val.match(re);
+                return m ? m.length : 0;
+            }
+
+            var e2inE3 = countRefs(e3val, 'e2');
+            var e3inE4 = countRefs(e4val, 'e3');
+            var e4inE5 = countRefs(e5val, 'e4');
+
+            /* Each layer must have exactly 10 references */
+            if (e2inE3 !== 10 || e3inE4 !== 10 || e4inE5 !== 10) {
+                ed.classList.add('wrong');
+                var errors = [];
+                if (e2inE3 !== 10) errors.push('e3 references &amp;e2; ' + e2inE3 + ' times (need 10)');
+                if (e3inE4 !== 10) errors.push('e4 references &amp;e3; ' + e3inE4 + ' times (need 10)');
+                if (e4inE5 !== 10) errors.push('e5 references &amp;e4; ' + e4inE5 + ' times (need 10)');
+                showFeedback(fb, 'error',
+                    'Reference count mismatch. ' + errors.join('. ') + '. ' +
+                    'Each entity must reference exactly 10 copies of the previous entity.'
+                );
+                return;
+            }
+
+            /* All correct: 10^5 = 100,000 */
+            ed.classList.add('correct');
+            ed.classList.remove('wrong');
+            showFeedback(fb, 'success',
+                '<strong>Correct.</strong> All three entity layers are properly defined with 10 references each. ' +
+                'The expansion count is 10 &times; 10 &times; 10 &times; 10 &times; 10 = <strong>100,000</strong> copies of "kaboom". ' +
+                'At 6 bytes each, the expanded document body is 600KB &mdash; a meaningful denial-of-service payload ' +
+                'delivered from a document that fits in a text message.'
+            );
+            awardPoints(2);
+        }
+
+        /* -----------------------------------------------------------
+         * Challenge 3: Spot the Vulnerable Parser
+         * Correct: A (Python stdlib) and D (C# without DtdProcessing.Prohibit)
+         * B (Java with disallow-doctype-decl=true) is safe
+         * C (Node.js processEntities:false) is safe
+         * ----------------------------------------------------------- */
+        function check3() {
+            var fb = document.getElementById('c3-feedback');
+            var selections = state.c3Selections;
+
+            if (selections.size === 0) {
+                showFeedback(fb, 'hint', 'Read each snippet carefully. Look for parser configuration options that restrict DTD or entity processing. Select all snippets where no such restriction exists.');
+                return;
+            }
+
+            var VULNERABLE = new Set(['A', 'D']);
+            var SAFE       = new Set(['B', 'C']);
+
+            /* Mark each option with correct/wrong/missed classes */
+            ['A', 'B', 'C', 'D'].forEach(function(key) {
+                var el  = document.getElementById('opt-' + key);
+                var chk = document.getElementById('chk-' + key);
+
+                /* Reset */
+                el.classList.remove('correct-pick', 'wrong-pick', 'missed-pick', 'selected');
+                chk.checked = false;
+
+                if (selections.has(key)) {
+                    if (VULNERABLE.has(key)) {
+                        el.classList.add('correct-pick');  /* correctly identified as vulnerable */
+                    } else {
+                        el.classList.add('wrong-pick');    /* incorrectly flagged as vulnerable */
+                    }
+                } else {
+                    if (VULNERABLE.has(key)) {
+                        el.classList.add('missed-pick');   /* missed a vulnerable parser */
+                    }
+                }
+            });
+
+            var correct = [...selections].every(function(k) { return VULNERABLE.has(k); });
+            var complete = VULNERABLE.size === [...selections].filter(function(k) { return VULNERABLE.has(k); }).length;
+
+            if (correct && complete) {
+                showFeedback(fb, 'success',
+                    '<strong>Correct.</strong> ' +
+                    'Option A uses Python\'s stdlib xml.etree.ElementTree, which processes DTD entity definitions by default. ' +
+                    'Option D uses C#\'s XmlReaderSettings without setting DtdProcessing to Prohibit &mdash; the default value ' +
+                    'in older .NET versions allows DTD processing. ' +
+                    'Option B is safe because disallow-doctype-decl=true causes the Java parser to reject any document containing a DOCTYPE declaration. ' +
+                    'Option C is safe because processEntities:false tells fast-xml-parser not to expand entity references.'
+                );
+                awardPoints(3);
+            } else if (!correct) {
+                showFeedback(fb, 'error',
+                    'At least one of your selections is a safe parser configuration, not a vulnerable one. ' +
+                    'Look for options where no DTD restriction, entity limit, or processEntities:false flag is set.'
+                );
+            } else {
+                showFeedback(fb, 'error',
+                    'You identified some vulnerable parsers correctly but missed at least one. ' +
+                    'Highlighted in amber: a vulnerable parser you did not select. ' +
+                    'Both A and D lack entity expansion restrictions.'
+                );
+            }
+        }
+
+        /* -----------------------------------------------------------
+         * Challenge 4: SVG Trojan
+         * Validates that the submission:
+         * - Contains DOCTYPE svg
+         * - Defines entities x1, x2, x3, x4
+         * - Each entity references 10 copies of the previous
+         * - x1 references "boom" (or similar base string)
+         * - x4 is referenced in the document body
+         * - The document contains an svg element
+         * ----------------------------------------------------------- */
+        function check4() {
+            var raw = document.getElementById('c4-editor').value;
+            var fb  = document.getElementById('c4-feedback');
+            var ed  = document.getElementById('c4-editor');
+
+            if (!raw.trim()) {
+                showFeedback(fb, 'hint', 'Start with the SVG structure shown in the template. Add your entity definitions inside the DOCTYPE block, then reference &amp;x4; in the &lt;text&gt; element.');
+                return;
+            }
+
+            var text = raw.replace(/\s+/g, ' ').toLowerCase();
+
+            /* Check SVG root element */
+            if (!/<svg[\s>]/.test(text)) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error', 'The document must contain an &lt;svg&gt; root element. SVG files must be valid SVG documents.');
+                return;
+            }
+
+            /* Check DOCTYPE svg */
+            if (!/<!doctype\s+svg/.test(text)) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error', 'The DOCTYPE declaration must use "svg" as the document type (<!DOCTYPE svg [...]>). This is required for valid SVG.');
+                return;
+            }
+
+            /* Check all four entity names present */
+            var hasX1 = /<!entity\s+x1\s+/.test(text);
+            var hasX2 = /<!entity\s+x2\s+/.test(text);
+            var hasX3 = /<!entity\s+x3\s+/.test(text);
+            var hasX4 = /<!entity\s+x4\s+/.test(text);
+
+            if (!hasX1 || !hasX2 || !hasX3 || !hasX4) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Missing entity definitions. Need all four: x1, x2, x3, x4. ' +
+                    'Each must be declared inside the DOCTYPE block.'
+                );
+                return;
+            }
+
+            /* Check that &x4; is referenced in the body (after the ]> close) */
+            var bodyStart = raw.toLowerCase().indexOf(']>');
+            var bodyText  = bodyStart >= 0 ? raw.slice(bodyStart) : '';
+            var x4InBody  = /(?:&amp;|&)x4;/.test(bodyText);
+
+            if (!x4InBody) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error',
+                    'Entity &amp;x4; must be referenced in the document body (inside the &lt;text&gt; or another element), not just defined in the DTD. ' +
+                    'The bomb only triggers when the parser tries to resolve the reference during document processing.'
+                );
+                return;
+            }
+
+            /* Check reference counts in entity values */
+            function countRefs(val, name) {
+                var re = new RegExp('(?:&amp;|&)' + name + ';', 'g');
+                var m = val.match(re);
+                return m ? m.length : 0;
+            }
+
+            var x2match = text.match(/<!entity\s+x2\s+"([^"]*)"/);
+            var x3match = text.match(/<!entity\s+x3\s+"([^"]*)"/);
+            var x4match = text.match(/<!entity\s+x4\s+"([^"]*)"/);
+
+            if (!x2match || !x3match || !x4match) {
+                ed.classList.add('wrong');
+                showFeedback(fb, 'error', 'Could not parse entity values. Ensure each entity uses double-quoted values: &lt;!ENTITY x2 "&amp;x1;&amp;x1;..."&gt;');
+                return;
+            }
+
+            var x1inX2 = countRefs(x2match[1], 'x1');
+            var x2inX3 = countRefs(x3match[1], 'x2');
+            var x3inX4 = countRefs(x4match[1], 'x3');
+
+            if (x1inX2 !== 10 || x2inX3 !== 10 || x3inX4 !== 10) {
+                ed.classList.add('wrong');
+                var errs = [];
+                if (x1inX2 !== 10) errs.push('x2 references &amp;x1; ' + x1inX2 + ' times');
+                if (x2inX3 !== 10) errs.push('x3 references &amp;x2; ' + x2inX3 + ' times');
+                if (x3inX4 !== 10) errs.push('x4 references &amp;x3; ' + x3inX4 + ' times');
+                showFeedback(fb, 'error',
+                    'Entity reference counts incorrect. Each layer needs exactly 10 references. ' + errs.join('; ') + '.'
+                );
+                return;
+            }
+
+            /* Full success */
+            ed.classList.add('correct');
+            ed.classList.remove('wrong');
+            showFeedback(fb, 'success',
+                '<strong>Correct.</strong> Your SVG file is a valid XML document containing a 4-level entity expansion bomb in its DOCTYPE block. ' +
+                'Expansion count: 10&sup4; = 10,000 copies of the base string. ' +
+                '<br><br>' +
+                'In a real scenario, an image upload endpoint that passes this file to an unprotected parser would ' +
+                'trigger entity expansion before any image rendering logic runs &mdash; long before the server ' +
+                'discovers the file does not contain a raster image. ' +
+                'The fix is identical to the fix for any other XML parsing endpoint: disable DTD processing before ' +
+                'the parser ever sees the file content.'
+            );
+            awardPoints(4);
+        }
+
+        /* -----------------------------------------------------------
+         * toggleOption: toggle C3 checkbox selection
+         * ----------------------------------------------------------- */
+        function toggleOption(key) {
+            var el  = document.getElementById('opt-' + key);
+            var chk = document.getElementById('chk-' + key);
+
+            if (state.c3Selections.has(key)) {
+                state.c3Selections.delete(key);
+                el.classList.remove('selected');
+                chk.checked = false;
+            } else {
+                state.c3Selections.add(key);
+                el.classList.add('selected');
+                chk.checked = true;
+            }
+        }
+
+        /* -----------------------------------------------------------
+         * switchChallenge: show the correct challenge panel
+         * ----------------------------------------------------------- */
+        function switchChallenge(n) {
+            /* Deactivate all tabs and panels */
+            document.querySelectorAll('.challenge-tab').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelectorAll('.challenge-panel').forEach(function(p) {
+                p.classList.remove('active');
+            });
+
+            /* Activate selected */
+            var targetTab = document.querySelector('.challenge-tab[data-challenge="' + n + '"]');
+            var targetPanel = document.getElementById('panel-' + n);
+            if (targetTab)  targetTab.classList.add('active');
+            if (targetPanel) targetPanel.classList.add('active');
+
+            /* Update active indicator dot */
+            for (var i = 1; i <= 4; i++) {
+                var dot = document.getElementById('sdot-' + i);
+                if (dot) {
+                    dot.classList.remove('active');
+                    if (!state.completed[i] && i === n) {
+                        dot.classList.add('active');
+                    }
+                }
+            }
+
+            state.activeChallenge = n;
+        }
+
+        /* -----------------------------------------------------------
+         * switchInfo: show the correct info pane
+         * ----------------------------------------------------------- */
+        function switchInfo(paneId) {
+            document.querySelectorAll('.info-tab').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelectorAll('.info-pane').forEach(function(p) {
+                p.classList.remove('active');
+            });
+
+            var targetTab  = document.querySelector('.info-tab[data-pane="' + paneId + '"]');
+            var targetPane = document.getElementById('pane-' + paneId);
+            if (targetTab)  targetTab.classList.add('active');
+            if (targetPane) targetPane.classList.add('active');
+
+            state.activeInfo = paneId;
+        }
+
+        /* -----------------------------------------------------------
+         * awardPoints: mark challenge done, add score, update UI
+         * ----------------------------------------------------------- */
+        function awardPoints(n) {
+            if (state.completed[n]) { return; }
+            state.completed[n] = true;
+            state.score += POINTS[n];
+
+            /* Update header score display */
+            document.getElementById('score-display').textContent = state.score;
+            document.getElementById('sidebar-score').textContent = state.score;
+
+            /* Update progress bar */
+            var pct = (state.score / MAX_SCORE) * 100;
+            document.getElementById('sidebar-progress').style.width = pct + '%';
+
+            /* Mark tab as done */
+            var dot = document.getElementById('dot-' + n);
+            if (dot) { dot.classList.add('done'); }
+            var tab = document.querySelector('.challenge-tab[data-challenge="' + n + '"]');
+            if (tab) { tab.classList.add('done'); }
+
+            /* Mark status dot done */
+            var sdot = document.getElementById('sdot-' + n);
+            if (sdot) { sdot.classList.remove('active'); sdot.classList.add('done'); }
+
+            /* Update objective count */
+            var doneCount = Object.values(state.completed).filter(Boolean).length;
+            document.getElementById('obj-count').textContent = doneCount;
+
+            /* Flash notification */
+            showFlash('+' + POINTS[n] + ' pts &mdash; Challenge ' + n + ' complete');
+
+            /* Check if all done */
+            if (doneCount === 4) {
+                setTimeout(function() { showCompletion(); }, 1200);
+            }
+        }
+
+        /* -----------------------------------------------------------
+         * showFeedback: render feedback div with appropriate state
+         * ----------------------------------------------------------- */
+        function showFeedback(el, type, html) {
+            el.className = 'feedback-area show ' + type;
+            el.innerHTML = html;
+        }
+
+        /* -----------------------------------------------------------
+         * showFlash: temporary bottom-right notification
+         * ----------------------------------------------------------- */
+        function showFlash(msg) {
+            /* Remove existing flash if present */
+            var old = document.querySelector('.obj-flash');
+            if (old) { old.remove(); }
+
+            var flash = document.createElement('div');
+            flash.className = 'obj-flash';
+            flash.innerHTML = msg;
+            document.body.appendChild(flash);
+
+            setTimeout(function() {
+                if (flash.parentNode) { flash.parentNode.removeChild(flash); }
+            }, 3200);
+        }
+
+        /* -----------------------------------------------------------
+         * showCompletion: display the completion overlay
+         * ----------------------------------------------------------- */
+        function showCompletion() {
+            document.getElementById('final-score').textContent = state.score;
+            document.getElementById('completion-overlay').classList.add('show');
+        }
+
+        /* -----------------------------------------------------------
+         * finalize: call ModuleProgress to record lab completion
+         * ----------------------------------------------------------- */
+        function finalize() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'bh-lab-xml-bombs', {
+                    score: state.score,
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        /* -----------------------------------------------------------
+         * init: wire up any remaining interactions
+         * ----------------------------------------------------------- */
+        function init() {
+            /* Allow Enter key in C1 answer field */
+            var c1Input = document.getElementById('c1-answer');
+            if (c1Input) {
+                c1Input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') { check1(); }
+                });
+            }
+        }
+
+        /* Public API */
+        return {
+            check1:          check1,
+            check2:          check2,
+            check3:          check3,
+            check4:          check4,
+            toggleOption:    toggleOption,
+            switchChallenge: switchChallenge,
+            switchInfo:      switchInfo,
+            finalize:        finalize,
+            init:            init
+        };
+    })();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        Lab.init();
+    });
+</script>
+
+</body>
+</html>

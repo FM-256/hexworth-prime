@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Ethics | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0010 0%, #0d0018 50%, #0f001e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 0, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #cc00cc; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8ff; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e0030; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Social Media Ethics | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ETH-W4 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; Chapter 9</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Social Media<br>
+                <span class="accent">Ethics</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                CDA Section 230 &nbsp;&bull;&nbsp; Fake News &nbsp;&bull;&nbsp; Data Harvesting &nbsp;&bull;&nbsp; Cambridge Analytica
+            </div>
+        </div>
+        <div class="scenario-strip">
+            In 2013, a Cambridge University researcher named Aleksandr Kogan created a Facebook quiz app that collected data from 270,000 users -- and, through Facebook's API, data on their entire social networks. Approximately 87 million people's data was harvested without their knowledge or meaningful consent. That data was sold to Cambridge Analytica, a political consulting firm. The story, broken by The Guardian and Channel 4 News in 2018, changed public understanding of what "free" social media services actually cost.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ETH-W4</span>
+            <span>Week 4 of 8</span>
+            <span>Chapter 9</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- SOCIAL NETWORKS AS INFRASTRUCTURE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Social Networks as <span class="accent">Infrastructure</span></div>
+        <div class="slide-subtitle">Social media platforms have become infrastructure for communication, commerce, and civic life -- which changes the ethical stakes of how they are governed.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Scale of Use</div>
+                <div class="card-desc">Facebook has approximately 3 billion monthly active users. YouTube serves over 2 billion logged-in users per month. WhatsApp is the primary communication channel for populations across South Asia, Latin America, and sub-Saharan Africa. These platforms are not optional services for many of their users -- they are the medium through which essential personal, commercial, and civic communication occurs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Privatized Public Squares</div>
+                <div class="card-desc">Social media platforms function as the de facto public squares for political speech, community organizing, emergency communication, and civic discourse -- but they are owned by private companies, governed by private terms of service, and optimized for commercial objectives. The rules of the public square are set by algorithms and content policies with no democratic mandate and no constitutional requirements for consistency or fairness.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Essential Service Without Universal Access Rights</div>
+                <div class="card-desc">When Facebook is the primary channel through which a community organizes emergency response, businesses communicate with customers, or governments publish public health information -- being banned from Facebook is consequential in ways that losing access to a hobby forum is not. The platform's status as essential service has not been matched by any regulatory obligations proportional to that status in the US.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PERSONAL USE: BENEFITS AND RISKS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Personal Use: <span class="accent">Benefits and Risks</span></div>
+        <div class="slide-subtitle">Social media creates genuine value for users -- and creates genuine harms. Both are real and must be held simultaneously.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Community and Connection</div>
+                <div class="card-desc">Social media connects people across geographic distances, enables people with rare conditions to find communities of shared experience, facilitates organizing for social change, and maintains relationships that would otherwise be lost. These benefits are real and are documented in research. The elderly who use social media show reduced isolation. Patient communities on health platforms share practical knowledge that improves outcomes. The benefits are not fabricated by platform marketing.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mental Health Impacts</div>
+                <div class="card-desc">Instagram's own internal research, leaked by whistleblower Frances Haugen in 2021, found that Instagram's app made body image issues worse for approximately one in three teenage girls. The platform's document stated: "We make body image issues worse for one in three teen girls." This was internal research. It was not disclosed publicly. Product features were not changed to address it. The ethical violation is not that the harm existed -- it is that it was known, concealed, and not acted upon.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Addiction by Design</div>
+                <div class="card-desc">Social media platforms are designed to maximize engagement time. Variable reward schedules (pull-to-refresh creating uncertainty about what you will see) exploit the same neurological mechanisms as slot machines. Notification systems are engineered to create urgency. These design choices are not neutral -- they are deliberate applications of behavioral psychology to maximize time-on-platform for commercial benefit, at the cost of users' attention and time that users did not consciously choose to give.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Privacy Erosion</div>
+                <div class="card-desc">Users share personal information on social platforms that they would not share in most other contexts: health conditions, relationship status, political views, location, daily routines, financial stress indicators. Platform terms of service permit extensive use of this data for purposes users do not anticipate. Data that users shared with a specific social context -- friends, family -- is aggregated with behavioral data to build profiles used for commercial and political purposes the user never contemplated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- BUSINESS USE OF SOCIAL MEDIA ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Business Use of <span class="accent">Social Media</span></div>
+        <div class="slide-subtitle">Organizations use social media for marketing, customer service, brand management, and employee communication -- each with distinct ethical dimensions.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Marketing and Advertising</div>
+                <div class="card-desc">Social media advertising offers microtargeting capability unavailable in traditional media -- specific messages to specific demographic, behavioral, and psychographic segments. This capability raises ethical questions: is it ethical to target advertising for high-interest loans to people whose behavior indicates financial stress? Is it ethical to target political advertising to people whose psychological profiles indicate susceptibility to fear-based messaging? Targeted advertising is not neutral distribution -- it is a form of influence with ethical content.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Influencer Marketing and Disclosure</div>
+                <div class="card-desc">The FTC requires that paid endorsements be disclosed. Social media influencers who are paid to promote products must clearly indicate the commercial relationship. The enforcement of this requirement has been inadequate: undisclosed paid promotions -- particularly in categories including weight loss products, financial services, and health supplements -- are common. The ethical obligation to disclose exists regardless of whether enforcement is effective. Consumers have a right to know whether a recommendation is paid.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Customer Service and Reputation</div>
+                <div class="card-desc">Social media has given consumers a public channel to air grievances that organizations cannot easily ignore. This shifts power toward consumers in some dispute resolution contexts. Organizations face the ethical challenge of managing these interactions authentically -- not using automated responses that create the appearance of engagement without genuine resolution, not suppressing legitimate negative feedback, and not deploying staff to flood review platforms with manufactured positive content (astroturfing).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- SOCIAL MEDIA IN HIRING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Social Media in <span class="accent">Hiring</span></div>
+        <div class="slide-subtitle">Employers routinely review candidates' social media profiles. This practice raises significant legal and ethical concerns.</div>
+
+        <div class="scenario-strip">
+            A hiring manager Googles a finalist candidate for a marketing position. The candidate's Instagram is public. It shows photos from Pride events, a post announcing a pregnancy, a profile indicating church attendance, and a post expressing support for a political party. The hiring manager now has information about protected characteristics that they are prohibited from using in the hiring decision. The review has created liability. Was it ethical?
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Protected Characteristic Exposure</div>
+                <div class="card-desc">Social media profiles routinely reveal religion, political affiliation, pregnancy, disability, age, national origin, and sexual orientation -- all characteristics on which employment discrimination is prohibited. Once a hiring decision-maker views this information, it cannot be unseen. Employers who review social media expose themselves to discrimination claims they cannot disprove if the candidate is not hired, because the decision-maker now has knowledge they were not supposed to use.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Employers Say They Are Looking For</div>
+                <div class="card-desc">Surveys show employers cite concerning content as their reason for using social media screening: evidence of drug use, unprofessional behavior, illegal activity, and negative comments about current employers. These are legitimate concerns. But the screening process that identifies them also identifies protected characteristics. Separating the two is practically impossible when one person sees the whole profile -- which is why some legal counsel advise against social media screening entirely.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Contextual Integrity Problem</div>
+                <div class="card-desc">Helen Nissenbaum's concept of contextual integrity holds that information flows appropriately when they match the norms of the context in which they were shared. Someone who posts on a personal Instagram for friends and family has not consented to that information being used in employment screening. The content was not created or shared in a professional context. Using it in that context violates contextual integrity -- the implicit social norms about how personal information flows.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SOCIAL SHOPPING AND COMMERCE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Social <span class="accent">Commerce</span></div>
+        <div class="slide-subtitle">The integration of commerce into social media platforms and the ethical questions it raises about transparency, exploitation, and consumer protection.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">In-Platform Shopping</div>
+                <div class="card-desc">Instagram Shopping, TikTok Shop, Pinterest shopping, and Facebook Marketplace enable transactions without leaving the platform. This creates a deeply integrated commercial environment where the boundary between social content and advertising is deliberately blurred. Users scroll through content from friends and family alongside paid content designed to look like organic content. The commercial intent of the environment is obscured by the social interface surrounding it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Impulse Purchasing and FOMO</div>
+                <div class="card-desc">Social media shopping platforms are designed to create urgency (countdown timers, "X people viewing this"), social proof (viewer counts, "your friend purchased this"), and scarcity signals (limited stock indicators). These techniques exploit known cognitive biases. Applied to shopping, they increase purchase conversion rates. They also increase purchases that consumers later regret -- particularly for younger users, users with limited financial resources, and users with impulse control challenges.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Counterfeit and Unsafe Products</div>
+                <div class="card-desc">Social commerce platforms have significant counterfeit product and unsafe product problems. Amazon's marketplace, TikTok Shop, and Facebook Marketplace have all faced investigations over counterfeit goods, unregulated supplements, and products that fail safety standards. When these platforms facilitate sales, they benefit commercially from transactions. The extent to which they bear legal and ethical responsibility for product safety in their marketplaces is contested and varies by jurisdiction.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Use in Commerce</div>
+                <div class="card-desc">Social media platforms know an enormous amount about their users. They know when users are financially stressed (searches for payday loans, reduced restaurant spending, increased job-search activity). They know when users are emotionally vulnerable (relationship status changes, expressions of loneliness). This knowledge can be used to target commercial offers at moments of maximum susceptibility -- a practice that is legal, common, and ethically troubling from the perspective of user autonomy and exploitation of vulnerability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CDA SECTION 230 INTRODUCTION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">CDA <span class="accent">Section 230</span></div>
+        <div class="slide-subtitle">The 26 words that shaped the internet. Their original purpose, what they became, and why they are now contested.</div>
+
+        <div class="scenario-strip">
+            Section 230 of the Communications Decency Act (1996) provides: "No provider or user of an interactive computer service shall be treated as the publisher or speaker of any information provided by another information content provider." This means that a platform cannot be held liable for content posted by its users -- even if it knew about the content and chose not to remove it.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Why Section 230 Was Created</div>
+                <div class="card-desc">Section 230 was enacted after two early internet cases created perverse incentives: Stratton Oakmont v. Prodigy (1995) held that a platform that moderated content was liable as a publisher, while CompuServe was not liable because it did not moderate. This meant platforms faced a choice between moderating (and incurring liability) or not moderating. Congress wanted to encourage moderation without creating liability -- hence the immunity for both publishers and good-faith moderators.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">What 230 Enables</div>
+                <div class="card-desc">Section 230 immunity allows platforms to make moderation decisions without incurring publisher liability for every piece of user content. Without it, platforms would face existential legal risk from user content. This protection enabled the growth of user-generated content platforms -- YouTube, Twitter, Facebook, Reddit, Wikipedia. The consumer internet as it exists would not exist in the same form without Section 230's liability shield.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why 230 Is Now Contested</div>
+                <div class="card-desc">Platforms have grown to a scale Congressed did not anticipate in 1996. Critics from the political right argue platforms use 230 protection to suppress conservative speech without liability consequences. Critics from the political left argue platforms use 230 protection to monetize harmful content (disinformation, harassment, radicalization) without accountability. Both critiques rest on the claim that 230 allows platforms to profit from harms without bearing proportionate responsibility for them.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SECTION 230 DEBATES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Section 230: <span class="accent">The Debates</span></div>
+        <div class="slide-subtitle">Four distinct policy positions on what should change about platform liability -- and their ethical implications.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Repeal 230</div>
+                <div class="card-desc">If platforms are liable as publishers for all user content, they will moderate aggressively. This would likely eliminate most user-generated content platforms as they exist -- the scale makes comprehensive liability uninsurable. But it would force platforms to make explicit editorial choices about what they host, ending the pretense that they are neutral conduits for user expression. Platforms would become more like traditional publishers, with explicit editorial standards and associated responsibility.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Conditional Immunity</div>
+                <div class="card-desc">Preserve 230 immunity but make it conditional on demonstrated good-faith moderation practices: bias audits, independent oversight, transparent reporting, defined appeals processes. This approach attempts to preserve the internet's user-generated content model while creating accountability for platforms that have demonstrably failed to address known harms. The challenge is defining and enforcing the conditions without creating barriers to entry that protect incumbent platforms from competition.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Narrow 230 Exceptions</div>
+                <div class="card-desc">Several proposals would create narrow carve-outs from 230 immunity for specific categories: child sexual exploitation material (FOSTA-SESTA already does this), paid political advertising, content that is algorithmically amplified by the platform, and terrorism-related content. This preserves the general immunity while creating liability for specific high-harm categories where the platform's role is more active than passive hosting.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Leave 230 Unchanged</div>
+                <div class="card-desc">The existing framework enables content moderation and has produced enormous social value. The harms attributed to 230 would exist without it. Restricting 230 would primarily harm smaller platforms and non-commercial platforms (Wikipedia, open source forums) that lack the resources to manage publisher liability exposure. The dominant platforms can afford the legal cost; their challengers cannot. Reform primarily entrenches incumbents.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- WHAT WOULD YOU DO: SECTION 230 ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Platform policy and Section 230 scenarios. The decisions are genuinely difficult. That is the point.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are a product policy manager at a major social platform. Your trust and safety team finds that a political figure in a developing country is using your platform to coordinate what appear to be human rights violations. The content does not technically violate your terms of service. Removing the account will draw accusations of political bias. Not removing it makes your platform infrastructure for documented violations. What do you do? Who else needs to be involved?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            Your platform's algorithm is recommending increasingly extreme political content to users who engage with moderate political content -- a radicalization pipeline that your data scientists have documented internally. Fixing the algorithm reduces engagement by 8%, which reduces ad revenue. You are a mid-level engineer who is aware of this finding. It is not your product area. What are your obligations?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            Congress is considering legislation that would require platforms to disclose all data collected about individual users, provide a meaningful opt-out from behavioral advertising, and submit to annual independent audits. Your company opposes the legislation because it would reduce ad revenue by an estimated 20%. Your CEO asks you to prepare internal technical arguments against the legislation. Do you do it? What is the ethical distinction between technical analysis and advocacy against user protection?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- FAKE NEWS: DEFINITION AND SCALE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Fake News: <span class="accent">Definition and Scale</span></div>
+        <div class="slide-subtitle">Defining terms carefully before analyzing the ethical obligations -- because "fake news" means several different things with different ethical implications.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Misinformation</div>
+                <div class="card-desc">False or inaccurate information spread without intent to deceive. The spreader believes it is true. Vaccine misinformation shared by a worried parent, health advice based on outdated science, and political rumors passed on without fact-checking are all misinformation. Scale matters: an individual passing on a false rumor and a platform's algorithm amplifying that rumor to 10 million people are ethically different, even if neither actor intended deception.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Disinformation</div>
+                <div class="card-desc">Deliberately false information created and spread to deceive. State-sponsored influence operations, coordinated political deception campaigns, and strategically fabricated news stories are disinformation. The intent to deceive distinguishes this category morally. Platforms that knowingly host and distribute disinformation campaigns are ethically complicit in a way that platforms hosting good-faith errors are not -- particularly when the disinformation generates ad revenue for the platform.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Malinformation</div>
+                <div class="card-desc">True information used in a misleading way. A real photograph from a different country used to misrepresent an event. An authentic statistic cited out of context. A real quote from an opponent used in a misleading way. This category is particularly difficult for automated detection systems to identify, because the underlying content is factually accurate -- the deception is in the framing, context, and application, not in the facts themselves.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Scale Problem</div>
+            A 2018 MIT Media Lab study found that false news stories spread faster, reached more people, and penetrated deeper into social networks than true stories -- and that human behavior, not automated bots, drove this spread. False news was 70% more likely to be retweeted than true news. The emotional novelty and surprise of false claims drives organic amplification.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PLATFORM RESPONSIBILITIES FOR MISINFORMATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Platform Responsibilities for <span class="accent">Misinformation</span></div>
+        <div class="slide-subtitle">What do social media platforms owe society in terms of addressing misinformation? The answer depends heavily on which ethical framework you apply.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Amplification Obligation</div>
+                <div class="card-desc">Platforms are not passive conduits for content -- they actively rank, recommend, and amplify it. A platform's recommendation algorithm that promotes false content is not a neutral distributor -- it is an active participant in the harm caused by that content. This active role in amplification creates obligations beyond what a mere hosting provider would have. Section 230 was designed for passive hosting. Algorithmic amplification is something different.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Fact-Checking Partnerships</div>
+                <div class="card-desc">Facebook, YouTube, and Twitter/X have all used independent fact-checking partnerships to label false content. Research on the effectiveness of these labels is mixed: they reduce sharing of labeled content among some users but may increase sharing among users who distrust the fact-checkers. The choice of fact-checking partners, the criteria for labeling, and the consistency of application across political perspectives are all sources of legitimate criticism of how these programs have been implemented.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Algorithmic Friction</div>
+                <div class="card-desc">Twitter's research showed that adding friction -- a prompt asking "do you want to read this article before sharing?" -- reduced sharing of articles the user had not opened by 40%. Frictions that slow the spread of unread content can reduce misinformation amplification without requiring content moderation. These are design choices. The decision to implement them or not is a choice -- one that affects millions of users' information environment.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Free Speech Tension</div>
+                <div class="card-desc">First Amendment protections apply to government censorship of speech, not to private platform content moderation. Platforms have a legal right to moderate. The ethical tension is different: should platforms moderate political speech at all, given their scale and the contestedness of what counts as misinformation? Who decides what is false? Who audits that decision? The governance of speech at platform scale is a genuinely hard ethical problem with no clean solution.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- DATA HARVESTING ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title"><span class="accent">Data Harvesting</span></div>
+        <div class="slide-subtitle">How social media platforms collect, infer, and use data about users -- far beyond what users understand or consent to.</div>
+
+        <div class="scenario-strip">
+            Target's pregnancy prediction algorithm, documented in 2012, could identify pregnant customers from purchase patterns with high accuracy -- often before the customer had told family members. The algorithm inferred pregnancy from shifts in purchasing (unscented lotion, vitamin supplements, large bags of cotton balls) without any disclosure that this inference was occurring. Target sent targeted baby product coupons to one customer before her father knew she was pregnant. The father complained. He later apologized to Target after his daughter confirmed the pregnancy.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Platforms Actually Collect</div>
+                <div class="card-desc">Beyond what users explicitly share: mouse movements and hover patterns, typing speed and pauses (indicating emotional state), scroll behavior (what you stopped on vs. scrolled past), the content of messages you typed but did not send, precise location from GPS and WiFi, contact lists from phones, microphone access metadata, purchase history from third-party integrations, and behavioral data from websites that contain tracking pixels -- even if you have never visited the social platform in that session.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Inference From Behavioral Data</div>
+                <div class="card-desc">Platforms do not just store what you share -- they infer what you have not shared. Purchasing patterns predict pregnancy. Browsing patterns predict health conditions. Social network characteristics predict creditworthiness. Content engagement patterns predict political views, religious affiliation, and sexual orientation. Facebook has filed patents for inferring a user's emotional state from facial expressions in images. The data collected enables predictions about characteristics users may not have disclosed and may not want disclosed.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Third-Party Data Sharing</div>
+                <div class="card-desc">Platform data does not stay on the platform. Advertising partners, data brokers, analytics vendors, and app developers all receive user data through various mechanisms: advertising pixels, software development kits, API access, and data licensing agreements. A user who carefully manages their Facebook privacy settings is still tracked by Facebook's pixel on millions of third-party websites. The privacy settings users see are not the full extent of data collection and sharing -- they are a partial, managed view of it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- CAMBRIDGE ANALYTICA CASE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Case: <span class="accent">Cambridge Analytica</span></div>
+        <div class="slide-subtitle">The 2018 data scandal that made Facebook's data practices globally visible and prompted regulatory action across multiple jurisdictions.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">How the Data Was Collected</div>
+                <div class="card-desc">Researcher Aleksandr Kogan created "thisisyourdigitallife," a personality quiz app that 270,000 Facebook users installed. Facebook's API at the time allowed apps to collect not only data from users who installed the app, but from all of their Facebook friends. Through this "friends of friends" access, Kogan collected data on approximately 87 million people. These 87 million people had not installed the app, had not consented to data collection, and were not informed their data was being harvested.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">How the Data Was Used</div>
+                <div class="card-desc">Kogan sold the data to Cambridge Analytica, a political consulting firm backed by Robert Mercer and advised by Steve Bannon. Cambridge Analytica used the data to build psychographic profiles of voters in the US (2016 presidential election), UK (Brexit referendum), and other elections globally. The firm claimed its psychographic modeling could identify persuadable voters and tailor political messaging to psychological profiles. The extent to which this actually worked is disputed, but the intent and capability were real.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Facebook's Knowledge and Response</div>
+                <div class="card-desc">Facebook learned in 2015 that Kogan had violated platform policies by selling the data. It contacted Kogan and Cambridge Analytica and requested that the data be deleted. It did not verify deletion, did not notify the 87 million affected users, and did not disclose the incident to regulators. Facebook's own data practices -- the API that made mass collection possible -- were the structural enabler. The FTC fined Facebook $5 billion in 2019, the largest privacy penalty in US history at that time, for violating a 2012 consent decree.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- CAMBRIDGE ANALYTICA LESSONS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Cambridge Analytica: <span class="accent">Lessons</span></div>
+        <div class="slide-subtitle">What the scandal reveals about platform API design, data governance, and the gap between privacy policies and data practices.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">API design is privacy policy. Facebook's decision to allow third-party apps to collect friends' data through its API was not incidental -- it was a deliberate product decision made to attract developers. That design decision enabled the data collection at scale. API permissions are privacy choices.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Consent laundering: users who installed the Kogan app consented to data collection on behalf of their 87 million friends, who were never asked. This is not consent -- it is the fiction of consent. Platform terms of service that allow this are ethically indefensible by any meaningful standard of informed consent.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Deletion requests without verification are meaningless. When Facebook requested deletion and did not verify compliance, they performed a legal ritual without the substance of privacy protection. Verification of deletion is a technically achievable requirement. Its absence reflects organizational priorities, not technical necessity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">The FTC's $5 billion fine, while historically large in dollar terms, was insufficient as a deterrent. Facebook's market capitalization increased by more than $10 billion on the day the settlement was announced -- markets read the fine as smaller than feared. Fines that are smaller than the commercial benefit of the violation do not change behavior.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">GDPR, enacted before the scandal broke publicly but after Cambridge Analytica's activities, would have required: lawful basis for processing, data minimization, purpose limitation, and breach notification within 72 hours. These requirements, had they been in force in the US in 2015, might have required Facebook to notify regulators and affected users when it discovered the violation.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- THE ATTENTION ECONOMY ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">The <span class="accent">Attention Economy</span></div>
+        <div class="slide-subtitle">Social media platforms compete for human attention as a scarce resource. The ethical implications of this competition shape every design decision.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Engagement as Revenue</div>
+                <div class="card-desc">Social media platforms are not paid by users for their service. They are paid by advertisers for access to user attention. More time on platform equals more ad impressions equals more revenue. This incentive structure means every product decision is evaluated against its impact on engagement -- including decisions about which content to recommend, how to structure notification systems, and how to design feeds. The user's wellbeing is not in the optimization function.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Outrage as Engagement Driver</div>
+                <div class="card-desc">Emotionally charged content -- particularly anger-inducing content -- generates more engagement (comments, shares, time-on-site) than neutral content. Recommendation algorithms optimized for engagement learn to recommend emotionally charged content. Multiple former platform employees have described internal research showing that content promoting outrage and division generates disproportionately high engagement metrics. The algorithm did not set out to radicalize users -- it set out to maximize time-on-platform, and radicalization was what it found.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Exploitation of Cognitive Biases</div>
+                <div class="card-desc">Infinite scroll eliminates natural stopping points that would otherwise break engagement. Autoplay starts the next video before the user decides to watch it. Variable reward schedules make checking for notifications and pulling to refresh compelling in the same way slot machines are compelling. These are not accidental interface choices -- they are deliberate applications of psychological research to maximize time-on-platform. Platform designers who build these systems know what they are doing and why it works.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Time Asymmetry</div>
+                <div class="card-desc">Social media platforms employ teams of behavioral scientists, product designers, and engineers working full-time on maximizing engagement. The individual user has no equivalent resource on their side of the interaction. The persuasive architecture is designed by people who understand human psychology at a research level and are paid to exploit it. This fundamental asymmetry makes the "user choice" defense of addictive design patterns ethically inadequate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- FRANCES HAUGEN AND FACEBOOK PAPERS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Frances Haugen and the <span class="accent">Facebook Papers</span></div>
+        <div class="slide-subtitle">The 2021 whistleblower disclosure that revealed internal Facebook research about the harms its products cause.</div>
+
+        <div class="scenario-strip">
+            Frances Haugen joined Facebook in 2019 as a product manager on its civic integrity team. She became concerned that Facebook was prioritizing engagement growth over user safety. Before leaving the company, she copied thousands of internal documents. In September 2021, she disclosed them to the SEC, the Wall Street Journal, and then to Congress. She testified before the Senate Commerce Committee in October 2021. The disclosures revealed that Facebook's internal research documented harms it had not disclosed publicly and had not acted to address.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Key Disclosures</div>
+                <div class="card-desc">Internal research showed: Instagram harmed body image for one in three teenage girls; the 2016 algorithm change to prioritize "meaningful social interactions" disproportionately amplified political outrage content; Facebook's systems failed to moderate hate speech in languages spoken by populations at risk of ethnic violence (Myanmar was specifically documented); and Facebook consistently chose not to implement available fixes when doing so would reduce engagement metrics.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Organizational Ethics Question</div>
+                <div class="card-desc">The Facebook Papers revealed not just specific product failures but an organizational culture that systematically deprioritized safety work relative to growth. The key mechanism: safety-related changes that reduced engagement were consistently not implemented or were implemented in weakened forms. This was not the decision of individual bad actors -- it was the systematic output of a decision-making structure that weighted revenue metrics more heavily than safety metrics.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Whistleblower's Ethical Position</div>
+                <div class="card-desc">Haugen reported to the SEC before going public -- following the recommended legal path for whistleblowing. She framed her disclosure as a public safety obligation that superseded her contractual obligations to Facebook. She accepted significant personal risk: potential lawsuit for violating NDAs, reputational attack from a company with vast resources, and the personal cost of public scrutiny. Her disclosure illustrates the gap between professional ethics codes (which support whistleblowing) and the structural protections available to whistleblowers in the technology industry.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- POLITICAL ADVERTISING AND TARGETING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Political Advertising <span class="accent">and Targeting</span></div>
+        <div class="slide-subtitle">Social media platforms enable political advertising with targeting capabilities that raise distinct ethical questions beyond those of commercial advertising.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Dark Ads and Targeting</div>
+                <div class="card-desc">Political campaigns can use Facebook's targeting tools to show different messages to different voters -- and no one outside the campaign and Facebook sees the full set of messages being run. A candidate can tell different stories to different audiences without those audiences being aware of the contradictions. This is "dark advertising" -- targeted to specific segments, invisible to the public and press, and largely unaccountable to normal political advertising transparency requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Foreign Influence Operations</div>
+                <div class="card-desc">The Internet Research Agency (Russian state-linked) ran coordinated Facebook advertising campaigns during the 2016 US election targeting both sides of divisive issues to amplify political conflict. These campaigns reached an estimated 126 million Facebook users. The advertising was paid for in rubles, which should have triggered platform review, but did not until after the election. The platform enabled foreign manipulation of domestic elections at scale -- and was paid for it.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Disinformation-for-Profit Problem</div>
+                <div class="card-desc">Political disinformation generates high engagement. High engagement generates ad revenue for the platform. Platforms that monetize disinformation content have a financial conflict of interest in removing it -- every removed disinformation post is a lost engagement event. This conflict of interest is structural, not incidental. It is built into the combination of engagement-based advertising and Section 230 immunity for user content.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Transparency Requirements</div>
+                <div class="card-desc">Facebook implemented an Ad Library after 2018 that provides public searchability of political ads. Twitter banned political advertising in 2019. Google restricted certain targeting capabilities for political ads. These were voluntary platform decisions, not regulatory requirements in the US. Paid political advertising online is far less regulated than paid political advertising on broadcast television, despite reaching comparable audiences. The Honest Ads Act, proposed in 2017, has not been enacted.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- CONSENT IN THE DIGITAL AGE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Consent in the <span class="accent">Digital Age</span></div>
+        <div class="slide-subtitle">What meaningful digital consent requires -- and why the current consent framework systematically fails to provide it.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Consent Fiction</div>
+                <div class="card-desc">The average consumer encounters hundreds of cookie consent requests per week. Studies show that reading all privacy policies encountered in a year would take approximately 76 work days. The terms of service for major platforms are longer than Shakespeare's Hamlet. Consent obtained through documents no rational person reads, for uses no person anticipates, for data shared in ways no person fully understands, is consent in name only. It performs the legal requirement without the ethical substance.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Meaningful Consent Requires</div>
+                <div class="card-desc">Informed consent -- the standard used in medical research and applied in the most rigorous privacy frameworks -- requires that consent be: specific (for identified purposes), informed (user understands what they are agreeing to), voluntary (not coerced by platform lock-in or essential service access), and revocable (can be withdrawn without disproportionate penalty). Current social media consent practices satisfy none of these requirements fully. GDPR's attempt to enforce them reveals how far current practice falls short.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Children's Consent Problem</div>
+                <div class="card-desc">COPPA prohibits collecting personal data from children under 13 without parental consent. Most platforms set their minimum age at 13 to comply. But 13-year-olds cannot legally drive, vote, sign contracts, or enter into binding agreements in the US -- yet they can consent to comprehensive behavioral surveillance by a platform, agree to terms of service longer than most legal documents, and make commercial transactions. The age of digital consent is set to minimize regulatory burden, not to protect minors.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- PLATFORM GOVERNANCE AND OVERSIGHT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Platform <span class="accent">Governance</span></div>
+        <div class="slide-subtitle">Who governs social media platforms, and how is that governance structured to be accountable?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Self-Governance</div>
+                <div class="card-desc">Currently, platform governance is primarily self-governance through terms of service and internal content policies. These policies are set unilaterally, changed frequently, enforced inconsistently, and not subject to external audit. Meta's Oversight Board -- an independent body with the authority to reverse specific content moderation decisions -- is the most significant experiment in platform self-governance with external input. Its limited authority and advisory-only role on policy matters illustrate both the potential and the limits of self-regulatory approaches.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Regulatory Approaches</div>
+                <div class="card-desc">The EU's Digital Services Act (DSA, effective 2024 for large platforms) requires: risk assessments for systemic risks, independent audits, data access for researchers, interoperability requirements, and transparency reporting. It is the most comprehensive platform regulation enacted by any major jurisdiction. The US has not enacted equivalent legislation, although multiple bills have been proposed. The DSA creates a compliance floor for global platforms operating in the EU, with spillover effects on global platform practices.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Structural Proposals</div>
+                <div class="card-desc">More ambitious governance proposals include: treating platforms as utilities subject to non-discrimination and common carrier obligations; requiring interoperability between platforms to reduce lock-in and enable competition; mandatory data portability so users can migrate their social graph to alternative platforms; and algorithmic auditing requirements that allow regulators and researchers to assess recommendation systems' effects on users and society. None of these proposals has been enacted in the US.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">User Voice</div>
+                <div class="card-desc">Social media users have very limited formal voice in platform governance. They can leave the platform (meaningful only when a viable alternative exists), complain publicly (creates short-term pressure but not structural change), or organize politically to push for regulation. Platform users' committees, representative bodies with formal input into content policy and algorithm design, are proposed in some regulatory frameworks but are not standard. The platform's accountability runs to shareholders, not to users.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- SOCIAL MEDIA AND MENTAL HEALTH ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Social Media and <span class="accent">Mental Health</span></div>
+        <div class="slide-subtitle">The research on social media's effects on mental health is more complex than either the platform defenders or critics suggest.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What the Research Shows</div>
+                <div class="card-desc">Longitudinal studies show associations between heavy social media use and depression, anxiety, and loneliness -- particularly for adolescent girls. Experimental studies (randomly assigned reduced social media use) show improvements in self-reported wellbeing. But correlation is not causation: people who are already struggling may use social media more, and researchers debate the direction of causation. The evidence of harm is real but the mechanism and magnitude are still being established.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Internal Research Problem</div>
+                <div class="card-desc">Frances Haugen's disclosures revealed that Facebook's internal research found harm to teenage girls' body image from Instagram use. This is internal research conducted by the platform itself -- with stronger internal validity than most external studies, because it has platform-level data on actual usage patterns and outcomes. The platform knew, did not disclose, and did not act. This is the central ethical violation: not the harm itself, but the concealment and inaction in response to documented harm.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">What Platforms Can Do</div>
+                <div class="card-desc">Design choices can reduce harm: screen time reminders that have teeth, age-appropriate experience design, reduced social comparison signals (removing public like counts was tested and shown to reduce anxiety in some populations), reduced algorithmically-promoted extreme content, and accessible mental health resources. These choices have costs -- they reduce engagement. They are being made by platforms, but selectively and slowly relative to the pace at which evidence of harm has accumulated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- ONLINE HARASSMENT ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title"><span class="accent">Online Harassment</span></div>
+        <div class="slide-subtitle">Harassment is not a bug in the social media ecosystem -- for many users, it is a defining feature that determines participation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Scale and Demographics</div>
+                <div class="card-desc">Pew Research (2021): 41% of Americans have experienced online harassment. Women experience more severe forms -- sustained harassment, sexual harassment, physical threats -- at higher rates than men. Journalists, public figures from underrepresented groups, and people who publicly express minority views face coordinated harassment campaigns that are qualitatively different from individual hostile interactions. The harassment is effective: it silences targeted voices by making participation in public discourse personally costly.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Coordinated Harassment Campaigns</div>
+                <div class="card-desc">Gamergate (2014) was an early documented case of a coordinated social media harassment campaign targeting women in the video game industry. The pattern -- identifying a target, coordinating across platforms, weaponizing platform reporting tools to cause account suspensions, publishing personal information (doxxing), and escalating to physical threats -- has recurred repeatedly and become more sophisticated. The platforms were not designed for this use, but their design features (public identity, virality, weak moderation) enable it.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Platform Tools and Their Limits</div>
+                <div class="card-desc">Platforms provide block, mute, and report functions. These tools are reactive -- they address harassment after it has occurred -- and they require the targeted person to take action while under attack. Proactive tools (restricting who can reply to posts, limiting notification volume during high-volume attacks, graduated enforcement for repeated harassers) exist but are inconsistently implemented. The most effective interventions require investment in human moderation and algorithmic detection that reduces platform revenue.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Legal Landscape</div>
+                <div class="card-desc">Online harassment occupies a complex legal space. Specific threatening communications may constitute criminal conduct. "True threats" doctrine under First Amendment jurisprudence can reach some online harassment. Cyberstalking laws exist in most states. But the bar for criminal prosecution is high, prosecution is resource-intensive, and many perpetrators are anonymous or in other jurisdictions. Civil remedies exist but require identifying the harasser -- often impossible when platforms do not cooperate with discovery. The legal system was not designed for harassment at platform scale.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- DATA BROKERS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title"><span class="accent">Data Brokers</span></div>
+        <div class="slide-subtitle">The industry that aggregates personal data from multiple sources and sells it -- largely without the knowledge or consent of the people whose data it is.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Data Brokers Do</div>
+                <div class="card-desc">Data brokers aggregate personal information from public records, social media, retail loyalty programs, mobile app data, website tracking pixels, financial records, and other sources. They create comprehensive profiles that may include name, address, phone, email, income, credit score, health conditions, family relationships, political affiliation, religion, purchasing history, and location patterns. These profiles are sold to marketers, insurers, employers, law enforcement, and anyone else willing to pay. The person profiled typically has no knowledge of and no control over this profiling.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Aggregation Problem</div>
+                <div class="card-desc">Each individual piece of information a data broker holds may be technically public or lawfully obtained. Your name is public. Your employer is public. Your neighborhood is public. Your general income level may be estimable from public records. But the aggregation of these pieces into a single profile creates a surveillance capability that no single data point would enable. The privacy violation emerges from aggregation, not from any individual piece of data. This is why "but it's public information" is not an ethical defense for data broker profiling.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Regulatory Gaps</div>
+                <div class="card-desc">The US does not have comprehensive federal data broker regulation. Vermont (2018) enacted the first state law requiring data broker registration and minimum opt-out rights. California's CCPA gives residents the right to opt out of data sale and to request deletion. The data broker industry has actively lobbied against federal legislation that would require opt-in consent for data collection and sale. The business model requires opt-out default -- if users could opt in, most would not.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- WHAT WOULD YOU DO: DATA ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Data harvesting and consent scenarios. Consent is not binary -- it exists on a spectrum, and where you draw the line matters.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are a product manager at a social media company. Your data science team has found that analyzing users' typing patterns -- including text they type but do not send -- predicts mental health deterioration with 87% accuracy. Using this signal, you could proactively connect at-risk users with mental health resources. You could also sell this signal to insurance companies. Which uses are ethical? Is the data collection itself ethical, given that users did not consent to surveillance of text they did not send?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You work in HR at a medium-sized company. Your manager asks you to use a social media monitoring service to track employees' posts on personal accounts -- not for anything said about the company, but for general "attitude indicators." The service flags accounts that show high engagement with political content. Your manager says this is legal in your state. Does legal equal ethical? What are the implications for employee trust if this is discovered?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            A startup offers you a free credit score improvement service. The terms of service (which you read, because you are a professional who does that now) disclose that the service will share your financial data with marketing partners. The service is genuinely useful. The data sharing is clearly disclosed -- but only in a dense 12-page document. Is this consent ethically sufficient? Would you use the service? Would you build it?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- GDPR AND CCPA ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Privacy Regulation: <span class="accent">GDPR and CCPA</span></div>
+        <div class="slide-subtitle">The two most significant privacy regulatory frameworks affecting social media -- their requirements, their enforcement, and their limits.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">GDPR Core Requirements</div>
+                <div class="card-desc">Lawful basis for processing (consent, contract, legitimate interest, legal obligation -- not all equal); purpose limitation (data used only for stated purpose); data minimization (collect only what is needed); accuracy; storage limitation; integrity and confidentiality; and accountability (demonstrate compliance). Individual rights: access, rectification, erasure, portability, objection, and restriction. 72-hour breach notification requirement. Fines up to 4% of global annual revenue or EUR 20M, whichever is higher.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GDPR Enforcement Record</div>
+                <div class="card-desc">Meta has been fined over EUR 2.5 billion under GDPR since its 2018 implementation. The largest single fine was EUR 1.2 billion against Meta for transferring EU user data to the US in violation of data transfer rules. Ireland's Data Protection Commission, which supervises most major US platforms (because they are headquartered in Ireland for EU purposes), has faced criticism for slow enforcement. The enforcement record shows the regulation has teeth -- but that those teeth are being applied selectively and with long delays.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CCPA Core Rights</div>
+                <div class="card-desc">California Consumer Privacy Act (2018, amended by CPRA 2020): right to know what data is collected; right to delete; right to opt out of data sale; right to non-discrimination for exercising rights; right to correct inaccurate data (CPRA addition). Applies to businesses above specified revenue and data collection thresholds. Enforced by the California Privacy Protection Agency (CPPA). Less comprehensive than GDPR but covers the largest US market and has influenced state privacy legislation across the US.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The US Federal Privacy Law Gap</div>
+                <div class="card-desc">The US does not have comprehensive federal privacy legislation. Multiple federal bills have been proposed (the American Data Privacy and Protection Act most recently) but none has been enacted. The result is a patchwork: HIPAA for health, FERPA for education, COPPA for children, various sector-specific rules, and state laws where enacted. Companies operating nationally face the compliance complexity of multiple state regimes -- which ironically creates pressure for a preemptive federal standard that industry could influence more than state-by-state legislation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- SOCIAL MEDIA AND DEMOCRACY ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Social Media and <span class="accent">Democracy</span></div>
+        <div class="slide-subtitle">The relationship between social media and democratic processes is contested, multidimensional, and politically important.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Democratizing Information Access</div>
+                <div class="card-desc">Social media has enabled citizen journalism, expanded access to political information, facilitated grassroots organizing, and given voice to communities underserved by traditional media. The Arab Spring, Black Lives Matter, and #MeToo movements all used social media to organize and communicate in ways that would have been impossible or much slower through traditional channels. The democratizing potential of these platforms is real and historically significant.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Filter Bubbles and Polarization</div>
+                <div class="card-desc">Research on filter bubbles is more nuanced than popular discussion suggests. Algorithmic personalization does create some echo chamber effects, but studies show that exposure to cross-cutting content on social media is often higher than offline. The polarization problem may be less about filter bubbles and more about the disproportionate amplification of extreme voices within each political camp -- creating a distorted sense of the center of each political community that increases perceived polarization.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Election Integrity</div>
+                <div class="card-desc">The combination of targeted political advertising, disinformation amplification, and foreign influence operations creates genuine risks to election integrity. The mechanisms are real even if the magnitude of effect is disputed. The 2020 election produced extensive documented disinformation campaigns. Platforms' responses -- increased moderation during elections, reduced distribution of disputed claims -- were late relative to the threat, partially effective, and highly controversial in their application.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- CROSS-PLATFORM HARASSMENT AND ACCOUNTABILITY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Cross-Platform <span class="accent">Accountability</span></div>
+        <div class="slide-subtitle">Harmful actors migrate between platforms when moderated. The fragmented platform ecosystem creates accountability gaps.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Deplatforming and Migration</div>
+                <div class="card-desc">When a harmful actor is banned from a major platform, they often migrate to smaller, less-moderated alternatives. Alex Jones, deplatformed from major platforms in 2018, moved to InfoWars.com and continues to reach a substantial audience. The Q-Anon community migrated from Facebook and Twitter to Telegram and specialized forums after deplatforming. Deplatforming reduces reach and may disrupt coordination, but it does not eliminate the actor or the community -- and it may increase radicalization by consolidating them in less-moderated environments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Interoperability Question</div>
+                <div class="card-desc">Platform fragmentation both enables migration (bad actors can always find a less-moderated platform) and reduces interoperability (a moderating action on one platform does not affect others). Some researchers propose trust and safety information sharing between platforms -- coordinated responses to coordinated threats. Others propose technical interoperability standards that would allow moderation policies to travel with users across platforms. Both proposals face significant commercial resistance from platforms that benefit from lock-in.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Consistency of Enforcement</div>
+                <div class="card-desc">A persistent criticism of platform content moderation is that enforcement is inconsistent: rules that are applied to some actors are not applied to others with similar behavior. Meta's cross-check program, disclosed in the Haugen documents, exempted high-follower accounts from standard content enforcement rules -- including political figures whose content would otherwise have been removed. Inconsistent enforcement undermines both the legitimacy of the rules and the trust of users who are subject to them.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Network Architecture as a Choice</div>
+                <div class="card-desc">The current centralized platform architecture -- where a small number of very large platforms control most social media activity -- is not a technological inevitability. Decentralized, federated protocols (ActivityPub, which powers Mastodon and Bluesky) offer an alternative architecture where moderation decisions are distributed rather than concentrated. Whether the decentralized model can achieve mass adoption, and what its moderation tradeoffs are, is an ongoing experiment with significant implications for how social media governance evolves.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- AI-GENERATED CONTENT ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">AI-Generated Content <span class="accent">and Authenticity</span></div>
+        <div class="slide-subtitle">Generative AI creates new categories of social media ethics challenges that existing frameworks were not designed to address.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Synthetic Media and Deepfakes</div>
+                <div class="card-desc">AI-generated video (deepfakes) can now convincingly depict real people saying or doing things they never said or did, at a production cost that was previously prohibitive. Political deepfakes can spread before fact-checks can respond. The non-consensual sexual deepfake problem affects tens of thousands of people -- predominantly women -- whose faces are used without consent in sexual content. Detection technology exists but lags behind generation technology and requires platform integration to be effective at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AI-Generated Accounts and Influence Operations</div>
+                <div class="card-desc">Large language models can generate convincing social media content at scale, enabling influence operations that appear organic but are automated. Detecting AI-generated text is increasingly difficult as models improve. This capability is available to state actors (already documented), political campaigns, commercial interests, and private individuals. Social media platforms' bot-detection and authenticity enforcement systems were designed for an era when creating convincing fake accounts required human labor. That assumption no longer holds.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Disclosure and Labeling</div>
+                <div class="card-desc">Meta, YouTube, and other platforms now require disclosure of AI-generated content in certain categories. The EU AI Act requires AI-generated content to be labeled. The enforcement of these requirements is technically challenging -- detection is imperfect -- and the social norm for what must be labeled is still being established. The consensus that seems to be emerging: AI-generated content depicting real people or designed to resemble organic human expression requires labeling; AI-assisted editing or enhancement of authentically-created content does not.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- GLOBAL PLATFORM GOVERNANCE VARIATION ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Global Platform <span class="accent">Governance</span></div>
+        <div class="slide-subtitle">Social media platforms operate globally but are governed nationally -- creating tensions, inconsistencies, and regulatory arbitrage opportunities.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Authoritarian Demands</div>
+                <div class="card-desc">Platforms operating in authoritarian countries face demands to identify dissidents, censor political opposition, and remove content critical of the government. Apple removed VPN apps from its App Store in China at the government's request. Meta provided user data to governments that used it to prosecute political opponents. The ethical question for platforms: is operating in an authoritarian country under its terms ethically different from simply not operating there? At what point does compliance make a platform complicit in repression?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Country-Specific Content Standards</div>
+                <div class="card-desc">Platforms apply different content rules in different countries: content that is permitted in the US may be illegal in Germany (Holocaust denial), legal in Germany but prohibited in Saudi Arabia (criticism of the monarchy), or required to be disclosed in France (advertising) but not in the US. Platforms have implemented country-specific content policies at regulatory direction. The challenge is that these differences are largely invisible to users -- you may not know that the platform experience you see differs from the one your international connections see.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Myanmar Failure</div>
+                <div class="card-desc">Facebook's role in the 2017 Rohingya genocide in Myanmar has been extensively documented. Anti-Muslim hate speech and calls for violence spread on Facebook in Myanmar's primary language, Burmese, which Facebook had inadequate moderation capacity to review. UN investigators cited Facebook as having played a "determining role" in inciting violence. Facebook knew it was the primary internet for most Burmese users. It did not invest in proportional moderation capacity for that language. The consequence was mass atrocities.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Extraterritorial Regulation</div>
+                <div class="card-desc">GDPR applies to any organization processing data of EU residents, regardless of where the organization is based. The EU Digital Services Act imposes requirements on platforms available in the EU regardless of headquarters location. These extraterritorial frameworks create a de facto global compliance floor for major platforms, because meeting EU requirements in the EU is cheaper than building separate EU-specific systems. The EU has emerged as the primary regulatory force shaping global platform governance, despite having a smaller market than the US or China.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- SOCIAL MEDIA ETHICS SYNTHESIS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Chapter 9: <span class="accent">Synthesis</span></div>
+        <div class="slide-subtitle">The ethical issues in social media are not independent -- they reflect a common underlying tension between business model and public benefit.</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Central Tension</div>
+            Social media platforms are businesses. Their revenue comes from advertising sold against user attention. The business model is maximally effective when users are engaged, when data about users is comprehensive, and when targeting is precise. Every ethical concern we have discussed -- mental health harm, addiction, misinformation amplification, data harvesting, political manipulation -- is a consequence of optimizing for this commercial objective. Understanding this does not excuse the harms. It explains why voluntary reform has been slow and why structural responses (regulation, liability reform, market structure change) may be necessary.
+        </div>
+
+        <div class="summary-facts" style="margin-top: 8px;">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Personal use benefits are real, but so are mental health harms, privacy violations, and addiction by design. Acknowledging both is not contradiction -- it is accuracy.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Section 230 enabled the modern internet and now shields platforms from accountability for harms they profit from. Both things are true. Reform requires distinguishing between passive hosting and active algorithmic amplification.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Cambridge Analytica was made possible by an API design choice, a consent model that laundered friend data through user consent, and a failure to verify deletion. Each was a choice, not an accident.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- KEY REGULATORY LANDMARKS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Regulatory <span class="accent">Landmarks</span></div>
+        <div class="slide-subtitle">The major regulatory milestones that define the current legal environment for social media platforms.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1996</span>
+                <span class="fact-text">Communications Decency Act Section 230 enacted. Provides immunity for platforms from liability for user content and for good-faith content moderation decisions. Foundation of US internet law.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1998</span>
+                <span class="fact-text">Children's Online Privacy Protection Act (COPPA) enacted. Requires parental consent for collecting personal data from children under 13. FTC enforcement body. Sets minimum age at 13 for most platforms.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2018</span>
+                <span class="fact-text">GDPR becomes effective (EU). Comprehensive data protection regulation. Applies globally to EU resident data. Enforceable fines. Required lawful basis for processing, consent reform, breach notification.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2018</span>
+                <span class="fact-text">FOSTA-SESTA enacted. First major Section 230 carve-out. Creates liability for platforms that facilitate sex trafficking. Demonstrates Section 230 can be modified for specific harms.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2019</span>
+                <span class="fact-text">FTC fines Facebook $5 billion for COPPA and consent decree violations related to Cambridge Analytica. Largest FTC privacy fine in history at the time.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2024</span>
+                <span class="fact-text">EU Digital Services Act fully effective for large platforms. Requires risk assessments, audits, researcher data access, transparency reporting, and human oversight of algorithmic systems.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- TECH WORKER ETHICS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Tech Worker <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">The ethical obligations of people who build social media systems, not just those who manage them.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Engineer's Responsibility</div>
+                <div class="card-desc">The algorithm that amplifies outrage was written by engineers. The variable reward schedule was designed by behavioral scientists. The notification system that creates compulsive checking was built by product designers. These are choices made by people. The defense that "I just built what I was asked to build" is professionally inadequate when what was asked to be built causes documented harm. Engineers are not tools. They make moral choices when they decide which products to build and how.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Tech Workers' Rights Movement</div>
+                <div class="card-desc">Since 2018, technology workers have organized around ethical concerns about their employers' products: Google employees protested Project Maven (military AI), Microsoft employees protested military AI contracts, Amazon workers organized over facial recognition sales to law enforcement. These are employees using collective action to influence the ethical behavior of their employers -- in the absence of professional licensing or external enforcement of professional standards, collective action within firms is a significant mechanism for professional ethics enforcement.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When Knowing Is Not Enough</div>
+                <div class="card-desc">Frances Haugen's disclosures revealed that many Facebook employees knew about documented harms and did not prevent them. This is not a failure of individual ethics in every case -- it is a failure of organizational structure. Knowing about harm and having the authority to prevent it are different things. A junior engineer who knows the algorithm is harmful but has no organizational mechanism to escalate that concern and no protection if they try is not in the same ethical position as the executives who did have authority and chose not to act.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- COMPARATIVE CASES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Cases: <span class="accent">Common Patterns</span></div>
+        <div class="slide-subtitle">Cambridge Analytica, Facebook Papers, Myanmar, and the Section 230 debate share underlying structural patterns.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">In each case, the platform had internal knowledge of the harm before public disclosure. Cambridge Analytica (2015), Instagram harm to teenagers (pre-Haugen internal research), Myanmar moderation capacity gaps (documented internally). The harm was known. The disclosure was not made voluntarily.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">In each case, the business model created an incentive not to act. Fixing Cambridge Analytica required restricting the data access model that generated developer ecosystem value. Fixing Instagram's teen harm required design changes that reduced engagement. Fixing Myanmar moderation required investment without a monetization return.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">In each case, action followed external pressure -- regulatory, journalistic, or political -- rather than internal ethical leadership. Voluntary reform did not happen at the pace that documented harm warranted.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">In each case, the ultimate accountability mechanism was litigation or regulation, not professional ethics enforcement. Neither ACM nor IEEE had any mechanism to impose consequences on platform employees or executives. Professional ethics codes were relevant but not enforceable in the situations that most required them.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Discussion Questions</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Prepare written or oral responses. These themes appear in the final exam.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Explain the Cambridge Analytica scandal: what data was collected, how was it used, what Facebook knew and when, and what was the regulatory consequence. What structural changes to Facebook's data model would have prevented the scandal?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Section 230 was designed to encourage content moderation. Critics argue it now shields platforms from accountability for harmful content they actively amplify. Is there a principled distinction between passive hosting and algorithmic amplification that should be reflected in liability law?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Frances Haugen copied confidential documents and disclosed them publicly. Using ACM and IEEE code principles, evaluate her actions. Do the codes support her disclosure? Do they require it? What is the threshold for obligation to disclose over obligation to maintain confidentiality?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Can consent-based privacy frameworks adequately protect individuals in the context of surveillance capitalism? If not, what alternative frameworks -- rights-based, liability-based, or structural -- would be more effective?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">You are asked to design a social media platform from the ground up with ethical design as the primary objective rather than engagement maximization. What specific design choices would you make differently from current platforms? Where would you face commercial tensions with those choices?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Chapter 9 <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next class session. Written responses required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Read Facebook's Data Policy (publicly available). Identify three specific data collection or use practices that you believe most users do not understand despite having "agreed" to them. For each, explain why the consent is inadequate by reference to the informed consent standard discussed in this module.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Research the COMPAS algorithm case and the Cambridge Analytica case. Identify two ethical principles that both cases violate in common. What regulatory or technical remedies would address both violations?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a one-page policy proposal for a new federal social media transparency requirement. Specify: what information platforms must disclose, to whom (users? regulators? researchers?), at what frequency, and what penalties apply for non-disclosure. Justify each requirement by reference to a specific documented harm it would address.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Your employer has a social media hiring screening policy that requires HR to review candidates' public profiles before extending offers. Prepare two documents: (a) a one-page memo arguing the policy should be eliminated on ethical and legal grounds, and (b) a one-page alternative policy that achieves the legitimate employer interest (understanding candidates' professional conduct) without the ethical and legal problems of comprehensive social media review.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Evaluate the EU Digital Services Act and GDPR against the standard of what meaningful social media governance requires. What harms do these regulations address? What harms do they not address? What would an ideal global social media governance framework include that current regulations do not?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Social media ethics is not about bad actors -- it is about systems designed to pursue commercial objectives that create predictable harms.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            The harms documented in this module -- Cambridge Analytica, Instagram's teen harm, Myanmar, political disinformation -- are not accidents or the work of malicious individuals. They are the foreseeable consequences of platforms designed to maximize engagement, collect comprehensive data, and sell that data for commercial and political purposes, in the absence of external accountability. The ethical obligations run in multiple directions: to platform designers, to platform companies, to regulators, and to the political systems that set the rules.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Social media platforms are advertising businesses. Their revenue depends on engagement time. Every product decision is evaluated against its effect on engagement. This incentive structure is the root cause of most social media ethics problems.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Section 230 provides platforms immunity from liability for user content and good-faith moderation. It enabled the modern internet. Whether algorithmic amplification of harmful content should share that immunity is the central current debate.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Cambridge Analytica: 87 million people's data harvested through a quiz app and Facebook's friends-of-friends API, sold to a political consulting firm, used in US and UK elections. $5B FTC fine for Facebook. The scandal changed global privacy regulation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Consent in digital contexts is systematically inadequate. Terms of service are not read, are not specific, are not voluntary in practice, and authorize uses that users do not anticipate. Consent-based privacy frameworks cannot bear the weight placed on them.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">GDPR (EU) and CCPA (California) are the dominant privacy regulatory frameworks. GDPR requires lawful basis for processing, consent reform, data rights, and 72-hour breach notification. Penalties up to 4% of global revenue.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Frances Haugen (2021) disclosed internal Facebook research showing Instagram harmed teenage girls' body image, the engagement algorithm amplified political outrage, and Facebook chose not to implement available fixes when doing so reduced engagement. Internal knowledge + inaction = ethical violation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Misinformation (unintentional), disinformation (intentional), and malinformation (true but misleadingly used) require different responses. Algorithmic amplification of false news is documented: false news spreads faster and further than true news on social platforms.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Social media hiring screening exposes protected characteristics (religion, pregnancy, disability, sexual orientation, political views) to hiring decision-makers before any legal basis for consideration exists. The practice creates the liability it is designed to avoid.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">The EU Digital Services Act (DSA, 2024) is the most comprehensive platform regulation enacted by any major jurisdiction. It requires risk assessments, independent audits, researcher data access, and human oversight of algorithmic systems for platforms above specified size thresholds.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w4-social-media', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perimeter Shield -- Linux Firewalls | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Matrix green progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.15); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Scenario strip */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        /* Info boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #00ff41; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }   /* keywords / flags */
+        .code-block .fn { color: #06b6d4; }   /* commands / functions */
+        .code-block .st { color: #3ab577; }   /* string / path literals */
+        .code-block .cm { color: #475569; }   /* comments */
+        .code-block .nb { color: #f472b6; }   /* numeric / boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output */
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Perimeter Shield -- Linux Firewalls</h1>
+
+<!-- Matrix green progress bar -->
+<div id="progress-bar" style="width:2.5%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 40 &nbsp;|&nbsp; Week 2 &nbsp;|&nbsp; Advanced Linux Administration</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Perimeter Shield<br>
+                <span class="accent">Linux Firewalls</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                iptables &nbsp;&bull;&nbsp; nftables &nbsp;&bull;&nbsp; UFW &nbsp;&bull;&nbsp; Zone Policies &nbsp;&bull;&nbsp; Default Deny
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Operational directive: deploy your cell's firewall before the next grid sync. Your node is exposed on a public interface. Every packet entering without explicit authorization is a potential intrusion vector. This session gives you the tools to lock it down.
+        </div>
+        <div class="title-meta-row">
+            <span>40 Slides</span>
+            <span>Week 2 Topic 1</span>
+            <span>Ubuntu 22.04</span>
+            <span>iptables / nftables / UFW</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY FIREWALLS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 40</div>
+        <div class="slide-title">Why <span class="accent">Firewalls?</span></div>
+        <div class="slide-subtitle">A firewall is the mandatory first line of defense for any Linux system on a network.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What a Firewall Does</div>
+                <div class="card-desc">Inspects every network packet arriving at or leaving your system. Applies a ruleset to decide: accept, drop, or reject. Operates at the kernel level -- no userspace overhead for the packet decision path.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What It Does Not Do</div>
+                <div class="card-desc">A firewall is not an IDS, not an antivirus, not an application proxy. It cannot inspect encrypted payload contents. It cannot stop a vulnerability in an application you chose to expose. It controls access -- defense in depth handles the rest.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Linux Stack</div>
+                <div class="card-desc">The kernel's <strong>netfilter</strong> framework is the core. iptables and nftables are userspace frontends to netfilter. UFW is a frontend to iptables. All roads lead to netfilter hooks in the kernel network stack.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Ubuntu 22.04 Default State</div>
+                <div class="card-desc">Fresh Ubuntu 22.04 installs ship with UFW installed but <strong>disabled</strong> by default. The kernel has no active rules. Every port your services bind is reachable until you enable and configure the firewall. Never assume you are protected by default.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Three Tool Layers</div>
+                <div class="card-desc">
+                    <strong>netfilter</strong> -- kernel hooks, the actual enforcement engine.<br>
+                    <strong>iptables / nftables</strong> -- direct rule management, full power.<br>
+                    <strong>UFW</strong> -- simplified syntax wrapping iptables, good for common cases.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- NETFILTER ARCHITECTURE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 40</div>
+        <div class="slide-title">Netfilter: <span class="accent">The Kernel Engine</span></div>
+        <div class="slide-subtitle">Understanding the layer beneath iptables before writing a single rule.</div>
+
+        <div class="scenario-strip">
+            Every packet that enters or leaves your Linux system passes through a series of hooks in the kernel's network stack. Netfilter places your rules at these hooks. iptables and nftables are just the configuration interfaces -- the actual work happens in kernel space.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Hook Points</div>
+                <div class="card-desc"><strong>PREROUTING</strong> -- packet arrives, before routing decision. <strong>INPUT</strong> -- packet destined for this machine. <strong>FORWARD</strong> -- packet routed through this machine. <strong>OUTPUT</strong> -- packet originating from this machine. <strong>POSTROUTING</strong> -- after routing decision, before leaving.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Packet Flow: Incoming</div>
+                <div class="card-desc">NIC receives packet. Kernel checks PREROUTING. Routing decision: is this for me or to be forwarded? If for local process: INPUT chain. If to be forwarded: FORWARD chain then POSTROUTING.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Packet Flow: Outgoing</div>
+                <div class="card-desc">Local process generates packet. Kernel applies OUTPUT chain rules. Routing decision. POSTROUTING chain. Packet leaves via NIC. All outbound traffic can be controlled before it departs.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># See what netfilter modules are loaded</span>
+$ <span class="fn">lsmod</span> | <span class="fn">grep</span> <span class="st">nf_</span>
+nf_conntrack          180224  3 xt_conntrack,nf_nat,nf_conntrack_netlink
+nf_tables              278528  0
+nf_nat                  57344  1 xt_MASQUERADE
+
+<span class="cm"># Check kernel version (affects available netfilter features)</span>
+$ <span class="fn">uname</span> <span class="kw">-r</span>
+5.15.0-91-generic</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- IPTABLES TABLES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 40</div>
+        <div class="slide-title">iptables <span class="accent">Tables</span></div>
+        <div class="slide-subtitle">iptables organizes rules into tables, each serving a different purpose.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">filter (default)</div>
+                <div class="card-desc">The table you use most. Contains the three primary chains: INPUT, OUTPUT, FORWARD. When you write a firewall rule to allow or block traffic, you are working in the filter table. If you omit <span class="ic">-t</span>, filter is assumed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">nat</div>
+                <div class="card-desc">Network Address Translation. Contains PREROUTING and POSTROUTING chains. Used for port forwarding, SNAT (masquerade outbound traffic through a single IP), DNAT (redirect inbound traffic to a different destination).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">mangle</div>
+                <div class="card-desc">Modifies packet headers. Used for Quality of Service (QoS), setting TTL, TOS bits, marking packets for policy routing. Advanced traffic shaping use case. Rarely touched in standard server hardening.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">raw</div>
+                <div class="card-desc">Highest priority table. Processed before connection tracking. Used to exempt certain packets from conntrack for performance. Contains PREROUTING and OUTPUT chains. Rarely needed in standard configurations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">security</div>
+                <div class="card-desc">Used for Mandatory Access Control (MAC) networking rules -- specifically for SELinux. Sets security context marks on packets. Only relevant when SELinux is enforcing. Ubuntu uses AppArmor by default, not SELinux.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- IPTABLES CHAINS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 40</div>
+        <div class="slide-title">iptables <span class="accent">Chains: INPUT, OUTPUT, FORWARD</span></div>
+        <div class="slide-subtitle">The three built-in chains in the filter table. Know them cold.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">INPUT</div>
+                <div class="card-desc">Governs all packets <strong>destined for this machine</strong>. SSH connections hitting port 22, HTTP hitting port 80, ICMP pings -- all traverse INPUT. This is where you allow or block services on your server. Most firewall rules live here.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OUTPUT</div>
+                <div class="card-desc">Governs all packets <strong>generated by this machine</strong>. wget downloads, outbound SSH from your server, DNS queries -- all traverse OUTPUT. Many admins leave OUTPUT as ACCEPT. Locking it down is best practice for high-security environments.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FORWARD</div>
+                <div class="card-desc">Governs packets <strong>being routed through this machine</strong> from one interface to another. Only relevant if your Linux box acts as a router or gateway. Requires <span class="ic">net.ipv4.ip_forward=1</span> in sysctl to be effective.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># List all rules in the filter table (default)</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> <span class="kw">-v</span> <span class="kw">-n</span>
+Chain INPUT (policy ACCEPT)
+target     prot opt  in   out  source       destination
+ACCEPT     all  --   lo   any  0.0.0.0/0    0.0.0.0/0
+
+Chain FORWARD (policy DROP)
+target     prot opt  in   out  source       destination
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt  in   out  source       destination</div>
+
+        <div class="box box-green">
+            <div class="box-label">Flag Reference</div>
+            <span class="ic">-L</span> list rules &nbsp;&nbsp; <span class="ic">-v</span> verbose (show packet/byte counts) &nbsp;&nbsp; <span class="ic">-n</span> numeric (no DNS lookups) &nbsp;&nbsp; <span class="ic">--line-numbers</span> show rule numbers
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- IPTABLES RULE SYNTAX ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 40</div>
+        <div class="slide-title">Rule Syntax: <span class="accent">Anatomy of an iptables Command</span></div>
+        <div class="slide-subtitle">Every iptables rule follows the same structure. Internalize this pattern.</div>
+
+        <div class="code-block"><span class="cm"># General syntax:</span>
+<span class="fn">iptables</span> [<span class="kw">-t table</span>] <span class="kw">COMMAND</span> chain [match criteria] <span class="kw">-j TARGET</span>
+
+<span class="cm"># Commands: -A append, -I insert, -D delete, -R replace, -F flush, -P policy</span>
+<span class="cm"># Targets:  ACCEPT, DROP, REJECT, LOG, MASQUERADE, DNAT, SNAT</span>
+
+<span class="cm"># Allow inbound SSH from any source</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow inbound SSH only from a specific network</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-s</span> <span class="nb">10.0.0.0/24</span> <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow established/related connections (stateful)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Drop everything else (must be the LAST rule)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-j</span> DROP
+
+<span class="cm"># View rules with line numbers</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> INPUT <span class="kw">--line-numbers</span> <span class="kw">-n</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- TARGETS: ACCEPT DROP REJECT ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 40</div>
+        <div class="slide-title">Targets: <span class="accent">ACCEPT, DROP, REJECT</span></div>
+        <div class="slide-subtitle">Three core decisions -- and they are not interchangeable. The choice has operational consequences.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">ACCEPT</div>
+                <div class="card-desc">The packet is allowed through. Rule processing stops -- no further rules in this chain are evaluated for this packet. The session proceeds normally. Use for all explicitly permitted traffic.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">DROP</div>
+                <div class="card-desc">The packet is silently discarded. No response is sent to the source. The sender's connection times out waiting for a reply. This is the stealth option. Preferred for public-facing servers -- reveals nothing about what is running.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">REJECT</div>
+                <div class="card-desc">The packet is discarded and an ICMP error (port unreachable) or TCP RST is sent back. The sender knows immediately that the connection was refused. Use on internal networks where fast failure feedback is useful. Never use on public interfaces.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># DROP -- silent. Source sees a timeout.</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">8080</span> <span class="kw">-j</span> DROP
+
+<span class="cm"># REJECT with an explicit ICMP message (host unreachable)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">8080</span> <span class="kw">-j</span> REJECT <span class="kw">--reject-with</span> icmp-host-unreachable
+
+<span class="cm"># REJECT with TCP reset (useful for internal services)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">8080</span> <span class="kw">-j</span> REJECT <span class="kw">--reject-with</span> tcp-reset</div>
+
+        <div class="box box-red">
+            <div class="box-label">Security Note</div>
+            On public interfaces, always use DROP. REJECT tells attackers your firewall is active and the port is filtered -- useful information for reconnaissance. DROP gives away nothing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- STATEFUL MATCHING ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 40</div>
+        <div class="slide-title">Stateful Matching: <span class="accent">conntrack</span></div>
+        <div class="slide-subtitle">Track connection state to allow reply traffic without opening the port permanently.</div>
+
+        <div class="scenario-strip">
+            You want your server to initiate outbound connections (apt updates, API calls) and receive the replies, but you do not want random inbound connections on those ports. Connection tracking solves this: accept the reply if WE initiated the session.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Connection States</div>
+                <div class="card-desc">
+                    <strong>NEW</strong> -- first packet of a new connection.<br>
+                    <strong>ESTABLISHED</strong> -- part of an ongoing session.<br>
+                    <strong>RELATED</strong> -- related to an established connection (e.g., FTP data channel).<br>
+                    <strong>INVALID</strong> -- does not match any known connection. Drop these.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters</div>
+                <div class="card-desc">Without conntrack, allowing inbound traffic for outbound connections means opening all high ports (1024-65535) inbound. With conntrack, you only allow ESTABLISHED,RELATED inbound -- which means only packets replying to sessions you initiated.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># The stateful ruleset skeleton (apply this to every server)</span>
+
+<span class="cm"># 1. Always allow loopback traffic</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> lo <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># 2. Accept established/related connections</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># 3. Drop invalid packets before they can be processed</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> INVALID <span class="kw">-j</span> DROP
+
+<span class="cm"># 4. Allow new SSH connections</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> NEW <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># 5. Drop everything else</span>
+$ <span class="fn">iptables</span> <span class="kw">-P</span> INPUT DROP</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- COMMON RULE EXAMPLES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 40</div>
+        <div class="slide-title">Common Rules: <span class="accent">Services and Ports</span></div>
+        <div class="slide-subtitle">Real rules for the services you will actually run.</div>
+
+        <div class="code-block"><span class="cm"># Allow HTTP and HTTPS inbound</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">80</span>  <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">443</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow DNS queries outbound (TCP and UDP)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> udp <span class="kw">--dport</span> <span class="nb">53</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">53</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow ICMP ping (inbound)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> icmp <span class="kw">--icmp-type</span> echo-request <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow a specific port range (passive FTP data)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">60000:65000</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Block a specific IP address completely</span>
+$ <span class="fn">iptables</span> <span class="kw">-I</span> INPUT <span class="nb">1</span> <span class="kw">-s</span> <span class="nb">203.0.113.42</span> <span class="kw">-j</span> DROP
+
+<span class="cm"># Allow multiple ports with multiport extension</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-m</span> multiport <span class="kw">--dports</span> <span class="nb">80,443,8080,8443</span> <span class="kw">-j</span> ACCEPT</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DEFAULT POLICIES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 40</div>
+        <div class="slide-title">Default Policies: <span class="accent">The Foundation of Deny</span></div>
+        <div class="slide-subtitle">The chain policy is what happens to packets that match NO rules. Set it deliberately.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Default ACCEPT (Permissive)</div>
+                <div class="card-desc">Out of the box policy. Every packet not explicitly blocked is allowed. You add rules to block things. The problem: if you forget to block something, it is open. One misconfigured service exposes an unintended port immediately.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Default DROP (Restrictive)</div>
+                <div class="card-desc">Every packet not explicitly allowed is dropped. You add rules to open things. If you forget to allow something, it is blocked. The correct approach for any server on a network. A missed rule breaks a service -- that is fixable. A missed block rule is a breach.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># CRITICAL: Do this AFTER adding your ACCEPT rules, not before.</span>
+<span class="cm"># Setting INPUT to DROP before adding SSH ACCEPT will lock you out.</span>
+
+<span class="cm"># Step 1: Flush existing rules and start clean</span>
+$ <span class="fn">iptables</span> <span class="kw">-F</span>   <span class="cm"># flush all rules in filter table</span>
+$ <span class="fn">iptables</span> <span class="kw">-X</span>   <span class="cm"># delete all custom chains</span>
+
+<span class="cm"># Step 2: Add your ACCEPT rules first (loopback, established, SSH, etc.)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> lo <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Step 3: NOW set the default policy to DROP</span>
+$ <span class="fn">iptables</span> <span class="kw">-P</span> INPUT DROP
+$ <span class="fn">iptables</span> <span class="kw">-P</span> FORWARD DROP
+$ <span class="fn">iptables</span> <span class="kw">-P</span> OUTPUT ACCEPT</div>
+
+        <div class="box box-red">
+            <div class="box-label">Lockout Warning</div>
+            If you set INPUT to DROP before adding an SSH ACCEPT rule and you are connected via SSH, your session dies immediately. Always add your ACCEPT rules first, then set the policy.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- LOGGING RULES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 40</div>
+        <div class="slide-title">Logging Rules: <span class="accent">Visibility Into Dropped Traffic</span></div>
+        <div class="slide-subtitle">A DROP rule is silent. A LOG rule before DROP gives you evidence.</div>
+
+        <div class="scenario-strip">
+            You set default deny. Traffic is being blocked -- but by what rule? Is someone port scanning you? Are legitimate services misconfigured? Logging the drops tells you exactly what is hitting your firewall and from where.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">LOG Target</div>
+                <div class="card-desc">LOG writes to the kernel ring buffer (viewable with <span class="ic">dmesg</span>) and to <span class="ic">/var/log/kern.log</span> or syslog. Unlike DROP, LOG does not stop rule processing -- the packet continues to the next rule. LOG then DROP is the pattern.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Prefix</div>
+                <div class="card-desc">The <span class="ic">--log-prefix</span> option prepends a string (max 29 chars) to every log entry. This lets you grep for firewall-specific entries in your syslog and distinguish them from kernel messages. Always use a prefix on LOG rules.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Log then drop -- the standard pattern</span>
+<span class="cm"># Insert BEFORE the default DROP policy or final DROP rule</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"IPT-DROP-IN: "</span> <span class="kw">--log-level</span> <span class="nb">4</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-j</span> DROP
+
+<span class="cm"># View log entries in real-time</span>
+$ <span class="fn">dmesg</span> <span class="kw">-w</span> | <span class="fn">grep</span> <span class="st">"IPT-DROP-IN"</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/kern.log</span> | <span class="fn">grep</span> <span class="st">"IPT-DROP"</span>
+
+<span class="cm"># Sample log output:</span>
+<span class="cm"># [12345.678] IPT-DROP-IN: IN=eth0 OUT= SRC=203.0.113.42 DST=10.0.0.5</span>
+<span class="cm">#   PROTO=TCP SPT=54321 DPT=22 WINDOW=65535 SYN</span>
+
+<span class="cm"># Limit logging to avoid log flooding (10 packets/min, burst 20)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> limit <span class="kw">--limit</span> 10/min <span class="kw">--limit-burst</span> <span class="nb">20</span> <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"IPT-DROP-IN: "</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- IPTABLES-SAVE AND RESTORE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 40</div>
+        <div class="slide-title">Persistence: <span class="accent">iptables-save and iptables-restore</span></div>
+        <div class="slide-subtitle">iptables rules are lost on reboot unless you save and restore them explicitly.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Volatile Problem</div>
+                <div class="card-desc">iptables rules live in kernel memory. When you reboot, the kernel reloads fresh with zero rules -- all your work is gone. You must export the rules to a file and configure the system to restore them at boot.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">iptables-persistent Package</div>
+                <div class="card-desc">The easiest solution on Ubuntu. Install <span class="ic">iptables-persistent</span>, which provides a systemd service that loads saved rules at boot. Rules saved to <span class="ic">/etc/iptables/rules.v4</span> (IPv4) and <span class="ic">/etc/iptables/rules.v6</span> (IPv6).</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Save current rules to a file</span>
+$ <span class="fn">iptables-save</span> > <span class="st">/etc/iptables/rules.v4</span>
+$ <span class="fn">ip6tables-save</span> > <span class="st">/etc/iptables/rules.v6</span>
+
+<span class="cm"># Restore rules from file (used at boot by iptables-persistent)</span>
+$ <span class="fn">iptables-restore</span> < <span class="st">/etc/iptables/rules.v4</span>
+
+<span class="cm"># Install iptables-persistent to handle boot restore automatically</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> iptables-persistent
+<span class="cm"># Installer asks if you want to save current rules -- answer yes</span>
+
+<span class="cm"># Save current rules using the netfilter-persistent service</span>
+$ <span class="fn">netfilter-persistent</span> save
+
+<span class="cm"># Check that the service is enabled</span>
+$ <span class="fn">systemctl</span> <span class="kw">is-enabled</span> netfilter-persistent
+enabled
+
+<span class="cm"># Verify the saved file looks correct</span>
+$ <span class="fn">cat</span> <span class="st">/etc/iptables/rules.v4</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- NFTABLES INTRO ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 40</div>
+        <div class="slide-title">nftables: <span class="accent">The Modern Replacement</span></div>
+        <div class="slide-subtitle">nftables replaces iptables/ip6tables/ebtables with a single, unified framework.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Why nftables Exists</div>
+                <div class="card-desc">iptables has separate tools for IPv4, IPv6, ARP, and bridging. nftables handles all of them with one syntax. Cleaner rule syntax, better performance through JIT compilation, atomic rule sets (apply all-or-nothing to prevent inconsistent states).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Status on Ubuntu 22.04</div>
+                <div class="card-desc">Ubuntu 22.04 ships nftables alongside iptables. iptables in Ubuntu 22.04 is actually <strong>iptables-nft</strong> -- a compatibility wrapper that translates iptables commands to nftables rules. Both tools work; nftables is the future.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Key Differences from iptables</div>
+                <div class="card-desc">Tables and chains are user-defined -- no predefined INPUT/OUTPUT/FORWARD unless you create them. Rules use a different syntax with sets, maps, and verdict statements. Configuration lives in <span class="ic">/etc/nftables.conf</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check nftables version</span>
+$ <span class="fn">nft</span> <span class="kw">--version</span>
+nftables v1.0.2 (Lester Gooch)
+
+<span class="cm"># List all current nftables rules</span>
+$ <span class="fn">nft</span> list ruleset
+
+<span class="cm"># The nftables equivalent of iptables -L -v -n</span>
+$ <span class="fn">nft</span> list table ip filter
+
+<span class="cm"># Check if iptables is actually iptables-nft (the compatibility shim)</span>
+$ <span class="fn">update-alternatives</span> <span class="kw">--display</span> iptables
+iptables - auto mode
+  link best version is /usr/sbin/iptables-nft</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- NFTABLES SYNTAX ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 40</div>
+        <div class="slide-title">nftables <span class="accent">Syntax and Structure</span></div>
+        <div class="slide-subtitle">Tables, chains, and rules -- the same concepts, different syntax.</div>
+
+        <div class="code-block"><span class="cm"># /etc/nftables.conf -- minimal stateful firewall</span>
+<span class="cm">#!/usr/sbin/nft -f</span>
+
+<span class="cm"># Flush all existing rules</span>
+flush ruleset
+
+table ip filter {
+    chain input {
+        <span class="cm"># Attach to the INPUT hook, default policy DROP</span>
+        type filter hook input priority 0; policy drop;
+
+        <span class="cm"># Allow loopback traffic</span>
+        iif lo accept
+
+        <span class="cm"># Accept established and related connections</span>
+        ct state established,related accept
+
+        <span class="cm"># Drop invalid packets</span>
+        ct state invalid drop
+
+        <span class="cm"># Allow inbound SSH</span>
+        tcp dport <span class="nb">22</span> ct state new accept
+
+        <span class="cm"># Allow HTTP and HTTPS</span>
+        tcp dport { <span class="nb">80, 443</span> } accept
+
+        <span class="cm"># Log everything else before the default drop</span>
+        log prefix <span class="st">"NFT-DROP-IN: "</span>
+    }
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+}
+
+<span class="cm"># Apply the ruleset</span>
+$ <span class="fn">nft</span> <span class="kw">-f</span> <span class="st">/etc/nftables.conf</span>
+$ <span class="fn">systemctl</span> <span class="kw">enable</span> nftables</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- UFW INTRO ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 40</div>
+        <div class="slide-title">UFW: <span class="accent">Uncomplicated Firewall</span></div>
+        <div class="slide-subtitle">A simplified frontend to iptables. Appropriate for most server hardening tasks.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What UFW Does</div>
+                <div class="card-desc">UFW translates human-readable commands into iptables rules. It manages both IPv4 and IPv6 rules simultaneously. It maintains profiles for common applications. Good for standard server use -- not for complex NAT or policy routing scenarios.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What UFW Does Not Do</div>
+                <div class="card-desc">No stateful inspection configuration (it uses conntrack by default). Limited FORWARD chain management. Cannot express complex multi-table rules. When you hit its limits, drop to raw iptables or nftables.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Default State</div>
+                <div class="card-desc">UFW is <strong>installed</strong> but <strong>inactive</strong> on fresh Ubuntu 22.04. Enabling it with no rules set will block everything including your SSH connection. Always add rules before enabling on a remote server.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check UFW status</span>
+$ <span class="fn">ufw</span> status verbose
+
+<span class="cm"># Enable UFW (ONLY after adding SSH allow rule)</span>
+$ <span class="fn">ufw</span> <span class="kw">allow</span> ssh
+$ <span class="fn">ufw</span> <span class="kw">enable</span>
+
+<span class="cm"># Disable UFW</span>
+$ <span class="fn">ufw</span> <span class="kw">disable</span>
+
+<span class="cm"># Reset to blank state (removes all rules)</span>
+$ <span class="fn">ufw</span> reset</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- UFW RULES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 40</div>
+        <div class="slide-title">UFW: <span class="accent">Managing Rules</span></div>
+        <div class="slide-subtitle">Allow, deny, limit, and delete -- the four actions you use daily.</div>
+
+        <div class="code-block"><span class="cm"># Allow by service name (reads /etc/services)</span>
+$ <span class="fn">ufw</span> <span class="kw">allow</span> ssh
+$ <span class="fn">ufw</span> <span class="kw">allow</span> http
+$ <span class="fn">ufw</span> <span class="kw">allow</span> https
+
+<span class="cm"># Allow by port number and protocol</span>
+$ <span class="fn">ufw</span> <span class="kw">allow</span> <span class="nb">22</span>/tcp
+$ <span class="fn">ufw</span> <span class="kw">allow</span> <span class="nb">8080</span>/tcp
+$ <span class="fn">ufw</span> <span class="kw">allow</span> <span class="nb">53</span>/udp
+
+<span class="cm"># Allow from a specific source IP to a specific port</span>
+$ <span class="fn">ufw</span> <span class="kw">allow from</span> <span class="nb">10.0.0.50</span> <span class="kw">to any port</span> <span class="nb">3306</span>
+
+<span class="cm"># Deny a specific port</span>
+$ <span class="fn">ufw</span> <span class="kw">deny</span> <span class="nb">23</span>/tcp  <span class="cm"># block telnet</span>
+
+<span class="cm"># Rate-limit SSH (block IPs after 6 attempts in 30 seconds)</span>
+$ <span class="fn">ufw</span> limit ssh
+
+<span class="cm"># Delete a rule by number (list numbered rules first)</span>
+$ <span class="fn">ufw</span> status numbered
+$ <span class="fn">ufw</span> <span class="kw">delete</span> <span class="nb">3</span>
+
+<span class="cm"># Delete a rule by specification</span>
+$ <span class="fn">ufw</span> <span class="kw">delete allow</span> <span class="nb">8080</span>/tcp</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- UFW APP PROFILES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 40</div>
+        <div class="slide-title">UFW: <span class="accent">Application Profiles</span></div>
+        <div class="slide-subtitle">Packages ship pre-built UFW profiles that open exactly the ports they need.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Are Profiles?</div>
+                <div class="card-desc">UFW application profiles are files in <span class="ic">/etc/ufw/applications.d/</span> that define named groups of ports for a service. Instead of remembering that Nginx needs ports 80 and 443, you use <span class="ic">ufw allow 'Nginx Full'</span>. Package maintainers ship these with their packages.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Nginx Profile Example</div>
+                <div class="card-desc"><strong>Nginx HTTP</strong> -- opens port 80. <strong>Nginx HTTPS</strong> -- opens port 443. <strong>Nginx Full</strong> -- opens both 80 and 443. Use <span class="ic">Nginx Full</span> for HTTPS-enabled sites, <span class="ic">Nginx HTTP</span> before SSL certificates are installed.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># List available application profiles</span>
+$ <span class="fn">ufw</span> app list
+Available applications:
+  Apache
+  Apache Full
+  Apache Secure
+  Nginx Full
+  Nginx HTTP
+  Nginx HTTPS
+  OpenSSH
+
+<span class="cm"># Get details on a profile</span>
+$ <span class="fn">ufw</span> app info <span class="st">'Nginx Full'</span>
+Profile: Nginx Full
+Title: Web Server (Nginx, HTTP + HTTPS)
+Description: Small, but very powerful and efficient web server
+Ports: 80,443/tcp
+
+<span class="cm"># Apply a profile rule</span>
+$ <span class="fn">ufw</span> <span class="kw">allow</span> <span class="st">'Nginx Full'</span>
+
+<span class="cm"># Inspect what UFW generated in iptables</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> ufw-user-input <span class="kw">-n</span> <span class="kw">-v</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- ZONE-BASED POLICY ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 40</div>
+        <div class="slide-title">Zone-Based <span class="accent">Policies</span></div>
+        <div class="slide-subtitle">Different interfaces carry different trust levels. Apply different policies per zone.</div>
+
+        <div class="scenario-strip">
+            Your server has two interfaces: eth0 on the public internet and eth1 on the internal management network. SSH should be reachable from eth1 only. Web traffic hits eth0 only. The same rules for both interfaces would be wrong -- zones let you be precise.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Zone Concept</div>
+                <div class="card-desc">A zone is a label for a trust level. Each network interface is assigned to a zone. Rules are applied per-zone. The public zone is untrusted -- minimum access. The internal zone may allow more services. The dmz zone exposes specific public services.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Interface-Specific iptables Rules</div>
+                <div class="card-desc">Use <span class="ic">-i</span> (input interface) and <span class="ic">-o</span> (output interface) to match rules to specific NICs. This is how you implement zones manually with iptables without requiring firewalld.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Allow SSH only from the management interface (eth1)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth1 <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> DROP
+
+<span class="cm"># Allow web traffic only from the public interface (eth0)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-p</span> tcp <span class="kw">-m</span> multiport <span class="kw">--dports</span> <span class="nb">80,443</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow database access only from internal interface</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth1 <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">3306</span> <span class="kw">-s</span> <span class="nb">10.0.1.0/24</span> <span class="kw">-j</span> ACCEPT</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- PORT FORWARDING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 40</div>
+        <div class="slide-title">NAT: <span class="accent">Port Forwarding with iptables</span></div>
+        <div class="slide-subtitle">Redirect inbound traffic on one port to a different destination or port using DNAT.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">DNAT (Destination NAT)</div>
+                <div class="card-desc">Rewrites the destination IP and/or port of incoming packets. Used to forward traffic hitting your public IP on port 80 to an internal web server at 192.168.1.10:8080. Lives in the nat table, PREROUTING chain.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MASQUERADE / SNAT</div>
+                <div class="card-desc">Rewrites the source IP of outbound packets to your public IP. Used on gateway servers to allow internal hosts to reach the internet via a single public IP. MASQUERADE auto-detects the interface IP; SNAT requires a specific address.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Enable IP forwarding (required for NAT / routing)</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.ip_forward=<span class="nb">1</span>
+$ <span class="fn">echo</span> <span class="st">"net.ipv4.ip_forward = 1"</span> >> <span class="st">/etc/sysctl.conf</span>
+
+<span class="cm"># Forward port 80 on this machine to an internal server</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> nat <span class="kw">-A</span> PREROUTING <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">80</span> <span class="kw">-j</span> DNAT \
+    <span class="kw">--to-destination</span> <span class="nb">192.168.1.10:8080</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> FORWARD <span class="kw">-p</span> tcp <span class="kw">-d</span> <span class="nb">192.168.1.10</span> <span class="kw">--dport</span> <span class="nb">8080</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Masquerade outbound traffic from internal network through this gateway</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> nat <span class="kw">-A</span> POSTROUTING <span class="kw">-s</span> <span class="nb">192.168.1.0/24</span> <span class="kw">-o</span> eth0 <span class="kw">-j</span> MASQUERADE
+
+<span class="cm"># Verify NAT rules</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> nat <span class="kw">-L</span> <span class="kw">-v</span> <span class="kw">-n</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- RATE LIMITING ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 40</div>
+        <div class="slide-title">Rate Limiting: <span class="accent">Controlling Connection Bursts</span></div>
+        <div class="slide-subtitle">Limit how fast new connections can arrive to throttle brute-force and DoS attempts.</div>
+
+        <div class="code-block"><span class="cm"># Limit new SSH connections to 3 per minute per source IP</span>
+<span class="cm"># hashlimit tracks per-source rates independently</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> \
+    <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> NEW \
+    <span class="kw">-m</span> hashlimit \
+    <span class="kw">--hashlimit-mode</span> srcip \
+    <span class="kw">--hashlimit-upto</span> <span class="nb">3</span>/min \
+    <span class="kw">--hashlimit-burst</span> <span class="nb">5</span> \
+    <span class="kw">--hashlimit-name</span> ssh-limit \
+    <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> DROP
+
+<span class="cm"># Global rate limit on ICMP to prevent ping floods</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> icmp <span class="kw">--icmp-type</span> echo-request \
+    <span class="kw">-m</span> limit <span class="kw">--limit</span> 1/s <span class="kw">--limit-burst</span> <span class="nb">4</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> icmp <span class="kw">-j</span> DROP
+
+<span class="cm"># UFW equivalent: rate-limit SSH (6 connections per 30 seconds triggers block)</span>
+$ <span class="fn">ufw</span> limit ssh/tcp</div>
+
+        <div class="box box-green">
+            <div class="box-label">Comparison</div>
+            UFW's <span class="ic">limit</span> is simpler but uses a fixed threshold (6/30s). The hashlimit module gives you granular control over rate, burst, and tracking mode. Use hashlimit when you need precise tuning.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- UFW LOGGING ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 40</div>
+        <div class="slide-title">UFW <span class="accent">Logging</span></div>
+        <div class="slide-subtitle">Enable and tune UFW's built-in logging to track blocked and allowed traffic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Log Levels</div>
+                <div class="card-desc">
+                    <strong>off</strong> -- no logging.<br>
+                    <strong>low</strong> -- blocked packets and non-standard connections.<br>
+                    <strong>medium</strong> -- low + new allowed connections + invalid packets.<br>
+                    <strong>high</strong> -- medium + all allowed connections + rate-limited.<br>
+                    <strong>full</strong> -- everything, including established traffic. Very verbose.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Location</div>
+                <div class="card-desc">UFW logs to <span class="ic">/var/log/ufw.log</span> and also to <span class="ic">/var/log/syslog</span>. Entries are prefixed with <strong>[UFW BLOCK]</strong> or <strong>[UFW ALLOW]</strong>. Grep for these prefixes to filter firewall events from the general system log.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Set UFW log level</span>
+$ <span class="fn">ufw</span> logging medium
+
+<span class="cm"># View UFW log in real-time</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/ufw.log</span>
+
+<span class="cm"># Sample UFW log entries:</span>
+<span class="cm"># [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.5 DST=10.0.0.5</span>
+<span class="cm">#   PROTO=TCP SPT=54321 DPT=3306 WINDOW=1024 SYN</span>
+<span class="cm"># [UFW ALLOW] IN=eth0 OUT= SRC=10.0.0.20 DST=10.0.0.5</span>
+<span class="cm">#   PROTO=TCP SPT=55012 DPT=22 WINDOW=65535 SYN</span>
+
+<span class="cm"># Count blocked attempts by source IP in the last 100 lines</span>
+$ <span class="fn">grep</span> <span class="st">"UFW BLOCK"</span> <span class="st">/var/log/ufw.log</span> | <span class="fn">awk</span> <span class="st">'{for(i=1;i&lt;=NF;i++) if($i~/^SRC=/) print substr($i,5)}'</span> | <span class="fn">sort</span> | <span class="fn">uniq</span> <span class="kw">-c</span> | <span class="fn">sort</span> <span class="kw">-rn</span> | <span class="fn">head</span> -20</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- COMMON HARDENING SCRIPT ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 40</div>
+        <div class="slide-title">Hardening Script: <span class="accent">Minimum Viable Firewall</span></div>
+        <div class="slide-subtitle">A complete, safe, copy-ready script for hardening a fresh Ubuntu 22.04 server.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># minimum-firewall.sh -- safe baseline for Ubuntu 22.04 servers</span>
+<span class="cm"># Adjust SSH_PORT and ADMIN_NET before running</span>
+
+SSH_PORT=<span class="nb">22</span>
+ADMIN_NET=<span class="st">"10.0.0.0/24"</span>   <span class="cm"># restrict SSH to this CIDR</span>
+
+<span class="cm"># Flush existing rules</span>
+<span class="fn">iptables</span> <span class="kw">-F</span>
+<span class="fn">iptables</span> <span class="kw">-X</span>
+
+<span class="cm"># Accept loopback and established traffic first</span>
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> lo <span class="kw">-j</span> ACCEPT
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> INVALID <span class="kw">-j</span> DROP
+
+<span class="cm"># SSH from admin network only</span>
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-s</span> $ADMIN_NET <span class="kw">--dport</span> $SSH_PORT <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># HTTP and HTTPS</span>
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-m</span> multiport <span class="kw">--dports</span> <span class="nb">80,443</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Log and drop everything else</span>
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> limit <span class="kw">--limit</span> 10/min <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"IPT-DROP: "</span>
+<span class="fn">iptables</span> <span class="kw">-P</span> INPUT DROP
+<span class="fn">iptables</span> <span class="kw">-P</span> FORWARD DROP
+<span class="fn">iptables</span> <span class="kw">-P</span> OUTPUT ACCEPT
+
+<span class="cm"># Save rules</span>
+<span class="fn">netfilter-persistent</span> save</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- IPTABLES MANGLE TABLE ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 40</div>
+        <div class="slide-title">mangle Table: <span class="accent">Packet Header Manipulation</span></div>
+        <div class="slide-subtitle">Modify TTL, TOS, and mark packets for advanced routing and QoS scenarios.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">TTL Manipulation</div>
+                <div class="card-desc">TTL (Time To Live) decrements by 1 at each router hop. When it reaches 0 the packet is dropped. You can set a custom TTL on outgoing packets -- useful for camouflaging a router as a single hop or normalizing TTL values across flows.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MARK Target</div>
+                <div class="card-desc">Apply a numeric mark to a packet without changing its headers. The mark travels with the packet through the kernel and can be used by policy routing (ip rule), traffic shaping (tc), or matched in subsequent iptables rules with <span class="ic">-m mark --mark</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Set outgoing TTL to 64 on all output packets</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> mangle <span class="kw">-A</span> OUTPUT <span class="kw">-j</span> TTL <span class="kw">--ttl-set</span> <span class="nb">64</span>
+
+<span class="cm"># Mark packets from a specific source for policy routing</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> mangle <span class="kw">-A</span> PREROUTING <span class="kw">-s</span> <span class="nb">10.0.1.0/24</span> <span class="kw">-j</span> MARK <span class="kw">--set-mark</span> <span class="nb">100</span>
+
+<span class="cm"># Use the mark in ip rule to route marked packets through a different table</span>
+$ <span class="fn">ip</span> rule add fwmark <span class="nb">100</span> table <span class="nb">100</span>
+$ <span class="fn">ip</span> route add default via <span class="nb">192.168.2.1</span> table <span class="nb">100</span>
+
+<span class="cm"># List mangle table rules</span>
+$ <span class="fn">iptables</span> <span class="kw">-t</span> mangle <span class="kw">-L</span> <span class="kw">-v</span> <span class="kw">-n</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- CUSTOM CHAINS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 40</div>
+        <div class="slide-title">Custom Chains: <span class="accent">Modular Rulesets</span></div>
+        <div class="slide-subtitle">Create named chains to organize rules logically and enable jump-based branching.</div>
+
+        <div class="scenario-strip">
+            You have 30 INPUT rules and they are getting hard to read. Custom chains let you group related rules -- all SSH rules in one chain, all web rules in another -- and jump to them from the main chain. The result is an organized, maintainable ruleset.
+        </div>
+
+        <div class="code-block"><span class="cm"># Create custom chains</span>
+$ <span class="fn">iptables</span> <span class="kw">-N</span> SSH-RULES
+$ <span class="fn">iptables</span> <span class="kw">-N</span> WEB-RULES
+$ <span class="fn">iptables</span> <span class="kw">-N</span> LOG-AND-DROP
+
+<span class="cm"># Populate the SSH-RULES chain</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> SSH-RULES <span class="kw">-s</span> <span class="nb">10.0.0.0/24</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> SSH-RULES <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"SSH-DENIED: "</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> SSH-RULES <span class="kw">-j</span> DROP
+
+<span class="cm"># Populate the LOG-AND-DROP chain</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> LOG-AND-DROP <span class="kw">-m</span> limit <span class="kw">--limit</span> 5/min <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"DROP: "</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> LOG-AND-DROP <span class="kw">-j</span> DROP
+
+<span class="cm"># Jump to custom chains from INPUT</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> SSH-RULES
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-m</span> multiport <span class="kw">--dports</span> <span class="nb">80,443</span> <span class="kw">-j</span> WEB-RULES
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-j</span> LOG-AND-DROP</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- IPV6 CONSIDERATIONS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 40</div>
+        <div class="slide-title">IPv6 <span class="accent">Firewall Considerations</span></div>
+        <div class="slide-subtitle">iptables only covers IPv4. IPv6 traffic needs ip6tables or nftables.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The IPv6 Gap</div>
+                <div class="card-desc">A common mistake: you configure iptables on a dual-stack server and feel protected. But iptables ignores IPv6 entirely. If your server has an IPv6 address (most Ubuntu 22.04 installs do), all your IPv4 rules leave IPv6 traffic completely unfiltered.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ip6tables and UFW</div>
+                <div class="card-desc">Use ip6tables with identical rules to your iptables config for IPv6 traffic. UFW automatically manages both IPv4 and IPv6 when you add rules -- one <span class="ic">ufw allow ssh</span> creates rules in both stacks. This is a strong argument for using UFW on dual-stack hosts.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check if IPv6 is configured on your interfaces</span>
+$ <span class="fn">ip</span> <span class="kw">-6</span> addr show
+
+<span class="cm"># Apply the same rules to IPv6 using ip6tables</span>
+$ <span class="fn">ip6tables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> lo <span class="kw">-j</span> ACCEPT
+$ <span class="fn">ip6tables</span> <span class="kw">-A</span> INPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+$ <span class="fn">ip6tables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+<span class="cm"># ICMPv6 is required for IPv6 to function -- do not drop it all</span>
+$ <span class="fn">ip6tables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> ipv6-icmp <span class="kw">-j</span> ACCEPT
+$ <span class="fn">ip6tables</span> <span class="kw">-P</span> INPUT DROP
+
+<span class="cm"># UFW handles both stacks transparently</span>
+$ <span class="fn">ufw</span> allow ssh    <span class="cm"># creates both iptables and ip6tables rules</span>
+
+<span class="cm"># Verify UFW dual-stack status in /etc/default/ufw</span>
+$ <span class="fn">grep</span> IPV6 <span class="st">/etc/default/ufw</span>
+IPV6=yes</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 40</div>
+        <div class="slide-title">Troubleshooting: <span class="accent">Diagnosing Firewall Problems</span></div>
+        <div class="slide-subtitle">Connection failing? Follow this diagnostic workflow before assuming the application is broken.</div>
+
+        <div class="code-block"><span class="cm"># Step 1: Is the port even open and listening?</span>
+$ <span class="fn">ss</span> <span class="kw">-tlnp</span>                       <span class="cm"># list TCP listening ports</span>
+$ <span class="fn">ss</span> <span class="kw">-ulnp</span>                       <span class="cm"># list UDP listening ports</span>
+
+<span class="cm"># Step 2: Check what iptables rules are active</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> INPUT <span class="kw">-n</span> <span class="kw">-v</span> <span class="kw">--line-numbers</span>
+
+<span class="cm"># Step 3: Test connectivity from another host</span>
+$ <span class="fn">nc</span> <span class="kw">-zv</span> <span class="nb">10.0.0.5</span> <span class="nb">22</span>             <span class="cm"># test TCP port 22</span>
+$ <span class="fn">nc</span> <span class="kw">-zuv</span> <span class="nb">10.0.0.5</span> <span class="nb">53</span>           <span class="cm"># test UDP port 53</span>
+
+<span class="cm"># Step 4: Watch the drop log</span>
+$ <span class="fn">dmesg</span> <span class="kw">-w</span> | <span class="fn">grep</span> <span class="st">IPT-DROP</span>
+
+<span class="cm"># Step 5: Temporarily flush all rules to isolate firewall vs application</span>
+$ <span class="fn">iptables</span> <span class="kw">-F</span>   <span class="cm"># DANGEROUS on production -- only on a test system</span>
+<span class="cm"># If it works now, the firewall was blocking it</span>
+
+<span class="cm"># Step 6: Check UFW status if using UFW</span>
+$ <span class="fn">ufw</span> status verbose
+$ <span class="fn">ufw</span> status numbered</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- FIREWALLD MENTION ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 40</div>
+        <div class="slide-title">firewalld: <span class="accent">The RHEL/CentOS Alternative</span></div>
+        <div class="slide-subtitle">You will encounter firewalld in the field. Know the basics even on Ubuntu.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Is firewalld?</div>
+                <div class="card-desc">firewalld is the default firewall manager on RHEL, CentOS, Fedora, and Rocky Linux. It uses a zone-based model and provides both a CLI (<span class="ic">firewall-cmd</span>) and a D-Bus API. Concepts: zones (trusted, public, internal), services, ports, rich rules, runtime vs permanent configuration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Runtime vs Permanent</div>
+                <div class="card-desc">firewalld changes are runtime by default -- lost on reload. Add <span class="ic">--permanent</span> to persist a rule. Then run <span class="ic">firewall-cmd --reload</span> to apply permanent rules to the running configuration. This two-step model prevents accidental lockout during testing.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># firewalld on RHEL/CentOS -- for your cross-platform awareness</span>
+
+<span class="cm"># Check status</span>
+$ <span class="fn">systemctl</span> status firewalld
+$ <span class="fn">firewall-cmd</span> <span class="kw">--state</span>
+
+<span class="cm"># List active zones and their interfaces</span>
+$ <span class="fn">firewall-cmd</span> <span class="kw">--get-active-zones</span>
+
+<span class="cm"># Allow SSH permanently in the public zone</span>
+$ <span class="fn">firewall-cmd</span> <span class="kw">--zone=public --add-service=ssh --permanent</span>
+$ <span class="fn">firewall-cmd</span> <span class="kw">--reload</span>
+
+<span class="cm"># Allow a specific port</span>
+$ <span class="fn">firewall-cmd</span> <span class="kw">--zone=public --add-port=8080/tcp --permanent</span>
+
+<span class="cm"># Note: Ubuntu uses UFW. firewalld can be installed but is not the default.</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> firewalld   <span class="cm"># possible but may conflict with UFW</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- NFTABLES SETS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 40</div>
+        <div class="slide-title">nftables <span class="accent">Sets and Maps</span></div>
+        <div class="slide-subtitle">Efficient multi-value matching without writing one rule per IP or port.</div>
+
+        <div class="scenario-strip">
+            You need to block 50 known malicious IP addresses. Writing 50 DROP rules is inefficient and slow -- each packet must match against all 50 rules sequentially. An nftables set stores all 50 IPs in a hash table and checks membership in O(1) time.
+        </div>
+
+        <div class="code-block"><span class="cm"># nftables set -- block a list of IPs efficiently</span>
+table ip filter {
+    <span class="cm"># Define a named set of blocked addresses</span>
+    set blocklist {
+        type ipv4_addr
+        elements = { <span class="nb">203.0.113.1, 203.0.113.2, 198.51.100.5</span> }
+    }
+
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif lo accept
+        ct state established,related accept
+        <span class="cm"># Drop packets from any IP in the blocklist set</span>
+        ip saddr @blocklist drop
+        tcp dport <span class="nb">22</span> accept
+    }
+}
+
+<span class="cm"># Add an IP to the set without reloading the full ruleset</span>
+$ <span class="fn">nft</span> add element ip filter blocklist { <span class="nb">203.0.113.99</span> }
+
+<span class="cm"># Remove an IP from the set</span>
+$ <span class="fn">nft</span> delete element ip filter blocklist { <span class="nb">203.0.113.99</span> }</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- TESTING YOUR FIREWALL ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 40</div>
+        <div class="slide-title">Testing Your <span class="accent">Firewall Rules</span></div>
+        <div class="slide-subtitle">Never assume your rules work. Verify them from the outside.</div>
+
+        <div class="code-block"><span class="cm"># Test from another machine with nmap (comprehensive port scan)</span>
+$ <span class="fn">nmap</span> <span class="kw">-sS</span> <span class="kw">-p</span> <span class="nb">1-1000</span> <span class="nb">10.0.0.5</span>      <span class="cm"># SYN scan ports 1-1000</span>
+$ <span class="fn">nmap</span> <span class="kw">-sU</span> <span class="kw">-p</span> <span class="nb">53,123,161</span> <span class="nb">10.0.0.5</span>  <span class="cm"># UDP scan specific ports</span>
+$ <span class="fn">nmap</span> <span class="kw">-sV</span> <span class="kw">-p</span> <span class="nb">22,80,443</span> <span class="nb">10.0.0.5</span>   <span class="cm"># version detection on expected open ports</span>
+
+<span class="cm"># Test with netcat (quick, no nmap required)</span>
+$ <span class="fn">nc</span> <span class="kw">-zv</span> <span class="nb">10.0.0.5</span> <span class="nb">22</span>     <span class="cm"># open: Connection to 10.0.0.5 22 port [tcp/ssh] succeeded!</span>
+$ <span class="fn">nc</span> <span class="kw">-zv</span> <span class="nb">10.0.0.5</span> <span class="nb">3306</span>   <span class="cm"># closed: nc: connect to 10.0.0.5 port 3306 (tcp) failed</span>
+
+<span class="cm"># Test with curl for web ports</span>
+$ <span class="fn">curl</span> <span class="kw">-I</span> http://10.0.0.5    <span class="cm"># should get HTTP response headers</span>
+$ <span class="fn">curl</span> <span class="kw">-I</span> https://10.0.0.5   <span class="cm"># HTTPS</span>
+
+<span class="cm"># Verify UFW status shows expected rules</span>
+$ <span class="fn">ufw</span> status verbose
+
+<span class="cm"># Check iptables packet counters to confirm traffic is hitting rules</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> INPUT <span class="kw">-v</span> <span class="kw">-n</span>  <span class="cm"># pkts and bytes columns show rule hits</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- IPTABLES IPSET ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 40</div>
+        <div class="slide-title">ipset: <span class="accent">Efficient IP Blocklists with iptables</span></div>
+        <div class="slide-subtitle">The iptables equivalent of nftables sets -- O(1) membership lookups for large address lists.</div>
+
+        <div class="code-block"><span class="cm"># Install ipset</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> ipset
+
+<span class="cm"># Create a hash:ip set named "blocklist"</span>
+$ <span class="fn">ipset</span> create blocklist hash:ip
+
+<span class="cm"># Add IPs to the set</span>
+$ <span class="fn">ipset</span> add blocklist <span class="nb">203.0.113.1</span>
+$ <span class="fn">ipset</span> add blocklist <span class="nb">198.51.100.5</span>
+
+<span class="cm"># Load a list of IPs from file</span>
+$ <span class="fn">while</span> <span class="fn">read</span> ip; do ipset add blocklist $ip; done < /etc/blocklist.txt
+
+<span class="cm"># Create an iptables rule referencing the set</span>
+$ <span class="fn">iptables</span> <span class="kw">-I</span> INPUT <span class="nb">1</span> <span class="kw">-m</span> set <span class="kw">--match-set</span> blocklist src <span class="kw">-j</span> DROP
+
+<span class="cm"># Save and restore ipset on reboot</span>
+$ <span class="fn">ipset</span> save > <span class="st">/etc/ipset.rules</span>
+$ <span class="fn">ipset</span> restore < <span class="st">/etc/ipset.rules</span>
+
+<span class="cm"># List contents of the blocklist set</span>
+$ <span class="fn">ipset</span> list blocklist</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- FULL UFW WORKFLOW ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 40</div>
+        <div class="slide-title">Full UFW <span class="accent">Deployment Workflow</span></div>
+        <div class="slide-subtitle">End-to-end: configure a web server firewall safely without locking yourself out.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># ufw-webserver-setup.sh -- safe UFW config for an Ubuntu 22.04 web server</span>
+
+<span class="cm"># Verify UFW is installed</span>
+<span class="fn">apt</span> <span class="kw">install</span> <span class="kw">-y</span> ufw
+
+<span class="cm"># Set default policies (before enabling)</span>
+<span class="fn">ufw</span> <span class="kw">default deny incoming</span>
+<span class="fn">ufw</span> <span class="kw">default allow outgoing</span>
+
+<span class="cm"># Allow SSH (CRITICAL -- before enabling or you lock yourself out)</span>
+<span class="fn">ufw</span> <span class="kw">allow</span> ssh
+
+<span class="cm"># Rate-limit SSH to slow brute-force</span>
+<span class="fn">ufw</span> limit ssh
+
+<span class="cm"># Allow web traffic</span>
+<span class="fn">ufw</span> <span class="kw">allow</span> http
+<span class="fn">ufw</span> <span class="kw">allow</span> https
+
+<span class="cm"># Enable the firewall</span>
+<span class="fn">ufw</span> <span class="kw">--force enable</span>
+
+<span class="cm"># Enable logging at medium level</span>
+<span class="fn">ufw</span> logging medium
+
+<span class="cm"># Verify final state</span>
+<span class="fn">ufw</span> status verbose
+<span class="fn">ufw</span> status numbered</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ANTI-SPOOFING RULES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 40</div>
+        <div class="slide-title">Anti-Spoofing: <span class="accent">Blocking Forged Source Addresses</span></div>
+        <div class="slide-subtitle">Drop packets that claim to come from addresses they cannot legitimately originate from.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What Is Spoofing?</div>
+                <div class="card-desc">An attacker crafts a packet with a forged source IP. Common techniques: claiming to be from loopback (127.0.0.0/8) while arriving on an external interface, or claiming to be from your own private network when arriving from the public internet. Used for DDoS reflection, bypass rules based on source IP.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reverse Path Filtering</div>
+                <div class="card-desc">The kernel's rp_filter sysctl automatically drops packets whose source address is not reachable via the interface they arrived on. This is the primary anti-spoofing mechanism. Set to strict mode (value 1) on all interfaces except multi-homed setups.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Enable strict reverse path filtering (prevents IP spoofing)</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.conf.all.rp_filter=<span class="nb">1</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.conf.default.rp_filter=<span class="nb">1</span>
+
+<span class="cm"># Persist rp_filter across reboots</span>
+$ <span class="fn">echo</span> <span class="st">"net.ipv4.conf.all.rp_filter = 1"</span> >> <span class="st">/etc/sysctl.conf</span>
+$ <span class="fn">sysctl</span> <span class="kw">-p</span>
+
+<span class="cm"># iptables anti-spoofing: drop packets on eth0 that claim private/loopback source</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-s</span> <span class="nb">127.0.0.0/8</span>    <span class="kw">-j</span> DROP
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-s</span> <span class="nb">10.0.0.0/8</span>     <span class="kw">-j</span> DROP
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-s</span> <span class="nb">172.16.0.0/12</span>  <span class="kw">-j</span> DROP
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-i</span> eth0 <span class="kw">-s</span> <span class="nb">192.168.0.0/16</span> <span class="kw">-j</span> DROP</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SYN FLOOD PROTECTION ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 40</div>
+        <div class="slide-title">SYN Flood <span class="accent">Protection</span></div>
+        <div class="slide-subtitle">Mitigate TCP SYN flood attacks through kernel tuning and iptables rate limits.</div>
+
+        <div class="code-block"><span class="cm"># Kernel-level SYN flood mitigations</span>
+
+<span class="cm"># Enable SYN cookies (recommended always-on)</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.tcp_syncookies=<span class="nb">1</span>
+
+<span class="cm"># Increase the backlog queue for half-open connections</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.tcp_max_syn_backlog=<span class="nb">2048</span>
+
+<span class="cm"># Reduce retries for unacknowledged SYN-ACK (default 5, set to 2)</span>
+$ <span class="fn">sysctl</span> <span class="kw">-w</span> net.ipv4.tcp_synack_retries=<span class="nb">2</span>
+
+<span class="cm"># iptables rate-limit NEW TCP connections globally (anti-SYN-flood)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--syn</span> <span class="kw">-m</span> limit \
+    <span class="kw">--limit</span> 25/s <span class="kw">--limit-burst</span> <span class="nb">50</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">--syn</span> <span class="kw">-j</span> DROP
+
+<span class="cm"># Persist kernel settings</span>
+$ <span class="fn">cat</span> >> <span class="st">/etc/sysctl.conf</span> << <span class="st">EOF</span>
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 2048
+net.ipv4.tcp_synack_retries = 2
+<span class="st">EOF</span>
+$ <span class="fn">sysctl</span> <span class="kw">-p</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- IPTABLES VS NFTABLES COMPARISON ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 40</div>
+        <div class="slide-title">iptables vs nftables: <span class="accent">Side-by-Side Comparison</span></div>
+        <div class="slide-subtitle">The same task, two syntaxes. nftables is the future -- know both for the field.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">iptables Strengths</div>
+                <div class="card-desc">Ubiquitous -- every Linux admin knows it. Massive documentation base. Existing rules and scripts are everywhere. Many third-party tools (fail2ban, Docker) generate iptables rules directly. Stable and battle-tested for 20+ years.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">nftables Strengths</div>
+                <div class="card-desc">Unified -- one tool for IPv4, IPv6, ARP, bridges. Better performance at scale. Atomic ruleset updates. Native set/map support. Cleaner, more readable syntax. The kernel maintainer's recommended direction. Will eventually replace iptables.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># The same rule in both tools:</span>
+<span class="cm"># Allow TCP port 22 from 10.0.0.0/24, drop everything else on INPUT</span>
+
+<span class="cm">-- iptables --</span>
+<span class="fn">iptables</span> <span class="kw">-A</span> INPUT <span class="kw">-p</span> tcp <span class="kw">-s</span> <span class="nb">10.0.0.0/24</span> <span class="kw">--dport</span> <span class="nb">22</span> <span class="kw">-j</span> ACCEPT
+<span class="fn">iptables</span> <span class="kw">-P</span> INPUT DROP
+
+<span class="cm">-- nftables --</span>
+table ip filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        ip saddr <span class="nb">10.0.0.0/24</span> tcp dport <span class="nb">22</span> accept
+    }
+}
+
+<span class="cm"># Convert existing iptables rules to nftables syntax</span>
+$ <span class="fn">iptables-save</span> > rules.iptables
+$ <span class="fn">iptables-restore-translate</span> <span class="kw">-f</span> rules.iptables > <span class="st">/etc/nftables.conf</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- OUTBOUND FILTERING ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 40</div>
+        <div class="slide-title">Outbound Filtering: <span class="accent">Locking Down OUTPUT</span></div>
+        <div class="slide-subtitle">Default ACCEPT on OUTPUT is fine for most servers. High-security environments restrict egress too.</div>
+
+        <div class="scenario-strip">
+            A compromised web server calling out to a C2 server on port 4444 is a sign of active compromise. If your OUTPUT policy drops everything except known-good destinations, that callout fails and your monitoring catches the blocked attempt.
+        </div>
+
+        <div class="code-block"><span class="cm"># Strict OUTPUT policy -- only allow what is needed</span>
+
+<span class="cm"># Allow loopback output</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-o</span> lo <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow DNS queries (required for apt, curl, basically everything)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> udp <span class="kw">--dport</span> <span class="nb">53</span> <span class="kw">-j</span> ACCEPT
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> tcp <span class="kw">--dport</span> <span class="nb">53</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow outbound HTTP/HTTPS (for apt, curl, updates)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> tcp <span class="kw">-m</span> multiport <span class="kw">--dports</span> <span class="nb">80,443</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow NTP (system clock sync)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-p</span> udp <span class="kw">--dport</span> <span class="nb">123</span> <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Allow established connections to reply (stateful)</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-m</span> conntrack <span class="kw">--ctstate</span> ESTABLISHED,RELATED <span class="kw">-j</span> ACCEPT
+
+<span class="cm"># Log and drop all other outbound traffic</span>
+$ <span class="fn">iptables</span> <span class="kw">-A</span> OUTPUT <span class="kw">-j</span> LOG <span class="kw">--log-prefix</span> <span class="st">"IPT-EGRESS-DROP: "</span>
+$ <span class="fn">iptables</span> <span class="kw">-P</span> OUTPUT DROP</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 36 -- DOCKER AND IPTABLES ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 40</div>
+        <div class="slide-title">Docker and <span class="accent">iptables Conflicts</span></div>
+        <div class="slide-subtitle">Docker aggressively manipulates iptables. Know this before you wonder why your rules are being bypassed.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Docker Problem</div>
+                <div class="card-desc">Docker daemon inserts its own iptables chains (DOCKER, DOCKER-ISOLATION-STAGE-1, DOCKER-USER) and adds ACCEPT rules for every published port. Your UFW deny rules may be bypassed if Docker publishes a port directly to 0.0.0.0. This is a well-known security issue.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Fix</div>
+                <div class="card-desc">Bind Docker containers to localhost (127.0.0.1:8080:80 instead of 8080:80) and expose them via a reverse proxy. Or use the DOCKER-USER chain for rules that Docker will not override. Or set <span class="ic">iptables: false</span> in /etc/docker/daemon.json and manage manually.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># See what Docker added to iptables</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> <span class="kw">-n</span> <span class="kw">-v</span> | <span class="fn">grep</span> <span class="st">-i docker</span>
+
+<span class="cm"># DOCKER-USER chain -- Docker will not touch rules here</span>
+$ <span class="fn">iptables</span> <span class="kw">-I</span> DOCKER-USER <span class="kw">-s</span> <span class="nb">0.0.0.0/0</span> <span class="kw">-j</span> DROP
+$ <span class="fn">iptables</span> <span class="kw">-I</span> DOCKER-USER <span class="kw">-s</span> <span class="nb">10.0.0.0/24</span> <span class="kw">-j</span> RETURN  <span class="cm"># allow your admin CIDR</span>
+
+<span class="cm"># Bind a container to localhost only (correct approach)</span>
+<span class="cm"># docker run -p 127.0.0.1:8080:80 nginx</span>
+
+<span class="cm"># Disable Docker iptables management (advanced -- requires full manual setup)</span>
+<span class="cm"># Add to /etc/docker/daemon.json:</span>
+<span class="cm"># { "iptables": false }</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 37 -- VERIFYING SAVED RULES ==================== -->
+<section class="slide" id="slide-37">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 37 of 40</div>
+        <div class="slide-title">Verifying <span class="accent">Saved Rules Survive Reboot</span></div>
+        <div class="slide-subtitle">Confirm your persistent firewall configuration loads correctly after a system restart.</div>
+
+        <div class="code-block"><span class="cm"># Step 1: View currently active rules</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> <span class="kw">-v</span> <span class="kw">-n</span>
+
+<span class="cm"># Step 2: Save current rules to the persistence file</span>
+$ <span class="fn">iptables-save</span> > <span class="st">/etc/iptables/rules.v4</span>
+
+<span class="cm"># Step 3: Verify the saved file is correct</span>
+$ <span class="fn">cat</span> <span class="st">/etc/iptables/rules.v4</span>
+
+<span class="cm"># Step 4: Simulate a reboot restore without rebooting</span>
+$ <span class="fn">iptables</span> <span class="kw">-F</span>    <span class="cm"># flush all rules</span>
+$ <span class="fn">iptables-restore</span> < <span class="st">/etc/iptables/rules.v4</span>
+$ <span class="fn">iptables</span> <span class="kw">-L</span> <span class="kw">-v</span> <span class="kw">-n</span>    <span class="cm"># verify rules are back</span>
+
+<span class="cm"># Step 5: Confirm the service is enabled for boot</span>
+$ <span class="fn">systemctl</span> <span class="kw">is-enabled</span> netfilter-persistent
+
+<span class="cm"># For UFW -- verify it survives reboot</span>
+$ <span class="fn">systemctl</span> <span class="kw">is-enabled</span> ufw
+$ <span class="fn">ufw</span> status    <span class="cm"># should show "Status: active" after reboot</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 38 -- COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-38">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 38 of 40</div>
+        <div class="slide-title">Common <span class="accent">Firewall Mistakes</span></div>
+        <div class="slide-subtitle">Learn from the errors that cause lockouts, bypasses, and breaches.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Setting <code>-P INPUT DROP</code> before adding your SSH ACCEPT rule. You will lock yourself out of the server instantly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Not saving rules after configuration. After reboot, all your work is gone. Always run <code>netfilter-persistent save</code> or <code>iptables-save</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Forgetting IPv6. iptables rules do not apply to IPv6. Use <code>ip6tables</code> or UFW to cover both stacks.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Relying on source IP filtering alone for access control. IP spoofing, VPNs, and NAT make source IP unreliable. Layer authentication on top.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Not testing from the outside. Rules that look correct can have ordering bugs. Always verify from another host using <code>nmap</code> or <code>nc</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Forgetting established traffic. If you add DROP to OUTPUT or INPUT without first allowing ESTABLISHED,RELATED, active sessions break immediately.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Using REJECT instead of DROP on public interfaces. REJECT tells attackers exactly what is filtered. Use DROP to reveal nothing.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 39 -- VOCABULARY ==================== -->
+<section class="slide" id="slide-39">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 39 of 40</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms you will encounter in documentation, job interviews, and security audits.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Firewall Architecture Terms</div>
+                <div class="card-desc">
+                    <strong>netfilter</strong> -- kernel framework that provides the packet filtering hooks.<br>
+                    <strong>chain</strong> -- an ordered list of rules evaluated against a packet.<br>
+                    <strong>table</strong> -- a grouping of chains by purpose (filter, nat, mangle).<br>
+                    <strong>policy</strong> -- the default verdict for a built-in chain when no rule matches.<br>
+                    <strong>stateful inspection</strong> -- tracking connection state to make filtering decisions.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Rule and Target Terms</div>
+                <div class="card-desc">
+                    <strong>ACCEPT</strong> -- allow the packet through, stop rule processing.<br>
+                    <strong>DROP</strong> -- discard silently, no reply to sender.<br>
+                    <strong>REJECT</strong> -- discard and notify sender with ICMP error.<br>
+                    <strong>LOG</strong> -- record packet info, continue rule processing.<br>
+                    <strong>DNAT</strong> -- rewrite destination address/port (port forwarding).<br>
+                    <strong>MASQUERADE</strong> -- rewrite source to outgoing interface IP.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Defensive Strategy Terms</div>
+                <div class="card-desc">
+                    <strong>default deny</strong> -- block everything; only explicitly allow what is needed.<br>
+                    <strong>defense in depth</strong> -- multiple independent security layers.<br>
+                    <strong>zone-based policy</strong> -- different rules per network segment or interface.<br>
+                    <strong>egress filtering</strong> -- restricting outbound traffic from a host.<br>
+                    <strong>rp_filter</strong> -- reverse path filtering; kernel anti-spoofing mechanism.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 40 -- SUMMARY ==================== -->
+<section class="slide" id="slide-40">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 40 of 40 &nbsp;|&nbsp; Week 2 Topic 1</div>
+        <div class="slide-title">Perimeter Shield: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            Your cell's firewall is now configured. iptables, nftables, and UFW all write to the same netfilter kernel hooks. The tool is a preference; the logic is universal: default deny, allow only what is needed, log what you drop, verify from outside, save your rules.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Session</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">All Linux firewall tools (iptables, nftables, UFW) write rules to the kernel's <strong>netfilter</strong> hooks. They are frontends to the same engine.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The three filter chains: <code>INPUT</code> (to this machine), <code>OUTPUT</code> (from this machine), <code>FORWARD</code> (through this machine).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Always add ACCEPT rules before setting <code>-P INPUT DROP</code>. Wrong order = instant lockout from SSH.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Use <code>-m conntrack --ctstate ESTABLISHED,RELATED</code> to allow reply traffic without opening ports permanently.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Use DROP on public interfaces. REJECT tells attackers the port is filtered. DROP reveals nothing.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">iptables rules are volatile. Persist them with <code>netfilter-persistent save</code> or <code>iptables-save</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">UFW handles IPv4 and IPv6 simultaneously. Raw iptables requires separate ip6tables commands.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">nftables is the modern replacement. Ubuntu 22.04 already runs <code>iptables-nft</code> under the hood.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Always verify your rules from outside with <code>nmap</code> or <code>nc</code>. Correct-looking rules can have ordering bugs that only external testing catches.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 40</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 40;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update matrix green progress bar */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* Module completion */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w2-firewalls', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

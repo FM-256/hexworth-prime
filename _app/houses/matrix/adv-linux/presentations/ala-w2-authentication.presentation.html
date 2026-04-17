@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Lock Protocol -- Authentication Hardening | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.15); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #00ff41; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Dual-Lock Protocol -- Authentication Hardening</h1>
+
+<div id="progress-bar" style="width:2.5%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 40 &nbsp;|&nbsp; Week 2 &nbsp;|&nbsp; Advanced Linux Administration</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Dual-Lock Protocol<br>
+                <span class="accent">Authentication Hardening</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                PAM &nbsp;&bull;&nbsp; TOTP &nbsp;&bull;&nbsp; SSH Key + 2FA &nbsp;&bull;&nbsp; fail2ban &nbsp;&bull;&nbsp; Password Policy
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Operational directive: implement multi-factor authentication on all secure links before the next grid sync. A password alone is a single lock. This session adds the second lock -- and everything needed to enforce it at scale.
+        </div>
+        <div class="title-meta-row">
+            <span>40 Slides</span>
+            <span>Week 2 Topic 2</span>
+            <span>Ubuntu 22.04</span>
+            <span>PAM / fail2ban / SSH</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- AUTHENTICATION THREAT MODEL ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 40</div>
+        <div class="slide-title">The <span class="accent">Threat Model</span></div>
+        <div class="slide-subtitle">Know what you are defending against before choosing controls.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Credential Stuffing</div>
+                <div class="card-desc">Attacker takes breach databases (billions of username:password pairs) and tries them against your SSH service. Automated tools run thousands of attempts per minute. If any user reused a password from a breached service, the attacker is in.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Brute Force</div>
+                <div class="card-desc">Systematic enumeration of passwords against a known username. Common usernames: root, admin, ubuntu, deploy. Against a short or simple password with no rate limiting, a brute force attack can succeed in minutes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Credential Theft</div>
+                <div class="card-desc">SSH private keys stolen from a developer's laptop. Passwords extracted from a compromised workstation via keylogger or memory scrape. The attacker does not guess -- they use valid credentials. Only MFA stops this after the credential is compromised.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Defense Stack</div>
+                <div class="card-desc">No single control is sufficient. Combine: strong password policy, SSH key authentication, 2FA (TOTP), fail2ban rate limiting, disabled root login, restricted sudo, and session logging. Each layer stops different attack vectors.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MFA Value</div>
+                <div class="card-desc">Multi-factor authentication requires two independent factors: something you know (password or key) AND something you have (TOTP app). A stolen password is useless without the device generating the one-time code. This stops credential theft cold.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PAM OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 40</div>
+        <div class="slide-title">PAM: <span class="accent">Pluggable Authentication Modules</span></div>
+        <div class="slide-subtitle">The Linux authentication framework. Every login on your system goes through PAM.</div>
+
+        <div class="scenario-strip">
+            PAM is the layer between "user provides credentials" and "user gets a shell." SSH calls PAM. sudo calls PAM. login calls PAM. su calls PAM. Configure PAM correctly and you control authentication for every entry point on the system from one framework.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What PAM Is</div>
+                <div class="card-desc">A shared library framework that separates authentication logic from applications. Applications call PAM; PAM calls modules. Modules handle the actual work: checking passwords, enforcing complexity, limiting login times, logging events, requiring TOTP.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Module Types</div>
+                <div class="card-desc">
+                    <strong>auth</strong> -- verify who you are (passwords, 2FA).<br>
+                    <strong>account</strong> -- check if access is permitted (time, expiry).<br>
+                    <strong>password</strong> -- enforce password change requirements.<br>
+                    <strong>session</strong> -- set up and tear down the session (logging, environment).
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Control Flags</div>
+                <div class="card-desc">
+                    <strong>required</strong> -- must succeed; failure does not stop processing but login fails.<br>
+                    <strong>requisite</strong> -- must succeed; failure immediately stops processing.<br>
+                    <strong>sufficient</strong> -- if this succeeds and nothing prior failed, accept.<br>
+                    <strong>optional</strong> -- result is ignored for overall pass/fail.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- PAM DIRECTORY STRUCTURE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 40</div>
+        <div class="slide-title">PAM Directory <span class="accent">Structure</span></div>
+        <div class="slide-subtitle">Where configuration lives and how services are mapped to module stacks.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">/etc/pam.d/</div>
+                <div class="card-desc">Each file in this directory configures PAM for one service. <span class="ic">sshd</span> configures SSH authentication. <span class="ic">sudo</span> configures sudo. <span class="ic">login</span> configures console login. <span class="ic">common-*</span> files are shared stacks included by the per-service files.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">common-* Files</div>
+                <div class="card-desc">Ubuntu uses <span class="ic">common-auth</span>, <span class="ic">common-account</span>, <span class="ic">common-password</span>, and <span class="ic">common-session</span> as shared module stacks. Per-service files include them with <span class="ic">@include common-auth</span>. Editing a common file affects every service that includes it.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># List PAM service configuration files</span>
+$ <span class="fn">ls</span> <span class="st">/etc/pam.d/</span>
+common-auth  common-account  common-password  common-session
+login  sshd  sudo  su  passwd  cron  ...
+
+<span class="cm"># View the SSH PAM configuration</span>
+$ <span class="fn">cat</span> <span class="st">/etc/pam.d/sshd</span>
+# PAM configuration for the Secure Shell service
+@include common-auth
+account    required     pam_nologin.so
+@include common-account
+session    optional     pam_keyinit.so force revoke
+@include common-session
+session    required     pam_loginuid.so
+
+<span class="cm"># View the common-auth stack (applies to all @include common-auth services)</span>
+$ <span class="fn">cat</span> <span class="st">/etc/pam.d/common-auth</span>
+auth    [success=1 default=ignore]  pam_unix.so nullok
+auth    requisite                   pam_deny.so
+auth    required                    pam_permit.so</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PAM_UNIX AND PASSWORD HASHING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 40</div>
+        <div class="slide-title">pam_unix: <span class="accent">Standard Password Authentication</span></div>
+        <div class="slide-subtitle">The core PAM module that handles traditional Unix password verification.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What pam_unix Does</div>
+                <div class="card-desc">Reads the shadow password file (<span class="ic">/etc/shadow</span>), hashes the provided password using the algorithm stored in the shadow entry, and compares the result. On modern Ubuntu 22.04, the algorithm is yescrypt (sha512 on older systems).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Shadow File Format</div>
+                <div class="card-desc">Each line in <span class="ic">/etc/shadow</span>: username : hashed_password : last_change : min_days : max_days : warn_days : inactive : expire : reserved. The hash field contains the algorithm ID, salt, and hash separated by <span class="ic">$</span>. Only root can read this file.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># View shadow file format (requires root)</span>
+$ <span class="fn">sudo</span> <span class="fn">cat</span> <span class="st">/etc/shadow</span>
+root:!:19500:0:99999:7:::
+ubuntu:$y$j9T$salt$hash...:19800:0:99999:7:::
+<span class="cm">#      ^ $y$ = yescrypt algorithm</span>
+<span class="cm">#      $6$ = SHA-512 (older systems)</span>
+<span class="cm">#      * or ! = account locked (no password login possible)</span>
+
+<span class="cm"># Check which password hashing algorithm is configured</span>
+$ <span class="fn">grep</span> ENCRYPT_METHOD <span class="st">/etc/login.defs</span>
+ENCRYPT_METHOD  yescrypt
+
+<span class="cm"># Verify a user's hash algorithm</span>
+$ <span class="fn">sudo</span> <span class="fn">getent</span> shadow ubuntu | <span class="fn">cut</span> <span class="kw">-d:</span> <span class="kw">-f2</span> | <span class="fn">cut</span> <span class="kw">-c1-4</span>
+$y$j
+
+<span class="cm"># Check password status for a user</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-l</span> ubuntu</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PASSWORD POLICY: LOGIN.DEFS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 40</div>
+        <div class="slide-title">Password Policy: <span class="accent">/etc/login.defs</span></div>
+        <div class="slide-subtitle">System-wide defaults for password aging, UID ranges, and account behavior.</div>
+
+        <div class="code-block"><span class="cm"># /etc/login.defs -- key fields to configure</span>
+$ <span class="fn">grep</span> <span class="kw">-E</span> <span class="st">"^(PASS|LOGIN|ENCRYPT|UMASK)"</span> <span class="st">/etc/login.defs</span>
+
+<span class="cm"># Password aging policy</span>
+PASS_MAX_DAYS    <span class="nb">90</span>     <span class="cm"># maximum days before password must be changed</span>
+PASS_MIN_DAYS    <span class="nb">1</span>      <span class="cm"># minimum days between password changes</span>
+PASS_WARN_AGE    <span class="nb">14</span>     <span class="cm"># days before expiry to warn the user</span>
+PASS_MIN_LEN     <span class="nb">12</span>     <span class="cm"># minimum password length (pam_unix only)</span>
+
+<span class="cm"># Hashing algorithm</span>
+ENCRYPT_METHOD  yescrypt
+YESCRYPT_COST_FACTOR  5
+
+<span class="cm"># Login failure lockout (handled by PAM, but referenced here)</span>
+LOGIN_RETRIES    <span class="nb">3</span>      <span class="cm"># attempts before login program exits</span>
+LOGIN_TIMEOUT    <span class="nb">60</span>     <span class="cm"># seconds before login attempt times out</span>
+
+<span class="cm"># Apply aging settings to an existing user</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-M</span> <span class="nb">90</span> <span class="kw">-m</span> <span class="nb">1</span> <span class="kw">-W</span> <span class="nb">14</span> username
+
+<span class="cm"># View aging settings for a user</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-l</span> username</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PWQUALITY PASSWORD COMPLEXITY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 40</div>
+        <div class="slide-title">Password Complexity: <span class="accent">pam_pwquality</span></div>
+        <div class="slide-subtitle">Enforce minimum character class requirements, dictionary checks, and minimum length.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What pam_pwquality Does</div>
+                <div class="card-desc">Replaces the older pam_cracklib. Checks new passwords against configurable complexity rules and a dictionary of common passwords. Rejects weak passwords before they reach the shadow file. Configuration lives in <span class="ic">/etc/security/pwquality.conf</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Modern Password Guidance</div>
+                <div class="card-desc">NIST SP 800-63B guidance: prioritize length (16+ chars) over complexity rules. Complexity requirements push users to predictable patterns (Pa$$w0rd). Length requirements push users toward strong passphrases. Balance both in practice.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install pwquality</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> libpam-pwquality
+
+<span class="cm"># /etc/security/pwquality.conf -- recommended hardened settings</span>
+minlen = <span class="nb">14</span>           <span class="cm"># minimum 14 characters</span>
+dcredit = <span class="nb">-1</span>          <span class="cm"># require at least 1 digit</span>
+ucredit = <span class="nb">-1</span>          <span class="cm"># require at least 1 uppercase</span>
+lcredit = <span class="nb">-1</span>          <span class="cm"># require at least 1 lowercase</span>
+ocredit = <span class="nb">-1</span>          <span class="cm"># require at least 1 special character</span>
+maxrepeat = <span class="nb">3</span>         <span class="cm"># no more than 3 consecutive identical characters</span>
+gecoscheck = <span class="nb">1</span>        <span class="cm"># reject passwords containing the username</span>
+dictcheck = <span class="nb">1</span>         <span class="cm"># check against cracklib dictionary</span>
+enforce_for_root = <span class="nb">1</span>  <span class="cm"># apply rules to root password changes too</span>
+
+<span class="cm"># Add to /etc/pam.d/common-password (above pam_unix):</span>
+password required pam_pwquality.so retry=<span class="nb">3</span>
+
+<span class="cm"># Test a potential password manually</span>
+$ <span class="fn">pwscore</span>
+Enter password: <span class="cm">(type a test password)</span>
+Password quality score: <span class="nb">80</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PAM_FAILLOCK ACCOUNT LOCKOUT ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 40</div>
+        <div class="slide-title">Account Lockout: <span class="accent">pam_faillock</span></div>
+        <div class="slide-subtitle">Lock accounts after repeated failed login attempts. Replaces the older pam_tally2.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">pam_faillock vs pam_tally2</div>
+                <div class="card-desc">Ubuntu 22.04 ships <strong>pam_faillock</strong> as the current standard. pam_tally2 is deprecated and removed in newer PAM versions. pam_faillock tracks failures in <span class="ic">/var/run/faillock/</span> (per-user files) and locks accounts after a configurable threshold.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">DoS Risk</div>
+                <div class="card-desc">Aggressive lockout thresholds can be weaponized: an attacker deliberately triggers lockouts on all accounts to deny legitimate access. Apply faillock to non-privileged accounts. For root and service accounts, use <span class="ic">even_deny_root</span> selectively.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/security/faillock.conf -- pam_faillock configuration</span>
+deny = <span class="nb">5</span>             <span class="cm"># lock after 5 failures</span>
+unlock_time = <span class="nb">900</span>    <span class="cm"># unlock after 900 seconds (15 minutes)</span>
+fail_interval = <span class="nb">900</span>  <span class="cm"># count failures within this window</span>
+even_deny_root       <span class="cm"># also apply to root</span>
+audit                <span class="cm"># log lockout events to audit log</span>
+
+<span class="cm"># /etc/pam.d/common-auth -- add faillock lines</span>
+auth required                   pam_faillock.so preauth silent
+auth [success=1 default=ignore] pam_unix.so nullok
+auth [default=die]              pam_faillock.so authfail
+auth sufficient                 pam_faillock.so authsucc
+
+<span class="cm"># View failed attempts for a user</span>
+$ <span class="fn">sudo</span> <span class="fn">faillock</span> <span class="kw">--user</span> ubuntu
+
+<span class="cm"># Manually unlock a locked account</span>
+$ <span class="fn">sudo</span> <span class="fn">faillock</span> <span class="kw">--user</span> ubuntu <span class="kw">--reset</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SSH KEY AUTHENTICATION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 40</div>
+        <div class="slide-title">SSH Key <span class="accent">Authentication</span></div>
+        <div class="slide-subtitle">Asymmetric cryptography replaces password transmission. The private key never leaves your machine.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">You generate a key pair: private key (never leaves your machine) and public key (placed on the server in <span class="ic">~/.ssh/authorized_keys</span>). SSH uses the private key to sign a challenge. The server verifies the signature with the public key. No password sent over the wire.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Types</div>
+                <div class="card-desc"><strong>ed25519</strong> -- recommended. 256-bit elliptic curve, small key size, fast, secure. <strong>RSA 4096</strong> -- widely compatible, slower. <strong>ecdsa</strong> -- elliptic curve, good but ed25519 is preferred. Never use RSA 1024 or DSA -- both are broken.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Passphrase</div>
+                <div class="card-desc">Always protect your private key with a passphrase. Without a passphrase, anyone who gets the key file can use it immediately. With a passphrase, they need both the file and the passphrase. Use ssh-agent to cache the decrypted key in memory during a session.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Generate an ed25519 key pair</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-t</span> ed25519 <span class="kw">-C</span> <span class="st">"ops-station-2026"</span>
+Generating public/private ed25519 key pair.
+Enter file: <span class="st">/home/user/.ssh/id_ed25519</span>
+Enter passphrase: <span class="cm">(use a strong passphrase)</span>
+
+<span class="cm"># Copy public key to server</span>
+$ <span class="fn">ssh-copy-id</span> <span class="kw">-i</span> <span class="st">~/.ssh/id_ed25519.pub</span> user@server
+
+<span class="cm"># Manual method: append to authorized_keys</span>
+$ <span class="fn">cat</span> <span class="st">~/.ssh/id_ed25519.pub</span> | <span class="fn">ssh</span> user@server <span class="st">"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- SSH SERVER HARDENING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 40</div>
+        <div class="slide-title">SSH Server: <span class="accent">Hardening sshd_config</span></div>
+        <div class="slide-subtitle">Disable password auth, disable root login, restrict allowed users -- the standard hardening checklist.</div>
+
+        <div class="code-block"><span class="cm"># /etc/ssh/sshd_config -- hardened settings</span>
+
+<span class="cm"># Disable root login via SSH entirely</span>
+PermitRootLogin <span class="kw">no</span>
+
+<span class="cm"># Disable password authentication (SSH key only)</span>
+PasswordAuthentication <span class="kw">no</span>
+PermitEmptyPasswords <span class="kw">no</span>
+
+<span class="cm"># Disable challenge-response (used by PAM password prompts)</span>
+ChallengeResponseAuthentication <span class="kw">no</span>
+<span class="cm"># Note: set this to yes when adding TOTP (Slide 13)</span>
+
+<span class="cm"># Use only modern cryptography</span>
+Protocol <span class="nb">2</span>
+Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr
+MACs hmac-sha2-512,hmac-sha2-256
+KexAlgorithms curve25519-sha256,diffie-hellman-group-exchange-sha256
+
+<span class="cm"># Restrict which users can SSH in</span>
+AllowUsers deploy ops-user   <span class="cm"># only these usernames allowed</span>
+AllowGroups sshusers         <span class="cm"># or restrict by group membership</span>
+
+<span class="cm"># Reduce login window</span>
+LoginGraceTime <span class="nb">30</span>
+MaxAuthTries <span class="nb">3</span>
+MaxSessions <span class="nb">5</span>
+
+<span class="cm"># Apply changes</span>
+$ <span class="fn">sshd</span> <span class="kw">-t</span>          <span class="cm"># test configuration syntax</span>
+$ <span class="fn">systemctl</span> <span class="kw">reload</span> ssh</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- TOTP THEORY ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 40</div>
+        <div class="slide-title">TOTP: <span class="accent">Time-Based One-Time Passwords</span></div>
+        <div class="slide-subtitle">How six-digit codes that expire every 30 seconds work -- before you implement them.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Algorithm (RFC 6238)</div>
+                <div class="card-desc">TOTP = HMAC-SHA1(shared_secret, floor(current_unix_time / 30)). Both the server and the authenticator app share the same secret key. They independently compute the same HMAC over the current 30-second time window. The 6-digit code is derived from the HMAC output.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Shared Secret</div>
+                <div class="card-desc">During enrollment, the server generates a random shared secret and encodes it as a QR code. You scan it into your authenticator app. From that point, both sides independently compute matching codes every 30 seconds. The secret never transits the network again after enrollment.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why It Works</div>
+                <div class="card-desc">An attacker who intercepts your TOTP code gets a 6-digit value that expires in less than 30 seconds. They cannot reuse it. A stolen password database does not help -- it contains no TOTP secrets. The only way to break it is to compromise the shared secret itself.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Compatible Apps</div>
+            Google Authenticator, Authy, Aegis (Android, open-source), Bitwarden Authenticator, Microsoft Authenticator. All implement RFC 6238. Any will work with Google Authenticator PAM module.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- GOOGLE AUTHENTICATOR INSTALL ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 40</div>
+        <div class="slide-title">Google Authenticator: <span class="accent">Installation and Setup</span></div>
+        <div class="slide-subtitle">Install the PAM module and generate per-user TOTP secrets.</div>
+
+        <div class="code-block"><span class="cm"># Step 1: Install the PAM module</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> libpam-google-authenticator
+
+<span class="cm"># Step 2: Run setup as the target user (NOT as root)</span>
+$ <span class="fn">google-authenticator</span>
+
+Do you want authentication tokens to be time-based (y/n) <span class="kw">y</span>
+
+<span class="cm"># Output shows:</span>
+<span class="cm"># - QR code URL (scan with authenticator app)</span>
+<span class="cm"># - Secret key (backup in secure location)</span>
+<span class="cm"># - Emergency scratch codes (single-use recovery codes)</span>
+
+Do you want me to update your "/home/user/.google_authenticator" file? <span class="kw">y</span>
+Do you want to disallow multiple uses of the same authentication token? <span class="kw">y</span>
+Do you want to increase the time skew window? <span class="kw">n</span>
+Do you want to enable rate-limiting? <span class="kw">y</span>
+
+<span class="cm"># The file ~/.google_authenticator is created</span>
+<span class="cm"># It contains the secret and configuration</span>
+<span class="cm"># Permissions should be 400 (user read-only)</span>
+$ <span class="fn">chmod</span> <span class="nb">400</span> <span class="st">~/.google_authenticator</span>
+$ <span class="fn">ls</span> <span class="kw">-la</span> <span class="st">~/.google_authenticator</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- TOTP + SSH KEY 2FA COMBO ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 40</div>
+        <div class="slide-title">SSH Key + TOTP: <span class="accent">True Multi-Factor</span></div>
+        <div class="slide-subtitle">Require both a valid SSH key AND a TOTP code for every SSH login.</div>
+
+        <div class="scenario-strip">
+            Factor 1: SSH private key (something you have -- cryptographic proof of identity). Factor 2: TOTP code from your phone (something you have -- time-based token). An attacker needs both the key file AND the live device generating codes. This is genuine two-factor authentication.
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: Edit /etc/pam.d/sshd</span>
+<span class="cm"># Add this line at the top (before @include common-auth):</span>
+auth required pam_google_authenticator.so nullok
+
+<span class="cm"># Step 2: Edit /etc/ssh/sshd_config</span>
+<span class="cm"># Enable challenge-response to allow PAM prompts through SSH</span>
+ChallengeResponseAuthentication <span class="kw">yes</span>
+KbdInteractiveAuthentication <span class="kw">yes</span>
+PasswordAuthentication <span class="kw">no</span>
+PermitRootLogin <span class="kw">no</span>
+
+<span class="cm"># Step 3: Require both key AND TOTP (the critical setting)</span>
+<span class="cm"># Add to sshd_config:</span>
+AuthenticationMethods publickey,keyboard-interactive
+
+<span class="cm"># Step 4: Reload SSH</span>
+$ <span class="fn">sshd</span> <span class="kw">-t</span> && <span class="fn">systemctl</span> <span class="kw">reload</span> ssh
+
+<span class="cm"># Login flow:</span>
+<span class="cm"># 1. SSH client authenticates with key (automatic)</span>
+<span class="cm"># 2. SSH prompts: "Verification code:" (TOTP prompt)</span>
+<span class="cm"># 3. User enters 6-digit code from app</span>
+<span class="cm"># 4. Access granted only if both succeed</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- NULLOK AND ENROLLMENT ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 40</div>
+        <div class="slide-title">TOTP Rollout: <span class="accent">nullok and Staged Enrollment</span></div>
+        <div class="slide-subtitle">Roll out TOTP without instantly locking out users who have not enrolled yet.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The nullok Option</div>
+                <div class="card-desc">When <span class="ic">nullok</span> is set in the pam_google_authenticator line, users without a <span class="ic">~/.google_authenticator</span> file are allowed to log in without TOTP. This allows a grace period for enrollment. Once all users have enrolled, remove nullok to enforce MFA universally.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Removing nullok</div>
+                <div class="card-desc">Once nullok is removed, any user without an enrolled TOTP secret is locked out of SSH. Audit all accounts before removing nullok. Run <span class="ic">ls /home/*/.google_authenticator</span> to see who has enrolled. Notify users and set a deadline before the cutover.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Phase 1 -- grace period (nullok allows unenrolled users)</span>
+auth required pam_google_authenticator.so nullok
+
+<span class="cm"># Check who has enrolled TOTP</span>
+$ <span class="fn">find</span> /home <span class="kw">-name</span> <span class="st">.google_authenticator</span> <span class="kw">-ls</span>
+
+<span class="cm"># Phase 2 -- enforce for all users after enrollment deadline</span>
+auth required pam_google_authenticator.so
+<span class="cm"># (remove "nullok" -- users without ~/.google_authenticator are denied)</span>
+
+<span class="cm"># Provision TOTP for a user non-interactively (admin-managed enrollment)</span>
+$ <span class="fn">google-authenticator</span> <span class="kw">-t</span> <span class="kw">-d</span> <span class="kw">-f</span> <span class="kw">-r</span> <span class="nb">3</span> <span class="kw">-R</span> <span class="nb">30</span> <span class="kw">-w</span> <span class="nb">17</span>
+<span class="cm"># -t: time-based, -d: disallow reuse, -f: force update, -r: rate limit</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- FAIL2BAN OVERVIEW ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 40</div>
+        <div class="slide-title">fail2ban: <span class="accent">Dynamic IP Blocking</span></div>
+        <div class="slide-subtitle">Monitor log files. Ban IPs that exceed failure thresholds. Automates the response to brute-force attacks.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How fail2ban Works</div>
+                <div class="card-desc">fail2ban monitors log files (auth.log, nginx access.log, etc.) using regex patterns called filters. When a pattern matches enough times within a time window, fail2ban adds a temporary iptables DROP rule for the source IP. The ban expires after a configurable duration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Jails</div>
+                <div class="card-desc">A jail is a configuration unit: one log file + one filter + one action + thresholds. fail2ban ships jails for SSH, Apache, Nginx, Postfix, and dozens of other services. You enable the jails you need and tune the thresholds for your environment.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Actions</div>
+                <div class="card-desc">Actions define what happens when a ban is triggered. Default: add an iptables DROP rule. Others: email notification, ban via firewalld, log to syslog, call a webhook. Multiple actions can be stacked on one jail.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install fail2ban</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> fail2ban
+
+<span class="cm"># Check status after install</span>
+$ <span class="fn">systemctl</span> <span class="kw">status</span> fail2ban
+$ <span class="fn">fail2ban-client</span> status</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- FAIL2BAN CONFIGURATION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 40</div>
+        <div class="slide-title">fail2ban: <span class="accent">Jail Configuration</span></div>
+        <div class="slide-subtitle">The jail.local file overrides jail.conf. Always edit jail.local, never jail.conf directly.</div>
+
+        <div class="code-block"><span class="cm"># Create jail.local from the template</span>
+$ <span class="fn">cp</span> <span class="st">/etc/fail2ban/jail.conf</span> <span class="st">/etc/fail2ban/jail.local</span>
+
+<span class="cm"># /etc/fail2ban/jail.local -- [DEFAULT] section (global settings)</span>
+[DEFAULT]
+bantime  = <span class="nb">3600</span>     <span class="cm"># ban duration in seconds (1 hour)</span>
+findtime = <span class="nb">600</span>      <span class="cm"># count failures within this window (10 minutes)</span>
+maxretry = <span class="nb">5</span>        <span class="cm"># ban after 5 failures</span>
+banaction = iptables-multiport
+
+<span class="cm"># Whitelist your own management IP (never ban yourself)</span>
+ignoreip = 127.0.0.1/8 ::1 <span class="nb">10.0.0.100</span>
+
+<span class="cm"># [sshd] jail -- enable and configure</span>
+[sshd]
+enabled  = <span class="kw">true</span>
+port     = ssh
+logpath  = %(sshd_log)s
+backend  = %(sshd_backend)s
+maxretry = <span class="nb">3</span>        <span class="cm"># stricter than the global default for SSH</span>
+bantime  = <span class="nb">86400</span>    <span class="cm"># 24-hour ban for SSH brute force</span>
+
+<span class="cm"># Reload fail2ban to apply changes</span>
+$ <span class="fn">systemctl</span> <span class="kw">reload</span> fail2ban
+$ <span class="fn">fail2ban-client</span> reload</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- FAIL2BAN MANAGEMENT ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 40</div>
+        <div class="slide-title">fail2ban: <span class="accent">Day-to-Day Management</span></div>
+        <div class="slide-subtitle">View bans, unban IPs, test filters, and review log activity.</div>
+
+        <div class="code-block"><span class="cm"># Check overall fail2ban status</span>
+$ <span class="fn">fail2ban-client</span> status
+Status
+|- Number of jail:  2
+`- Jail list:        sshd, nginx-http-auth
+
+<span class="cm"># Check status of a specific jail</span>
+$ <span class="fn">fail2ban-client</span> status sshd
+Status for the jail: sshd
+|- Filter
+|  |- Currently failed: 3
+|  `- Total failed:     47
+`- Actions
+   |- Currently banned: 2
+   `- Banned IP list:   203.0.113.5 198.51.100.7
+
+<span class="cm"># Manually ban an IP</span>
+$ <span class="fn">fail2ban-client</span> set sshd banip <span class="nb">203.0.113.99</span>
+
+<span class="cm"># Manually unban an IP (e.g., if you accidentally triggered a ban)</span>
+$ <span class="fn">fail2ban-client</span> set sshd unbanip <span class="nb">10.0.0.50</span>
+
+<span class="cm"># Watch the fail2ban log for real-time ban events</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/fail2ban.log</span>
+
+<span class="cm"># Test a filter against a log file without banning anything</span>
+$ <span class="fn">fail2ban-regex</span> <span class="st">/var/log/auth.log</span> /etc/fail2ban/filter.d/sshd.conf</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- FAIL2BAN CUSTOM JAIL ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 40</div>
+        <div class="slide-title">fail2ban: <span class="accent">Custom Jails</span></div>
+        <div class="slide-subtitle">Protect any service that logs failures -- not just SSH.</div>
+
+        <div class="code-block"><span class="cm"># Custom jail for Nginx 401/403 responses</span>
+<span class="cm"># /etc/fail2ban/jail.local -- add this section</span>
+[nginx-http-auth]
+enabled  = <span class="kw">true</span>
+port     = http,https
+logpath  = <span class="st">/var/log/nginx/access.log</span>
+maxretry = <span class="nb">10</span>
+bantime  = <span class="nb">3600</span>
+
+<span class="cm"># Custom filter: /etc/fail2ban/filter.d/nginx-http-auth.conf</span>
+[Definition]
+failregex = <span class="st">^&lt;HOST&gt; .* "(GET|POST) .*" (401|403)</span>
+ignoreregex =
+
+<span class="cm"># Custom jail for any application writing failed logins to a custom log</span>
+[myapp-auth]
+enabled  = <span class="kw">true</span>
+port     = <span class="nb">8443</span>
+logpath  = <span class="st">/var/log/myapp/auth.log</span>
+filter   = myapp-auth
+maxretry = <span class="nb">5</span>
+bantime  = <span class="nb">7200</span>
+
+<span class="cm"># /etc/fail2ban/filter.d/myapp-auth.conf</span>
+[Definition]
+failregex = <span class="st">Failed login attempt from &lt;HOST&gt;</span>
+ignoreregex =
+
+<span class="cm"># Reload and verify</span>
+$ <span class="fn">fail2ban-client</span> reload
+$ <span class="fn">fail2ban-client</span> status</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- SSH KEY PERMISSIONS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 40</div>
+        <div class="slide-title">SSH Key <span class="accent">Permissions and Security</span></div>
+        <div class="slide-subtitle">Incorrect permissions on SSH files cause authentication failure or security exposure.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">SSH Rejects Bad Permissions</div>
+                <div class="card-desc">SSH is paranoid about file permissions by design. If <span class="ic">~/.ssh</span> or <span class="ic">authorized_keys</span> is world-readable or group-writable, SSH will refuse to use the file and log "bad ownership or modes." This is intentional -- a group-writable file could be modified by another account.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Correct Permission Set</div>
+                <div class="card-desc">
+                    <span class="ic">~/.ssh/</span> directory: 700 (rwx------)<br>
+                    <span class="ic">~/.ssh/authorized_keys</span>: 600 (rw-------)<br>
+                    <span class="ic">~/.ssh/id_ed25519</span> (private key): 600 (rw-------)<br>
+                    <span class="ic">~/.ssh/id_ed25519.pub</span> (public key): 644 (rw-r--r--)
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Fix SSH directory and file permissions</span>
+$ <span class="fn">chmod</span> <span class="nb">700</span> <span class="st">~/.ssh</span>
+$ <span class="fn">chmod</span> <span class="nb">600</span> <span class="st">~/.ssh/authorized_keys</span>
+$ <span class="fn">chmod</span> <span class="nb">600</span> <span class="st">~/.ssh/id_ed25519</span>
+$ <span class="fn">chmod</span> <span class="nb">644</span> <span class="st">~/.ssh/id_ed25519.pub</span>
+
+<span class="cm"># Verify ownership (should be the user, not root)</span>
+$ <span class="fn">ls</span> <span class="kw">-la</span> <span class="st">~/.ssh/</span>
+total 24
+drwx------ 2 ubuntu ubuntu 4096 Apr  9 10:00 .
+drwxr-xr-x 6 ubuntu ubuntu 4096 Apr  9 10:00 ..
+-rw------- 1 ubuntu ubuntu  412 Apr  9 10:00 authorized_keys
+-rw------- 1 ubuntu ubuntu  411 Apr  9 10:00 id_ed25519
+-rw-r--r-- 1 ubuntu ubuntu   99 Apr  9 10:00 id_ed25519.pub
+
+<span class="cm"># Debug SSH connection issues (verbose mode shows permission failures)</span>
+$ <span class="fn">ssh</span> <span class="kw">-vvv</span> user@server 2>&1 | <span class="fn">grep</span> <span class="kw">-i</span> <span class="st">"perm\|auth\|key"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- SUDO HARDENING ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 40</div>
+        <div class="slide-title">sudo: <span class="accent">Principle of Least Privilege</span></div>
+        <div class="slide-subtitle">Grant only the commands each user needs to execute as root, nothing more.</div>
+
+        <div class="scenario-strip">
+            sudo is the authentication gateway to root. Misconfiguring it is one of the most common privilege escalation paths. NOPASSWD entries, broad command grants, and unrestricted sudo access all undermine everything else you have hardened.
+        </div>
+
+        <div class="code-block"><span class="cm"># Edit sudoers ONLY with visudo (syntax checks before saving)</span>
+$ <span class="fn">visudo</span>
+
+<span class="cm"># /etc/sudoers examples</span>
+
+<span class="cm"># Allow a user to run all commands as root (standard, requires password)</span>
+ops-user ALL=(ALL:ALL) ALL
+
+<span class="cm"># Allow a user to restart nginx only (least privilege)</span>
+deploy ALL=(root) /bin/systemctl restart nginx
+
+<span class="cm"># Allow a group to run apt without password (automation use case)</span>
+%operators ALL=(root) NOPASSWD: /usr/bin/apt update, /usr/bin/apt upgrade
+
+<span class="cm"># Require MFA even for sudo (via PAM -- pam_google_authenticator in /etc/pam.d/sudo)</span>
+<span class="cm"># Add to /etc/pam.d/sudo:</span>
+auth required pam_google_authenticator.so
+
+<span class="cm"># Log all sudo usage (default on Ubuntu)</span>
+$ <span class="fn">grep</span> sudo <span class="st">/var/log/auth.log</span> | <span class="fn">tail</span> -20</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- DISABLING ROOT LOGIN ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 40</div>
+        <div class="slide-title">Disabling <span class="accent">Root Login</span></div>
+        <div class="slide-subtitle">root is the most targeted account. Remove it as an SSH target and lock its local login.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why root Is Targeted</div>
+                <div class="card-desc">Root always exists. The username never needs to be guessed. Compromising root gives total system control. Every automated brute-force tool targets root first. Removing direct root access forces attackers to compromise a non-privileged account AND escalate -- two steps instead of one.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Strategy</div>
+                <div class="card-desc">Disable SSH root login. Lock the root password. Use sudo for all privilege escalation. Create named admin accounts with specific sudo permissions. This way every privileged action is logged under a real username and requires two authentication events.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Lock the root account password (prevents local and sudo password login as root)</span>
+$ <span class="fn">sudo</span> <span class="fn">passwd</span> <span class="kw">-l</span> root
+$ <span class="fn">sudo</span> <span class="fn">cat</span> <span class="st">/etc/shadow</span> | <span class="fn">grep</span> root
+root:!$y$...:         <span class="cm"># the ! prefix means locked</span>
+
+<span class="cm"># Disable SSH root login in sshd_config</span>
+PermitRootLogin <span class="kw">no</span>
+
+<span class="cm"># Disable console root login (remove root from tty list)</span>
+<span class="cm"># Edit /etc/securetty and remove all tty entries, or:</span>
+$ <span class="fn">echo</span> <span class="st">""</span> > <span class="st">/etc/securetty</span>   <span class="cm"># empty file = no ttys allowed for root</span>
+
+<span class="cm"># If you need to access root in an emergency</span>
+$ <span class="fn">sudo</span> <span class="kw">-i</span>          <span class="cm"># escalate via sudo (requires sudo group membership)</span>
+$ <span class="fn">sudo</span> <span class="fn">su</span> <span class="kw">-</span>        <span class="cm"># alternative escalation method</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- PAM LIMITS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 40</div>
+        <div class="slide-title">PAM Limits: <span class="accent">pam_limits and /etc/security/limits.conf</span></div>
+        <div class="slide-subtitle">Restrict resource consumption per user to limit the impact of compromised accounts.</div>
+
+        <div class="code-block"><span class="cm"># /etc/security/limits.conf -- format: user/group  type  item  value</span>
+<span class="cm"># Types: hard (kernel-enforced ceiling) and soft (default, user can raise to hard)</span>
+
+<span class="cm"># Limit max open files for all users</span>
+*         soft   nofile    <span class="nb">4096</span>
+*         hard   nofile    <span class="nb">65536</span>
+
+<span class="cm"># Prevent a user from spawning more than 50 processes (anti-fork-bomb)</span>
+*         hard   nproc     <span class="nb">50</span>
+
+<span class="cm"># Deny login to a specific user completely</span>
+badactor  hard   maxlogins <span class="nb">0</span>
+
+<span class="cm"># Limit CPU time for a group (seconds)</span>
+@students hard   cpu       <span class="nb">3600</span>
+
+<span class="cm"># /etc/security/limits.d/ -- drop-in directory for package-specific limits</span>
+$ <span class="fn">ls</span> <span class="st">/etc/security/limits.d/</span>
+
+<span class="cm"># View current effective limits for your session</span>
+$ <span class="fn">ulimit</span> <span class="kw">-a</span>
+
+<span class="cm"># Verify limits.conf is loaded (pam_limits in /etc/pam.d/common-session)</span>
+$ <span class="fn">grep</span> pam_limits <span class="st">/etc/pam.d/common-session</span>
+session required pam_limits.so</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- PAM TIME MODULE ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 40</div>
+        <div class="slide-title">pam_time: <span class="accent">Time-Based Access Control</span></div>
+        <div class="slide-subtitle">Restrict when users can log in based on day and time.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Use Case</div>
+                <div class="card-desc">Prevent contractor accounts from accessing the system outside business hours. Block non-admin logins during maintenance windows. Restrict developer SSH access to weekdays 0700-1900. Time-based access reduces the window during which a compromised credential is useful.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Configuration Location</div>
+                <div class="card-desc">Rules live in <span class="ic">/etc/security/time.conf</span>. Each line: services ; ttys ; users ; times. Wildcards accepted. The pam_time module is added to the relevant PAM service config file (sshd, login) with an account line.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/security/time.conf -- syntax:</span>
+<span class="cm"># services ; ttys ; users ; times</span>
+<span class="cm"># Day codes: Mo Tu We Th Fr Sa Su Al Wk Wd (Al=all, Wk=weekdays, Wd=weekend)</span>
+
+<span class="cm"># Allow sshd access for contractors only Mon-Fri 0800-1800</span>
+sshd;*;contractor1|contractor2;Wk0800-1800
+
+<span class="cm"># Deny all SSH access for a user at all times (manual lockout alternative)</span>
+sshd;*;suspectuser;!Al0000-2400
+
+<span class="cm"># Add to /etc/pam.d/sshd (account section):</span>
+account required pam_time.so
+
+<span class="cm"># Test what time access would be granted</span>
+<span class="cm"># (pam_time has no direct test command -- check by reviewing time.conf rules</span>
+<span class="cm">#  and comparing against the current time: date +"%a %H%M")</span>
+$ <span class="fn">date</span> <span class="st">+"%A %H:%M"</span>
+Wednesday 14:32</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- SSH CERTIFICATES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 40</div>
+        <div class="slide-title">SSH Certificates: <span class="accent">Scaling Key Management</span></div>
+        <div class="slide-subtitle">When you manage dozens of servers, individual authorized_keys files do not scale. SSH certificates do.</div>
+
+        <div class="scenario-strip">
+            With authorized_keys, adding or revoking a user requires modifying the file on every server. With SSH certificates, you run a Certificate Authority. Users and hosts get signed certificates. Trust is managed at the CA level -- revoke once, affects all servers.
+        </div>
+
+        <div class="code-block"><span class="cm"># Create a Certificate Authority key pair (store securely, offline ideally)</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-t</span> ed25519 <span class="kw">-f</span> <span class="st">/etc/ssh/ssh_ca</span> <span class="kw">-C</span> <span class="st">"grid-ca-2026"</span>
+
+<span class="cm"># Sign a user's public key (valid for 1 week, principals: ops-user)</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-s</span> <span class="st">/etc/ssh/ssh_ca</span> <span class="kw">-I</span> <span class="st">"ops-user-2026-04-09"</span> \
+    <span class="kw">-n</span> ops-user <span class="kw">-V</span> +1w <span class="st">~/.ssh/id_ed25519.pub</span>
+<span class="cm"># Creates ~/.ssh/id_ed25519-cert.pub</span>
+
+<span class="cm"># Configure sshd to trust certificates signed by the CA</span>
+<span class="cm"># /etc/ssh/sshd_config:</span>
+TrustedUserCAKeys <span class="st">/etc/ssh/ssh_ca.pub</span>
+
+<span class="cm"># Inspect a certificate</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-L</span> <span class="kw">-f</span> <span class="st">~/.ssh/id_ed25519-cert.pub</span>
+
+<span class="cm"># Revoke a certificate (add its serial to the revocation list)</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-k</span> <span class="kw">-f</span> <span class="st">/etc/ssh/revoked_keys</span> <span class="kw">-s</span> <span class="st">/etc/ssh/ssh_ca</span> compromised_key.pub
+<span class="cm"># /etc/ssh/sshd_config: RevokedKeys /etc/ssh/revoked_keys</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- AUDIT LOGGING ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 40</div>
+        <div class="slide-title">Audit Logging: <span class="accent">Who Did What and When</span></div>
+        <div class="slide-subtitle">The Linux Audit Daemon captures security-relevant events at the kernel level.</div>
+
+        <div class="code-block"><span class="cm"># Install auditd</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> auditd
+
+<span class="cm"># Configure audit rules: /etc/audit/rules.d/hardening.rules</span>
+
+<span class="cm"># Log all sudo usage</span>
+-w <span class="st">/usr/bin/sudo</span> <span class="kw">-p</span> x <span class="kw">-k</span> sudo_commands
+
+<span class="cm"># Log changes to PAM configuration</span>
+-w <span class="st">/etc/pam.d/</span> <span class="kw">-p</span> wa <span class="kw">-k</span> pam_changes
+
+<span class="cm"># Log changes to SSH configuration</span>
+-w <span class="st">/etc/ssh/sshd_config</span> <span class="kw">-p</span> wa <span class="kw">-k</span> sshd_config_changes
+
+<span class="cm"># Log user and group database changes</span>
+-w <span class="st">/etc/passwd</span>  <span class="kw">-p</span> wa <span class="kw">-k</span> user_changes
+-w <span class="st">/etc/shadow</span>  <span class="kw">-p</span> wa <span class="kw">-k</span> shadow_changes
+-w <span class="st">/etc/group</span>   <span class="kw">-p</span> wa <span class="kw">-k</span> group_changes
+-w <span class="st">/etc/sudoers</span> <span class="kw">-p</span> wa <span class="kw">-k</span> sudoers_changes
+
+<span class="cm"># Load rules without reboot</span>
+$ <span class="fn">augenrules</span> <span class="kw">--load</span>
+
+<span class="cm"># Search audit log for PAM-related events</span>
+$ <span class="fn">ausearch</span> <span class="kw">-k</span> pam_changes <span class="kw">--format</span> text
+
+<span class="cm"># Search for failed logins in the audit log</span>
+$ <span class="fn">ausearch</span> <span class="kw">-m</span> USER_AUTH <span class="kw">--success</span> no</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- SSH BANNER ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 40</div>
+        <div class="slide-title">SSH Banner: <span class="accent">Legal Warning and Session Notice</span></div>
+        <div class="slide-subtitle">Display a legal notice before authentication. Required by compliance frameworks and useful for deterrence.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Banners Matter</div>
+                <div class="card-desc">A login banner establishes consent for monitoring, warns unauthorized users, and satisfies compliance requirements (PCI DSS, HIPAA, SOC 2, government frameworks). Courts have rejected unauthorized access prosecutions when no notice was displayed -- the banner is legal protection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MOTD vs Banner</div>
+                <div class="card-desc">SSH <strong>Banner</strong> (<span class="ic">Banner</span> in sshd_config) displays before authentication. <strong>MOTD</strong> (Message of the Day, <span class="ic">PrintMotd</span>) displays after successful login. Legal warnings go in the Banner -- users see them before entering credentials. Operational notices go in MOTD.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/ssh/sshd_config</span>
+Banner <span class="st">/etc/ssh/banner.txt</span>
+PrintMotd <span class="kw">yes</span>
+
+<span class="cm"># /etc/ssh/banner.txt</span>
+*******************************************************************************
+AUTHORIZED USERS ONLY
+
+This system is for authorized use only. All activities are monitored and
+logged. Unauthorized access or use is prohibited and subject to criminal
+and civil prosecution. By continuing, you consent to monitoring.
+*******************************************************************************
+
+<span class="cm"># /etc/motd -- displayed after successful login</span>
+<span class="cm"># Edit directly or via /etc/update-motd.d/ scripts</span>
+$ <span class="fn">nano</span> <span class="st">/etc/motd</span>
+
+<span class="cm"># Disable dynamic MOTD generation if not needed</span>
+$ <span class="fn">chmod</span> <span class="kw">-x</span> <span class="st">/etc/update-motd.d/*</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- LAST LOGINS AND SESSION MONITORING ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 40</div>
+        <div class="slide-title">Session Monitoring: <span class="accent">last, lastb, and who</span></div>
+        <div class="slide-subtitle">Track login history and detect anomalous access patterns.</div>
+
+        <div class="code-block"><span class="cm"># Show recent successful logins (reads /var/log/wtmp)</span>
+$ <span class="fn">last</span> <span class="kw">-20</span>
+ubuntu   pts/0        10.0.0.50   Thu Apr  9 10:15   still logged in
+ubuntu   pts/0        10.0.0.50   Wed Apr  8 22:30 - 23:45  (01:15)
+root     tty1                     Tue Apr  7 08:00 - 08:02  (00:02)
+
+<span class="cm"># Show failed login attempts (reads /var/log/btmp)</span>
+$ <span class="fn">lastb</span>
+root     ssh:notty    203.0.113.5  Thu Apr  9 02:15 - 02:15  (00:00)
+ubuntu   ssh:notty    198.51.100.7 Thu Apr  9 02:14 - 02:14  (00:00)
+
+<span class="cm"># Show who is currently logged in</span>
+$ <span class="fn">who</span>
+$ <span class="fn">w</span>    <span class="cm"># more detail: shows what each user is running</span>
+
+<span class="cm"># Count failed login attempts by source IP from auth.log</span>
+$ <span class="fn">grep</span> <span class="st">"Failed password"</span> <span class="st">/var/log/auth.log</span> \
+    | <span class="fn">awk</span> <span class="st">'{print $11}'</span> | <span class="fn">sort</span> | <span class="fn">uniq</span> <span class="kw">-c</span> | <span class="fn">sort</span> <span class="kw">-rn</span> | <span class="fn">head</span> -10
+
+<span class="cm"># Monitor auth.log in real-time for suspicious activity</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/auth.log</span> | <span class="fn">grep</span> <span class="kw">-E</span> <span class="st">"(Failed|Invalid|Accepted)"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- YUBIKEY AND HARDWARE TOKENS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 40</div>
+        <div class="slide-title">Hardware Tokens: <span class="accent">YubiKey and FIDO2</span></div>
+        <div class="slide-subtitle">Physical security keys provide the strongest second factor -- phishing-resistant by design.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Why Hardware Beats TOTP</div>
+                <div class="card-desc">TOTP codes can be phished -- a fake login page captures both your password and the 6-digit code in real time. A hardware FIDO2 key uses origin-bound challenge-response: it only responds to the correct domain. A phishing site gets nothing useful from the key.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">YubiKey PAM</div>
+                <div class="card-desc">The yubico-pam module supports YubiKey OTP (the 44-character code the key types when tapped) for PAM authentication. It validates codes against the Yubico cloud API or a self-hosted validation server. Configuration in <span class="ic">/etc/yubico/</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FIDO2 SSH (OpenSSH 8.2+)</div>
+                <div class="card-desc">OpenSSH 8.2 added native FIDO2 support. Generate a key type <span class="ic">ecdsa-sk</span> or <span class="ic">ed25519-sk</span> (sk = security key). The private key is stored on the hardware token. Authentication requires physical presence and a key touch. No PAM module needed.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Generate a FIDO2 SSH key (requires a hardware FIDO2 token plugged in)</span>
+$ <span class="fn">ssh-keygen</span> <span class="kw">-t</span> ed25519-sk <span class="kw">-C</span> <span class="st">"yubikey-ops-2026"</span>
+
+<span class="cm"># Copy to server as normal</span>
+$ <span class="fn">ssh-copy-id</span> <span class="kw">-i</span> <span class="st">~/.ssh/id_ed25519_sk.pub</span> user@server
+
+<span class="cm"># Login -- requires key touch to complete authentication</span>
+$ <span class="fn">ssh</span> user@server
+<span class="cm"># Confirm user presence for key...</span>
+<span class="cm"># (tap the key)  Access granted.</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- ACCOUNT MANAGEMENT ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 40</div>
+        <div class="slide-title">Account Management: <span class="accent">usermod, passwd, chage</span></div>
+        <div class="slide-subtitle">Commands for locking, expiring, and managing user accounts in a hardened environment.</div>
+
+        <div class="code-block"><span class="cm"># Lock a user account (add ! to password hash in shadow)</span>
+$ <span class="fn">sudo</span> <span class="fn">usermod</span> <span class="kw">-L</span> suspectuser
+
+<span class="cm"># Unlock a user account</span>
+$ <span class="fn">sudo</span> <span class="fn">usermod</span> <span class="kw">-U</span> suspectuser
+
+<span class="cm"># Expire an account immediately (forces re-authentication with admin)</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-E 0</span> oldemployee     <span class="cm"># expiry date 0 = Jan 1, 1970 = expired</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-E 2026-06-30</span> contractor  <span class="cm"># expire on a specific date</span>
+
+<span class="cm"># Force password change at next login</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-d 0</span> username
+
+<span class="cm"># Disable password login while keeping SSH key login working</span>
+<span class="cm"># (set password to invalid hash, key auth bypasses password check)</span>
+$ <span class="fn">sudo</span> <span class="fn">usermod</span> <span class="kw">-p '!'</span> username
+
+<span class="cm"># View full account status</span>
+$ <span class="fn">sudo</span> <span class="fn">chage</span> <span class="kw">-l</span> username
+$ <span class="fn">sudo</span> <span class="fn">passwd</span> <span class="kw">--status</span> username</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- SSSD AND LDAP INTEGRATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 40</div>
+        <div class="slide-title">SSSD: <span class="accent">Centralized Authentication</span></div>
+        <div class="slide-subtitle">Authenticate Linux users against Active Directory or LDAP from a single authoritative source.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Centralized Auth?</div>
+                <div class="card-desc">Managing local accounts on 50 servers is unscalable. An employee leaves -- you have 50 password changes to make across local files. Centralized auth via SSSD + AD/LDAP means one authoritative store. Disable the AD account and the user is locked out of all servers immediately.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SSSD Architecture</div>
+                <div class="card-desc">SSSD (System Security Services Daemon) is a PAM/NSS provider that queries AD or LDAP. It caches credentials for offline access. It integrates with Kerberos for ticket-based authentication. On Ubuntu 22.04, <span class="ic">realm join</span> is the simplest way to join a domain.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Join an Active Directory domain (simplest method)</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> realmd sssd sssd-tools
+
+<span class="cm"># Discover the domain</span>
+$ <span class="fn">realm</span> discover corp.example.com
+
+<span class="cm"># Join the domain</span>
+$ <span class="fn">realm</span> join <span class="kw">--user</span> Administrator corp.example.com
+
+<span class="cm"># Permit a specific AD user to log in</span>
+$ <span class="fn">realm</span> permit user@corp.example.com
+
+<span class="cm"># Permit an entire AD group</span>
+$ <span class="fn">realm</span> permit <span class="kw">-g</span> "Linux Admins"
+
+<span class="cm"># Check realm status</span>
+$ <span class="fn">realm</span> list
+
+<span class="cm"># Test AD authentication</span>
+$ <span class="fn">id</span> 'user@corp.example.com'</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- FAIL2BAN RECIDIVE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 40</div>
+        <div class="slide-title">fail2ban: <span class="accent">Recidive -- Long-Term Bans</span></div>
+        <div class="slide-subtitle">The recidive jail re-bans IPs that have been banned multiple times -- escalating the duration.</div>
+
+        <div class="scenario-strip">
+            A persistent attacker keeps trying from the same IP. Your sshd jail bans them for 1 hour, they wait it out, and try again. The recidive jail watches for IPs that appear repeatedly in the fail2ban log and issues a multi-day ban after the second or third offense.
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/fail2ban/jail.local -- add recidive jail</span>
+[recidive]
+enabled   = <span class="kw">true</span>
+logpath   = <span class="st">/var/log/fail2ban.log</span>
+banaction = iptables-allports
+bantime   = <span class="nb">604800</span>    <span class="cm"># 1 week ban</span>
+findtime  = <span class="nb">86400</span>     <span class="cm"># look back 1 day</span>
+maxretry  = <span class="nb">5</span>         <span class="cm"># ban if triggered 5 times in the day</span>
+
+<span class="cm"># iptables-allports blocks ALL ports, not just SSH</span>
+<span class="cm"># The recidive jail uses the fail2ban log itself as input</span>
+<span class="cm"># It detects IPs being banned by other jails and escalates</span>
+
+<span class="cm"># Reload to activate</span>
+$ <span class="fn">fail2ban-client</span> reload
+
+<span class="cm"># Verify recidive jail is running</span>
+$ <span class="fn">fail2ban-client</span> status recidive
+
+<span class="cm"># View long-term bans</span>
+$ <span class="fn">fail2ban-client</span> status recidive | <span class="fn">grep</span> <span class="st">"Banned IP"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- AUTH.LOG ANALYSIS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 40</div>
+        <div class="slide-title">auth.log: <span class="accent">Authentication Event Analysis</span></div>
+        <div class="slide-subtitle">The primary log for authentication events on Ubuntu. Know what normal looks like to spot abnormal.</div>
+
+        <div class="code-block"><span class="cm"># /var/log/auth.log -- key patterns to watch</span>
+
+<span class="cm"># Successful SSH login</span>
+Apr  9 10:15:03 host sshd[12345]: Accepted publickey for ubuntu from 10.0.0.50 port 55012 ssh2
+
+<span class="cm"># Failed password attempt (brute force indicator)</span>
+Apr  9 02:14:55 host sshd[12346]: Failed password for root from 203.0.113.5 port 54321 ssh2
+Apr  9 02:14:56 host sshd[12347]: Failed password for root from 203.0.113.5 port 54322 ssh2
+
+<span class="cm"># Invalid user (username not found -- scanning for valid accounts)</span>
+Apr  9 02:15:01 host sshd[12348]: Invalid user admin from 203.0.113.5 port 54323
+
+<span class="cm"># Useful grep patterns for auth.log analysis</span>
+
+<span class="cm"># All accepted logins in the last 100 lines</span>
+$ <span class="fn">grep</span> <span class="st">"Accepted"</span> <span class="st">/var/log/auth.log</span> | <span class="fn">tail</span> -20
+
+<span class="cm"># Top attacking IPs</span>
+$ <span class="fn">grep</span> <span class="st">"Invalid user"</span> <span class="st">/var/log/auth.log</span> \
+    | <span class="fn">awk</span> <span class="st">'{print $13}'</span> | <span class="fn">sort</span> | <span class="fn">uniq</span> <span class="kw">-c</span> | <span class="fn">sort</span> <span class="kw">-rn</span> | <span class="fn">head</span> -10
+
+<span class="cm"># All sudo events</span>
+$ <span class="fn">grep</span> <span class="st">"sudo"</span> <span class="st">/var/log/auth.log</span> | <span class="fn">grep</span> <span class="st">"COMMAND"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- CHROOT SFTP ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 40</div>
+        <div class="slide-title">Chroot SFTP: <span class="accent">Jailing SFTP Users</span></div>
+        <div class="slide-subtitle">Restrict SFTP-only users to a specific directory so they cannot traverse the filesystem.</div>
+
+        <div class="code-block"><span class="cm"># /etc/ssh/sshd_config -- chroot SFTP configuration</span>
+
+<span class="cm"># Override the SFTP subsystem to use the internal server</span>
+Subsystem sftp internal-sftp
+
+<span class="cm"># Match block: apply chroot to members of the sftponly group</span>
+Match Group sftponly
+    ChrootDirectory <span class="st">/srv/sftp/%u</span>    <span class="cm"># %u = username (each user gets own dir)</span>
+    ForceCommand internal-sftp
+    AllowTcpForwarding <span class="kw">no</span>
+    X11Forwarding <span class="kw">no</span>
+
+<span class="cm"># Create the group and add a user</span>
+$ <span class="fn">groupadd</span> sftponly
+$ <span class="fn">useradd</span> <span class="kw">-G</span> sftponly <span class="kw">-s</span> /sbin/nologin sftpuser
+
+<span class="cm"># Create the chroot directory (MUST be owned by root, not group-writable)</span>
+$ <span class="fn">mkdir</span> <span class="kw">-p</span> <span class="st">/srv/sftp/sftpuser</span>
+$ <span class="fn">chown</span> root:root <span class="st">/srv/sftp/sftpuser</span>
+$ <span class="fn">chmod</span> <span class="nb">755</span> <span class="st">/srv/sftp/sftpuser</span>
+
+<span class="cm"># Create a writable subdirectory inside the chroot</span>
+$ <span class="fn">mkdir</span> <span class="st">/srv/sftp/sftpuser/uploads</span>
+$ <span class="fn">chown</span> sftpuser:sftponly <span class="st">/srv/sftp/sftpuser/uploads</span>
+$ <span class="fn">chmod</span> <span class="nb">755</span> <span class="st">/srv/sftp/sftpuser/uploads</span>
+
+<span class="cm"># Reload SSH and test</span>
+$ <span class="fn">systemctl</span> <span class="kw">reload</span> ssh</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- SSH HARDENING CHECKLIST ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 40</div>
+        <div class="slide-title">SSH Hardening <span class="accent">Checklist</span></div>
+        <div class="slide-subtitle">The full checklist from sshd_config to PAM to user configuration.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>PermitRootLogin no</code> -- root cannot SSH in under any circumstances.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>PasswordAuthentication no</code> -- SSH keys only, no password login.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>AuthenticationMethods publickey,keyboard-interactive</code> -- require key AND TOTP when MFA is configured.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>AllowUsers</code> or <code>AllowGroups</code> -- whitelist only the accounts that need SSH access.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>MaxAuthTries 3</code> and <code>LoginGraceTime 30</code> -- reduce the brute-force window.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Keys: use ed25519, protect with passphrase, set <code>~/.ssh</code> to 700 and <code>authorized_keys</code> to 600.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">fail2ban sshd jail enabled with bantime 86400 and maxretry 3.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Login banner set via <code>Banner /etc/ssh/banner.txt</code>.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- COMMON AUTH MISTAKES ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 40</div>
+        <div class="slide-title">Common <span class="accent">Authentication Mistakes</span></div>
+        <div class="slide-subtitle">Errors that undermine every other hardening measure you implement.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">PAM Misconfiguration</div>
+                <div class="card-desc">Editing <span class="ic">common-auth</span> without testing first. A broken PAM config can lock everyone out including root. Always test PAM changes with a second open SSH session. Never close your current session until you confirm the new config works.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Not Whitelisting Your IP in fail2ban</div>
+                <div class="card-desc">You ban yourself while testing. Your management IP is not in the <span class="ic">ignoreip</span> list. You are locked out of the server. Always add your admin IP to ignoreip before activating fail2ban. Always.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">TOTP Without Backup Codes</div>
+                <div class="card-desc">You enforce TOTP on all SSH. Your phone dies. The emergency scratch codes were never saved. You are locked out. Google Authenticator generates 5 single-use scratch codes during setup. Print them and store them offline. This is not optional.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Test Every PAM Change</div>
+            Before closing your current SSH session after any PAM or sshd_config change: open a SECOND SSH connection. Verify it works. Only then is it safe to close the first. This single rule prevents most authentication-related lockouts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 36 -- COMPLIANCE MAPPING ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 40</div>
+        <div class="slide-title">Compliance: <span class="accent">Authentication Requirements</span></div>
+        <div class="slide-subtitle">Map your hardening work to the frameworks you will encounter in the field.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">CIS Ubuntu 22.04 Benchmark</div>
+                <div class="card-desc">CIS L1: PasswordAuthentication no, PermitRootLogin no, MaxAuthTries 4, LoginGraceTime 60. CIS L2: pam_pwquality minlen 14, pam_faillock maxretry 5 unlock_time 900, auditing enabled. The CIS benchmark is the standard starting point for server hardening audits.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NIST SP 800-53 / FedRAMP</div>
+                <div class="card-desc">IA-5 (Authenticator Management): password complexity, aging, no shared accounts. IA-2(1): MFA required for privileged access. IA-3: device identification. AU-2: audit events for login, logout, failed auth. These controls map directly to PAM, fail2ban, and auditd configuration.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">PCI DSS v4</div>
+                <div class="card-desc">Requirement 8.4: MFA required for all remote admin access into cardholder data environments. Requirement 8.3: passwords minimum 12 characters. Requirement 10.2: log authentication events. All satisfied by the controls covered in this session.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 37 -- SSH ESCAPE SEQUENCES ==================== -->
+<section class="slide" id="slide-37">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 37 of 40</div>
+        <div class="slide-title">SSH Escape Sequences: <span class="accent">Session Management</span></div>
+        <div class="slide-subtitle">Rescue a frozen SSH session and manage multiplexed connections without disconnecting.</div>
+
+        <div class="code-block"><span class="cm"># SSH escape sequences -- triggered with a leading newline then ~</span>
+<span class="cm"># Must be typed at the START of a new line</span>
+
+~.     <span class="cm"># Disconnect (kill the session) -- useful for frozen connections</span>
+~?     <span class="cm"># List all escape sequences</span>
+~&amp;     <span class="cm"># Suspend the SSH session (send to background with fg to resume)</span>
+~#     <span class="cm"># List forwarded connections</span>
+~C     <span class="cm"># Open a command-line interface for adding port forwards dynamically</span>
+
+<span class="cm"># SSH multiplexing -- reuse one TCP connection for multiple sessions</span>
+<span class="cm"># ~/.ssh/config</span>
+Host server
+    HostName 10.0.0.5
+    User ubuntu
+    ControlMaster auto
+    ControlPath ~/.ssh/control-%r@%h:%p
+    ControlPersist 10m
+
+<span class="cm"># The first connection creates the control socket</span>
+<span class="cm"># Subsequent connections reuse it -- no re-authentication needed</span>
+$ <span class="fn">ssh</span> server   <span class="cm"># creates control socket, authenticates (key + TOTP)</span>
+$ <span class="fn">ssh</span> server   <span class="cm"># reuses control socket, no auth required</span>
+
+<span class="cm"># Close the master connection</span>
+$ <span class="fn">ssh</span> <span class="kw">-O exit</span> server</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 38 -- GRUB AND PHYSICAL SECURITY ==================== -->
+<section class="slide" id="slide-38">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 38 of 40</div>
+        <div class="slide-title">GRUB Password: <span class="accent">Physical Access Hardening</span></div>
+        <div class="slide-subtitle">All network-level hardening is bypassed if an attacker has physical or console access. Protect GRUB too.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Physical Threat</div>
+                <div class="card-desc">An attacker with physical access can boot to recovery mode, mount the filesystem read-write, and change the root password in under 2 minutes -- bypassing every authentication control. GRUB password protection and disk encryption (LUKS) are the countermeasures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GRUB Password</div>
+                <div class="card-desc">A GRUB superuser password prevents booting into recovery mode or editing kernel parameters without authentication. This does not replace disk encryption for confidentiality, but it prevents trivial privilege escalation via single-user mode on an unattended console.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Generate a GRUB password hash</span>
+$ <span class="fn">grub-mkpasswd-pbkdf2</span>
+Enter password: <span class="cm">(type your GRUB password)</span>
+Reenter password:
+PBKDF2 hash of your password is grub.pbkdf2.sha512.10000.LONGHASH...
+
+<span class="cm"># /etc/grub.d/40_custom -- add superuser definition</span>
+set superusers=<span class="st">"root"</span>
+password_pbkdf2 root grub.pbkdf2.sha512.10000.LONGHASH...
+
+<span class="cm"># Regenerate GRUB configuration</span>
+$ <span class="fn">update-grub</span>
+
+<span class="cm"># Note: This protects GRUB menu editing only.</span>
+<span class="cm"># Full disk encryption (LUKS) is required for confidentiality at rest.</span>
+$ <span class="fn">cryptsetup</span> status /dev/mapper/ubuntu--vg-ubuntu--lv</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 39 -- VOCABULARY ==================== -->
+<section class="slide" id="slide-39">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 39 of 40</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms from this session that appear in job descriptions, audits, and security documentation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Authentication Concepts</div>
+                <div class="card-desc">
+                    <strong>PAM</strong> -- Pluggable Authentication Modules, the Linux auth framework.<br>
+                    <strong>TOTP</strong> -- Time-Based One-Time Password (RFC 6238).<br>
+                    <strong>MFA</strong> -- Multi-Factor Authentication, requiring 2+ independent factors.<br>
+                    <strong>pam_unix</strong> -- PAM module handling traditional Unix passwords.<br>
+                    <strong>shadow file</strong> -- /etc/shadow, stores hashed passwords, root-readable only.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SSH Terms</div>
+                <div class="card-desc">
+                    <strong>authorized_keys</strong> -- file listing public keys permitted to authenticate.<br>
+                    <strong>ed25519</strong> -- current recommended SSH key algorithm.<br>
+                    <strong>ControlMaster</strong> -- SSH multiplexing, one TCP connection shared by sessions.<br>
+                    <strong>sshd_config</strong> -- SSH daemon configuration file.<br>
+                    <strong>Certificate Authority (SSH CA)</strong> -- signs user/host keys for scalable trust.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hardening Tools</div>
+                <div class="card-desc">
+                    <strong>fail2ban</strong> -- monitors logs and dynamically bans attacking IPs via iptables.<br>
+                    <strong>pam_faillock</strong> -- locks accounts after repeated authentication failures.<br>
+                    <strong>pam_pwquality</strong> -- enforces password complexity requirements.<br>
+                    <strong>chage</strong> -- manages password aging and account expiry.<br>
+                    <strong>auditd</strong> -- kernel-level security event logging daemon.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 40 -- SUMMARY ==================== -->
+<section class="slide" id="slide-40">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 40 of 40 &nbsp;|&nbsp; Week 2 Topic 2</div>
+        <div class="slide-title">Dual-Lock Protocol: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            The dual lock is set. SSH keys replaced passwords. TOTP added the second factor. fail2ban is watching. PAM enforces complexity and lockout. A compromised password alone is useless. A stolen key alone is useless. The attacker needs both, with the phone in hand, while the brute-force timer is ticking.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Session</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">PAM is the authentication framework beneath every login. All hardening -- TOTP, lockout, complexity -- is implemented as PAM modules.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">PAM configuration lives in <code>/etc/pam.d/</code>. Editing <code>common-auth</code> affects every service that includes it. Test before closing your session.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">SSH keys should be ed25519. Always use a passphrase. Correct permissions: <code>~/.ssh/</code> 700, <code>authorized_keys</code> 600.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">TOTP uses a shared secret and the current time window to generate codes. Codes expire every 30 seconds. Phishing a valid code gives an attacker under 30 seconds before it is worthless.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>AuthenticationMethods publickey,keyboard-interactive</code> in sshd_config enforces both SSH key AND TOTP. Neither alone is sufficient.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">fail2ban monitors log files for failure patterns and adds iptables DROP rules. Always whitelist your management IP in <code>ignoreip</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">pam_faillock replaces pam_tally2 on Ubuntu 22.04. Lock after 5 failures, unlock after 15 minutes is a reasonable default.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Set <code>PermitRootLogin no</code> and <code>PasswordAuthentication no</code> in sshd_config. Verify syntax with <code>sshd -t</code> before reloading.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Save TOTP scratch codes offline. Test every PAM change from a second open session. These two rules prevent most authentication lockouts.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 40</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 40;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w2-authentication', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

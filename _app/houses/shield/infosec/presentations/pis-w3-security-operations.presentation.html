@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Operations | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(2,8,20,0.95); border-top: 1px solid rgba(59,130,246,0.1); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(59,130,246,0.12); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3b82f6; color: #fff; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(59,130,246,0.06); border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #3b82f6; }
+        .card:hover { background: rgba(255,255,255,0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .ic { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59,130,246,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security Operations | Principles of Information Security</h1>
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- SLIDE 1 -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-12 &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; SY0-701: 4.1, 4.2, 4.5</div>
+        <div class="title-hero">
+            <div class="big-title">Security <span class="accent">Operations</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">SIEM &nbsp;&bull;&nbsp; IDS/IPS &nbsp;&bull;&nbsp; SOAR &nbsp;&bull;&nbsp; Vuln Scanning &nbsp;&bull;&nbsp; Pen Testing &nbsp;&bull;&nbsp; DLP &nbsp;&bull;&nbsp; Encryption</div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Golf. The facility's Security Operations Center has received 4,700 alerts in the past 24 hours. Three analysts are working the queue. Two critical alerts indicating active lateral movement were generated at 2:14 AM -- they remain unreviewed at 8:00 AM, buried under noise. The technology is working. The operations are not.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span><span>PIS-12</span><span>Week 3 of 8</span><span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The <span class="accent">Security Operations Center</span></div>
+        <div class="slide-subtitle">A SOC is the centralized function responsible for continuous monitoring, detection, analysis, and response to security incidents.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SOC Functions</div>
+                <div class="card-desc">24/7 monitoring of security alerts from SIEM, EDR, IDS/IPS, and cloud security tools. Alert triage and investigation. Incident escalation and response. Threat intelligence integration. Vulnerability tracking. Threat hunting. Metrics and reporting. The SOC is where technology and human judgment meet -- tools generate alerts, analysts determine if they are real threats.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SOC Tier Model</div>
+                <div class="card-desc">Tier 1: alert triage. Reviews incoming alerts, applies runbooks to initial analysis, escalates confirmed incidents. Tier 2: incident analysis. Deep investigation of confirmed incidents, malware analysis, log correlation. Tier 3: threat hunting and advanced analysis. Proactively hunts for threats without waiting for alerts, develops new detection rules, red team support.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MSSP -- Managed Security Service Provider</div>
+                <div class="card-desc">Organizations without the budget or headcount for an internal SOC can outsource monitoring to an MSSP. MSSP provides 24/7 SOC coverage, SIEM management, and incident response services. Tradeoffs: less context about the organization's environment, data leaves the organization, potentially slower response. MSSPs are appropriate for SMBs and organizations where security is not a core competency.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Mean Time to Detect (MTTD) and Mean Time to Respond (MTTR)</div>
+            MTTD measures how quickly the SOC detects an incident after it begins. Industry average breach dwell time is weeks to months -- most organizations have poor MTTD. MTTR measures how quickly the SOC responds after detection. Both metrics are tracked over time to measure SOC effectiveness improvement. Reducing MTTD is typically the higher-value investment.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">SIEM <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Security Information and Event Management aggregates, normalizes, and correlates logs from across the environment to detect threats that are invisible when looking at any single source.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Log Aggregation</div>
+                <div class="card-desc">SIEM ingests logs from: firewalls, IDS/IPS, endpoints (EDR), authentication systems, DNS servers, DHCP servers, proxy servers, cloud trail logs, applications, and databases. The more log sources, the better the visibility. Gaps in log collection create blind spots. Every system that handles sensitive data should ship logs to the SIEM. Log collection must be comprehensive before correlation is meaningful.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Normalization</div>
+                <div class="card-desc">Logs from different systems use different formats, timestamps, and field names. A failed login from Windows Active Directory looks nothing like a failed login from a Cisco firewall. Normalization maps all log formats to a common schema (typically IP address, user, timestamp, event type, severity). Without normalization, cross-system correlation is impossible. Parsing rules must be maintained as log formats change with software updates.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Correlation Rules</div>
+                <div class="card-desc">Rules that trigger alerts when patterns of events match known attack signatures or behavioral anomalies. Example: "5 failed logins from the same IP within 60 seconds" triggers a brute force alert. "Login success after 10 failures" triggers a potential successful brute force. Rules can be time-window based, count-based, sequence-based, or statistical. Rule tuning is continuous -- poorly tuned rules generate noise that buries real alerts.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Alert Fatigue</div>
+                <div class="card-desc">The most common SOC operational failure. Too many low-fidelity alerts overwhelm analysts. Real threats are buried in noise. Analysts develop habituation -- they stop scrutinizing alerts carefully because 99% are false positives. Measured as the false positive rate. Remediation: tune rules, add context to alerts (risk score, asset criticality), suppress known-good activities, implement tiered alert priority with SLAs per tier.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">SIEM <span class="accent">Use Cases</span></div>
+        <div class="slide-subtitle">Specific detection scenarios that SIEM correlation rules address. These appear in SY0-701 Domain 4 questions about threat detection.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Brute Force Detection:</strong> Multiple failed authentication attempts in a short window. SIEM correlates auth logs from Active Directory, VPN, cloud IdP, and application logs. Alert when failure count exceeds threshold. Context: same source IP, same username, or same target system.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Impossible Travel:</strong> User authenticates from New York at 9 AM and from Tokyo at 11 AM (2 hours later). Physical travel is impossible. Correlates identity logs with geolocation. Indicates account compromise or VPN use (which should be whitelisted). High-fidelity alert with few false positives when properly tuned.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Data Exfiltration Pattern:</strong> Large outbound transfer (multiple GB) to unknown external IP, outside business hours, from a system that normally has minimal outbound traffic. Correlates NetFlow data, proxy logs, and DLP alerts. Baseline normal behavior to identify anomalies.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Lateral Movement Detection:</strong> Host A authenticates to Host B, then Host B authenticates to Host C, then Host C authenticates to the domain controller -- all within 10 minutes, none of which are normal administrative actions. Pass-the-hash, Pass-the-ticket, and lateral movement patterns correlate authentication events with network topology.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Privileged Account Abuse:</strong> Admin account that normally only logs in during business hours from specific IPs suddenly logs in at 3 AM from a new IP and creates a new admin account. Baseline user behavior (UEBA) flags deviation from established pattern.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Malware C2 Beaconing:</strong> A host makes periodic outbound connections to an external IP at regular intervals (every 60 seconds). NetFlow analysis identifies the beaconing pattern. DNS queries for algorithmically-generated domain names (DGA) indicate malware that uses domain generation to find C2 servers.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">IDS <span class="accent">and IPS</span></div>
+        <div class="slide-subtitle">Intrusion Detection and Prevention Systems monitor network traffic for known attack patterns and behavioral anomalies.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NIDS -- Network IDS</div>
+                <div class="card-desc">Passive sensor connected to a SPAN port or network tap. Analyzes a copy of traffic. Cannot block -- only alerts. Placement: at network perimeter (inside/outside firewall), at DMZ boundary, at key internal segments. Failure does not impact traffic flow (passive). Snort and Suricata are common open-source NIDS platforms. Alert tuning is critical -- default rule sets generate significant noise.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIDS -- Host IDS</div>
+                <div class="card-desc">Agent installed on an individual system. Monitors file system changes, process creation, registry modifications (Windows), log entries, and system call patterns. Can detect threats that network monitoring misses: local privilege escalation, file tampering, insider threat activity. OSSEC and Wazuh are common open-source HIDS platforms. Modern EDR platforms include HIDS functionality with enhanced behavioral analysis.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NIPS -- Network IPS</div>
+                <div class="card-desc">Inline device -- all traffic passes through it. Can drop malicious packets, reset connections, or modify traffic in real time. Performance is critical -- the IPS must process traffic at line rate without introducing unacceptable latency. If the IPS fails (fail-open), traffic passes without inspection. If the IPS fails (fail-closed), traffic is blocked. For most environments, fail-open is used to prioritize availability.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Detection Methods</div>
+                <div class="card-desc">Signature-based: matches known attack patterns. Fast, precise for known threats. Cannot detect novel (zero-day) attacks. Requires continuous signature updates. Anomaly-based (behavioral): establishes a statistical model of normal and alerts on deviations. Can detect novel attacks. Higher false positive rate -- requires tuning period and ongoing maintenance. Most enterprise IDS/IPS use both methods in combination.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">SOAR <span class="accent">Automation</span></div>
+        <div class="slide-subtitle">Security Orchestration, Automation, and Response platforms automate repetitive SOC tasks, reducing analyst workload and response times.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What SOAR Automates</div>
+                <div class="card-desc">Alert enrichment: automatically look up IP reputation, file hash against threat intel feeds, user context from HR systems. Case creation and ticket management. Initial containment actions: isolate an endpoint, block an IP in the firewall, disable an account. Notification: page the on-call analyst, notify the affected user, create a ServiceNow ticket. Evidence collection: pull logs from relevant systems, take memory snapshot.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Playbooks</div>
+                <div class="card-desc">A SOAR playbook is a documented workflow that defines the automated and human steps for a specific alert type. Phishing playbook: extract URLs and attachments from the email, check URLs against reputation feeds, sandbox the attachment, query for other users who received the same email, automatically quarantine all copies if confirmed malicious. Playbooks encode the SOC's best practices into repeatable processes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Human-in-the-Loop Requirements</div>
+                <div class="card-desc">Not all actions should be fully automated. Account disabling affects the user's access -- if the alert is a false positive, the user is unnecessarily locked out. Actions with significant business impact should require analyst approval. SOAR should automate investigation and enrichment, recommend actions, and execute approved actions. Full automation (no human approval) is appropriate only for high-confidence, low-impact actions.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">SIEM + SOAR Integration</div>
+            SIEM detects and generates alerts. SOAR receives alerts and executes the automated response workflow. The combination is sometimes called a SOAR-SIEM or SIEM with SOAR capabilities -- many modern platforms integrate both. The SIEM provides the detection; the SOAR provides the action. Alert quality from the SIEM directly determines the quality of SOAR automation -- garbage in, garbage out.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Vulnerability <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Vulnerability management is the continuous process of identifying, evaluating, prioritizing, and remediating vulnerabilities before attackers exploit them.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Vulnerability Scanning</div>
+                <div class="card-desc">Automated tools (Nessus, Qualys, Rapid7 InsightVM) probe systems for known vulnerabilities. Checks OS patch level, software versions, configuration settings, missing patches, and default credentials. Unauthenticated scans: limited -- only see what an external attacker sees. Credentialed (authenticated) scans: the scanner logs in, reads installed software inventory, patch level, and configuration details. Always run credentialed scans for comprehensive coverage.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CVSS Scoring</div>
+                <div class="card-desc">Common Vulnerability Scoring System. CVSS v3.1 scores vulnerabilities 0-10 based on: Base metrics (exploitability, impact, scope). Temporal metrics (exploit availability, patch availability). Environmental metrics (asset criticality, existing mitigating controls). Critical: 9.0-10.0. High: 7.0-8.9. Medium: 4.0-6.9. Low: 0.1-3.9. CVSS base score alone is insufficient for prioritization -- context matters more than the number.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Prioritization Beyond CVSS</div>
+                <div class="card-desc">CISA KEV (Known Exploited Vulnerabilities catalog): vulnerabilities with confirmed active exploitation. These must be patched first regardless of CVSS score. EPSS (Exploit Prediction Scoring System): probability that a vulnerability will be exploited in the next 30 days. Combine with asset criticality: a critical CVSS score on a test server matters less than a medium score on a payment processing server.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Patch Management</div>
+                <div class="card-desc">Scanning finds vulnerabilities. Patching closes them. Patch management requires: scanning to find, testing in non-production, rollout timeline (critical: 24-72 hours, high: 7 days, medium: 30 days), verification that patches were applied, exceptions process for systems that cannot be patched (with compensating controls). Unpatched vulnerabilities are the most common initial access vector in enterprise breaches.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Penetration <span class="accent">Testing</span></div>
+        <div class="slide-subtitle">Penetration testing is an authorized, simulated attack against an organization's systems, performed by skilled professionals to identify exploitable vulnerabilities before real attackers do.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Black Box Testing</div>
+                <div class="card-desc">Tester has no prior knowledge of the target environment. Simulates an external attacker with only public information. Most realistic scenario for external threat modeling. Least efficient -- tester spends significant time on reconnaissance. Best for testing perimeter security and visibility controls. External penetration test is typically black box.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">White Box Testing</div>
+                <div class="card-desc">Tester has full knowledge: network diagrams, source code, credentials, architecture documentation. Most thorough coverage. Least realistic external attacker simulation. Best for deep security review of specific systems, secure code review, and when time is limited. Internal security teams typically have some degree of white box knowledge. Most cost-effective for comprehensive vulnerability identification.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Gray Box Testing</div>
+                <div class="card-desc">Partial knowledge provided: network range, user-level credentials, or architectural overview. Simulates a compromised insider or a user who has completed initial reconnaissance. The most common approach for enterprise penetration tests -- faster than black box with more realistic findings than white box. Credentials represent the "assumed breach" starting point for testing lateral movement defenses.</div>
+            </div>
+        </div>
+        <div class="card-grid" style="margin-top:0;">
+            <div class="card c-red">
+                <div class="card-label">Rules of Engagement</div>
+                <div class="card-desc">Written agreement defining: scope (which systems are in scope/out of scope), timing (no production testing during peak business hours), notification (who must be notified), escalation procedures (what to do if the tester discovers an active breach), and reporting requirements. Testing without signed rules of engagement is unauthorized access -- the same crime as the attacker's.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Phases of a Pen Test</div>
+                <div class="card-desc">1. Planning and scoping. 2. Reconnaissance (passive and active). 3. Scanning and enumeration. 4. Exploitation. 5. Post-exploitation (lateral movement, privilege escalation, persistence). 6. Reporting. The penetration test report must document every finding with evidence, impact assessment, and remediation recommendation. Executive summary for leadership, technical detail for the remediation team.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Vuln Scan vs. Pen Test</div>
+                <div class="card-desc">Vulnerability scan: automated, identifies potential vulnerabilities, does not exploit, rapid and repeatable. Penetration test: manual and tool-assisted, actually exploits vulnerabilities to demonstrate impact, determines the real attack path. A vulnerability scan tells you the door might be unlocked. A penetration test actually opens the door and walks through to show what an attacker can reach. Both are required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Threat <span class="accent">Hunting</span></div>
+        <div class="slide-subtitle">Threat hunting is the proactive, hypothesis-driven search for threats that have evaded automated detection. It does not wait for an alert -- it assumes the attacker is already inside.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Assumption of Compromise</div>
+                <div class="card-desc">Reactive security (respond when alerts fire) misses sophisticated attackers who specifically evade detection tools. Threat hunting assumes that a skilled adversary is already inside the environment and has crafted their activity to avoid triggering signatures. Hunters look for subtle behavioral indicators that no single alert catches: unusual parent-child process relationships, uncommon binary execution paths, atypical network connections from trusted hosts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hypothesis-Driven Hunting</div>
+                <div class="card-desc">A hypothesis defines what the hunter is looking for: "We believe an attacker may be using living-off-the-land techniques (LOLBins) to maintain persistence." The hunter then queries logs for suspicious use of trusted Windows utilities (certutil, wmic, mshta, regsvr32) used in ways inconsistent with normal operations. Hypotheses are derived from threat intelligence, red team reports, and TTPs in MITRE ATT&CK.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MITRE ATT&CK Framework</div>
+                <div class="card-desc">A knowledge base of adversary tactics, techniques, and procedures (TTPs) based on real-world observations. Organized by tactics (the why -- initial access, execution, persistence, privilege escalation, lateral movement, etc.) and techniques (the how -- specific methods). Hunters use ATT&CK to structure hunt hypotheses and map detections to real-world threat actor behavior. SY0-701 references ATT&CK as the standard threat modeling framework.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Threat Intelligence Integration</div>
+                <div class="card-desc">Threat intelligence provides context: which threat actors are targeting your industry, what TTPs they use, what IOCs (Indicators of Compromise) are associated with their campaigns. IOCs include IP addresses, domain names, file hashes, and behavioral signatures. Threat hunting consumes intelligence to prioritize hypotheses. STIX/TAXII is the standard format and protocol for threat intelligence sharing between organizations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Endpoint Detection <span class="accent">and Response (EDR)</span></div>
+        <div class="slide-subtitle">EDR platforms provide deep visibility into endpoint activity, enabling detection and response to threats that bypass traditional antivirus.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">EDR vs. Traditional AV</div>
+                <div class="card-desc">Traditional AV: signature-based, matches known malware hashes, limited behavioral detection, no central visibility. EDR: behavioral analysis, process telemetry (parent-child relationships, memory injections, API calls), network connections per process, file system changes, registry modifications. Can detect novel malware that has never been seen before based on behavior, not signature. CrowdStrike Falcon, SentinelOne, Microsoft Defender for Endpoint.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Telemetry Collection</div>
+                <div class="card-desc">EDR agents collect: process creation with command line arguments, parent-child process relationships, file creates/modifies/deletes, network connections by process, DNS queries by process, registry changes, loaded DLLs, memory operations. This telemetry is streamed to a central platform for analysis and threat hunting. The volume of endpoint telemetry is significant -- EDR platforms use ML to separate signal from noise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Automated Response</div>
+                <div class="card-desc">EDR platforms can automatically contain a compromised endpoint: isolate it from the network while preserving the agent connection (for investigation and remediation), kill malicious processes, quarantine malicious files. Isolation prevents lateral movement from the compromised endpoint while preserving forensic evidence on the device. Automated containment should have defined criteria -- not every detection warrants immediate isolation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">XDR -- Extended Detection and Response</div>
+                <div class="card-desc">Evolution of EDR that correlates telemetry across multiple sources: endpoint, network, cloud, identity, and email. Instead of investigating each alert in isolation, XDR correlates related events across the entire kill chain into a single incident view. An email with a malicious link, the user clicking it, the browser spawning a suspicious child process, and the process making a C2 connection are correlated into one incident automatically.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Data Loss Prevention <span class="accent">(DLP)</span></div>
+        <div class="slide-subtitle">DLP identifies, monitors, and controls the movement of sensitive data to prevent unauthorized disclosure -- accidental or intentional.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">DLP Deployment Points</div>
+                <div class="card-desc">Network DLP: inspects traffic at the perimeter (email gateway, web proxy) for sensitive data patterns. Endpoint DLP: agent on workstations controls copy/paste, print, USB transfer, and upload operations. Cloud DLP: inspects data stored in and transferred to cloud services (integrated with CASB). Each deployment point catches different exfiltration vectors -- comprehensive DLP requires all three layers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Content Inspection Methods</div>
+                <div class="card-desc">Pattern matching: regex for SSN, credit card numbers (Luhn algorithm check), passport numbers. Data fingerprinting: creates a hash fingerprint of sensitive documents and alerts when that fingerprint appears in outgoing data. Machine learning classification: trained on examples of sensitive vs. non-sensitive content. Keyword matching: specific terms. Each method has different false positive rates and coverage. Most enterprise DLP combines methods.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DLP Response Actions</div>
+                <div class="card-desc">Monitor: log the event for review, no blocking. Block: prevent the transfer and alert the user with the reason. Quarantine: hold the email or file for human review before delivery. Encrypt: automatically encrypt before sending (policy-based encryption). Notify: alert the user and their manager. The response must match the data sensitivity -- not all DLP violations warrant blocking. Blocking too aggressively disrupts legitimate business operations.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">DLP and Data Classification Integration</div>
+            DLP is only as effective as the data classification program behind it. If sensitive data is not labeled as sensitive, content inspection may not recognize it. Data classification labels embedded in documents (via Azure Information Protection, Microsoft Purview) enable DLP policies to trigger based on the label rather than content inspection. Classification is the foundation; DLP is the enforcement mechanism.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Encryption <span class="accent">at Rest</span></div>
+        <div class="slide-subtitle">Encryption at rest protects data on storage media -- hard drives, SSDs, backup tapes, cloud storage -- from unauthorized access if the physical media is obtained.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Full Disk Encryption (FDE)</div>
+                <div class="card-desc">Encrypts the entire storage volume. All files, OS, swap space, and temp files are encrypted. BitLocker (Windows), FileVault 2 (macOS), LUKS (Linux). Decryption occurs automatically when the authorized user authenticates. Protects against physical theft of the device or drive. Does not protect against malware running on an authenticated, unlocked system -- the data is decrypted for any process with OS access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">File and Folder Encryption</div>
+                <div class="card-desc">Encrypts specific files or folders rather than the entire disk. EFS (Windows Encrypting File System). Microsoft Information Protection / Azure Information Protection for sensitivity-label-based encryption. More granular than FDE -- encrypts only sensitive data. The encryption key is tied to the user's identity, not just disk access. Unauthorized users on the same system cannot access the encrypted files even with OS access.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Database Encryption</div>
+                <div class="card-desc">Transparent Data Encryption (TDE): encrypts database files on disk. A compromised server OS or storage still cannot read database data without the TDE key. Column-level encryption: encrypts specific sensitive columns (SSN, credit card) while leaving other columns readable. Application-level encryption: the application encrypts data before inserting into the database -- the database cannot decrypt it even with DBA access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cloud Encryption at Rest</div>
+                <div class="card-desc">AWS S3 Server-Side Encryption (SSE-S3, SSE-KMS, SSE-C). SSE-S3: provider manages keys. SSE-KMS: customer controls keys via AWS KMS. SSE-C: customer provides and manages encryption keys. Azure Storage Service Encryption (SSE) with Microsoft-managed or customer-managed keys. Most cloud services offer encryption at rest by default -- verify it is enabled and understand the key management model.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 13 -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Encryption <span class="accent">in Transit</span></div>
+        <div class="slide-subtitle">Encryption in transit protects data moving between systems from interception, modification, and eavesdropping.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">TLS for Application Traffic</div>
+                <div class="card-desc">HTTPS (TLS over HTTP) is the standard for web traffic. All web applications must use HTTPS. HTTP Strict Transport Security (HSTS) tells browsers to only connect via HTTPS and reject HTTP connections for a defined period. TLS 1.3 is preferred. Disable TLS 1.0 and 1.1. Verify cipher suites exclude weak algorithms. Certificate must be valid and from a trusted CA.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Database and Service Encryption</div>
+                <div class="card-desc">Application-to-database traffic should use TLS. Many database drivers transmit credentials and query results in cleartext by default -- this must be explicitly configured. Internal microservice communication should use mutual TLS (mTLS) -- both sides present certificates. Service mesh platforms (Istio, Linkerd) implement mTLS transparently for container environments without requiring application code changes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SMTP Security</div>
+                <div class="card-desc">SMTP TLS (opportunistic): STARTTLS upgrades connections if the remote server supports it. Not mandatory. SMTP TLS (enforced): MTA-STS and DANE TLSA records require TLS for specific domains. DMARC, DKIM, and SPF: authentication frameworks that prevent email spoofing. DKIM signs outbound email with the domain's private key. SPF defines which mail servers may send on behalf of the domain. DMARC tells recipients what to do when SPF/DKIM fail.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Encryption in Transit Does Not Protect Against</div>
+            Malware on the endpoint (the data is decrypted before reaching the application layer). Compromised application server (the server decrypts TLS before processing). Insider threat (authorized users can access plaintext data). TLS interception by a proxy (legitimate or malicious). Encryption in transit protects the wire -- not the endpoints. Defense in depth requires endpoint security alongside transport encryption.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 14 -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Threat Intelligence <span class="accent">Operations</span></div>
+        <div class="slide-subtitle">Threat intelligence provides actionable context about threats, enabling proactive defenses and informed response decisions.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Intelligence Categories</div>
+                <div class="card-desc">Strategic: high-level, for executive decisions. Which threat actors target our industry? What are their motivations? Operational: campaign-level. Active campaigns targeting organizations in your sector. Tactical: TTPs and technical methods of specific threat actors. Technical: IOCs (IP addresses, domain names, file hashes, YARA rules) for direct integration into security tools. Most organizations need tactical and technical intelligence for daily operations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IOC Lifecycle</div>
+                <div class="card-desc">IOCs (Indicators of Compromise) have limited shelf lives. An IP address used as a C2 server may be abandoned and reassigned within days. File hashes are specific to a particular malware build -- polymorphic malware changes its hash on every infection. IOCs must be continuously updated. Blocking stale IOCs creates false positives. Balance between IOC coverage and false positive rate is managed through IOC confidence scoring and expiration.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Threat Intel Feeds</div>
+                <div class="card-desc">ISAC (Information Sharing and Analysis Center): industry-specific intelligence sharing. FS-ISAC for financial services, H-ISAC for healthcare. CISA AIS (Automated Indicator Sharing): free government feed via TAXII. Commercial feeds: Recorded Future, Mandiant, CrowdStrike Intelligence. Open source: VirusTotal, AlienVault OTX, MISP. Feeds must be evaluated for quality -- signal-to-noise ratio varies widely between sources.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">STIX and TAXII</div>
+                <div class="card-desc">STIX (Structured Threat Information eXpression): JSON-based language for describing threat intelligence -- threat actors, attack patterns, malware, IOCs, relationships between them. TAXII (Trusted Automated eXchange of Intelligence Information): transport protocol for sharing STIX content. TAXII servers host intelligence collections; clients subscribe and receive updates. The combination enables automated sharing of intelligence between organizations and security tools.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 15 -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Security <span class="accent">Metrics and KPIs</span></div>
+        <div class="slide-subtitle">Metrics quantify the security program's effectiveness. Without measurement, improvement is unmeasurable and resource allocation is unjustifiable.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Detection Metrics</div>
+                <div class="card-desc">Mean Time to Detect (MTTD): average time from breach initiation to detection. Industry median is weeks. Mean Time to Respond (MTTR): average time from detection to containment. False Positive Rate: percentage of alerts that are not genuine threats. Alert Volume by Severity: breakdown of critical/high/medium/low alerts over time. Detection coverage: percentage of MITRE ATT&CK techniques the SOC can detect.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Vulnerability Metrics</div>
+                <div class="card-desc">Mean Time to Patch (MTTP): average time from vulnerability disclosure to patch deployment. Vulnerability age distribution: percentage of open vulnerabilities older than SLA thresholds. Critical vulnerability count by system. Patch compliance rate: percentage of systems within patch SLA. Scan coverage: percentage of assets scanned in the last 30 days. These metrics drive investment decisions and hold remediation teams accountable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Business-Aligned Metrics</div>
+                <div class="card-desc">CISOs must communicate security risk in business terms. Security posture score by business unit. Percentage of critical business systems at risk. Compliance status by regulation. Security training completion rate. Phishing simulation click rate (measures employee security awareness). These metrics connect security operations to business outcomes and enable executive-level resource allocation decisions.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Metrics Governance</div>
+            Metrics must be consistently measured, not cherry-picked. Baseline measurements before program changes establish the "before" state. Measurements after changes show the "after" state. Security programs that claim improvements without baseline comparisons are not demonstrating value -- they are generating reports. Every metric should have an owner, a measurement cadence, and a target threshold.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 16 -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Security <span class="accent">Awareness Training</span></div>
+        <div class="slide-subtitle">The human layer is simultaneously the most targeted and most improvable layer of the security architecture. Awareness programs reduce risk at the most exploited attack vector.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Phishing Simulations</div>
+                <div class="card-desc">Simulated phishing emails sent to employees to measure click rates and credential entry rates. Employees who click receive immediate, targeted training at the moment of failure -- highest retention rate. Metrics tracked over time show improvement. Repeat clickers receive additional intervention. Simulation must be realistic but not punitive -- the goal is improvement, not punishment. Click rate decreases measurably with consistent simulation programs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Training Program Design</div>
+                <div class="card-desc">Annual compliance training is insufficient. Effective programs: short modules (5-10 minutes) delivered monthly or quarterly. Role-based content -- finance team receives phishing + wire fraud training; developers receive secure coding training. Microlearning with immediate feedback. Gamification and spaced repetition. Real incident case studies. Training tied to the organization's actual threat landscape, not generic scenarios.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Social Engineering Awareness</div>
+                <div class="card-desc">Train employees to recognize pretexting (impersonating authority), vishing (voice phishing), smishing (SMS phishing), quid pro quo (offering help in exchange for information), and tailgating/piggybacking. Create a reporting culture: employees should report suspicious contacts without fear. A suspicious call that is reported and investigated catches an attacker. An employee who does not report for fear of looking foolish allows an attack to proceed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Insider Threat Awareness</div>
+                <div class="card-desc">Malicious insiders are motivated by financial incentive, grievance, or coercion. Accidental insiders cause breaches through negligence. Training cannot stop a determined malicious insider but reduces accidental exposure and creates norms that malicious behavior violates visibly. Employees who witness unusual colleague behavior (bulk downloads, inappropriate access attempts) should have a trusted reporting channel. Behavioral analytics (UEBA) complements training.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 17 -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Log Management <span class="accent">&amp; Retention</span></div>
+        <div class="slide-subtitle">Logs are the raw material of security operations. Without comprehensive, retained logs, incident investigation is impossible and compliance requirements are unmet.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What Must Be Logged</div>
+                <div class="card-desc">Authentication events (success and failure). Privilege use. Account management (creates, deletes, permission changes). Network connections (firewall allow/deny, proxy logs). System events (OS boots, service starts, driver loads). Application events (errors, access, transactions). Configuration changes on all security-relevant systems. Data access events for sensitive data. Logging scope should be driven by compliance requirements and threat model.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Retention Requirements</div>
+                <div class="card-desc">PCI DSS: 1 year minimum, 3 months immediately available for analysis. HIPAA: 6 years. SOX: 7 years for financial records (which includes relevant system logs). GDPR: logs containing personal data must have retention periods tied to the purposes for which the data was collected -- do not retain indefinitely without justification. Organization must define retention policy and automate deletion to avoid compliance violations from over-retention.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Log Integrity</div>
+                <div class="card-desc">Logs must be protected from modification -- if an attacker can modify logs, they can erase evidence of their actions. Forward all logs immediately to a remote, immutable log server. Role-based access: even system administrators of production servers should not have write access to the log server. WORM (Write Once, Read Many) storage. Hash chaining provides tamper evidence for log files. Log integrity is a forensics requirement and often a compliance requirement.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Syslog vs. Windows Event Log vs. Agent-Based Collection</div>
+            Syslog (UDP 514 / TCP 514 / TLS 6514) is the standard for Linux/Unix and network devices. Windows Event Log uses its own format and requires Windows Event Forwarding (WEF) or an agent to ship to SIEM. Agent-based collectors (Splunk UF, Elastic Agent, Filebeat) provide more reliable delivery with buffering and compression. Remote syslog over UDP loses logs if the network is congested -- use TCP or agent-based collection for critical log sources.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 18 -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Configuration <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Configuration management ensures that systems are built and maintained in a known, secure state. Configuration drift creates vulnerabilities that scanning may not catch.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Security Baselines</div>
+                <div class="card-desc">A security baseline is a documented set of required security configurations for a system type. CIS Benchmarks provide well-researched baselines for operating systems, applications, cloud services, and network devices. Baselines define: which services are disabled, which ports are closed, password policy settings, audit policy settings, and security configuration values. New systems should be deployed from hardened images that comply with the baseline.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Configuration Drift</div>
+                <div class="card-desc">Over time, systems accumulate changes from patches, troubleshooting, emergency changes, and software installations that move them away from the secure baseline. Configuration drift is measured by comparing current configuration to the baseline. Drift creates vulnerabilities, compliance failures, and operational instability. Detected via automated compliance scanning (Ansible, Chef InSpec, AWS Config, Azure Policy).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Change Management</div>
+                <div class="card-desc">All changes to production systems must go through a documented change management process. Change request: description, justification, risk assessment, rollback plan. Change approval: review by change advisory board. Implementation: during approved maintenance window. Verification: confirming the change was successfully applied. Post-implementation review. Unauthorized changes (unauthorized configuration changes) are a major risk and a compliance finding.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Infrastructure as Code</div>
+                <div class="card-desc">Provisioning infrastructure through code (Terraform, CloudFormation, Ansible) enforces consistent, version-controlled, auditable configuration. Security configuration is embedded in the code: security groups, IAM policies, encryption settings, logging configuration. Code review and security scanning before deployment catches misconfigurations before they reach production. Immutable infrastructure -- never modify running systems; replace them with new instances built from the updated code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 19 -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Secure <span class="accent">DevOps (DevSecOps)</span></div>
+        <div class="slide-subtitle">DevSecOps integrates security controls into the software development lifecycle rather than treating security as a final gate before production.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Shift Left Security</div>
+                <div class="card-desc">Finding vulnerabilities earlier in the development lifecycle is exponentially cheaper to fix. A security issue found during code review takes minutes to fix. The same issue found in production after a breach costs weeks of remediation, regulatory fines, and reputational damage. "Shift left" moves security testing to the earliest possible phase -- developer workstations and code review, not post-deployment scanning.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SAST and DAST</div>
+                <div class="card-desc">SAST (Static Application Security Testing): analyzes source code without executing it. Finds SQL injection, buffer overflows, hardcoded credentials, insecure cryptography in code. Runs in CI/CD pipeline on every commit. Fast feedback to developers. DAST (Dynamic Application Security Testing): tests the running application by sending attack payloads. Finds runtime vulnerabilities that SAST misses. Runs against staging or test environments. Both are required for comprehensive application security coverage.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Software Composition Analysis (SCA)</div>
+                <div class="card-desc">Scans third-party dependencies (npm packages, Python libraries, Maven dependencies) for known CVEs. Applications import hundreds of libraries with potentially thousands of transitive dependencies. Log4Shell (CVE-2021-44228) affected applications that imported the log4j library -- most development teams did not know they were using it. SCA tools (Snyk, Dependabot, OWASP Dependency-Check) identify vulnerable dependencies automatically.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Container Image Scanning</div>
+            Container images built from public base images often contain unpatched OS-level vulnerabilities. Scanning tools (Trivy, Snyk Container, Aqua Security) scan container images in CI/CD before deployment. Policy gates can block deployment of images with critical CVEs. Images should be rebuilt regularly to incorporate OS patches even when the application code has not changed. Pin base image versions but rebuild on a schedule.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 20 -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Network <span class="accent">Traffic Analysis</span></div>
+        <div class="slide-subtitle">Network traffic analysis detects malicious activity from network behavior patterns when endpoint visibility is unavailable or insufficient.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NDR -- Network Detection and Response</div>
+                <div class="card-desc">Network-based behavioral analysis platform that uses machine learning to model normal traffic patterns and detect anomalies. Analyzes east-west traffic (lateral movement) and north-south traffic (exfiltration, C2). Complementary to EDR -- NDR provides visibility for devices that cannot have EDR agents (IoT, OT, printers, network devices). Darktrace, ExtraHop, and Vectra are common NDR platforms.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DNS Security</div>
+                <div class="card-desc">DNS is used for malware C2 (DNS tunneling, DGA domains), exfiltration (data encoded in DNS queries), and phishing (typosquatted domains). DNS Security (Cisco Umbrella, Cloudflare Gateway) filters DNS queries against threat intelligence, blocks known malicious domains, and can inspect TLS connections to flagged domains. Since almost all network activity requires DNS, DNS visibility is a high-value detection point with broad coverage.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Protocol Anomaly Detection</div>
+                <div class="card-desc">Normal protocols behave in specific ways. HTTP requests from browsers follow predictable patterns. SMTP connections follow RFC specifications. Malware often misuses protocols: HTTP with abnormal user agents, HTTPS on non-443 ports, DNS queries 10x larger than normal, SMB to non-server workstations. Protocol anomaly detection identifies these deviations from expected behavior as potential malicious activity.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Encrypted Traffic Analysis</div>
+                <div class="card-desc">Over 90% of internet traffic is now encrypted. Traditional deep packet inspection cannot decrypt traffic without TLS inspection infrastructure. Encrypted Traffic Analysis (ETA) uses metadata observable even in encrypted traffic: certificate fingerprints, TLS version and cipher suites, SNI (Server Name Indication), packet size and timing patterns, connection frequency. These metadata signatures distinguish legitimate traffic from malware C2 even when content is encrypted.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 21 -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Privileged Access <span class="accent">Management (PAM)</span></div>
+        <div class="slide-subtitle">PAM controls, monitors, and audits the use of privileged credentials -- the keys to the kingdom that attackers prioritize above all other targets.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Credential Vaulting</div>
+                <div class="card-desc">Privileged credentials (root passwords, service account passwords, shared admin accounts, API keys) are stored in a PAM vault. Users do not know the actual password -- they request access through the PAM system, which injects the credential for the session. Passwords are automatically rotated after each session. An attacker who compromises a user account cannot extract the privileged credentials -- they never existed on the user's workstation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Just-in-Time Access</div>
+                <div class="card-desc">Privileged access is granted for a specific, time-limited window rather than persistently. A developer requests admin access to a production server for 2 hours for an emergency change. After 2 hours, access is automatically revoked. The privileged account does not exist between requests -- there is no persistent credential to steal. Dramatically reduces the attack surface of privileged accounts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Session Recording and Monitoring</div>
+                <div class="card-desc">All privileged sessions are recorded -- keystrokes, commands, and screen capture. Recordings are stored in the PAM vault, inaccessible to the session user. Enables complete post-incident forensic reconstruction of privileged activity. Real-time monitoring can alert on anomalous privileged commands. The existence of recording provides a deterrence effect -- users behave differently when they know every action is logged.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Service Account Management</div>
+                <div class="card-desc">Service accounts authenticate applications to databases, APIs, and other services. They are often overprivileged (given admin access for convenience), never have their passwords rotated, and their credentials are stored in configuration files. PAM manages service accounts: minimal privilege, regular rotation, secrets management vault for credential storage, audit logging of service account usage. Service accounts are a major attack surface in most enterprises.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 22 -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Asset <span class="accent">Management</span></div>
+        <div class="slide-subtitle">You cannot secure what you do not know exists. Asset management is the foundation of every other security program.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Hardware Asset Inventory</div>
+                <div class="card-desc">Complete, current inventory of all physical and virtual hardware assets. Attributes: asset type, owner, location, OS, IP address, MAC address, criticality classification. Maintained via automated discovery (NMAP, DHCP logs, agent-based inventory, MDM). Unknown devices on the network are a security risk -- they may be rogue APs, unauthorized endpoints, or attacker-placed devices. Unauthorized assets should be investigated and removed or authorized.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Software Asset Inventory</div>
+                <div class="card-desc">Complete inventory of installed software across all endpoints. Required for: vulnerability management (you cannot patch software you do not know is installed), license compliance, detection of unauthorized software, and application allowlisting. Software inventory tools: SCCM/Intune, Jamf, Tanium. Applications not in the approved inventory should be investigated -- shadow IT, unauthorized tools, or malware-installed software.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Asset Criticality Classification</div>
+                <div class="card-desc">Not all assets are equally important. Classify assets by: business criticality (what business function does this system support?), data sensitivity (what data does this system store or process?), and compliance scope (is this system in scope for PCI, HIPAA, or other regulations?). Asset criticality drives: scanning priority, patching SLA, monitoring intensity, backup frequency, and incident response priority. A critical asset with a medium CVE gets more attention than a non-critical asset with a high CVE.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">CMDB -- Configuration Management Database</div>
+            A CMDB maintains records of all Configuration Items (CIs) -- assets, software, relationships between them, and change history. The CMDB is the authoritative source for asset and configuration data. Security tools should integrate with the CMDB for asset context (criticality, owner, environment). Outdated CMDBs are worse than none -- security decisions made on incorrect data are made with false confidence.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 23 -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Red Team <span class="accent">and Blue Team</span></div>
+        <div class="slide-subtitle">Red team (attack) and blue team (defend) exercises test and improve security operations effectiveness through simulated adversarial engagement.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Red Team</div>
+                <div class="card-desc">Simulates a sophisticated, persistent adversary against the organization. Multi-phase campaign with realistic objectives (access to a specific system, exfiltration of a specific dataset). Uses real attacker TTPs from MITRE ATT&CK. Not limited to technical attacks -- includes physical security testing, social engineering, and vishing. The goal is to evade detection and achieve objectives, not just find vulnerabilities. Red team findings test blue team detection and response capability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Blue Team</div>
+                <div class="card-desc">The defenders. Responsible for protecting the environment, detecting attacks, and responding to incidents. Operates 24/7. Includes SOC analysts, incident responders, and threat hunters. Blue team performance is measured by: detection rate (what percentage of red team actions were detected?), detection time (how quickly after each action was it detected?), response quality (were responses appropriate and effective?). Every gap the red team finds is a blue team improvement opportunity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Purple Team</div>
+                <div class="card-desc">A collaborative model where red and blue work together. Red team executes an attack technique; blue team observes whether their tools detect it; both teams analyze gaps together. More efficient than a blind red team exercise for improving detection coverage. Allows rapid iteration: simulate a technique, find the detection gap, write the detection rule, verify the rule catches the technique. Purple team exercises map directly to MITRE ATT&CK coverage improvement.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Bug Bounty Programs</div>
+                <div class="card-desc">Organizations invite external security researchers to find and report vulnerabilities in exchange for monetary rewards. Extends the testing pool beyond internal security teams. Well-run programs with clear scope, responsive security teams, and fair rewards attract skilled researchers. Poorly run programs (ignored reports, scope disputes, unfair payments) damage reputation and attract fewer researchers. Common platforms: HackerOne, Bugcrowd. Defined scope prevents researchers from testing sensitive production systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 24 -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Security <span class="accent">Tool Integration</span></div>
+        <div class="slide-subtitle">Security tools generate maximum value when they share data and context with each other rather than operating as isolated silos.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SIEM as the Integration Hub</div>
+                <div class="card-desc">SIEM is the central collection and correlation point. All security tools ship logs or events to the SIEM. EDR alerts, IDS/IPS events, firewall denies, authentication failures, vulnerability scan results, and DLP incidents are all correlated in the SIEM. The SIEM provides a unified view that no single tool can provide. Quality of SIEM analysis directly depends on the completeness and quality of log sources feeding it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Threat Intel Platform (TIP) Integration</div>
+                <div class="card-desc">A Threat Intelligence Platform (MISP, ThreatConnect, Anomali) aggregates, normalizes, and enriches threat intelligence from multiple feeds. The TIP exports IOCs to SIEM (for alert correlation), EDR (for endpoint blocking), firewall (for IP/domain blocking), and email gateway (for phishing detection). Manual IOC management across multiple tools is error-prone and slow -- a TIP automates the distribution.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CMDB and Ticketing Integration</div>
+                <div class="card-desc">Security alerts enriched with CMDB data (asset owner, criticality, environment) enable faster triage and appropriate escalation. SIEM-to-ServiceNow integration automatically creates incident tickets for confirmed events. SOAR workflows can query and update CMDB entries, assign tickets to the correct team based on asset ownership, and track remediation status. Manual processes between security operations and IT operations are the most common source of missed SLAs.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">API-First Security Architecture</div>
+            Modern security tools expose REST APIs for query, configuration, and action. SOAR playbooks query the EDR API for process telemetry, the SIEM API for correlated alerts, the TIP API for threat context, and the firewall API to block an IP -- all in a single automated workflow. Organizations that leverage APIs for security orchestration achieve dramatically faster response times and more consistent playbook execution than those relying on manual tool switching.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 25 -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Backup <span class="accent">&amp; Resilience</span></div>
+        <div class="slide-subtitle">Backup strategy directly determines recovery capability after ransomware, accidental deletion, hardware failure, or natural disaster.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">3-2-1 Backup Rule</div>
+                <div class="card-desc">3 copies of data (primary + 2 backups). 2 different storage media types (disk + tape, or disk + cloud). 1 offsite copy. This rule ensures that no single disaster (fire, ransomware, hardware failure) can destroy all copies simultaneously. The offsite copy must be sufficiently isolated that encrypting the primary copy cannot encrypt the offsite backup as well -- ransomware specifically targets network-accessible backups.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Immutable Backups</div>
+                <div class="card-desc">Backups that cannot be modified or deleted for a defined retention period. WORM storage (Write Once Read Many). Cloud object storage with Object Lock (AWS S3 Object Lock, Azure Immutable Blob Storage). Ransomware operators specifically target and delete backups before encrypting production data. Immutable backups cannot be deleted by ransomware or a compromised admin account -- the protection is enforced at the storage layer, not by access controls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Backup Testing</div>
+                <div class="card-desc">Untested backups have unknown reliability. Backup processes can fail silently for months. Restoration from backup should be tested quarterly or more frequently for critical systems. Testing must cover the full restoration path: from backup media, through the restoration process, to a verified operational state. An organization that discovers its backups are corrupt during a ransomware incident will not be able to recover. Testing is not optional.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Ransomware-Resistant Architecture</div>
+                <div class="card-desc">Offline backups: physically disconnected from the network (cannot be encrypted via network access). Air-gapped backups: completely isolated from production network. Versioned backups: multiple point-in-time recovery points. Ransomware may execute silently for weeks before encryption -- a recovery point from 3 days ago may restore encrypted/corrupted files. Retention of at least 30 days of recovery points is recommended for ransomware protection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 26 -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Email <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Email remains the primary initial access vector for phishing, malware delivery, and business email compromise. Layered email security controls significantly reduce this risk.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SPF -- Sender Policy Framework</div>
+                <div class="card-desc">DNS TXT record listing all mail servers authorized to send email on behalf of the domain. Receiving servers check if the sending server's IP is in the SPF record. Prevents domain spoofing where an attacker sends email appearing to be from your domain using an unauthorized server. SPF alone is insufficient -- pass/fail result is not enforced without DMARC. SPF also has limitations with email forwarding (forwarded email may fail SPF).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DKIM -- DomainKeys Identified Mail</div>
+                <div class="card-desc">Cryptographic signature added to outbound email headers by the sending mail server. The signature is verified against the public key published in the domain's DNS. Proves the email came from the domain and was not modified in transit (integrity). Survives email forwarding (unlike SPF). The private key used for signing must be protected -- exposure allows an attacker to sign spoofed email with the domain's identity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DMARC -- Domain Message Authentication</div>
+                <div class="card-desc">Policy layer on top of SPF and DMARC. Defines what to do when email fails SPF or DKIM: None (monitor only), Quarantine (deliver to spam), Reject (do not deliver). DMARC reports are sent to a defined email address, providing visibility into who is sending email from your domain. Organizations should progress from p=none to p=quarantine to p=reject as confidence in legitimate email sources grows.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Secure Email Gateway (SEG)</div>
+            A SEG sits in front of the email server and inspects all inbound email for: malicious links (real-time URL reputation), malicious attachments (sandbox detonation), spam (content scoring), phishing (display name spoofing detection, lookalike domain detection), and DMARC enforcement. Outbound filtering prevents data exfiltration via email (DLP integration) and prevents the organization's domain from being used for spam. Required for all corporate email environments.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 27 -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Endpoint <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Endpoint security encompasses the controls applied to workstations, laptops, servers, and mobile devices to prevent compromise and limit blast radius when compromise occurs.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Hardening</div>
+                <div class="card-desc">Disable unused services. Remove unnecessary software. Enforce password policy and account lockout. Enable host-based firewall. Configure audit policy for all relevant event categories. Apply CIS Benchmark settings. Disable autorun/autoplay. Enable full disk encryption. Install and configure EDR agent. Hardening must be done before the system joins production -- retrofitting a running system is harder and riskier than building to the standard from the start.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Application Allowlisting</div>
+                <div class="card-desc">Only explicitly approved applications may execute. All others are blocked. Prevents execution of unknown malware, ransomware, and scripts dropped by phishing. Significantly reduces the attack surface. High operational cost: every new application must go through approval. Best suited for fixed-function systems (POS terminals, ATMs, ICS/OT, call center workstations). Windows AppLocker, CarbonBlack App Control, and Airlock are common platforms.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Patch Management</div>
+                <div class="card-desc">OS patches, application updates, and driver updates must be deployed promptly across all endpoints. Patch Tuesday (Microsoft) and equivalent update cycles require a defined deployment workflow: test in non-production, staged rollout to production by criticality. Endpoints that cannot receive patches (legacy OS, embedded systems) require compensating controls and are tracked as exceptions with documented risk acceptance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mobile Device Management (MDM)</div>
+                <div class="card-desc">MDM enforces security policies on mobile devices: PIN/biometric enforcement, encryption at rest, remote wipe capability, certificate deployment, app management (required apps, prohibited apps), and VPN profile. Mobile devices are increasingly the target for initial access through phishing SMS, malicious apps, and Wi-Fi attacks. MDM ensures that corporate mobile devices have consistent security configuration regardless of user preference.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 28 -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Security Operations <span class="accent">Frameworks</span></div>
+        <div class="slide-subtitle">Industry frameworks structure security operations programs, providing common language, maturity assessment, and improvement roadmaps.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NIST Cybersecurity Framework (CSF) 2.0</div>
+                <div class="card-desc">Six core functions: Govern (new in 2.0 -- establish and monitor cybersecurity risk management strategy). Identify (asset management, risk assessment). Protect (access control, awareness training, data security). Detect (continuous monitoring, detection processes). Respond (response planning, communications, analysis). Recover (recovery planning, improvements). CSF 2.0 applies to all sectors and organization sizes. Used as a risk management and communication framework.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MITRE ATT&CK</div>
+                <div class="card-desc">Knowledge base of adversary TTPs. 14 tactic categories (Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Collection, C2, Exfiltration, Impact). 200+ techniques. Each technique includes detection guidance and mitigations. Security teams use ATT&CK for: detection gap analysis (which techniques can we detect?), red team planning, SOC rule development, and threat intelligence mapping.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SOC Capability Maturity Model</div>
+                <div class="card-desc">Level 1: Reactive. Responds to incidents, no proactive detection. Level 2: Defined processes. Documented playbooks, consistent processes. Level 3: Managed. Metrics tracked, continuous improvement. Level 4: Optimized. Threat hunting, proactive threat modeling, automated response. Most organizations operate at Level 1-2. Moving to Level 3 requires investment in SIEM tuning, playbook development, and metrics programs. Level 4 requires dedicated threat hunters and purple team capability.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Incident Response Frameworks</div>
+            NIST SP 800-61: four-phase IR lifecycle (Preparation, Detection and Analysis, Containment/Eradication/Recovery, Post-Incident Activity). SANS PICERL: Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned. Both frameworks are equivalent. SY0-701 uses the NIST framework. The phases are sequential but may overlap -- containment may begin before eradication is complete.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 29 -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Security Operations <span class="accent">Challenges</span></div>
+        <div class="slide-subtitle">Operational realities that complicate effective security operations -- knowledge of these improves both exam performance and real-world practice.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Alert Fatigue:</strong> Too many low-quality alerts overwhelm analysts. Solution: SIEM rule tuning, risk scoring, tiered alert priority, SOAR for automation of repetitive triage, and suppression of known-good activities.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Visibility Gaps:</strong> Cloud workloads, IoT devices, OT systems, and shadow IT create areas the SOC cannot see. Solution: comprehensive asset inventory, agent deployment where possible, network-based monitoring (NDR) for agentless devices, and CASB for cloud visibility.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Talent Shortage:</strong> Security analysts are scarce and expensive. Solution: automation via SOAR reduces manual workload per analyst, MDR (Managed Detection and Response) augments internal teams, and investing in analyst training reduces turnover.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Legacy Systems:</strong> Critical business applications on unsupported OS versions cannot be patched. Solution: network isolation, application control, enhanced monitoring, and documented risk exceptions with compensating controls.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Speed of Attack vs. Defense:</strong> Modern ransomware can encrypt an entire network in under 45 minutes. Detection and response must be faster than attackers can complete their objectives. Automated detection and containment is required -- human-only response is too slow.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Supply Chain Risk:</strong> Attackers increasingly compromise trusted vendors and software suppliers (SolarWinds, Kaseya). Controls: software bill of materials (SBOM), code signing verification, vendor risk management, and behavioral monitoring for trusted software performing anomalous actions.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 30 -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Scenario <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Apply security operations concepts to realistic scenarios testing Domain 4 knowledge.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A SIEM generates 5,000 alerts per day but the SOC team can only investigate 100. What is the first operational priority? <strong>(Tune SIEM correlation rules to reduce false positives. Add risk scoring to prioritize the 100 alerts most likely to be genuine threats. Implement SOAR to automate initial triage of low-complexity alert types.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">An EDR alert shows cmd.exe spawned from winword.exe, followed by a connection to an external IP. What attack does this indicate and what immediate action should the SOC take? <strong>(Malicious macro execution (spear phishing). Immediate: isolate the endpoint, pull the email from the user's mailbox, check if other users received the same email, block the C2 IP in the firewall, submit the document to sandbox.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A vulnerability scanner reports a critical CVE on a legacy medical device that cannot be patched (the vendor no longer supports it). What is the appropriate response? <strong>(Compensating controls: network isolation (dedicated VLAN with no lateral connectivity), enhanced monitoring for anomalous behavior, documented risk exception, vendor roadmap for replacement. Document the risk acceptance with stakeholder sign-off.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">The SIEM detects an employee who downloaded 50 GB of data to a USB drive on their last day of employment. What operational steps follow? <strong>(Classify as potential insider theft incident. Preserve evidence (logs, DLP events, file access records). Notify HR and legal. Determine what data was copied. Check if DLP was configured to prevent USB transfer (and if not, why not). Consider legal hold on the employee's accounts and devices.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A pen tester reports that after gaining initial access, they were able to move laterally to 40 systems and access the domain controller undetected in 4 hours. What three operational improvements address this finding? <strong>(1. Micro-segmentation to prevent lateral movement. 2. EDR with behavioral detection for lateral movement techniques (Pass-the-Hash, WMI execution). 3. SIEM correlation rules for authentication patterns indicating lateral movement.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 31 -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">SIEM Platforms <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Understanding major SIEM platforms and their characteristics contextualizes exam questions about SIEM implementation and operation.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Splunk</div>
+                <div class="card-desc">Market-leading SIEM platform. Highly flexible search query language (SPL). Strong ecosystem of apps and add-ons. Expensive at scale -- pricing based on ingestion volume creates cost management challenges. Splunk Enterprise Security (ES) adds SIEM correlation and security use cases on top of the Splunk data platform. Common in large enterprises and government. Significant operational expertise required for tuning.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Microsoft Sentinel</div>
+                <div class="card-desc">Cloud-native SIEM on Azure. Pay-per-GB ingestion. Deep integration with Microsoft 365, Entra ID (Azure AD), and Microsoft Defender suite. KQL (Kusto Query Language) for queries. Strong out-of-the-box connectors for Microsoft products. Best value for organizations already heavily invested in the Microsoft ecosystem. Rapidly gaining market share against Splunk for mid-market enterprises.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IBM QRadar / Open Source Options</div>
+                <div class="card-desc">IBM QRadar: network-focused SIEM with strong flow analysis. Common in financial services and government. Wazuh: open-source SIEM and XDR combining HIDS (Ossec fork), vulnerability detection, and log management. No licensing cost but requires operational expertise. Elastic SIEM (Elasticsearch + Kibana + ECS): open-source data platform with SIEM capabilities. Popular in organizations with strong engineering teams who can build custom detection rules.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">SIEM Total Cost of Ownership</div>
+            The purchase price of a SIEM is a fraction of the total cost. Licensing scales with data ingestion volume -- high-value log sources must be prioritized over inexpensive noise sources. Integration engineering, rule development, content management, and analyst training are ongoing operational costs. Organizations frequently find they are paying for SIEM capacity but their rules are too noisy to generate useful alerts. Operational excellence matters more than platform choice.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 32 -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">DLP <span class="accent">Exam Quick Reference</span></div>
+        <div class="slide-subtitle">Data Loss Prevention concepts tested in SY0-701 Domain 4.5. Know these precisely.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Network DLP Placement</div>
+                <div class="card-desc">Inline at the internet egress point. Inspects all outbound traffic (email, web uploads, FTP, cloud sync). Can block transfers. Cannot inspect encrypted traffic without TLS inspection infrastructure. Effective for preventing accidental and deliberate exfiltration from corporate network. Does not cover data transferred via personal mobile devices or personal email on corporate devices without web proxy integration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Endpoint DLP Coverage</div>
+                <div class="card-desc">Controls on managed endpoints: copy to USB blocked, print blocked, cloud upload blocked, clipboard restrictions, screenshot prevention. Enforced by agent regardless of network (works offline). Cannot be applied to unmanaged personal devices. Endpoint DLP covers exfiltration channels that network DLP misses (offline transfers, local printing). Requires MDM for mobile coverage. Most comprehensive coverage when combined with network DLP.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Discovery vs. DLP</div>
+                <div class="card-desc">Data discovery scans storage systems (file shares, databases, cloud storage) to find sensitive data in uncontrolled locations. A credit card number stored in a shared Excel spreadsheet is a DLP failure before any transfer occurs. Discovery tools (Varonis, Microsoft Purview) map where sensitive data lives. Data discovery informs classification; DLP enforces the classification policy. Both are required.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">False Positive Management</div>
+                <div class="card-desc">DLP false positives block legitimate business activity. A researcher who cannot email a document containing medical terminology to a collaborator has a DLP false positive problem. Tuning involves: adjusting pattern matching thresholds, creating exceptions for specific senders/recipients, using data classification labels instead of content inspection for better precision, and maintaining an exception request process with security review and time limits.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 33 -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Exam-style questions covering Domains 4.1, 4.2, and 4.5 security operations topics.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A SOAR platform automatically blocks an IP address based on a threat intel feed. The blocked IP turns out to be a major cloud provider's load balancer, affecting thousands of users. What process failure caused this? <strong>(Automated action without sufficient validation. SOAR actions with broad impact (blocking cloud provider IPs) should require human approval. IP reputation alone is insufficient justification for blocking -- context enrichment is required before action.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">An IDS is deployed on a SPAN port monitoring the internet-facing segment. The IDS generates zero alerts over 30 days. Is this good security? <strong>(Unknown. Could be: properly tuned IDS with no attacks. Could be: SPAN port misconfigured and not receiving traffic. Could be: IDS rules not updated. Could be: encrypted traffic bypassing signature detection. Zero alerts requires investigation -- silent failure is indistinguishable from clean environment without validation.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A vulnerability scanner reports 500 vulnerabilities. How should the security team prioritize remediation? <strong>(1. CISA KEV -- actively exploited vulnerabilities regardless of CVSS. 2. Critical CVSS on high-criticality assets. 3. High CVSS on systems in compliance scope. 4. EPSS score -- probability of exploitation. 5. Remaining vulnerabilities by CVSS x asset criticality.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An employee reports their laptop shows files with a .locked extension and a ransom note. What are the first three actions the SOC should take? <strong>(1. Isolate the endpoint immediately -- disconnect from network to prevent spread. 2. Determine the time of initial infection -- check EDR telemetry for patient zero. 3. Check backups for integrity and recoverability. Do not pay ransom as the first action.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A pen test finding shows that a critical server has not been patched in 18 months and has 12 high CVEs. The application team says they cannot patch without downtime. What is the security team's response? <strong>(Document compensating controls: isolate on a more restricted network segment, increase monitoring, apply virtual patching via IPS signatures for the specific CVEs, and set a mandatory patching deadline with executive approval. Compensating controls do not eliminate the risk -- they reduce it temporarily while a permanent fix is scheduled.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 34 -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Applied exercises requiring specific technical justification and process design.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Design a SIEM deployment for a 500-endpoint enterprise with a 5-person SOC team. Specify: which log sources to ingest (prioritized by security value vs. volume), which correlation rules to implement first, alert tiers and SLAs per tier, and SOAR automations for the three most common alert types.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A threat hunter is investigating the hypothesis "A threat actor has established persistence using scheduled tasks on Windows endpoints." Describe the specific data sources to query, the MITRE ATT&CK technique ID this maps to, the query or analysis approach, and what a malicious finding would look like compared to legitimate scheduled task creation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Design a DLP program for a healthcare organization subject to HIPAA. Specify: data discovery scope, classification scheme, network DLP placement and policies, endpoint DLP policies for the three highest-risk exfiltration channels, exceptions process, and incident response procedure for confirmed PHI disclosure via DLP.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A ransomware simulation exercise reveals the following: 4-hour dwell time before detection, 45-minute spread to 15 endpoints, backup validation had not been run in 6 months, and the IR playbook had not been updated since 2022. Write the post-exercise remediation plan addressing each finding with specific technical and procedural controls.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Compare authenticated vs. unauthenticated vulnerability scanning. Provide a specific example of a vulnerability class that unauthenticated scanning will always miss but authenticated scanning will find. Explain why organizations with authenticated scanning capability still run unauthenticated scans against some assets.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 35 -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Security operations is where architecture, policy, and technology meet human judgment. Tools detect; analysts decide; processes drive consistency.</div>
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            Security operations is not a set of tools -- it is a capability. The same tools in a poorly run SOC will miss the same threats a well-run SOC catches. Tuning, process, and analyst skill determine effectiveness more than product selection.
+        </div>
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">SIEM aggregates, normalizes, and correlates logs. Alert quality depends on rule tuning and log source completeness. Alert fatigue is the most common SOC failure -- too many low-quality alerts overwhelm analysts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">IDS is passive (alerts only). IPS is inline (can block). NGFW integrates IPS. EDR provides host-level behavioral detection and response. XDR correlates across endpoint, network, cloud, and identity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">SOAR automates repetitive SOC tasks via playbooks. Enrichment and notification should be fully automated. High-impact actions (account disable, firewall block) should require human approval except for the highest-confidence detections.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Vulnerability scanning finds potential issues; penetration testing exploits them to demonstrate real impact. Both are required. CVSS scores alone are insufficient -- prioritize by CISA KEV (actively exploited), then by asset criticality.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">DLP: Network DLP inspects traffic at egress. Endpoint DLP controls transfers at the device. Cloud DLP (CASB) covers SaaS. Requires classification as the foundation -- unclassified sensitive data bypasses label-based DLP.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Encryption at rest protects media theft. Encryption in transit protects network interception. Neither protects against malware on an authenticated, decrypted system -- endpoint security is required for complete protection.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Threat hunting assumes compromise and proactively searches for threats. Uses MITRE ATT&CK for hypotheses. Hypothesis-driven, data-intensive, requires analyst skill. Complementary to reactive SOC operations -- neither replaces the other.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">PAM vaults privileged credentials, enables just-in-time access, and records all privileged sessions. Eliminates persistent credential exposure. Service accounts require separate management -- they are the most common privilege escalation target.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Backup resilience: 3-2-1 rule, immutable backups, offline copies, and tested restoration. Ransomware specifically targets accessible backups. Untested backups are of unknown reliability -- test quarterly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">NIST CSF 2.0: Govern, Identify, Protect, Detect, Respond, Recover. MITRE ATT&CK provides the adversary TTP library for detection engineering. NIST SP 800-61 defines the 4-phase IR lifecycle.</span>
+            </div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        document.getElementById('slide-' + currentSlide).classList.remove('active');
+        currentSlide = n;
+        document.getElementById('slide-' + currentSlide).classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w3-sec-ops', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

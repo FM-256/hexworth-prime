@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Controls | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security Controls | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-02 &nbsp;|&nbsp; Week 1 of 8 &nbsp;|&nbsp; SY0-701: 1.1, 1.3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Security <span class="accent">Controls</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Technical &nbsp;&bull;&nbsp; Administrative &nbsp;&bull;&nbsp; Physical &nbsp;&bull;&nbsp; Preventive &nbsp;&bull;&nbsp; Detective &nbsp;&bull;&nbsp; Corrective
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Beta. A specimen has escaped the inner lab. SHIELD-7 command reviews the incident: the keycard reader should have prevented entry (preventive), the motion sensor should have triggered an alert (detective), and the automated lockdown should have isolated the breach (corrective). Three layers. All three failed. Understanding why starts with understanding what each control type is actually supposed to do.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-02</span>
+            <span>Week 1 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS A SECURITY CONTROL ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">What Is a <span class="accent">Security Control</span>?</div>
+        <div class="slide-subtitle">Any safeguard or countermeasure designed to reduce the likelihood or impact of a threat exploiting a vulnerability.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Control vs. Countermeasure</div>
+                <div class="card-desc">The terms are used interchangeably on SY0-701. A control is a formal term from risk frameworks. A countermeasure is the operational term. Both refer to any mechanism -- technical, procedural, or physical -- that reduces risk to an asset.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Controls Reduce Risk</div>
+                <div class="card-desc">Controls do not eliminate risk. They reduce it. A firewall reduces the likelihood of unauthorized network access. An encrypted hard drive reduces the impact of physical theft. Risk reduction is the goal; risk elimination is not achievable in practice.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Controls Have Costs</div>
+                <div class="card-desc">Every control has a financial cost, an operational friction cost, and a maintenance burden. The decision to implement a control must weigh those costs against the risk reduction it provides. This is the economic foundation of every security architecture decision.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Two Classification Axes</div>
+            SY0-701 tests controls along two independent axes. The first axis is implementation category: how the control is deployed (technical, administrative, physical). The second axis is functional type: what the control does in time relative to an incident (preventive, detective, corrective, and others). A single control can have one value on each axis -- for example, a firewall is both technical and preventive.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- IMPLEMENTATION CATEGORIES OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Control <span class="accent">Implementation Categories</span></div>
+        <div class="slide-subtitle">How the control is deployed. Three categories cover every security mechanism you will encounter.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Controls</div>
+                <div class="card-desc">Implemented through hardware, software, or firmware. These controls enforce policy automatically without requiring human action at the point of use. Firewalls, intrusion detection systems, encryption, access control lists, and multi-factor authentication are all technical controls.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Controls</div>
+                <div class="card-desc">Also called managerial controls. Implemented through policy, procedure, training, and organizational practice. Acceptable use policies, security awareness training, background checks, separation of duties, and incident response plans are all administrative controls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Controls</div>
+                <div class="card-desc">Prevent unauthorized physical access to assets and systems. Locks, fences, badge readers, security guards, CCTV cameras, mantraps, and cable locks are physical controls. Physical security is the outermost layer of defense in depth -- if an attacker can touch hardware, most technical controls fail.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Facility context: the SHIELD-7 lab uses badge readers (technical/physical), requires all personnel to complete biosafety training annually (administrative), and installs reinforced specimen vault doors (physical). Each category addresses a different attack vector.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- TECHNICAL CONTROLS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">Technical Controls</span> in Depth</div>
+        <div class="slide-subtitle">Software and hardware mechanisms that enforce policy without human intervention at execution time.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Network-Layer Technical Controls</div>
+                <div class="card-desc">Firewalls filter traffic by port, protocol, and IP. Intrusion Prevention Systems (IPS) block traffic matching attack signatures in real time. Network Access Control (NAC) enforces posture checks before granting access. VPNs encrypt traffic in transit. These operate at the perimeter and internally.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Host-Layer Technical Controls</div>
+                <div class="card-desc">Antivirus and EDR (Endpoint Detection and Response) software monitors processes and files on individual systems. Host-based firewalls filter traffic at the OS level. Full-disk encryption (FDE) protects data if the device is stolen. Patch management removes known vulnerabilities from software.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Identity and Access Technical Controls</div>
+                <div class="card-desc">Multi-factor authentication (MFA) requires two or more verification factors. Role-based access control (RBAC) limits permissions to what the role requires. Privileged Access Management (PAM) vaults and audits administrative credentials. Single Sign-On (SSO) centralizes authentication across systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data-Layer Technical Controls</div>
+                <div class="card-desc">Encryption at rest protects stored data. Encryption in transit (TLS) protects data moving across networks. Data Loss Prevention (DLP) tools scan outbound traffic for sensitive data patterns and block or alert on violations. Database activity monitoring logs and audits all queries against sensitive tables.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- ADMINISTRATIVE CONTROLS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title"><span class="accent">Administrative Controls</span> in Depth</div>
+        <div class="slide-subtitle">Policy, procedure, and organizational practice. The most commonly overlooked control category -- and the most frequently tested on SY0-701.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Security Policies and Standards</div>
+                <div class="card-desc">Formal documents that define what the organization requires of its personnel. An Acceptable Use Policy (AUP) defines permitted uses of organizational assets. A password standard specifies minimum complexity requirements. Policies set the expectation; other controls enforce it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Awareness Training</div>
+                <div class="card-desc">Humans are consistently the weakest link in security. Phishing simulations, onboarding training, and regular refresher modules train personnel to recognize and report social engineering attempts. Training is an administrative control because it changes behavior through education rather than technical enforcement.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Separation of Duties</div>
+                <div class="card-desc">No single person controls all steps of a critical process. A person who initiates a wire transfer cannot also approve it. A developer who writes code cannot also deploy it to production without a second reviewer. Separation of duties reduces both fraud risk and error risk simultaneously.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Job Rotation and Mandatory Vacation</div>
+                <div class="card-desc">Rotating personnel through roles limits the accumulation of unchecked privilege and exposes fraud that depends on a single individual's continued presence. Mandatory vacation policies force employees to be absent long enough that irregular activity patterns become visible to those covering their duties.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PHYSICAL CONTROLS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title"><span class="accent">Physical Controls</span> in Depth</div>
+        <div class="slide-subtitle">Barriers and mechanisms that prevent or detect unauthorized physical access. Often underestimated in digital-focused security programs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Perimeter Physical Controls</div>
+                <div class="card-desc">Fences, bollards, and vehicle barriers prevent unauthorized vehicles from approaching the facility. Lighting reduces concealment opportunities for intruders. Security guards provide human judgment that automated systems cannot replicate. CCTV provides deterrence and post-incident evidence collection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Control Entry Points</div>
+                <div class="card-desc">Mantraps (also called airlocks or sally ports) require a person to badge into a small enclosed space, wait for the outer door to close, then badge through an inner door. This prevents tailgating because only one person can be authenticated at a time before proceeding. Common in data centers and secure facilities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Asset Physical Protection</div>
+                <div class="card-desc">Cable locks secure laptops and workstations to desks. Server rack locks prevent unauthorized access to hardware. Equipment cages isolate critical systems from shared colocation environments. Media safes store backup tapes and drives with fire and water resistance. Physical destruction of decommissioned media prevents data recovery.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Environmental Controls</div>
+                <div class="card-desc">Fire suppression systems protect equipment and personnel. Temperature and humidity monitoring prevents hardware failure. UPS (Uninterruptible Power Supply) and generators ensure continuity during power events. These are physical controls because they protect hardware availability through environmental management rather than software configuration.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- FUNCTIONAL TYPES OVERVIEW ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Control <span class="accent">Functional Types</span></div>
+        <div class="slide-subtitle">What the control does in relation to an incident. The second axis of every control classification question on SY0-701.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Preventive</div>
+                <div class="card-desc">Stops an incident before it occurs. The control blocks the threat action entirely. Examples: firewalls, MFA, locked doors, background checks, security awareness training (prevents employees from being successfully phished). The gold standard -- if you can prevent the incident, detection and correction are unnecessary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Detective</div>
+                <div class="card-desc">Identifies an incident during or after it occurs. Does not stop the attack but generates awareness that enables response. Examples: SIEM, IDS, audit logs, CCTV footage review, file integrity monitoring (FIM), security audits. Detective controls are critical when preventive controls fail or are bypassed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Corrective</div>
+                <div class="card-desc">Reduces the impact of an incident after it is detected. Restores systems to a known-good state. Examples: backups and restore procedures, patch management (corrects vulnerabilities), incident response playbooks, antivirus quarantine actions. Corrective controls close the gap opened by a successful attack.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The Security Control Timeline</div>
+            Preventive controls act BEFORE an incident (attack blocked). Detective controls act DURING or AFTER (incident identified). Corrective controls act AFTER detection (damage contained or reversed). A mature security program deploys all three across every critical asset. Gaps in any phase create exploitable windows.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- PREVENTIVE CONTROLS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title"><span class="accent">Preventive Controls</span></div>
+        <div class="slide-subtitle">Block the threat action before it succeeds. The most cost-effective controls when the threat is well-defined.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Preventive</div>
+                <div class="card-desc">Firewall rules block unauthorized traffic before it reaches the target system. Intrusion Prevention System (IPS) drops packets matching known attack signatures. Application whitelisting prevents unauthorized software from executing. MFA blocks credential-stuffing attacks even when passwords are compromised.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Preventive</div>
+                <div class="card-desc">Background checks prevent hiring individuals with histories of fraud or espionage. Security awareness training prevents employees from falling for phishing attacks before credentials are entered. Separation of duties prevents any single actor from initiating and completing a fraudulent transaction without oversight.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Preventive</div>
+                <div class="card-desc">Mantraps prevent tailgating into secured areas. Bollards prevent vehicle-ramming attacks. Badge readers allow only authorized personnel to access server rooms. Fences deter casual unauthorized access to facility perimeters. Preventive physical controls create barriers the attacker must overcome before reaching the asset.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            SHIELD-7 preventive layer: Sector 9 requires a retinal scan before entry -- a technical preventive control. Personnel policy prohibits sharing access credentials -- an administrative preventive control. Reinforced steel doors require a physical attack to bypass -- a physical preventive control.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- DETECTIVE CONTROLS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title"><span class="accent">Detective Controls</span></div>
+        <div class="slide-subtitle">Identify and alert when an incident has occurred or is occurring. The assumption: preventive controls will sometimes fail.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Detective</div>
+                <div class="card-desc">Security Information and Event Management (SIEM) aggregates logs and triggers alerts on anomalous patterns. Intrusion Detection System (IDS) generates alerts on suspicious traffic without blocking it. File Integrity Monitoring (FIM) alerts when critical system files are modified. Log analysis pipelines correlate events across systems to surface indicators of compromise.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Detective</div>
+                <div class="card-desc">Security audits review access logs, configuration settings, and user activity to identify policy violations. Penetration tests identify vulnerabilities before attackers do. Periodic access reviews identify accounts with inappropriate privileges. Variance reports flag unusual transaction patterns in financial systems. Human review remains critical for context that automated systems miss.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Detective</div>
+                <div class="card-desc">CCTV footage captures unauthorized physical access and is reviewed after incidents. Motion detectors trigger alerts when movement is detected in secured areas outside working hours. Security patrols provide mobile detection coverage that fixed cameras cannot. Badge reader logs show which credentials were used to access which area at what time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CORRECTIVE CONTROLS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title"><span class="accent">Corrective Controls</span></div>
+        <div class="slide-subtitle">Restore systems to a known-good state and limit damage after an incident is detected.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Technical Corrective</div>
+                <div class="card-desc">Backup and restore systems allow recovery to a state before the incident. Patch management corrects the vulnerability the attacker exploited. Antivirus quarantine isolates malicious files without destroying them (preserving evidence). System reimaging from a known-good baseline removes persistent malware that manual remediation misses.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Administrative Corrective</div>
+                <div class="card-desc">Incident response plans provide step-by-step procedures for containing, eradicating, and recovering from specific incident types. Lessons-learned reviews after incidents update policies and procedures to prevent recurrence. Personnel actions (termination, retraining) address insider threats or human error that caused the incident.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Corrective</div>
+                <div class="card-desc">Replacing damaged or stolen hardware restores physical availability. Relocating critical assets from a compromised area to a secure zone limits continued exposure. Fire suppression systems, once triggered, correct the environmental threat before it destroys equipment. Emergency power restoration procedures correct availability failures caused by power events.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ADDITIONAL FUNCTIONAL TYPES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Additional <span class="accent">Functional Types</span></div>
+        <div class="slide-subtitle">SY0-701 extends the three primary types with three additional classifications. All six appear on the exam.</div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Deterrent</div>
+                <div class="card-desc">Discourages a threat actor from attempting an attack. Does not technically prevent or detect -- it influences attacker decision-making. Warning banners on login screens, visible CCTV cameras, security guard presence, and notification of employee monitoring are deterrents. Effective only against rational actors who assess costs before acting.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Compensating</div>
+                <div class="card-desc">A substitute control implemented when the ideal control cannot be used due to cost, technical, or operational constraints. A system that cannot be patched (legacy medical device) might have compensating controls of network isolation, application-layer filtering, and enhanced monitoring. Compensating controls are formally documented in risk frameworks and compliance audits.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Directive</div>
+                <div class="card-desc">Guides or instructs desired behavior. Policies, procedures, signage, and training materials are directive controls. They specify what people should do rather than technically enforcing or monitoring behavior. "Authorized Personnel Only" signs are directive. When ignored without consequence, directive controls become ineffective -- enforcement elevates them to administrative preventive controls.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Note: Six Types</div>
+            Preventive, Detective, Corrective, Deterrent, Compensating, Directive. Know each by definition and example. Questions often present a scenario and ask you to identify which type applies, or ask which control type is missing from a described security program.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- CONTROL MAPPING MATRIX ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Control <span class="accent">Mapping Matrix</span></div>
+        <div class="slide-subtitle">Every control has both a category and a functional type. Mapping both is a core SY0-701 skill.</div>
+
+        <div class="box box-blue" style="margin-bottom:4px;">
+            <div class="box-label">How to Read This Matrix</div>
+            Category (Technical, Administrative, Physical) x Functional Type (Preventive, Detective, Corrective, Deterrent, Compensating, Directive). Each cell contains one or more real-world examples. Exam questions will describe a control and ask you to classify it on both axes.
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Technical + Preventive:</strong> Firewall rules, MFA, application whitelisting, encryption, NAC posture check</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Technical + Detective:</strong> IDS, SIEM alerts, FIM, audit logging, network traffic analysis</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Technical + Corrective:</strong> Backup restore, patch deployment, antivirus quarantine, system reimaging</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Administrative + Preventive:</strong> Background checks, separation of duties, security training, least privilege policy</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Administrative + Detective:</strong> Security audits, access reviews, penetration tests, variance analysis</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Administrative + Corrective:</strong> Incident response plan, lessons-learned process, disciplinary procedures</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Physical + Preventive:</strong> Mantraps, badge readers, fences, locks, bollards</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>Physical + Detective:</strong> CCTV, motion sensors, security patrols, badge reader logs</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text"><strong>Physical + Deterrent:</strong> Warning signs, visible cameras, uniformed guard presence</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- NIST CONTROL FRAMEWORKS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">NIST <span class="accent">Control Frameworks</span></div>
+        <div class="slide-subtitle">National Institute of Standards and Technology provides the authoritative control catalogs used in federal and enterprise environments.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NIST SP 800-53</div>
+                <div class="card-desc">Security and Privacy Controls for Information Systems and Organizations. The comprehensive control catalog used by federal agencies. Organized into 20 control families (AC, AU, CA, CM, CP, IA, IR, MA, MP, PE, PL, PM, PS, PT, RA, SA, SC, SI, SR, AT). Each family contains specific controls with implementation guidance and assessment procedures.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NIST CSF 2.0</div>
+                <div class="card-desc">Cybersecurity Framework organizes security activities into six functions: Govern, Identify, Protect, Detect, Respond, Recover. Each function maps to control categories and specific outcomes. CSF 2.0 added Govern as a new top-level function in 2024, recognizing that governance is the foundation that all other functions depend on.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CIS Controls v8</div>
+                <div class="card-desc">Center for Internet Security 18 Critical Security Controls prioritized by attack prevalence. Implementation Groups (IG1, IG2, IG3) allow organizations to scale controls to their size and maturity. IG1 is essential hygiene -- every organization should implement it. IG3 is enterprise-level defense. Used in assessments to benchmark control maturity.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ISO/IEC 27001 Annex A</div>
+                <div class="card-desc">International standard for information security management systems. Annex A contains 93 controls organized into four themes: Organizational, People, Physical, Technological. Organizations pursuing ISO 27001 certification implement controls from Annex A and justify any exclusions. Widely used in international and regulated industries.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- CONTROL SELECTION PROCESS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Control <span class="accent">Selection Process</span></div>
+        <div class="slide-subtitle">Selecting controls is not arbitrary. The process flows from risk assessment to implementation to verification.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Identify Assets:</strong> Catalog what needs protection. Apply a criticality and sensitivity rating. Without a complete asset inventory, controls will have gaps you cannot see.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Identify Threats and Vulnerabilities:</strong> For each asset, what threats apply and what vulnerabilities exist? Threat modeling and vulnerability scanning feed this step.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Assess Risk:</strong> Combine likelihood and impact to produce a risk score. Prioritize high-risk combinations. Not all risks receive equal investment.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Select Controls:</strong> Choose controls from a framework catalog that address identified risks. Balance cost against risk reduction. Prefer controls with multiple functional types (a SIEM is both detective and enables corrective response).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Implement Controls:</strong> Deploy the control in the environment. Configure it correctly. Misconfigured controls often provide no real protection while consuming maintenance resources.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Assess and Monitor:</strong> Verify the control functions as intended. Test detective controls with simulated attacks. Test preventive controls by attempting the action they should block. Continuous monitoring detects control degradation over time.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- DEFENSE IN DEPTH AND CONTROLS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Defense in Depth and <span class="accent">Layered Controls</span></div>
+        <div class="slide-subtitle">No single control is sufficient. Layering controls across categories and functional types creates resilience against control bypass.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why Layers Are Necessary</div>
+                <div class="card-desc">Every control can fail. Firewalls have bypass vulnerabilities. Encrypted channels can be terminated at compromised endpoints. Security awareness training does not prevent all phishing. Defense in depth ensures that when one control fails, additional controls remain. An attacker bypassing the perimeter should still face host, application, and data controls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer Independence</div>
+                <div class="card-desc">Controls should fail independently. If a technical preventive control fails, the detective control should still function. If both fail, a corrective control should limit damage. The failure of one layer must not automatically compromise adjacent layers. This is why a firewall vendor should not also provide the SIEM -- a single vendor compromise would weaken multiple layers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Seven Layers of Defense</div>
+                <div class="card-desc">Perimeter (firewall, IPS), Network (segmentation, VLAN), Host (EDR, FDE, patching), Application (input validation, WAF), Data (encryption, DLP), Identity (MFA, PAM, least privilege), Physical (mantraps, guards, CCTV). Controls at each layer should span all three implementation categories.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Control Gaps vs. Redundancy</div>
+                <div class="card-desc">A gap is a layer or functional type with no control. A gap means an attacker who reaches that layer faces no resistance. Redundancy is multiple controls at the same layer providing the same function -- useful for availability, but less valuable than filling gaps at other layers. Audit control coverage by layer AND by functional type, not just by total count.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- LEAST PRIVILEGE ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Principle of <span class="accent">Least Privilege</span></div>
+        <div class="slide-subtitle">Users, processes, and systems should have the minimum access rights required to perform their function -- and nothing more.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What Least Privilege Reduces</div>
+                <div class="card-desc">Blast radius limitation. If a user account with minimal permissions is compromised, the attacker inherits only those minimal permissions. An admin account compromise gives the attacker full control. Least privilege limits what an attacker gains from any single credential theft, malware infection, or insider abuse scenario.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Applying Least Privilege</div>
+                <div class="card-desc">Role-based access control assigns permissions to roles, not individuals. Users receive roles matching their job function. Privileged Access Management (PAM) requires explicit justification for elevated access, with time-limited grants. Just-In-Time (JIT) access provisions elevated rights only when the task requires it and revokes them immediately afterward.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Admin Account Problem</div>
+                <div class="card-desc">Administrators who perform daily tasks (email, web browsing) with elevated accounts expose those privileges to every attack vector they encounter. Dual-account policy requires administrators to use a standard account for daily tasks and a separate privileged account only when performing administrative tasks. The privileged account should have no email access.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Privilege Creep</div>
+                <div class="card-desc">Over time, users accumulate permissions they were temporarily granted and never lost. A user who moved from accounting to IT still has accounting system access. Quarterly access reviews audit all user permissions against current role requirements and revoke excess. Privilege creep is a chronic administrative failure in organizations without formal reviews.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- SEPARATION OF DUTIES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Separation of <span class="accent">Duties</span></div>
+        <div class="slide-subtitle">Divide critical tasks across multiple individuals so that no single person can commit fraud or cause major damage alone.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Classic Financial Example</div>
+                <div class="card-desc">Person A can initiate a payment request. Person B can approve it. Person C processes the transfer. No single person has all three permissions. An attacker compromising one account cannot complete a fraudulent transaction without also compromising the other two. The cost of fraud increases to require collusion of multiple parties.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT/DevOps Application</div>
+                <div class="card-desc">Developers write code. A separate QA team reviews and tests it. A separate operations team deploys to production. No developer deploys their own code to production. This prevents accidental or intentional insertion of backdoors that bypass peer review. Change management systems enforce these boundaries with approval workflows.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Two-Person Integrity</div>
+                <div class="card-desc">A specific form of separation of duties where two authorized individuals must both be physically present for an action to occur. Used in nuclear weapon control, high-security vault access, and certain government cryptographic key operations. Both parties must verify before the action proceeds -- neither can act alone under any circumstance.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Distinction: SoD vs. Least Privilege</div>
+            Least privilege limits what any one account can access. Separation of duties limits what any one person can accomplish using their total set of permissions across systems. Both are needed. An account with least privilege but no SoD enforcement still allows a single person to abuse all their permitted actions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- ACCESS CONTROL MODELS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Access Control <span class="accent">Models</span></div>
+        <div class="slide-subtitle">The technical framework that determines how permissions are assigned and enforced. Each model suits different environments.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Discretionary Access Control (DAC)</div>
+                <div class="card-desc">Resource owners decide who has access to their resources. Windows NTFS permissions are DAC -- the file owner grants read/write/execute to specific users or groups. Flexible but difficult to manage at scale. A compromised account can grant its own permissions to an attacker, making DAC weaker against insider threats than MAC.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mandatory Access Control (MAC)</div>
+                <div class="card-desc">Access is determined by the system based on security labels (classification levels). No individual user can grant access -- the system enforces policy. Used in government and military systems where data classified SECRET cannot flow to a process cleared only at CONFIDENTIAL. SELinux implements MAC concepts in Linux environments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Role-Based Access Control (RBAC)</div>
+                <div class="card-desc">Permissions are assigned to roles. Users are assigned to roles. A "Help Desk" role has password reset permissions. A "DBA" role has database query permissions. When a user changes jobs, their role assignment changes -- all permissions update automatically. RBAC scales to large organizations far better than individual permission assignment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Attribute-Based Access Control (ABAC)</div>
+                <div class="card-desc">Access decisions evaluate multiple attributes simultaneously: user department, data classification, device security posture, time of day, location, and project membership. "Grant access if user is in HR department AND device is enrolled in MDM AND request is from corporate network." More granular than RBAC; used in Zero Trust architectures and cloud IAM policies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- COMPENSATING CONTROLS DEEP DIVE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title"><span class="accent">Compensating Controls</span></div>
+        <div class="slide-subtitle">Substitute controls that provide equivalent protection when the preferred control cannot be implemented.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">When Compensating Controls Apply</div>
+                <div class="card-desc">Legacy systems that cannot be patched because vendor support has ended. Medical devices with FDA-approved firmware that cannot be modified. Industrial control systems running on operating systems that cannot support modern security agents. Compensating controls formally acknowledge the gap and document the alternative protection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Designing Valid Compensating Controls</div>
+                <div class="card-desc">A compensating control must provide protection equivalent to the missing control -- not weaker. Isolating an unpatched system on a separate VLAN, adding application-layer filtering, and increasing monitoring frequency together may be equivalent to patching. The auditor or QSA must accept the compensating control as sufficient before it can be credited.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PCI DSS Compensating Controls</div>
+                <div class="card-desc">PCI DSS explicitly defines requirements for compensating controls in Appendix B. The organization must document the legitimate technical or business constraint, the compensating control, the additional risk created, and the additional controls implemented to address that risk. Compensating controls are not permanent -- they require annual review.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Compensating Control Combinations</div>
+                <div class="card-desc">Unpatched legacy OS: network isolation + enhanced monitoring + host-based IDS. No MFA capability: hardware token + IP allowlisting + session timeout reduction. No encryption at rest on legacy database: full network encryption (TLS for all access) + strict access control + enhanced audit logging. Each combination must close the specific gap the missing control would address.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- TECHNICAL CONTROLS DEEP DIVE: FIREWALLS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Technical Control Deep Dive: <span class="accent">Firewalls</span></div>
+        <div class="slide-subtitle">The most foundational technical preventive control. Understanding firewall types is heavily tested on SY0-701.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Packet Filtering Firewall</div>
+                <div class="card-desc">Inspects individual packets at OSI Layers 3 and 4. Filters by source/destination IP, source/destination port, and protocol (TCP/UDP/ICMP). Does not inspect packet contents or maintain connection state. Fast and low overhead, but cannot detect attacks that span multiple packets. The simplest and oldest firewall type.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stateful Firewall</div>
+                <div class="card-desc">Tracks the state of TCP connections in a connection table. Allows return traffic for established connections without requiring explicit outbound rules for responses. Can detect port scanning and SYN flood attacks by monitoring connection state. The standard firewall in modern environments; most "firewalls" are stateful unless otherwise specified.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Application-Layer Firewall (WAF, NGFW)</div>
+                <div class="card-desc">Next-Generation Firewalls (NGFW) and Web Application Firewalls (WAF) inspect payload contents up to OSI Layer 7. NGFWs identify applications regardless of port (blocking Tor even on port 443). WAFs protect web applications by filtering HTTP/S traffic for SQL injection, XSS, and OWASP Top 10 attack patterns.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Implicit Deny</div>
+                <div class="card-desc">The foundational firewall rule: any traffic not explicitly permitted is denied. Firewall rules are processed top to bottom, and if no rule matches, the implicit deny rule at the bottom blocks the traffic. A firewall without implicit deny (allowing all unmatched traffic) is not providing meaningful perimeter protection -- it is a logging device.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- TECHNICAL CONTROLS: IDS AND IPS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Technical Controls: <span class="accent">IDS and IPS</span></div>
+        <div class="slide-subtitle">Intrusion Detection and Intrusion Prevention Systems -- the distinction between alerting and blocking is the most tested IDS/IPS fact on SY0-701.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IDS (Detective)</div>
+                <div class="card-desc">Monitors traffic and generates alerts when suspicious patterns are detected. Does not block traffic. Sits out-of-band (on a SPAN port or TAP) so it receives a copy of traffic, not the live stream. An IDS that generates no alerts provides false assurance. An IDS that generates too many alerts is ignored. Tuning is continuous, ongoing work.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IPS (Preventive)</div>
+                <div class="card-desc">Sits inline in the traffic path. Can drop packets, reset connections, or block IPs in real time. The inline position means a malfunctioning IPS can disrupt legitimate traffic. Must be tuned carefully before deploying in blocking mode. Typically deployed initially in detection-only mode until the environment's normal traffic baseline is established.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Detection Methods</div>
+                <div class="card-desc">Signature-based detection matches traffic against known attack patterns. Fast and accurate for known threats, blind to zero-days. Anomaly-based (behavioral) detection identifies deviations from a learned baseline -- detects unknown attacks but generates more false positives. Policy-based detection alerts on rule violations regardless of attack signatures. Enterprise systems use all three.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">False Positives vs. False Negatives</div>
+                <div class="card-desc">False positive: legitimate traffic flagged as malicious. Analysts must investigate, wasting time. Erodes confidence in the system. False negative: malicious traffic not detected. Silent attack success. Both are failures with different costs. Signature-heavy systems minimize false negatives. Strict anomaly thresholds reduce false positives. The tuning balance is a core security operations skill.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- TECHNICAL CONTROLS: ENCRYPTION ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Technical Controls: <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">The primary technical control for confidentiality. Also supports integrity when combined with hashing and digital signatures.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Encryption at Rest</div>
+                <div class="card-desc">Protects data stored on disk, in databases, and in backups. Full-disk encryption (FDE) encrypts the entire storage volume. Transparent database encryption (TDE) encrypts the database files at the storage layer. Application-level encryption encrypts specific fields (SSNs, passwords). Each layer provides protection against different attacker access scenarios.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Encryption in Transit</div>
+                <div class="card-desc">TLS (Transport Layer Security) encrypts data moving between client and server. TLS 1.2 minimum; TLS 1.3 preferred. HTTPS is HTTP over TLS. Email encryption (S/MIME, PGP) protects message contents. VPN encrypts traffic between sites or between remote users and corporate networks. Certificate pinning prevents man-in-the-middle attacks using rogue certificates.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Key Management</div>
+                <div class="card-desc">Encryption is only as strong as its key management. Keys stored on the same system as the encrypted data provide minimal protection -- an attacker with system access has both. Hardware Security Modules (HSMs) store keys in tamper-resistant hardware. Key rotation policies limit the duration of exposure if a key is compromised. Key escrow ensures recovery access.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Hashing vs. Encryption</div>
+            Encryption is reversible with the correct key. Hashing is one-way -- you cannot recover the original from the hash. Hashing is used for integrity verification and password storage (with salting). Encryption is used when the original data must be recovered. Never confuse the two on the exam. Saying a database "encrypts" passwords when it hashes them is a common mistake.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ADMINISTRATIVE CONTROLS: POLICIES ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Administrative Controls: <span class="accent">Key Policies</span></div>
+        <div class="slide-subtitle">The policies that every organization's security program must maintain. Each reduces a specific category of risk.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Acceptable Use Policy (AUP)</div>
+                <div class="card-desc">Defines permitted and prohibited uses of organizational systems, networks, and devices. Employees acknowledge the AUP during onboarding and annually thereafter. Without a signed AUP, organizations cannot take disciplinary action for misuse -- there was no documented agreement defining misuse. The AUP is a directive administrative control that becomes the basis for corrective action.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Password Policy</div>
+                <div class="card-desc">Defines minimum complexity, length, rotation frequency, and reuse restrictions. NIST SP 800-63B guidance: longer passwords (minimum 15 characters) matter more than complexity rules that create predictable substitutions (P@ssw0rd). Do not rotate passwords on a schedule unless compromise is suspected -- forced rotation produces weaker, more predictable passwords.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Handling Policy</div>
+                <div class="card-desc">Defines how data is classified, stored, transmitted, and disposed of based on sensitivity level. Maps data classifications (Public, Internal, Confidential, Restricted) to handling requirements. Employees who move sensitive data to personal cloud storage are violating this policy. Data handling policy is the governance basis for DLP technical controls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Change Management Policy</div>
+                <div class="card-desc">Requires all changes to production systems to follow a documented approval and testing process. Prevents unauthorized configuration changes that introduce vulnerabilities. Provides an audit trail for changes that correlate with incidents -- most post-breach investigations reveal that the attacker exploited a recent unauthorized change or configuration drift.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- PHYSICAL SECURITY: DATA CENTER ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Physical Security: <span class="accent">Data Center Controls</span></div>
+        <div class="slide-subtitle">Data centers concentrate high-value assets. Physical security failures here can bypass all technical controls simultaneously.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Site Selection and Perimeter</div>
+                <div class="card-desc">Data center location avoids flood plains, flight paths, and high-crime areas. Unmarked exterior -- no company signage identifies the building as a data center. Multiple ISP connections enter from different physical directions. Perimeter fencing with barbed wire or prickle strips. Vehicle barriers (K-rated bollards) prevent ram attacks against entry points.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Multi-Factor Physical Access</div>
+                <div class="card-desc">Data center access requires at least two factors: badge (something you have) plus PIN (something you know) or biometric (something you are). Mantraps enforce one-at-a-time entry and prevent tailgating. Visitor logs are maintained with photo ID. Escorts are required for all non-authorized personnel. Unescorted access by maintenance contractors is a common breach vector.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Rack and Equipment Controls</div>
+                <div class="card-desc">Individual racks are locked with electronic locks that log access by badge. Cage deployments in colocation facilities separate customer equipment with physical barriers. Equipment labels and asset tags provide physical inventory tracking. Cameras cover all rack aisles from multiple angles. Hard drive removal requires logging -- drives are never removed without authorization and documentation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Media Disposal</div>
+                <div class="card-desc">Decommissioned drives must be sanitized before disposal. Overwrite (software wipe, NIST 800-88 compliant), degaussing (magnetic erasure, applies to HDDs and tapes, not SSDs), or physical destruction (shredding, pulverizing). Cloud storage decommissioning requires cryptographic erasure -- destroy the encryption key so encrypted data becomes unrecoverable without the physical drive being destroyed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- CONTROL EFFECTIVENESS MEASUREMENT ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Control <span class="accent">Effectiveness Measurement</span></div>
+        <div class="slide-subtitle">Implementing controls is not enough. Organizations must verify that controls work as intended and remain effective over time.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Key Risk Indicators (KRIs)</div>
+                <div class="card-desc">Metrics that signal increasing risk before an incident occurs. Failed authentication attempts per hour, unpatched critical vulnerabilities by age, percentage of systems with overdue access reviews, time-to-detect metric for simulated attacks. KRIs give security leadership early warning that control effectiveness is degrading before the degradation produces an incident.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Performance Indicators (KPIs)</div>
+                <div class="card-desc">Metrics that measure security program performance. Mean time to detect (MTTD), mean time to respond (MTTR), patch compliance percentage, phishing simulation click rate, security training completion rate. KPIs tell you whether your program is improving. Trends matter more than point-in-time values -- a declining MTTD is more meaningful than achieving a specific number.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vulnerability Assessment vs. Penetration Test</div>
+                <div class="card-desc">A vulnerability assessment identifies vulnerabilities in systems using automated scanners. It tells you what vulnerabilities exist. A penetration test goes further -- it attempts to exploit vulnerabilities to determine if they are actually reachable and chainable into a breach. Pen tests verify that controls work in practice, not just in theory. Both are administrative detective controls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Red Team vs. Blue Team vs. Purple Team</div>
+                <div class="card-desc">Red team simulates adversaries using realistic tactics to test defenses. Blue team defends and detects. Purple team combines both -- red shares attack techniques with blue in real time so the defenders can improve detection coverage. Purple team exercises improve the security program faster than pure red vs. blue engagements because the feedback loop is immediate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- HARDENING AS PREVENTIVE CONTROL ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">System <span class="accent">Hardening</span></div>
+        <div class="slide-subtitle">Reducing attack surface by removing unnecessary capabilities before systems are deployed. A foundational technical preventive control.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">OS Hardening Steps</div>
+                <div class="card-desc">Remove unnecessary services and applications. Disable unused network ports. Apply security baseline configurations from CIS Benchmarks or DISA STIGs (Security Technical Implementation Guides). Rename or disable default accounts (Administrator, root, guest). Enable OS-level auditing. Set secure defaults for all configuration parameters before connecting the system to the network.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Application Hardening</div>
+                <div class="card-desc">Change all default passwords before deployment. Disable features not required by the use case. Enable logging at the appropriate verbosity level. Remove development-mode settings (debug logging, verbose errors, development credentials). Web servers: disable directory listing, server version disclosure, and unused HTTP methods (PUT, DELETE if not required by the application).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network Hardening</div>
+                <div class="card-desc">Block unnecessary protocols at the firewall and switch level. Disable ICMP redirect messages (used in MITM attacks). Implement 802.1X port authentication to prevent rogue devices from connecting to physical switch ports. Disable CDP/LLDP on external-facing interfaces (discloses device model and IOS version to adjacent nodes). Enable DHCP snooping and ARP inspection.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Configuration Baselines</div>
+                <div class="card-desc">A documented secure configuration that all systems in a class must match. Baselines enable detection of configuration drift -- when a system deviates from baseline, it has either been misconfigured or compromised. Security Configuration Management (SCM) tools continuously compare running configurations against the baseline and alert or auto-remediate on deviations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- PATCH MANAGEMENT ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title"><span class="accent">Patch Management</span></div>
+        <div class="slide-subtitle">The corrective technical control that closes known vulnerabilities after vendor fixes are released.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">The Patch Management Process</div>
+                <div class="card-desc">Monitor vendor security advisories and vulnerability databases (NVD, CVE). Assess patches for applicability and severity (CVSS score). Test patches in a non-production environment before deploying to production. Deploy in priority order (critical first, workarounds second). Verify deployment success. Document exceptions with compensating controls and review dates.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Patch Timing: The Window of Exposure</div>
+                <div class="card-desc">The window of exposure begins when a vulnerability is publicly disclosed and ends when the patch is deployed. Every hour in between is a period when attackers can exploit the vulnerability. Emergency patching (within 24-48 hours) for critical vulnerabilities. Standard patching cycles (monthly, weekly) for lower severity issues. Patch SLAs define maximum acceptable window widths by severity.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Zero-Day Vulnerabilities</div>
+                <div class="card-desc">A zero-day is a vulnerability with no available vendor patch at the time of exploitation. Patch management cannot address zero-days. Defense relies on detective and behavioral controls: anomaly detection, application whitelisting, sandboxing of untrusted code, and limiting the blast radius through least privilege. Zero-days are the reason layered controls are not optional.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">CVE and CVSS</div>
+            CVE (Common Vulnerabilities and Exposures) assigns a unique identifier to each disclosed vulnerability. CVSS (Common Vulnerability Scoring System) scores severity 0-10 based on exploitability and impact. Critical (9.0-10.0) requires immediate action. High (7.0-8.9) requires rapid response. Medium (4.0-6.9) fits standard patch cycles. Low (0.1-3.9) can be scheduled with routine maintenance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- MONITORING AND SIEM ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Monitoring and <span class="accent">SIEM</span></div>
+        <div class="slide-subtitle">Security Information and Event Management -- the central technical detective control that aggregates, correlates, and alerts across all log sources.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What a SIEM Does</div>
+                <div class="card-desc">Collects logs from firewalls, servers, endpoints, identity systems, network devices, and cloud platforms. Normalizes them into a common format. Applies correlation rules to identify patterns that span multiple log sources -- a single event on one system is noise; the same event pattern across ten systems is a detection. Generates alerts for analyst review.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Sources</div>
+                <div class="card-desc">Firewall logs (connection allow/deny), DNS logs (queries and responses), authentication logs (success and failure, from AD/LDAP/SSO), endpoint EDR events, email gateway logs (inbound/outbound), web proxy logs (user browsing activity), cloud API activity logs (AWS CloudTrail, Azure Monitor). The more log sources, the better the correlation and detection capability.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Correlation Rules</div>
+                <div class="card-desc">Rules that identify attack patterns from multiple events. "Five failed logins on the same account within 60 seconds" correlates authentication logs to detect brute force. "A process on endpoint A communicated with an IP that also received DNS queries for a known malware C2 domain" correlates EDR and DNS logs to detect C2 communication. Rules require continuous tuning.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">UEBA and SOAR</div>
+                <div class="card-desc">User and Entity Behavior Analytics (UEBA) applies machine learning to establish individual behavioral baselines and detect anomalies -- a user accessing systems they have never accessed before, or downloading 10x their normal data volume. Security Orchestration, Automation, and Response (SOAR) automates response playbooks, reducing analyst time-to-response for common alert types.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- INCIDENT RESPONSE AS CORRECTIVE CONTROL ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Incident Response as a <span class="accent">Corrective Control</span></div>
+        <div class="slide-subtitle">The IR process is the organization's most important corrective administrative control. Execution speed limits breach damage.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Preparation:</strong> Build IR plans, identify team members and roles, establish communication trees, pre-stage tools and forensic environments. Controls that exist before the incident define maximum response speed.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Identification:</strong> Determine that an incident has occurred and its scope. Use SIEM alerts, EDR findings, threat intelligence feeds. Scope definition drives all downstream decisions about containment strategy.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Containment:</strong> Isolate affected systems to stop spread. Short-term containment (disconnect from network) preserves evidence. Long-term containment (rebuild or patch) allows business operations to resume. Containment is a corrective technical control.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Eradication:</strong> Remove the threat from all affected systems. Malware removal, backdoor elimination, compromised account disabling. Failure to complete eradication results in re-compromise.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Recovery:</strong> Restore systems to operational status. Restore from clean backups if needed. Verify integrity before returning to production. Apply missing patches and close the vulnerability exploited.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Lessons Learned:</strong> Document what happened, what controls failed, what was done well, and what changes are needed. Update IR plan, policies, and controls based on findings. This is the administrative corrective control that prevents recurrence.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- CONTROL FAILURES AND RESIDUAL RISK ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Control <span class="accent">Failures</span> and Residual Risk</div>
+        <div class="slide-subtitle">Every control can fail. Planning for control failure is as important as implementing controls in the first place.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why Controls Fail</div>
+                <div class="card-desc">Misconfiguration: firewall with an overly permissive rule set. Bypass: attacker uses an encrypted channel that the firewall inspects at Layer 4 but the attack is Layer 7. Social engineering: attacker convinces an administrator to create an exception. Technology failure: security appliance crashes and fails open. Organizational failure: security team did not receive an alert because the mailbox was full.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Residual Risk</div>
+                <div class="card-desc">The risk that remains after controls are applied. Controls reduce risk -- they do not eliminate it. Residual risk is formally calculated as Inherent Risk minus Control Effectiveness. Residual risk must be accepted, transferred, or reduced through additional controls. All organizations carry some residual risk because perfect control is not economically achievable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Control Assurance</div>
+                <div class="card-desc">The confidence that a control is operating as designed. High assurance controls have been tested (penetration testing verified the firewall blocks the expected traffic). Low assurance controls are assumed to work but have not been verified. Regulatory frameworks require assurance evidence -- saying a control exists is not sufficient; you must prove it works.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Single Point of Failure</div>
+                <div class="card-desc">A control that, if it fails, eliminates the entire protection for that attack vector. A single firewall with no redundant security controls behind it is a single point of failure for the perimeter. Defense in depth and control layering exist specifically to eliminate single points of failure from the security architecture. Every critical asset should have no single point of failure in its protection chain.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- COMPLIANCE FRAMEWORKS AND CONTROLS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Compliance <span class="accent">Frameworks</span> and Required Controls</div>
+        <div class="slide-subtitle">Regulatory frameworks mandate specific control implementations. Understanding what each framework requires is tested on SY0-701.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">PCI DSS Required Controls</div>
+                <div class="card-desc">12 requirements covering: maintain firewall configuration, do not use vendor-supplied defaults, protect stored cardholder data (encryption), encrypt transmission of cardholder data, protect against malware, develop secure systems, restrict access by need to know, identify and authenticate access, restrict physical access, log and monitor, test systems, maintain information security policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIPAA Technical Safeguards</div>
+                <div class="card-desc">Access control (unique user identification, emergency access procedure, automatic logoff, encryption/decryption). Audit controls (hardware/software/procedural mechanisms to record and examine activity). Integrity controls (mechanisms to confirm PHI has not been improperly altered). Transmission security (guard against unauthorized access to ePHI in transit). Each maps directly to the three control implementation categories.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CMMC for Defense Contractors</div>
+                <div class="card-desc">Cybersecurity Maturity Model Certification is required for companies working with the Department of Defense. Level 1 covers 17 basic practices from FAR 52.204-21. Level 2 covers 110 practices from NIST SP 800-171. Level 3 adds 24 additional practices from NIST SP 800-172. Controls are not optional -- unaudited companies cannot receive DoD contracts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FedRAMP for Cloud</div>
+                <div class="card-desc">Federal Risk and Authorization Management Program requires cloud service providers serving federal agencies to undergo a standardized security assessment. Controls are selected from NIST SP 800-53 based on the system's impact level (Low, Moderate, High). A FedRAMP Authorization requires third-party assessment organization (3PAO) validation -- not self-attestation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Classify the control in each scenario. Identify category (Technical/Administrative/Physical) and functional type (Preventive/Detective/Corrective/Deterrent/Compensating/Directive).</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">A SIEM generates an alert when five login failures occur within 60 seconds on the same account. <strong>(Technical + Detective)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">A hospital cannot patch a legacy infusion pump. They isolate it on a dedicated VLAN with no internet access and monitor all traffic. <strong>(Technical + Compensating)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">All employees must read and sign the Acceptable Use Policy before receiving network access. <strong>(Administrative + Directive)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">A data center places visible security cameras at all entry points and posts signs warning of monitoring. <strong>(Physical + Deterrent)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">After ransomware encrypts production systems, IT restores from offline backups taken 24 hours earlier. <strong>(Technical + Corrective)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">No single developer can both approve and merge their own code pull request into the production branch. <strong>(Administrative + Preventive)</strong></span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">A server rack door requires a physical key plus a badge reader to open, and both events are logged. <strong>(Physical + Preventive and Detective)</strong></span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- CONTROLS IN THE SHIELD-7 FACILITY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SHIELD-7 <span class="accent">Control Architecture</span></div>
+        <div class="slide-subtitle">Applying the control framework to the facility context. Every element of facility security maps to the classification system you just learned.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Specimen Lab (Preventive Layer)</div>
+                <div class="card-desc">Retinal scanner (Technical + Preventive). Mantrap at lab entrance (Physical + Preventive). Dual-authorization required for specimen cabinet access (Administrative + Preventive, two-person integrity). Personnel must complete biosafety protocol training before lab access is granted (Administrative + Preventive).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Monitoring Infrastructure (Detective Layer)</div>
+                <div class="card-desc">CCTV covering all corridors and specimen areas (Physical + Detective). Environmental sensors alert on temperature and air pressure anomalies that signal containment breach (Technical + Detective). Badge reader logs capture all access events correlated by the facility SIEM (Technical + Detective). Periodic access reviews ensure only active personnel have lab authorization (Administrative + Detective).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Incident Response (Corrective Layer)</div>
+                <div class="card-desc">Automated lockdown protocol isolates the affected sector on breach detection (Technical + Corrective). Containment response teams execute a pre-approved incident plan (Administrative + Corrective). Backup communication systems restore coordination capability if primary systems are compromised (Technical + Corrective). Breach review boards update procedures after each incident (Administrative + Corrective).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before moving to the next module. Written analysis required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">For a hospital's electronic health record system, select one technical, one administrative, and one physical control. Map each to a functional type and explain what threat it addresses.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">A penetration test reveals that a developer's workstation can reach the production database directly over TCP 5432 with no authentication controls. Identify the missing control types (by both axes) and propose controls for each gap.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">An organization has a SIEM, a firewall, and security awareness training, but no patch management program. Analyze what control types are represented, what functional type is missing, and what specific risks the gap creates. Write three paragraphs.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Design a compensating control package for a critical manufacturing system running Windows Server 2003 (EOL, cannot be patched or migrated). The system processes proprietary IP and connects to a production network. Document the constraint, the compensating controls, and the residual risk that remains.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Map the NIST CSF 2.0 six functions (Govern, Identify, Protect, Detect, Respond, Recover) to the six control functional types (Preventive, Detective, Corrective, Deterrent, Compensating, Directive). Some mappings are one-to-one; some are one-to-many. Justify each mapping.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Security controls are classified by how they are implemented and what they do. Both axes must be understood to answer SY0-701 questions correctly.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            The two-axis framework is the core mental model for this module. When you encounter any security mechanism, ask: what category is it (Technical, Administrative, Physical)? And what does it do in time relative to an incident (Preventive, Detective, Corrective, Deterrent, Compensating, Directive)? That classification tells you when it acts, what it requires, and how to audit it.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Three categories: Technical (hardware/software), Administrative (policy/procedure), Physical (barriers/environment). Every control fits one.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Six functional types: Preventive (before), Detective (during/after), Corrective (recovery), Deterrent (discourages), Compensating (substitute), Directive (instructs).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">IDS is detective; IPS is preventive. The difference is inline placement and the ability to block. Both use the same detection methods.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Least privilege limits what an account can access. Separation of duties limits what one person can accomplish. Both are administrative preventive controls.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Compensating controls require formal documentation of the constraint, the substitute controls, the residual risk, and an annual review date.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Defense in depth layers controls across all three categories and all functional types. Gaps in any layer or functional type create exploitable windows.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">CVSS 9.0-10.0 is Critical. 7.0-8.9 is High. Patch SLAs must define maximum response times for each severity level. Zero-days require non-patch compensating controls.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Residual risk is what remains after controls are applied. It must be accepted, transferred, or further reduced. It is never zero.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Hardening, patch management, and configuration baselines are technical preventive controls that reduce attack surface before adversaries probe it.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w1-controls', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

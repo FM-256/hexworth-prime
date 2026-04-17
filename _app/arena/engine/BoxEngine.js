@@ -1627,6 +1627,56 @@ const BoxEngine = {
         }
     },
 
+    /**
+     * Programmatic flag award for config command handlers.
+     * Use this when a lab awards a flag based on an action (e.g., restoring a service)
+     * rather than through the flag submission modal.
+     * @param {string} flagId - The flag ID to award (e.g., 'flag1', 'user', 'root')
+     */
+    awardFlag(flagId) {
+        if (this.state.flagsFound.includes(flagId)) return;
+
+        const flags = this.config.flags || [];
+        const flag = flags.find(f => f.id === flagId);
+        const points = flag?.points || 100;
+
+        this.state.flagsFound.push(flagId);
+        this.addScore(points, `${flagId} captured`);
+        this._logEvent('flag_correct', { flagId, points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
+        this.notify(`${flagId} captured! +${points} points`, 'success');
+        this._reportFlagCapture(flagId, points);
+
+        // Server-side: validate action and record flag
+        // Sends state proof to validateAction CF — server checks conditions
+        const boxId = this.config.registryId || this.config.storageKey || 'unknown';
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {
+            // Build state proof from engine state (only serializable values)
+            const stateProof = {};
+            const engineState = this.config._state || this.config;
+            for (const [k, v] of Object.entries(engineState)) {
+                if (k.startsWith('_') && (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string' || Array.isArray(v))) {
+                    stateProof[k] = v;
+                }
+            }
+            stateProof._actionCount = (this.state.events || []).length;
+            stateProof._flagsFound = [...this.state.flagsFound];
+            stateProof._elapsed = Date.now() - (this.state.startTime || Date.now());
+
+            FirebaseAuth.callFunction('validateAction', {
+                boxId: boxId,
+                flagId: flagId,
+                stateProof: stateProof
+            }).catch(() => {}); // silent — don't block gameplay
+        }
+
+        const badge = document.getElementById('flagBadge_' + flagId);
+        if (badge) badge.classList.add('found');
+
+        this._updateScoreBadge();
+        this.save();
+        this._checkCompletion();
+    },
+
     _checkCompletion() {
         const allFlags = this.config.flags || [];
         const allFound = allFlags.every(f => this.state.flagsFound.includes(f.id));

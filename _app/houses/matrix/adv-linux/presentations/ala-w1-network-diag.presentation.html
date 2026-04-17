@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Diagnostics | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Grid Diagnostics | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:3.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 30 &nbsp;|&nbsp; ALA-04 &nbsp;|&nbsp; Week 1 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Grid Diagnostics<br>
+                <span class="accent">Network Troubleshooting Tools</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                ss &nbsp;&bull;&nbsp; ip route &nbsp;&bull;&nbsp; traceroute &nbsp;&bull;&nbsp; dig &nbsp;&bull;&nbsp; tcpdump &nbsp;&bull;&nbsp; nmap &nbsp;&bull;&nbsp; DNS Debugging
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Sector command reports a degraded connection. Services are running. The network interface is up. Something between here and the remote node is broken. This module is the toolkit you use to find out exactly what, exactly where, and exactly how to prove it.
+        </div>
+        <div class="title-meta-row">
+            <span>30 Slides</span>
+            <span>ALA-04</span>
+            <span>Week 1 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — DIAGNOSTIC METHODOLOGY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 30</div>
+        <div class="slide-title">Diagnostic <span class="accent">Methodology</span></div>
+        <div class="slide-subtitle">Work from the bottom of the stack up. Never skip a layer.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Layer 1: Physical</div>
+                <div class="card-desc">Is the interface up? Is there a carrier? <span class="ic">ip link show</span> for state, <span class="ic">ethtool</span> for speed/duplex. Cable seated, switch port active? You cannot fix a Layer 3 problem if Layer 1 is broken.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layers 2-3: Local Connectivity</div>
+                <div class="card-desc">Can you reach the default gateway? Ping it. If yes, the local link is good. If no, check ARP (<span class="ic">ip neigh</span>), IP address, subnet mask, and routing table. Most "network is down" incidents are Layer 3 misconfigurations on the local host.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Layers 4-7: Service Connectivity</div>
+                <div class="card-desc">Can you reach the remote service? Is the port open? Is DNS resolving? Use <span class="ic">ss</span>, <span class="ic">dig</span>, <span class="ic">nc</span>, and <span class="ic">curl</span> to isolate between transport and application problems. tcpdump reveals what is actually on the wire.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The Golden Rule</div>
+            Confirm what you find at each layer before moving up. If you cannot ping the gateway, do not dig into DNS. If DNS is resolving, do not run tcpdump for connection problems -- start with ss and nc instead. Systematic saves time. Jumping around wastes it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — SS INTRODUCTION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 30</div>
+        <div class="slide-title"><span class="accent">ss</span> — Socket Statistics</div>
+        <div class="slide-subtitle">The modern replacement for netstat. Faster, more detailed, actively maintained.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Why ss Replaced netstat</div>
+                <div class="card-desc"><span class="ic">netstat</span> reads from <span class="ic">/proc/net/tcp</span> sequentially. On a busy server with thousands of connections, it is slow. <span class="ic">ss</span> uses netlink sockets directly with kernel socket state. It is significantly faster and exposes more detail, including socket memory and TCP state internals.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What ss Shows</div>
+                <div class="card-desc">All sockets: TCP, UDP, Unix domain sockets. For each: state (LISTEN, ESTABLISHED, TIME_WAIT, etc.), local address:port, peer address:port, process that owns the socket, and socket buffer sizes. All the information you need to verify a service is actually listening where you expect.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Show all listening TCP and UDP sockets with process info</span>
+<span class="fn">ss</span> -tuln
+
+<span class="cm"># -t = TCP  -u = UDP  -l = listening only  -n = numeric (no DNS lookup)</span>
+
+<span class="cm"># Show all established TCP connections with process names</span>
+<span class="fn">ss</span> -tp state established
+
+<span class="cm"># Show all sockets (listening + connected) with process info</span>
+<span class="fn">ss</span> -tulnp
+
+<span class="cm"># Show only sockets on a specific port</span>
+<span class="fn">ss</span> -tnp sport = :<span class="nb">443</span>
+
+<span class="cm"># Show all sockets to/from a specific IP</span>
+<span class="fn">ss</span> -tn dst <span class="nb">203.0.113.50</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SS FILTERS AND STATES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 30</div>
+        <div class="slide-title">ss: <span class="accent">Filters and TCP States</span></div>
+        <div class="slide-subtitle">Narrow the output to exactly the connections you are investigating.</div>
+
+        <div class="code-block"><span class="cm"># Filter by TCP state</span>
+<span class="fn">ss</span> -tn state time-wait               <span class="cm"># sockets in TIME_WAIT</span>
+<span class="fn">ss</span> -tn state established             <span class="cm"># active connections</span>
+<span class="fn">ss</span> -tn state syn-recv                <span class="cm"># SYN received, not yet ACK'd (SYN flood indicator)</span>
+
+<span class="cm"># Multiple state filters</span>
+<span class="fn">ss</span> -tn state time-wait state close-wait
+
+<span class="cm"># Count connections by state (great for health checks)</span>
+<span class="fn">ss</span> -tn | <span class="fn">awk</span> <span class="st">'NR>1 {print $1}'</span> | <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn
+
+<span class="cm"># Show Unix domain sockets</span>
+<span class="fn">ss</span> -xl                               <span class="cm"># Unix listening sockets</span>
+<span class="fn">ss</span> -xp                               <span class="cm"># Unix sockets with process info</span>
+
+<span class="cm"># Show socket memory (send/recv buffer usage)</span>
+<span class="fn">ss</span> -tm state established
+
+<span class="cm"># Find which process is listening on a specific port</span>
+<span class="fn">ss</span> -tlnp | <span class="fn">grep</span> <span class="st">':8080'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — SS PRACTICAL SCENARIOS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 30</div>
+        <div class="slide-title">ss: <span class="accent">Practical Investigation Scenarios</span></div>
+        <div class="slide-subtitle">Real questions you answer with ss during incident response.</div>
+
+        <div class="code-block"><span class="cm"># Q: Is nginx actually listening on port 443?</span>
+<span class="fn">ss</span> -tlnp | <span class="fn">grep</span> nginx
+<span class="fn">ss</span> -tlnp | <span class="fn">grep</span> <span class="st">':443'</span>
+
+<span class="cm"># Q: How many clients are currently connected to this service?</span>
+<span class="fn">ss</span> -tn state established dst :443 | <span class="fn">wc</span> -l
+
+<span class="cm"># Q: Is there a SYN flood happening?</span>
+<span class="fn">ss</span> -tn state syn-recv | <span class="fn">wc</span> -l       <span class="cm"># normal = 0; hundreds = flood</span>
+
+<span class="cm"># Q: Are there too many TIME_WAIT sockets?</span>
+<span class="fn">ss</span> -tn state time-wait | <span class="fn">wc</span> -l      <span class="cm"># over 5000 may indicate connection thrashing</span>
+
+<span class="cm"># Q: What is consuming all the file descriptors (fd)?</span>
+<span class="fn">ss</span> -tp | <span class="fn">awk</span> <span class="st">'{print $NF}'</span> | <span class="fn">grep</span> -oP <span class="st">'pid=\K[0-9]+'</span> | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span>
+
+<span class="cm"># Q: Is the database accepting connections from the API?</span>
+<span class="fn">ss</span> -tnp state established dst <span class="nb">10.0.100.5</span> sport = :<span class="nb">5432</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — IP ROUTE FOR DIAGNOSTICS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 30</div>
+        <div class="slide-title">ip route: <span class="accent">Routing Table Diagnostics</span></div>
+        <div class="slide-subtitle">Confirm the kernel will send packets where you expect. Routing surprises cause most connectivity failures.</div>
+
+        <div class="code-block"><span class="cm"># Show the complete routing table</span>
+<span class="fn">ip</span> route show
+
+<span class="cm"># The single most useful routing diagnostic: show which route would be used for a destination</span>
+<span class="fn">ip</span> route get <span class="nb">8.8.8.8</span>
+<span class="cm"># 8.8.8.8 via 192.168.10.1 dev enp3s0 src 192.168.10.50 uid 1000</span>
+<span class="cm"># This tells you: outgoing interface (enp3s0), next-hop (192.168.10.1), source IP</span>
+
+<span class="fn">ip</span> route get <span class="nb">10.0.100.5</span>
+<span class="cm"># If this says "unreachable" you have a missing route</span>
+
+<span class="cm"># Show all routing tables (policy routing)</span>
+<span class="fn">ip</span> route show table all
+
+<span class="cm"># Show routing policy rules</span>
+<span class="fn">ip</span> rule show
+
+<span class="cm"># Show cache (recent route lookups)</span>
+<span class="fn">ip</span> route show cache
+
+<span class="cm"># Check if there are multiple default gateways (routing conflict)</span>
+<span class="fn">ip</span> route show | <span class="fn">grep</span> <span class="st">'^default'</span>
+<span class="cm"># Multiple "default via" lines = potential conflict</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — PING DEEP DIVE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 30</div>
+        <div class="slide-title">ping: <span class="accent">Beyond "Is it alive?"</span></div>
+        <div class="slide-subtitle">ping tells you RTT, packet loss, TTL, and path problems. Use its flags.</div>
+
+        <div class="code-block"><span class="cm"># Basic ping with limited count</span>
+<span class="fn">ping</span> -c 4 192.168.10.1
+
+<span class="cm"># Flood ping: send as fast as possible (root required)</span>
+<span class="fn">ping</span> -f -c 1000 192.168.10.1        <span class="cm"># stress test; . = sent, backspace = received</span>
+
+<span class="cm"># Set specific packet size (test MTU path)</span>
+<span class="fn">ping</span> -s <span class="nb">1400</span> -c 10 192.168.10.1    <span class="cm"># 1400 byte payload</span>
+
+<span class="cm"># Don't fragment (DF bit): MTU path discovery</span>
+<span class="fn">ping</span> -M do -s <span class="nb">8972</span> -c 3 192.168.10.1 <span class="cm"># fails if any hop has MTU &lt; 9000</span>
+
+<span class="cm"># Set TTL: probe specific hops</span>
+<span class="fn">ping</span> -t <span class="nb">1</span> 8.8.8.8                  <span class="cm"># TTL=1: reply from first hop (gateway)</span>
+<span class="fn">ping</span> -t <span class="nb">2</span> 8.8.8.8                  <span class="cm"># TTL=2: reply from second hop</span>
+
+<span class="cm"># IPv6 ping</span>
+<span class="fn">ping6</span> -c 4 <span class="nb">2001:4860:4860::8888</span>
+
+<span class="cm"># Interpret output:
+# rtt min/avg/max/mdev = 1.2/1.8/2.4/0.4 ms
+# mdev (mean deviation) &gt; 10ms with avg &lt; 5ms = jitter problem
+# packet loss &gt; 0% = congestion, hardware fault, or firewall drop</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — TRACEROUTE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 30</div>
+        <div class="slide-title"><span class="accent">traceroute</span> and <span class="accent">tracepath</span></div>
+        <div class="slide-subtitle">Map the path from your node to a destination. Identify where packets die or slow down.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">traceroute</div>
+                <div class="card-desc">Sends packets with increasing TTL values (1, 2, 3...). Each router that decrements TTL to 0 sends an ICMP TTL Exceeded reply, revealing its address and RTT. Default uses UDP on high ports. Use <span class="ic">-I</span> for ICMP, <span class="ic">-T</span> for TCP SYN (bypasses some firewalls).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">tracepath</div>
+                <div class="card-desc">Similar to traceroute but also discovers Path MTU. Does not require root (unlike traceroute with raw socket options). Less configurable but sufficient for most diagnostics. Shows MTU at each hop, which helps diagnose fragmentation problems.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Standard traceroute (UDP by default)</span>
+<span class="fn">traceroute</span> 8.8.8.8
+
+<span class="cm"># ICMP mode (like ping -- less likely blocked by firewalls on some hops)</span>
+<span class="fn">traceroute</span> -I 8.8.8.8
+
+<span class="cm"># TCP SYN mode on port 443 (evades firewalls that block ICMP/UDP)</span>
+<span class="fn">traceroute</span> -T -p <span class="nb">443</span> 8.8.8.8
+
+<span class="cm"># Numeric only (no DNS lookups -- much faster)</span>
+<span class="fn">traceroute</span> -n 8.8.8.8
+
+<span class="cm"># Set initial TTL and max hops</span>
+<span class="fn">traceroute</span> -f <span class="nb">5</span> -m <span class="nb">20</span> 8.8.8.8      <span class="cm"># start at TTL 5, max 20 hops</span>
+
+<span class="cm"># tracepath: path MTU discovery included</span>
+<span class="fn">tracepath</span> 8.8.8.8
+<span class="fn">tracepath6</span> <span class="nb">2001:4860:4860::8888</span>   <span class="cm"># IPv6 path</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — READING TRACEROUTE OUTPUT ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 30</div>
+        <div class="slide-title">Reading <span class="accent">Traceroute Output</span></div>
+        <div class="slide-subtitle">Stars, latency jumps, and asymmetric paths explained.</div>
+
+        <div class="code-block"><span class="cm"># Sample output with annotations:</span>
+traceroute to 8.8.8.8, 30 hops max
+ <span class="nb">1</span>  192.168.10.1      <span class="nb">1.2</span> ms  <span class="nb">0.9</span> ms  <span class="nb">1.1</span> ms   <span class="cm"># gateway, ~1ms = LAN</span>
+ <span class="nb">2</span>  10.1.1.1          <span class="nb">8.4</span> ms  <span class="nb">8.1</span> ms  <span class="nb">8.2</span> ms   <span class="cm"># ISP first hop</span>
+ <span class="nb">3</span>  * * *                                        <span class="cm"># ICMP filtered -- hop exists but won't reply</span>
+ <span class="nb">4</span>  72.14.194.1       <span class="nb">9.1</span> ms  <span class="nb">9.3</span> ms  <span class="nb">9.0</span> ms   <span class="cm"># Google edge, still normal</span>
+ <span class="nb">5</span>  8.8.8.8          <span class="nb">10.2</span> ms  <span class="nb">9.9</span> ms <span class="nb">10.1</span> ms   <span class="cm"># destination</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Stars (* * *)</div>
+                <div class="card-desc">Three stars means no reply within the timeout. The hop may exist but is configured not to reply to ICMP (common on ISP routers). Does NOT mean packets are dropped for real traffic -- the probe packets are different from actual data. A star followed by a responding hop is normal.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Sudden Latency Jump</div>
+                <div class="card-desc">A big increase (e.g., 1 ms to 80 ms) between two consecutive hops indicates where the slow link or congested segment is. The subsequent hops that show similar latency confirm the bottleneck is at that link, not oscillating. Pinpoint the segment, then investigate the cause.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Stars to the End</div>
+                <div class="card-desc">If all hops after a certain point return stars and you never reach the destination, packets are being dropped at or after that hop. Could be a firewall rule, a black hole route, or a routing loop. Compare to a traceroute from a different source to triangulate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — DIG INTRODUCTION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 30</div>
+        <div class="slide-title"><span class="accent">dig</span> — DNS Interrogation Tool</div>
+        <div class="slide-subtitle">The authoritative tool for DNS queries. Shows the full server response, not just the answer.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Why dig over nslookup</div>
+                <div class="card-desc"><span class="ic">nslookup</span> is deprecated and inconsistent. <span class="ic">dig</span> is the standard for DNS diagnostics. It shows the complete DNS response: QUESTION, ANSWER, AUTHORITY, and ADDITIONAL sections, plus response flags (QR, AA, TC, RD, RA), TTL values, and the responding server address.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reading dig Output</div>
+                <div class="card-desc">The ANSWER section contains the records returned. <span class="ic">NOERROR</span> = query processed. <span class="ic">NXDOMAIN</span> = name does not exist. <span class="ic">SERVFAIL</span> = DNS server error. <span class="ic">REFUSED</span> = server refused the query. <span class="ic">AA</span> flag = Authoritative Answer from the zone's own server.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Query A record (IPv4 address)</span>
+<span class="fn">dig</span> example.com A
+
+<span class="cm"># Short output: answer only</span>
+<span class="fn">dig</span> +short example.com
+
+<span class="cm"># Query a specific record type</span>
+<span class="fn">dig</span> example.com MX            <span class="cm"># mail exchanger records</span>
+<span class="fn">dig</span> example.com AAAA          <span class="cm"># IPv6 address records</span>
+<span class="fn">dig</span> example.com NS            <span class="cm"># authoritative name servers</span>
+<span class="fn">dig</span> example.com TXT           <span class="cm"># text records (SPF, DKIM, verification tokens)</span>
+<span class="fn">dig</span> example.com SOA           <span class="cm"># Start of Authority (zone metadata)</span>
+
+<span class="cm"># Reverse lookup: IP to hostname</span>
+<span class="fn">dig</span> -x <span class="nb">8.8.8.8</span>               <span class="cm"># PTR record lookup</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — DIG ADVANCED ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 30</div>
+        <div class="slide-title">dig: <span class="accent">Advanced Query Options</span></div>
+        <div class="slide-subtitle">Query specific servers, trace the resolution chain, and control output format.</div>
+
+        <div class="code-block"><span class="cm"># Query a specific DNS server (not your default resolver)</span>
+<span class="fn">dig</span> @8.8.8.8 example.com               <span class="cm"># query Google's DNS directly</span>
+<span class="fn">dig</span> @10.0.0.53 sector-db.internal A    <span class="cm"># query internal DNS for internal record</span>
+
+<span class="cm"># +trace: trace the full delegation chain from root to authoritative</span>
+<span class="fn">dig</span> +trace example.com A
+<span class="cm"># Shows: root servers -> .com TLD -> authoritative NS -> final A record</span>
+<span class="cm"># Use this when delegation is broken or records are cached incorrectly</span>
+
+<span class="cm"># +norecurse: ask the server NOT to recurse (check if it holds the answer)</span>
+<span class="fn">dig</span> +norecurse @ns1.example.com example.com A
+
+<span class="cm"># Check TTL on a record (how long it will be cached)</span>
+<span class="fn">dig</span> example.com A <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'IN.*A'</span>
+<span class="cm"># example.com.  300  IN  A  93.184.216.34</span>
+<span class="cm">#               ^^^  = TTL in seconds (300 = 5 minutes)</span>
+
+<span class="cm"># DNSSEC validation output</span>
+<span class="fn">dig</span> +dnssec example.com A
+
+<span class="cm"># Show only the question and answer sections</span>
+<span class="fn">dig</span> +noall +answer example.com</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — DNS DEBUGGING WORKFLOW ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 30</div>
+        <div class="slide-title">DNS Debugging: <span class="accent">Systematic Approach</span></div>
+        <div class="slide-subtitle">A service is unreachable by name but reachable by IP. Follow this sequence.</div>
+
+        <div class="scenario-strip">
+            curl https://api.sector.internal fails with "Could not resolve host." curl https://10.0.100.5 works. DNS is the problem. Narrow it down in 5 steps.
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: Is the resolver reachable?</span>
+<span class="fn">dig</span> +short @127.0.0.53 google.com          <span class="cm"># test the local stub resolver</span>
+
+<span class="cm"># Step 2: What resolver is configured?</span>
+<span class="fn">resolvectl</span> status | <span class="fn">grep</span> <span class="st">'DNS Servers'</span>
+
+<span class="cm"># Step 3: Does the internal resolver know the record?</span>
+<span class="fn">dig</span> @10.0.0.53 api.sector.internal A       <span class="cm"># query internal DNS directly</span>
+<span class="cm"># NXDOMAIN = record doesn't exist</span>
+<span class="cm"># SERVFAIL  = resolver can't answer (check its config/logs)</span>
+
+<span class="cm"># Step 4: Is the domain in the search list?</span>
+<span class="fn">resolvectl</span> status | <span class="fn">grep</span> <span class="st">'DNS Domain'</span>
+<span class="cm"># 'api' alone may not resolve -- needs full FQDN: api.sector.internal</span>
+
+<span class="cm"># Step 5: Trace the delegation to find authoritative source</span>
+<span class="fn">dig</span> +trace api.sector.internal
+
+<span class="cm"># Step 6: Flush resolver cache and retry</span>
+<span class="fn">resolvectl</span> flush-caches
+<span class="fn">dig</span> +short api.sector.internal</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — TCPDUMP INTRO ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 30</div>
+        <div class="slide-title"><span class="accent">tcpdump</span> — Packet Capture</div>
+        <div class="slide-subtitle">See exactly what is on the wire. The definitive ground truth for network debugging.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">When to Use tcpdump</div>
+                <div class="card-desc">When higher-level tools do not explain the problem. When you need to prove what traffic is or is not leaving/arriving. When you need to verify firewall rules are passing packets. When a protocol is misbehaving and you need the exact frames to diagnose it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Performance Impact</div>
+                <div class="card-desc">tcpdump captures and processes every matching packet. On a 10 Gbps interface with no filter, it will consume significant CPU. Always use a filter. On production systems, use <span class="ic">-c N</span> to limit capture count or <span class="ic">-G</span>/<span class="ic">-C</span> for file rotation. Never run unflitered on a busy link.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Capture on an interface with verbose output</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n
+
+<span class="cm"># -i = interface  -n = numeric (no DNS lookup)  -v = verbose  -nn = no name resolution</span>
+
+<span class="cm"># Capture to a file for later analysis in Wireshark</span>
+<span class="fn">tcpdump</span> -i enp3s0 -w /tmp/capture.pcap
+
+<span class="cm"># Read a capture file</span>
+<span class="fn">tcpdump</span> -r /tmp/capture.pcap -n
+
+<span class="cm"># Limit capture count</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -c <span class="nb">100</span>              <span class="cm"># capture 100 packets then exit</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — TCPDUMP FILTERS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 30</div>
+        <div class="slide-title">tcpdump: <span class="accent">Capture Filters (BPF)</span></div>
+        <div class="slide-subtitle">Berkeley Packet Filter syntax. Filter at kernel level before the packet reaches userspace.</div>
+
+        <div class="code-block"><span class="cm"># Filter by host IP (src or dst)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n host <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Filter by source or destination only</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n src <span class="nb">192.168.10.50</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n dst <span class="nb">192.168.10.1</span>
+
+<span class="cm"># Filter by port</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n port <span class="nb">443</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n port <span class="nb">53</span>              <span class="cm"># all DNS queries and responses</span>
+
+<span class="cm"># Filter by protocol</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n icmp                 <span class="cm"># only ICMP (ping, traceroute, unreachable)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n udp                  <span class="cm"># only UDP</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n tcp                  <span class="cm"># only TCP</span>
+
+<span class="cm"># Combine filters with AND/OR/NOT</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n host <span class="nb">10.0.100.5</span> <span class="kw">and</span> port <span class="nb">5432</span>   <span class="cm"># PostgreSQL to specific host</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n port <span class="nb">80</span> <span class="kw">or</span> port <span class="nb">443</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n <span class="kw">not</span> port <span class="nb">22</span>                     <span class="cm"># exclude SSH from capture</span>
+
+<span class="cm"># Filter by network range</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n net <span class="nb">10.0.100.0/24</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — TCPDUMP DISPLAY AND ANALYSIS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 30</div>
+        <div class="slide-title">tcpdump: <span class="accent">Display Flags and Analysis</span></div>
+        <div class="slide-subtitle">Read TCP flags and decode protocol fields from the output.</div>
+
+        <div class="code-block"><span class="cm"># Show TCP flags and sequence numbers (-S) and data size (-A)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -S port <span class="nb">443</span>
+
+<span class="cm"># TCP flags in output:
+# [S]   = SYN   (connection request)
+# [S.]  = SYN+ACK (connection accepted)
+# [.]   = ACK   (acknowledgement)
+# [P.]  = PUSH+ACK (data transfer)
+# [F.]  = FIN+ACK (connection close)
+# [R]   = RST   (connection reset -- unexpected close)</span>
+
+<span class="cm"># Show ASCII content of packets (-A flag)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -A port <span class="nb">80</span> <span class="kw">|</span> <span class="fn">head</span> -50
+
+<span class="cm"># Show hex + ASCII (-X flag)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -X -c <span class="nb">5</span> port <span class="nb">53</span>
+
+<span class="cm"># Timestamp in human-readable format (-tttt)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -tttt port <span class="nb">443</span> -c <span class="nb">20</span>
+
+<span class="cm"># Write packets to a rolling file set (100MB each)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -w /var/log/cap-%s.pcap -C <span class="nb">100</span> -n port <span class="nb">443</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — TCPDUMP PRACTICAL SCENARIOS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 30</div>
+        <div class="slide-title">tcpdump: <span class="accent">Operational Scenarios</span></div>
+        <div class="slide-subtitle">What you actually use tcpdump for during incident response.</div>
+
+        <div class="code-block"><span class="cm"># Scenario 1: Is a service receiving any traffic at all?</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -c <span class="nb">20</span> port <span class="nb">8080</span>
+<span class="cm"># If nothing appears after 10 seconds: traffic is not arriving at this node</span>
+<span class="cm"># Check routing, firewalls, and load balancer configuration</span>
+
+<span class="cm"># Scenario 2: Are database connection attempts being reset?</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n port <span class="nb">5432</span> <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'R '</span>
+<span class="cm"># RST packets = connection refused or firewall blocking</span>
+
+<span class="cm"># Scenario 3: Are DNS queries leaving the system?</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n port <span class="nb">53</span> -c <span class="nb">20</span>
+<span class="cm"># See both the query and the response to confirm DNS resolution path</span>
+
+<span class="cm"># Scenario 4: Monitor a specific connection to diagnose latency</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -tttt host <span class="nb">10.0.100.5</span> <span class="kw">and</span> port <span class="nb">5432</span>
+<span class="cm"># Compare timestamps between SYN and SYN-ACK = network RTT</span>
+<span class="cm"># Compare PSH to ACK = server processing time</span>
+
+<span class="cm"># Scenario 5: Verify ICMP Fragmentation Needed messages (MTU issues)</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n icmp <span class="kw">and</span> icmp[0] = <span class="nb">3</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — NMAP BASICS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 30</div>
+        <div class="slide-title"><span class="accent">nmap</span> — Network Mapper</div>
+        <div class="slide-subtitle">Discover open ports, services, and OS fingerprints. Used for network auditing, not just attacks.</div>
+
+        <div class="box box-red">
+            <div class="box-label">Authorization Required</div>
+            Never run nmap against systems you do not own or have explicit written permission to scan. Even on your own systems, active scans generate significant traffic and log entries. On production systems, coordinate with the team and use minimal scan types. Unauthorized scanning is illegal in most jurisdictions.
+        </div>
+
+        <div class="code-block"><span class="cm"># Basic TCP SYN scan of the most common 1000 ports</span>
+<span class="fn">nmap</span> -sS <span class="nb">192.168.10.1</span>             <span class="cm"># requires root (raw socket)</span>
+
+<span class="cm"># TCP connect scan (no raw socket required)</span>
+<span class="fn">nmap</span> -sT <span class="nb">192.168.10.1</span>
+
+<span class="cm"># Scan specific ports</span>
+<span class="fn">nmap</span> -p <span class="nb">22,80,443,5432</span> <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Scan a range of ports</span>
+<span class="fn">nmap</span> -p <span class="nb">1-1024</span> <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Scan all 65535 ports (slow)</span>
+<span class="fn">nmap</span> -p- <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Ping scan only (no port scan): which hosts are up?</span>
+<span class="fn">nmap</span> -sn <span class="nb">192.168.10.0/24</span>
+
+<span class="cm"># Detect service versions</span>
+<span class="fn">nmap</span> -sV -p <span class="nb">22,80,443</span> <span class="nb">192.168.10.50</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — NMAP OUTPUT AND SCAN TYPES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 30</div>
+        <div class="slide-title">nmap: <span class="accent">Port States and Useful Options</span></div>
+        <div class="slide-subtitle">Understand what each port state means and how to control scan behavior.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">open</div>
+                <div class="card-desc">A service is actively accepting connections on this port. nmap received a SYN-ACK (or UDP response). This is the definitive answer -- the port is accessible from your scan source.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">filtered</div>
+                <div class="card-desc">nmap cannot determine if the port is open or closed. Probe packets were dropped (no response) or rejected with an ICMP unreachable. A firewall or ACL is blocking the probes. This does NOT mean the port is closed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">closed</div>
+                <div class="card-desc">No service is listening. nmap received a TCP RST (or ICMP port unreachable for UDP). The host is reachable and the port is accessible but actively refusing connections. The firewall allows the probe but nothing is listening.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># OS detection (requires root)</span>
+<span class="fn">nmap</span> -O <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Aggressive scan: OS detection + service detection + script scan + traceroute</span>
+<span class="fn">nmap</span> -A <span class="nb">192.168.10.50</span>              <span class="cm"># use sparingly, very noisy</span>
+
+<span class="cm"># Fast scan: only top 100 ports</span>
+<span class="fn">nmap</span> -F <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Output to file (all formats: normal, XML, greppable)</span>
+<span class="fn">nmap</span> -sV -p <span class="nb">1-1000</span> -oA /tmp/scan-results <span class="nb">192.168.10.0/24</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — NC NETCAT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 30</div>
+        <div class="slide-title"><span class="accent">nc</span> — Netcat, the Swiss Army Knife</div>
+        <div class="slide-subtitle">Test TCP/UDP connectivity without a full client. Faster than nmap for single-port checks.</div>
+
+        <div class="code-block"><span class="cm"># Test if a TCP port is open and accepting connections</span>
+<span class="fn">nc</span> -zv <span class="nb">192.168.10.5</span> <span class="nb">5432</span>
+<span class="cm"># Connection to 192.168.10.5 5432 port [tcp/postgresql] succeeded!</span>
+<span class="cm"># -z = zero-I/O (just check if open, don't send data)</span>
+<span class="cm"># -v = verbose (print success/failure)</span>
+
+<span class="cm"># Test with timeout</span>
+<span class="fn">nc</span> -zvw 3 <span class="nb">192.168.10.5</span> <span class="nb">443</span>         <span class="cm"># 3 second timeout</span>
+
+<span class="cm"># Test a range of ports</span>
+<span class="fn">nc</span> -zv <span class="nb">192.168.10.5</span> <span class="nb">1-1024</span> <span class="nb">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'succeeded'</span>
+
+<span class="cm"># UDP port test</span>
+<span class="fn">nc</span> -zvu <span class="nb">192.168.10.5</span> <span class="nb">53</span>
+
+<span class="cm"># Simple file transfer (no encryption -- lab use only)</span>
+<span class="cm"># Receiver:</span>
+<span class="fn">nc</span> -l -p <span class="nb">9999</span> <span class="kw">&gt;</span> /tmp/received-file
+
+<span class="cm"># Sender:</span>
+<span class="fn">nc</span> <span class="nb">192.168.10.50</span> <span class="nb">9999</span> <span class="kw">&lt;</span> /tmp/source-file
+
+<span class="cm"># Quick HTTP request test (check if web server responds)</span>
+<span class="fn">echo</span> -e <span class="st">"GET / HTTP/1.0\r\nHost: sector.internal\r\n\r\n"</span> <span class="kw">|</span> <span class="fn">nc</span> sector.internal <span class="nb">80</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — CURL FOR NETWORK TESTING ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 30</div>
+        <div class="slide-title"><span class="accent">curl</span> for Network and Service Testing</div>
+        <div class="slide-subtitle">Test HTTP/HTTPS endpoints, measure response times, and diagnose TLS problems.</div>
+
+        <div class="code-block"><span class="cm"># Basic GET request with timing</span>
+<span class="fn">curl</span> -v https://sector-api.internal/health
+
+<span class="cm"># Detailed timing breakdown</span>
+<span class="fn">curl</span> -o /dev/null -s -w <span class="st">"\
+DNS:     %{time_namelookup}s\n\
+Connect: %{time_connect}s\n\
+TLS:     %{time_appconnect}s\n\
+TTFB:    %{time_starttransfer}s\n\
+Total:   %{time_total}s\n"</span> https://sector-api.internal/health
+
+<span class="cm"># Skip TLS certificate verification (debug only -- never in production)</span>
+<span class="fn">curl</span> -k https://sector-api.internal/health
+
+<span class="cm"># Follow redirects</span>
+<span class="fn">curl</span> -L http://sector.internal
+
+<span class="cm"># Send headers with request</span>
+<span class="fn">curl</span> -H <span class="st">"Authorization: Bearer $TOKEN"</span> https://sector-api.internal/status
+
+<span class="cm"># Test connectivity to a specific IP bypassing DNS</span>
+<span class="fn">curl</span> --resolve sector-api.internal:<span class="nb">443</span>:<span class="nb">10.0.100.5</span> https://sector-api.internal/health</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — MTU TROUBLESHOOTING ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 30</div>
+        <div class="slide-title">MTU Troubleshooting: <span class="accent">The Silent Killer</span></div>
+        <div class="slide-subtitle">MTU mismatches produce the most confusing symptoms: small packets work, large ones silently fail.</div>
+
+        <div class="scenario-strip">
+            SSH works. Short curl responses work. But downloading a large file hangs after a few KB, and web pages only partially load. Classic MTU black hole: the path has a device that drops oversized packets AND does not send ICMP Fragmentation Needed back.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Symptom Pattern</div>
+                <div class="card-desc">Small data transfers work perfectly. Large transfers hang at a consistent byte count. SSH connects but hangs when displaying a directory listing. Web pages begin loading then freeze. Ping works. These are all consistent with a broken PMTUD path.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Path MTU Discovery (PMTUD)</div>
+                <div class="card-desc">TCP tries to discover the path MTU by sending packets with the DF bit set. When a packet is too large for a hop, that hop sends back ICMP Type 3 Code 4 (Fragmentation Needed). If a firewall blocks this ICMP message, PMTUD fails silently and TCP retransmits forever.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: Test if large ping packets are dropped</span>
+<span class="fn">ping</span> -M do -s <span class="nb">1472</span> -c 3 <span class="nb">192.168.10.1</span>     <span class="cm"># 1472 + 28 = 1500 (standard MTU)</span>
+<span class="fn">ping</span> -M do -s <span class="nb">1400</span> -c 3 <span class="nb">192.168.10.1</span>     <span class="cm"># try smaller if 1472 fails</span>
+
+<span class="cm"># Step 2: Capture ICMP to see if Fragmentation Needed comes back</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n icmp <span class="kw">and</span> icmp[0] = <span class="nb">3</span>   <span class="cm"># Type 3 = Destination Unreachable</span>
+
+<span class="cm"># Step 3: Clamp MSS to work around the black hole (iptables)</span>
+<span class="fn">iptables</span> -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — CONNTRACK ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 30</div>
+        <div class="slide-title">conntrack: <span class="accent">Connection Tracking</span></div>
+        <div class="slide-subtitle">Inspect the kernel's connection tracking table. Essential for firewall and NAT debugging.</div>
+
+        <div class="code-block"><span class="cm"># Install conntrack tools</span>
+<span class="fn">apt-get</span> install -y conntrack
+
+<span class="cm"># Show all tracked connections</span>
+<span class="fn">conntrack</span> -L
+
+<span class="cm"># Show only established TCP connections</span>
+<span class="fn">conntrack</span> -L -p tcp --state ESTABLISHED
+
+<span class="cm"># Show only connections to a specific IP</span>
+<span class="fn">conntrack</span> -L -d <span class="nb">192.168.10.50</span>
+
+<span class="cm"># Count total tracked connections</span>
+<span class="fn">conntrack</span> -L <span class="kw">|</span> <span class="fn">wc</span> -l
+
+<span class="cm"># Check connection tracking table size limit</span>
+<span class="fn">sysctl</span> net.netfilter.nf_conntrack_max
+<span class="fn">sysctl</span> net.netfilter.nf_conntrack_count    <span class="cm"># current count</span>
+
+<span class="cm"># Flush all connection tracking entries (use with care)</span>
+<span class="fn">conntrack</span> -F</div>
+
+        <div class="box box-red">
+            <div class="box-label">conntrack Table Full</div>
+            When <span class="ic">nf_conntrack_count</span> reaches <span class="ic">nf_conntrack_max</span>, the kernel drops new connections and logs "nf_conntrack: table full, dropping packet." Increase the max: <span class="ic">sysctl -w net.netfilter.nf_conntrack_max=262144</span>. This is a common cause of intermittent "connection refused" under high traffic.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — PERFORMANCE TOOLS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 30</div>
+        <div class="slide-title">Network Performance: <span class="accent">iperf3 and sar</span></div>
+        <div class="slide-subtitle">Measure actual throughput between two nodes. Verify bandwidth before blaming the application.</div>
+
+        <div class="code-block"><span class="cm"># iperf3: TCP throughput test</span>
+<span class="cm"># On the server (receiver):</span>
+<span class="fn">iperf3</span> -s                               <span class="cm"># listen on port 5201</span>
+
+<span class="cm"># On the client (sender):</span>
+<span class="fn">iperf3</span> -c <span class="nb">192.168.10.50</span>               <span class="cm"># 10 second test</span>
+<span class="fn">iperf3</span> -c <span class="nb">192.168.10.50</span> -t <span class="nb">30</span>         <span class="cm"># 30 second test</span>
+<span class="fn">iperf3</span> -c <span class="nb">192.168.10.50</span> -P <span class="nb">4</span>          <span class="cm"># 4 parallel streams</span>
+
+<span class="cm"># UDP test (test packet loss and jitter)</span>
+<span class="fn">iperf3</span> -c <span class="nb">192.168.10.50</span> -u -b <span class="nb">100M</span>    <span class="cm"># send at 100 Mbps UDP</span>
+
+<span class="cm"># Reverse test: server sends to client</span>
+<span class="fn">iperf3</span> -c <span class="nb">192.168.10.50</span> -R
+
+<span class="cm">---</span>
+<span class="cm"># sar: historical and live network interface statistics</span>
+<span class="fn">sar</span> -n DEV <span class="nb">2</span> <span class="nb">10</span>                          <span class="cm"># every 2 seconds, 10 samples</span>
+<span class="cm"># rxkB/s = receive rate in KB/s</span>
+<span class="cm"># txkB/s = transmit rate in KB/s</span>
+<span class="cm"># rxerr/s = receive errors per second (NIC hardware problem indicator)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — ARP INSPECTION ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 30</div>
+        <div class="slide-title">ARP Inspection: <span class="accent">Spotting Spoofing</span></div>
+        <div class="slide-subtitle">Detect ARP cache poisoning and gateway impersonation on the local segment.</div>
+
+        <div class="code-block"><span class="cm"># View the current ARP cache</span>
+<span class="fn">ip</span> neigh show
+
+<span class="cm"># Monitor ARP activity in real time with tcpdump</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n arp
+
+<span class="cm"># Check if two entries share the same MAC (ARP spoofing indicator)</span>
+<span class="fn">ip</span> neigh show <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $5}'</span> <span class="kw">|</span> <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -d
+<span class="cm"># If a MAC appears twice with different IPs, investigate immediately</span>
+
+<span class="cm"># arping: send ARP requests and display all MAC addresses that respond</span>
+<span class="fn">arping</span> -c 5 <span class="nb">192.168.10.1</span>              <span class="cm"># how many different MACs respond to the gateway IP?</span>
+<span class="cm"># More than one = ARP spoofing in progress</span>
+
+<span class="cm"># arpwatch: daemon that logs ARP changes (install separately)</span>
+<span class="fn">apt-get</span> install -y arpwatch
+<span class="fn">systemctl</span> start arpwatch
+<span class="fn">journalctl</span> -u arpwatch -f             <span class="cm"># monitor for "changed ethernet address" events</span></div>
+
+        <div class="box box-red">
+            <div class="box-label">ARP Spoofing Impact</div>
+            If an attacker poisons your ARP cache, traffic intended for the gateway is sent to the attacker's machine instead. The attacker can then forward the traffic (man-in-the-middle) or drop it (denial of service). Static ARP entries for the gateway are the most effective mitigation on critical hosts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — WHOLE-SYSTEM NETWORK VIEW ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 30</div>
+        <div class="slide-title">Whole-System <span class="accent">Network View</span></div>
+        <div class="slide-subtitle">One-liner commands that give you the complete picture fast during an incident.</div>
+
+        <div class="code-block"><span class="cm"># Complete interface status (addresses + states)</span>
+<span class="fn">ip</span> -4 -brief addr
+
+<span class="cm"># Routing table summary</span>
+<span class="fn">ip</span> route show
+
+<span class="cm"># All listening services (what is exposed)</span>
+<span class="fn">ss</span> -tlnp
+
+<span class="cm"># All established TCP connections (who is connected)</span>
+<span class="fn">ss</span> -tnp state established
+
+<span class="cm"># Count connections per remote IP (spot unexpected traffic sources)</span>
+<span class="fn">ss</span> -tn state established <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'NR>1 {print $5}'</span> <span class="kw">|</span> <span class="fn">cut</span> -d: -f1 <span class="kw">|</span> <span class="fn">sort</span> <span class="kw">|</span> <span class="fn">uniq</span> -c <span class="kw">|</span> <span class="fn">sort</span> -rn
+
+<span class="cm"># DNS configuration</span>
+<span class="fn">resolvectl</span> status
+
+<span class="cm"># ARP cache</span>
+<span class="fn">ip</span> neigh show
+
+<span class="cm"># Network errors since boot</span>
+<span class="fn">ip</span> -s link show enp3s0 <span class="kw">|</span> <span class="fn">grep</span> -A4 <span class="st">'RX\|TX'</span>
+
+<span class="cm"># 30-second bandwidth snapshot</span>
+<span class="fn">sar</span> -n DEV <span class="nb">5</span> <span class="nb">6</span> <span class="kw">|</span> <span class="fn">grep</span> enp3s0</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — PACKET LOSS DIAGNOSIS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 30</div>
+        <div class="slide-title">Packet Loss <span class="accent">Diagnosis</span></div>
+        <div class="slide-subtitle">Confirm packet loss, localize it to a segment, and distinguish hardware from congestion.</div>
+
+        <div class="code-block"><span class="cm"># Step 1: Confirm packet loss exists</span>
+<span class="fn">ping</span> -c <span class="nb">100</span> -q <span class="nb">8.8.8.8</span>               <span class="cm"># -q = quiet, summary only</span>
+<span class="cm"># 100 packets transmitted, 97 received, 3% packet loss</span>
+
+<span class="cm"># Step 2: Is it local (to gateway) or remote?</span>
+<span class="fn">ping</span> -c <span class="nb">100</span> -q <span class="nb">192.168.10.1</span>           <span class="cm"># gateway only</span>
+<span class="cm"># If gateway has no loss but 8.8.8.8 does: loss is upstream, not your fault</span>
+<span class="cm"># If gateway has loss too: local link problem</span>
+
+<span class="cm"># Step 3: Check NIC hardware errors</span>
+<span class="fn">ip</span> -s link show enp3s0
+<span class="cm"># RX: errors N   dropped N   missed N  -- hardware errors suggest bad NIC/cable</span>
+
+<span class="fn">ethtool</span> -S enp3s0 <span class="kw">|</span> <span class="fn">grep</span> -E <span class="st">'(error|drop|crc|fifo|miss)'</span>
+
+<span class="cm"># Step 4: Check kernel ring buffer drops (soft drops)</span>
+<span class="fn">cat</span> /proc/net/dev <span class="kw">|</span> <span class="fn">grep</span> enp3s0
+<span class="cm"># Columns include drop counts for RX and TX</span>
+
+<span class="cm"># Step 5: Check for buffer overflows</span>
+<span class="fn">sysctl</span> net.core.netdev_max_backlog      <span class="cm"># input queue depth</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — FULL INVESTIGATION SCENARIO ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 30 &nbsp;|&nbsp; Scenario Lab</div>
+        <div class="slide-title">Full Scenario: <span class="accent">Service Unreachable Investigation</span></div>
+        <div class="slide-subtitle">A complete, ordered investigation from report to root cause.</div>
+
+        <div class="scenario-strip">
+            Alert: sector-api.internal is returning "connection refused" to monitoring. The API team says their code is running. You have 5 minutes.
+        </div>
+
+        <div class="code-block"><span class="cm"># 1. Is the service listening at all?</span>
+<span class="fn">ss</span> -tlnp | <span class="fn">grep</span> <span class="st">':8080'</span>
+<span class="cm"># If nothing: service crashed or wrong port in config</span>
+
+<span class="cm"># 2. If listening, can we connect locally?</span>
+<span class="fn">nc</span> -zv <span class="nb">127.0.0.1</span> <span class="nb">8080</span>
+<span class="cm"># If no: firewall on loopback (unusual), or service only listening on a specific IP</span>
+
+<span class="cm"># 3. What IP is the service bound to?</span>
+<span class="fn">ss</span> -tlnp | <span class="fn">grep</span> <span class="st">':8080'</span>
+<span class="cm"># 127.0.0.1:8080 = only accessible locally (not from outside!)</span>
+<span class="cm"># 0.0.0.0:8080   = accessible on all interfaces</span>
+<span class="cm"># 10.0.100.5:8080 = specific interface only</span>
+
+<span class="cm"># 4. Firewall blocking?</span>
+<span class="fn">iptables</span> -L INPUT -n -v --line-numbers
+<span class="fn">nft</span> list ruleset
+
+<span class="cm"># 5. Can the monitoring system actually route to us?</span>
+<span class="fn">ip</span> route get <span class="nb">10.0.200.1</span>              <span class="cm"># 10.0.200.1 = monitoring server</span>
+
+<span class="cm"># 6. Packet capture: are the monitoring probes even arriving?</span>
+<span class="fn">tcpdump</span> -i enp3s0 -n -c <span class="nb">20</span> src <span class="nb">10.0.200.1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 30 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete on your Ubuntu 22.04 lab VM before leaving the lab.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Use <code>ss -tulnp</code> to find every process listening on a TCP port. For each of the top 5 services you find, identify the binary using the PID and <code>ps aux | grep PID</code>. Document port, process name, and what that service does.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Use <code>dig</code> with <code>+trace</code> to trace the full DNS delegation chain for <code>cloudflare.com</code>. Identify each level: root server, TLD server, and authoritative server. Note the TTL values at each level.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Run <code>tcpdump</code> on your primary interface capturing only port 53 traffic. In another terminal, run <code>dig google.com</code>. Read the tcpdump output and identify the DNS query packet and response packet. Note the source and destination IPs and ports.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Perform an MTU path test to your default gateway: start at 1472 bytes with the DF bit set. If that works, try 8972. If 8972 fails, find the largest size that succeeds using binary search. Identify the effective path MTU.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Run <code>nmap -sT -p 1-1024 127.0.0.1</code>. Review every open port. For each open port, use <code>ss -tlnp</code> to identify the process. Look up any port you don't recognize and document whether it should be open.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — WHAT'S NEXT ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 30</div>
+        <div class="slide-title">What's <span class="accent">Next</span></div>
+        <div class="slide-subtitle">Week 1 complete. You have the operational baseline. Week 2 builds security on top of it.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Week 2: Firewall and Filtering</div>
+                <div class="card-desc">nftables (the modern iptables replacement), firewalld, ufw. Every port you found open with nmap today becomes a decision: should this be accessible? From where? Through what filter? Week 2 answers those questions operationally.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Week 3: DNS and DHCP Servers</div>
+                <div class="card-desc">Run Bind9 or Unbound for internal DNS. Run ISC-DHCP or Kea. The dig queries you ran today will be aimed at servers you built. Understanding the client-side (this module) makes building the server-side intuitive.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Week 4: Monitoring and Alerting</div>
+                <div class="card-desc">Prometheus node_exporter, Grafana, alert routing. The ss, sar, and ethtool data you collected manually today can be automated and alerted on. Week 4 makes your diagnostics continuous and proactive.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — SUMMARY ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 30 &nbsp;|&nbsp; ALA-04</div>
+        <div class="slide-title">ALA-04 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You now have a complete diagnostic toolkit for any network problem. The methodology matters as much as the tools: work from Layer 1 up, confirm each layer before ascending, and let the evidence guide you -- not assumptions. Every tool in this module produces ground truth. Trust the output.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>ss -tulnp</code> is your first command at any incident. It shows what is listening, on what port, and which process owns it. Run it before anything else.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>ip route get &lt;IP&gt;</code> shows which interface and gateway the kernel would use for that destination. This single command resolves 30% of routing problems instantly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Stars (<code>* * *</code>) in traceroute do not mean the path is broken. They mean that hop does not reply to ICMP probes. If the next hop responds, routing is fine through that hop.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>dig @server hostname</code> queries a specific DNS server directly, bypassing your system resolver. Use this to distinguish between a broken record and a broken resolver.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">tcpdump with no filter on a busy interface will cause CPU saturation. Always use a filter (<code>host X</code>, <code>port Y</code>, <code>proto Z</code>). Always use <code>-n</code> to skip DNS resolution.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><code>nc -zv host port</code> tests TCP reachability in under 1 second. Use it before launching tcpdump or nmap -- faster and less disruptive.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">MTU black holes: small packets succeed, large packets hang. Test with <code>ping -M do -s 1472</code>. Fix with MSS clamping if ICMP Fragmentation Needed is being blocked.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">nmap open = port reachable. nmap filtered = firewall blocking probes (may be open). nmap closed = host reachable, nothing listening. "filtered" does not mean "closed."</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 30</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 30;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w1-network-diag', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

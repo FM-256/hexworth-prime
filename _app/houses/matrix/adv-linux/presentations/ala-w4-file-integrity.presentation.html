@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Integrity and Auditing | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">File Integrity and Auditing | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-07 &nbsp;|&nbsp; Week 4 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                File Integrity<br>
+                <span class="accent">and Auditing</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                md5sum &nbsp;&bull;&nbsp; sha256sum &nbsp;&bull;&nbsp; AIDE &nbsp;&bull;&nbsp; Tripwire &nbsp;&bull;&nbsp; auditd &nbsp;&bull;&nbsp; ausearch
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A sector node was compromised three weeks ago. The attacker planted a backdoor in /usr/local/bin/, modified /etc/cron.d/, and changed sshd_config. Without file integrity monitoring, all of this went unnoticed. This lecture is how you ensure it cannot happen undetected again.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-07</span>
+            <span>Week 4 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY FILE INTEGRITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Why File Integrity <span class="accent">Monitoring Matters</span></div>
+        <div class="slide-subtitle">Attackers modify files. Misconfigurations corrupt files. You need a ground truth to detect both.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Rootkit Detection</div>
+                <div class="card-desc">Rootkits replace system binaries: <span class="ic">ls</span>, <span class="ic">ps</span>, <span class="ic">netstat</span>, <span class="ic">find</span>. The tools you use to investigate the compromise are themselves compromised. A cryptographic baseline created before the attack is the only way to detect this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Configuration Drift</div>
+                <div class="card-desc">Production servers accumulate undocumented manual changes over months. A known-good baseline lets you detect exactly what changed between deployment and today. This is as valuable for change management as it is for security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Compliance Requirements</div>
+                <div class="card-desc">PCI-DSS requires FIM on cardholder data environment systems. NIST 800-53 requires it for federal systems. SOC 2 Type II auditors ask for evidence of FIM coverage. AIDE and auditd generate the log evidence these audits require.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Fundamental Limitation</div>
+            File integrity monitoring is detective, not preventive. It tells you a file changed, not whether that change was authorized. The system is only as useful as the review process attached to its alerts. An unreviewed FIM alert is the same as no FIM at all.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — HASH FUNCTIONS FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Cryptographic Hashes: <span class="accent">The Integrity Foundation</span></div>
+        <div class="slide-subtitle">A hash function produces a fixed-length fingerprint of a file's content. Any change to the file produces a completely different hash.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">MD5 (128-bit)</div>
+                <div class="card-desc">Still in use for non-security purposes (file transfer verification). Cryptographically broken -- collisions can be engineered. Never use MD5 for security-critical integrity checks. An attacker can craft a malicious file with the same MD5 as the original.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SHA-1 (160-bit)</div>
+                <div class="card-desc">Deprecated for security use. Collision demonstrated in 2017 (SHAttered attack). Git still uses it for content addressing (not a security context), but do not use SHA-1 for file integrity monitoring on defended systems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SHA-256 / SHA-512</div>
+                <div class="card-desc">Current standard. SHA-256 produces a 256-bit hash. No known practical attacks. SHA-512 is slower but provides additional margin. Use SHA-256 for all production file integrity work. Use SHA-512 for high-security or compliance environments that require it.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Why Hash Length Matters</div>
+            A 128-bit hash has 2^128 possible values. A 256-bit hash has 2^256. Even with the entire computational capacity of Earth, finding a collision in SHA-256 by brute force is computationally infeasible for any foreseeable future. MD5's 128 bits, with known weaknesses in its algorithm, no longer provides that assurance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — MD5SUM AND SHA256SUM ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">md5sum and <span class="accent">sha256sum</span></div>
+        <div class="slide-subtitle">Command-line tools for computing and verifying cryptographic hashes on files and streams.</div>
+
+        <div class="code-block"><span class="cm"># Compute SHA-256 hash of a single file</span>
+<span class="fn">sha256sum</span> /etc/nginx/nginx.conf
+<span class="cm"># 3a9c12f7...  /etc/nginx/nginx.conf</span>
+
+<span class="cm"># Hash multiple files at once</span>
+<span class="fn">sha256sum</span> /etc/ssh/sshd_config /etc/passwd /etc/sudoers
+
+<span class="cm"># Save hashes to a manifest file for later verification</span>
+<span class="fn">sha256sum</span> /etc/nginx/nginx.conf \
+          /etc/ssh/sshd_config \
+          /etc/sudoers \
+          <span class="kw">&gt;</span> /var/lib/integrity/system-configs.sha256
+<span class="fn">chmod</span> <span class="nb">440</span> /var/lib/integrity/system-configs.sha256
+<span class="fn">chattr</span> +i /var/lib/integrity/system-configs.sha256   <span class="cm"># immutable flag</span>
+
+<span class="cm"># Verify against saved manifest (--check / -c)</span>
+<span class="fn">sha256sum</span> --check /var/lib/integrity/system-configs.sha256
+<span class="cm"># /etc/nginx/nginx.conf: OK</span>
+<span class="cm"># /etc/ssh/sshd_config: FAILED</span>
+<span class="cm"># /etc/sudoers: OK</span>
+<span class="cm"># sha256sum: WARNING: 1 computed checksum did NOT match</span>
+
+<span class="cm"># MD5 (only for non-security use: download verification)</span>
+<span class="fn">md5sum</span> ubuntu-22.04-server-amd64.iso
+<span class="cm"># Compare against publisher-provided checksum before installation</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — BUILDING A MANUAL BASELINE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Manual Baseline: <span class="accent">Scripted Hash Collection</span></div>
+        <div class="slide-subtitle">Before AIDE or Tripwire, understand what a baseline is and how to build one manually.</div>
+
+        <div class="scenario-strip">
+            You are hardening a freshly-deployed node. Before it enters production, you capture cryptographic hashes of every file that should never change. Any future deviation is evidence of either unauthorized change or a broken deployment process.
+        </div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# baseline-collect.sh -- capture integrity baseline for critical paths</span>
+<span class="fn">set</span> -euo pipefail
+
+BASELINE_FILE=<span class="st">"/var/lib/integrity/baseline-$(date +%F).sha256"</span>
+CRITICAL_PATHS=(
+    /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin
+    /bin /sbin
+    /etc/ssh /etc/nginx /etc/sudoers /etc/sudoers.d
+    /etc/cron.d /etc/cron.daily /etc/cron.weekly
+    /etc/pam.d /etc/security
+)
+<span class="fn">mkdir</span> -p <span class="st">"$(dirname "$BASELINE_FILE")"</span>
+
+<span class="cm"># Hash all files in critical paths (follow no symlinks)</span>
+<span class="fn">find</span> <span class="st">"${CRITICAL_PATHS[@]}"</span> -type f -print0 <span class="kw">|</span> \
+    <span class="fn">sort</span> -z <span class="kw">|</span> \
+    <span class="fn">xargs</span> -0 <span class="fn">sha256sum</span> <span class="nb">2&gt;</span>/dev/null \
+    <span class="kw">&gt;</span> <span class="st">"$BASELINE_FILE"</span>
+
+<span class="cm"># Protect the baseline file</span>
+<span class="fn">chmod</span> <span class="nb">400</span> <span class="st">"$BASELINE_FILE"</span>
+<span class="fn">chattr</span> +i <span class="st">"$BASELINE_FILE"</span>       <span class="cm"># immutable: even root cannot overwrite without removing this flag</span>
+<span class="fn">sha256sum</span> <span class="st">"$BASELINE_FILE"</span> <span class="kw">&gt;</span> <span class="st">"${BASELINE_FILE}.meta"</span>
+
+<span class="fn">echo</span> <span class="st">"Baseline captured: $BASELINE_FILE ($(wc -l &lt; "$BASELINE_FILE") files)"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — CHECKING AGAINST BASELINE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Checking Against <span class="accent">a Baseline</span></div>
+        <div class="slide-subtitle">Automated daily comparison against the baseline surfaces unauthorized changes within 24 hours.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# integrity-check.sh -- compare current state against baseline</span>
+<span class="fn">set</span> -euo pipefail
+
+BASELINE=<span class="st">"/var/lib/integrity/baseline-$(date +%F --date='yesterday').sha256"</span>
+REPORT=<span class="st">"/var/log/integrity/check-$(date +%F-%T).report"</span>
+<span class="fn">mkdir</span> -p <span class="st">"$(dirname "$REPORT")"</span>
+
+<span class="cm"># sha256sum --check returns non-zero if any file fails</span>
+<span class="kw">if</span> ! <span class="fn">sha256sum</span> --check <span class="st">"$BASELINE"</span> <span class="kw">&gt;</span> <span class="st">"$REPORT"</span> <span class="nb">2&gt;&amp;1</span>; <span class="kw">then</span>
+    FAILURES=<span class="st">"$(grep -c 'FAILED' "$REPORT" || echo 0)"</span>
+    MISSING=<span class="st">"$(grep -c 'No such file' "$REPORT" || echo 0)"</span>
+
+    ALERT=<span class="st">"INTEGRITY ALERT on $(hostname)\n"</span>
+    ALERT+=<span class="st">"Date: $(date)\n"</span>
+    ALERT+=<span class="st">"Modified: $FAILURES file(s)\n"</span>
+    ALERT+=<span class="st">"Missing:  $MISSING file(s)\n\n"</span>
+    ALERT+=<span class="st">"Failures:\n$(grep 'FAILED\|No such' "$REPORT")\n"</span>
+
+    <span class="fn">echo</span> -e <span class="st">"$ALERT"</span> | <span class="fn">mail</span> -s <span class="st">"[INTEGRITY] $(hostname): $FAILURES failed"</span> sec@sector.local
+    <span class="fn">logger</span> -t integrity-check -p local0.crit \
+        <span class="st">"Integrity check failed: $FAILURES modified, $MISSING missing"</span>
+    <span class="kw">exit</span> <span class="nb">1</span>
+<span class="kw">fi</span>
+<span class="fn">logger</span> -t integrity-check -p local0.info <span class="st">"All files OK"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — AIDE INTRODUCTION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">AIDE: <span class="accent">Advanced Intrusion Detection Environment</span></div>
+        <div class="slide-subtitle">AIDE is a file integrity checker that maintains a cryptographic database of file attributes and detects changes.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">What AIDE Monitors</div>
+                <div class="card-desc">Content hash (SHA-256, SHA-512, MD5). File size. inode number. Permissions and ownership. Timestamps (mtime, ctime, atime). Link count. Extended attributes. SELinux context. Each attribute can be independently included or excluded per rule.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Step 1: Initialize -- scan the filesystem and store all attribute hashes in a database (<span class="ic">/var/lib/aide/aide.db</span>). Step 2: Check -- scan again and compare against the stored database. Step 3: Update -- after authorized changes, update the database to the new known-good state.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Database Security</div>
+                <div class="card-desc">The AIDE database must be protected from tampering. If an attacker can modify both the target files and the database, they can cover their tracks. Store the database on read-only media, a remote server, or sign it with GPG.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install AIDE</span>
+<span class="fn">apt</span> install aide aide-common
+
+<span class="cm"># Config file: /etc/aide/aide.conf</span>
+<span class="cm"># Database locations</span>
+database_in=file:/var/lib/aide/aide.db
+database_out=file:/var/lib/aide/aide.db.new</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — AIDE CONFIGURATION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">AIDE Configuration: <span class="accent">Rules and Paths</span></div>
+        <div class="slide-subtitle">The AIDE config defines what to monitor and at what level of detail -- a critical tuning exercise to reduce false positives.</div>
+
+        <div class="code-block"><span class="cm"># /etc/aide/aide.conf (key sections)</span>
+
+<span class="cm"># Define attribute groups (reusable rule names)</span>
+FIPSR = p+i+n+u+g+s+m+c+acl+selinux+xattrs+sha256
+NORMAL = p+i+n+u+g+s+m+c+sha256
+DATAONLY = sha256
+LOGCHECK = p+u+g+n+S
+
+<span class="cm"># Rule:  path   attribute-group</span>
+<span class="cm"># Monitor system binaries for all attributes including hash</span>
+/usr/bin     FIPSR
+/usr/sbin    FIPSR
+/bin         FIPSR
+/sbin        FIPSR
+
+<span class="cm"># Critical config files</span>
+/etc/ssh     FIPSR
+/etc/nginx   FIPSR
+/etc/cron.d  FIPSR
+/etc/sudoers FIPSR
+/etc/pam.d   FIPSR
+
+<span class="cm"># Log files: monitor permissions only, not content (content changes constantly)</span>
+/var/log     LOGCHECK
+
+<span class="cm"># Exclude paths that change frequently (add noise)</span>
+!/var/log/wtmp
+!/var/log/lastlog
+!/var/run
+!/proc
+!/sys
+!/dev</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AIDE OPERATIONS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">AIDE Operations: <span class="accent">Init, Check, Update</span></div>
+        <div class="slide-subtitle">The three operations that form the AIDE lifecycle.</div>
+
+        <div class="code-block"><span class="cm"># STEP 1: Initialize the database (do this on a known-clean system)</span>
+<span class="fn">aideinit</span>
+<span class="cm"># This runs for several minutes and creates /var/lib/aide/aide.db.new</span>
+
+<span class="cm"># Activate the new database</span>
+<span class="fn">cp</span> /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+<span class="cm"># STEP 2: Run a check (compare current state against database)</span>
+<span class="fn">aide</span> --check
+<span class="cm"># Returns 0 (no changes), 1 (some changes), 2+ (error)</span>
+<span class="cm"># Output example:</span>
+<span class="cm"># Changed: /usr/bin/python3.10</span>
+<span class="cm">#   Sha256   : expected vs actual hash</span>
+<span class="cm">#   Mtime    : 2026-03-01 vs 2026-04-09</span>
+
+<span class="cm"># STEP 3: After authorized changes, update the database</span>
+<span class="cm"># (e.g., after a package update that was intentional)</span>
+<span class="fn">aide</span> --update
+<span class="cm"># This writes a new aide.db.new -- review before activating</span>
+<span class="fn">mv</span> /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+<span class="cm"># Verbose check: show details on what changed</span>
+<span class="fn">aide</span> --check --verbose=<span class="nb">2</span>
+
+<span class="cm"># Check only specific directory</span>
+<span class="fn">aide</span> --check --limit=/etc/ssh</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AIDE AUTOMATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Automating AIDE: <span class="accent">Daily Checks and Alerting</span></div>
+        <div class="slide-subtitle">AIDE is only useful if it runs regularly and alerts on findings. Manual checks are not a security control.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# /etc/cron.daily/aide-check -- run AIDE and alert on findings</span>
+<span class="fn">set</span> -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+REPORT=<span class="st">"/var/log/aide/check-$(date +%F).log"</span>
+<span class="fn">mkdir</span> -p /var/log/aide
+
+<span class="cm"># Run check and capture exit code</span>
+<span class="fn">aide</span> --check <span class="kw">&gt;</span> <span class="st">"$REPORT"</span> <span class="nb">2&gt;&amp;1</span>
+EXIT=<span class="st">$?</span>
+
+<span class="kw">case</span> <span class="st">$EXIT</span> <span class="kw">in</span>
+    <span class="nb">0</span>) <span class="fn">logger</span> -t aide-check -p local0.info <span class="st">"No changes detected"</span> ;;
+    <span class="nb">1</span>)
+        CHANGES=<span class="st">"$(grep -c '^Changed\|^Added\|^Removed' "$REPORT" || echo 0)"</span>
+        <span class="fn">logger</span> -t aide-check -p local0.warning <span class="st">"$CHANGES change(s) detected"</span>
+        <span class="fn">mail</span> -s <span class="st">"[AIDE] $(hostname): $CHANGES change(s)"</span> sec@sector.local \
+            <span class="kw">&lt;</span> <span class="st">"$REPORT"</span>
+        ;;
+    <span class="nb">2</span>)
+        <span class="fn">logger</span> -t aide-check -p local0.err <span class="st">"AIDE error -- check $REPORT"</span>
+        <span class="fn">mail</span> -s <span class="st">"[AIDE ERROR] $(hostname): aide --check failed"</span> sec@sector.local \
+            <span class="kw">&lt;</span> <span class="st">"$REPORT"</span>
+        ;;
+<span class="kw">esac</span>
+
+<span class="cm"># Retain 30 days of reports</span>
+<span class="fn">find</span> /var/log/aide -name <span class="st">'*.log'</span> -mtime +<span class="nb">30</span> -delete</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — TRIPWIRE OVERVIEW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Tripwire: <span class="accent">Enterprise FIM with Signed Policies</span></div>
+        <div class="slide-subtitle">Open Source Tripwire adds cryptographically signed policy files and databases to the FIM model.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Tripwire vs AIDE</div>
+                <div class="card-desc">Both do the same core job. Tripwire adds signed policy files (the configuration is itself integrity-protected), signed databases, and a richer reporting format. AIDE is simpler and more widely deployed. Both are acceptable for compliance; organizations with GPG key infrastructure may prefer Tripwire.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Components</div>
+                <div class="card-desc"><span class="ic">twinstall.sh</span> generates site and local keys. <span class="ic">tripwire --init</span> creates the signed database. <span class="ic">tripwire --check</span> runs an integrity check. <span class="ic">twprint</span> reads signed databases and reports. <span class="ic">twadmin</span> manages keys and policy files.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install and initialize Tripwire</span>
+<span class="fn">apt</span> install tripwire
+<span class="fn">twinstall.sh</span>        <span class="cm"># generate site-key and local-key passphrases</span>
+
+<span class="cm"># Initialize the database (prompted for passphrases)</span>
+<span class="fn">tripwire</span> --init
+
+<span class="cm"># Run an integrity check</span>
+<span class="fn">tripwire</span> --check <span class="kw">|</span> <span class="fn">tee</span> /var/log/tripwire/check.log
+
+<span class="cm"># Update the database after authorized changes</span>
+<span class="fn">tripwire</span> --update --twrfile /var/lib/tripwire/report/hostname-date.twr
+
+<span class="cm"># View the current policy in plain text</span>
+<span class="fn">twadmin</span> --print-polfile
+
+<span class="cm"># Verify the database and policy have not been tampered with</span>
+<span class="fn">tripwire</span> --check --interactive</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — AUDITD INTRODUCTION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">auditd: <span class="accent">Kernel-Level Activity Auditing</span></div>
+        <div class="slide-subtitle">auditd hooks into the Linux kernel audit subsystem to record system calls, file access, and security events at the kernel level.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">What auditd Captures</div>
+                <div class="card-desc">System calls (open, execve, connect, etc.). File access and modification. User authentication events. Privilege escalation (sudo, su, setuid). Network connections. Changes to security attributes. All captured at kernel level -- cannot be bypassed by userspace tools.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">AIDE vs auditd</div>
+                <div class="card-desc">AIDE detects that a file changed but not who changed it or when exactly. auditd tells you exactly who made the change, what process, at what time, from which terminal, with what arguments. They are complementary -- AIDE for what, auditd for who, when, and how.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Architecture</div>
+                <div class="card-desc">The kernel generates audit events. The auditd daemon reads them from the netlink socket and writes them to <span class="ic">/var/log/audit/audit.log</span>. Rules loaded with <span class="ic">auditctl</span> tell the kernel what to audit. Rules in <span class="ic">/etc/audit/rules.d/</span> persist across reboots.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install and start auditd</span>
+<span class="fn">apt</span> install auditd audispd-plugins
+<span class="fn">systemctl</span> enable --now auditd
+
+<span class="cm"># Check audit daemon status and log location</span>
+<span class="fn">systemctl</span> status auditd
+<span class="fn">ls</span> -lh /var/log/audit/</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — AUDITD RULES: AUDITCTL ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">auditctl: <span class="accent">Writing Audit Rules</span></div>
+        <div class="slide-subtitle">Audit rules tell the kernel what to record. Rules can target system calls, file paths, or user activity.</div>
+
+        <div class="code-block"><span class="cm"># Rule types:
+# -w  watch a file or directory
+# -a  append a rule to a syscall list
+# -A  prepend a rule (higher priority)</span>
+
+<span class="cm"># Watch a critical file for reads and writes</span>
+<span class="fn">auditctl</span> -w /etc/passwd -p rwxa -k identity-files
+<span class="cm"># -p rwxa = permissions: read/write/execute/attribute-change</span>
+<span class="cm"># -k key  = label for easy searching (ausearch -k identity-files)</span>
+
+<span class="cm"># Watch an entire directory for writes</span>
+<span class="fn">auditctl</span> -w /etc/ssh -p wa -k sshd-config
+
+<span class="cm"># Monitor sudo usage (syscall rule: execve for sudo binary)</span>
+<span class="fn">auditctl</span> -a always,exit -F path=/usr/bin/sudo -F perm=x -k sudo-usage
+
+<span class="cm"># Audit all privilege escalation: setuid, setgid calls</span>
+<span class="fn">auditctl</span> -a always,exit -F arch=b64 -S setuid -S setgid -k privilege-escalation
+
+<span class="cm"># Monitor writes to cron directories</span>
+<span class="fn">auditctl</span> -w /etc/cron.d     -p wa -k cron-modification
+<span class="fn">auditctl</span> -w /etc/crontab    -p wa -k cron-modification
+<span class="fn">auditctl</span> -w /var/spool/cron -p wa -k cron-modification
+
+<span class="cm"># List current active rules</span>
+<span class="fn">auditctl</span> -l
+
+<span class="cm"># Delete all active rules (for cleanup/testing)</span>
+<span class="fn">auditctl</span> -D</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — PERSISTENT AUDIT RULES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Persistent Rules: <span class="accent">/etc/audit/rules.d/</span></div>
+        <div class="slide-subtitle">auditctl rules are lost on reboot. Persist them in rules files that augenrules loads at startup.</div>
+
+        <div class="code-block"><span class="cm"># /etc/audit/rules.d/sector-security.rules</span>
+
+<span class="cm">## Wipe existing rules on load</span>
+-D
+
+<span class="cm">## Set buffer size (prevent event drops during high-activity periods)</span>
+-b 8192
+
+<span class="cm">## Identity and authentication files</span>
+-w /etc/passwd  -p wa -k identity
+-w /etc/shadow  -p wa -k identity
+-w /etc/group   -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+
+<span class="cm">## Privilege escalation</span>
+-w /usr/bin/sudo  -p x -k sudo
+-w /bin/su        -p x -k su
+-w /etc/sudoers   -p wa -k sudoers
+-w /etc/sudoers.d -p wa -k sudoers
+
+<span class="cm">## SSH configuration</span>
+-w /etc/ssh/sshd_config -p wa -k sshd-config
+-w /root/.ssh           -p wa -k root-ssh
+
+<span class="cm">## Cron modifications</span>
+-w /etc/cron.d     -p wa -k cron
+-w /var/spool/cron -p wa -k cron
+
+<span class="cm">## Network config changes</span>
+-w /etc/hosts         -p wa -k network-config
+-w /etc/resolv.conf   -p wa -k network-config
+-w /etc/network       -p wa -k network-config
+
+<span class="cm">## Lock the audit configuration (no rules changes without reboot)</span>
+-e 2</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — LOADING AND MANAGING RULES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Loading Rules: <span class="accent">augenrules and auditctl</span></div>
+        <div class="slide-subtitle">augenrules compiles all .rules files and loads them. This is the preferred method for managed rule sets.</div>
+
+        <div class="code-block"><span class="cm"># augenrules: compile all files in /etc/audit/rules.d/ into a single ruleset</span>
+<span class="fn">augenrules</span> --check   <span class="cm"># check if rules have changed since last load</span>
+<span class="fn">augenrules</span> --load    <span class="cm"># compile and load all rules</span>
+
+<span class="cm"># Alternative: load a single rules file directly</span>
+<span class="fn">auditctl</span> -R /etc/audit/rules.d/sector-security.rules
+
+<span class="cm"># After editing rules files, reload without restarting auditd</span>
+<span class="fn">systemctl</span> restart auditd    <span class="cm"># restarts and reloads rules</span>
+
+<span class="cm"># Verify rules loaded correctly</span>
+<span class="fn">auditctl</span> -l | <span class="fn">head</span> -30
+
+<span class="cm"># Check audit subsystem status</span>
+<span class="fn">auditctl</span> -s
+<span class="cm"># enabled: 2 means locked (-e 2 was set -- no changes until reboot)</span>
+<span class="cm"># backlog: number of events queued (should be near 0)</span>
+<span class="cm"># lost: events dropped due to buffer overflow (increase -b if non-zero)</span>
+
+<span class="cm"># View the compiled rules file augenrules produces</span>
+<span class="fn">cat</span> /etc/audit/audit.rules</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — AUSEARCH ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">ausearch: <span class="accent">Querying the Audit Log</span></div>
+        <div class="slide-subtitle">ausearch decodes binary audit events and provides structured querying by key, user, time, process, and more.</div>
+
+        <div class="code-block"><span class="cm"># Search by key (label set in -k flag)</span>
+<span class="fn">ausearch</span> -k identity
+<span class="fn">ausearch</span> -k sudo-usage
+<span class="fn">ausearch</span> -k sshd-config
+
+<span class="cm"># Search by user (UID or username)</span>
+<span class="fn">ausearch</span> -ua deploy          <span class="cm"># audit events for user 'deploy'</span>
+<span class="fn">ausearch</span> -euid 0             <span class="cm"># events where effective UID was 0 (root)</span>
+
+<span class="cm"># Search by time range</span>
+<span class="fn">ausearch</span> --start today
+<span class="fn">ausearch</span> --start 04/09/2026 --end 04/09/2026 18:00:00
+<span class="fn">ausearch</span> --start recent       <span class="cm"># last 10 minutes</span>
+
+<span class="cm"># Search by executable</span>
+<span class="fn">ausearch</span> -x /usr/bin/sudo
+
+<span class="cm"># Search by system call</span>
+<span class="fn">ausearch</span> -sc execve
+
+<span class="cm"># Combine filters: sudo usage by user deploy today</span>
+<span class="fn">ausearch</span> -k sudo -ua deploy --start today
+
+<span class="cm"># Interpret records in human-readable format</span>
+<span class="fn">ausearch</span> -k identity -i    <span class="cm"># -i = interpret UIDs, syscalls, etc. as names</span>
+
+<span class="cm"># Output as CSV for parsing</span>
+<span class="fn">ausearch</span> -k cron -i --format csv | <span class="fn">head</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — AUREPORT ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">aureport: <span class="accent">Summary Reports from Audit Logs</span></div>
+        <div class="slide-subtitle">aureport generates tabular summaries across all audit events -- essential for daily security review.</div>
+
+        <div class="code-block"><span class="cm"># Summary of all audit activity (authentication, files, etc.)</span>
+<span class="fn">aureport</span>
+
+<span class="cm"># Authentication report: all logins, success and failure</span>
+<span class="fn">aureport</span> --auth
+
+<span class="cm"># Failed authentication only</span>
+<span class="fn">aureport</span> --auth --failed
+
+<span class="cm"># Report on executable usage</span>
+<span class="fn">aureport</span> --executable
+
+<span class="cm"># Anomaly report: abnormal events detected by rules</span>
+<span class="fn">aureport</span> --anomaly
+
+<span class="cm"># File access report: which files were accessed by whom</span>
+<span class="fn">aureport</span> --file
+
+<span class="cm"># Account modifications</span>
+<span class="fn">aureport</span> --modify
+
+<span class="cm"># Summary for a specific time window</span>
+<span class="fn">aureport</span> --start today --auth
+
+<span class="cm"># Top 10 commands run via execve today (sorted)</span>
+<span class="fn">aureport</span> --start today --executable \
+    | <span class="fn">awk</span> <span class="st">'NR>4{print $NF}'</span> \
+    | <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Daily Review Workflow</div>
+            Run <span class="ic">aureport --auth --failed</span> and <span class="ic">aureport --anomaly</span> each morning as part of the start-of-day check. These two reports surface the majority of actionable security events in under 30 seconds.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — AUDIT SYSTEM CALL RULES ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Syscall Rules: <span class="accent">Auditing at the Kernel Interface</span></div>
+        <div class="slide-subtitle">System call rules capture events at the exact point where userspace code requests kernel services.</div>
+
+        <div class="code-block"><span class="cm"># Audit all file opens by non-root users that fail with EACCES or EPERM</span>
+-a always,exit -F arch=b64 -S open -S openat -F exit=-EACCES \
+    -F auid!=unset -k access-denied
+-a always,exit -F arch=b64 -S open -S openat -F exit=-EPERM  \
+    -F auid!=unset -k access-denied
+
+<span class="cm"># Audit process execution (all execve syscalls)</span>
+<span class="cm"># WARNING: high volume -- use with caution in production</span>
+-a always,exit -F arch=b64 -S execve -k exec
+
+<span class="cm"># Audit network connections (connect, accept, bind)</span>
+-a always,exit -F arch=b64 -S connect -k network-connect
+
+<span class="cm"># Detect privilege escalation via capability changes</span>
+-a always,exit -F arch=b64 -S setuid  -k priv-esc
+-a always,exit -F arch=b64 -S setgid  -k priv-esc
+-a always,exit -F arch=b64 -S seteuid -k priv-esc
+
+<span class="cm"># Audit module loading (detecting kernel rootkits)</span>
+-w /sbin/insmod  -p x -k module-load
+-w /sbin/rmmod   -p x -k module-load
+-w /sbin/modprobe -p x -k module-load
+-a always,exit -F arch=b64 -S init_module -S delete_module -k module-load</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — READING AUDIT LOG RECORDS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Audit Log Records: <span class="accent">Anatomy of an Event</span></div>
+        <div class="slide-subtitle">Every audit record has a fixed structure. Learn to read it directly for rapid incident response.</div>
+
+        <div class="code-block"><span class="cm"># Raw audit log entry (from /var/log/audit/audit.log)</span>
+type=SYSCALL msg=audit(1744124400.123:8742): arch=c000003e syscall=257 \
+  success=yes exit=3 a0=ffffff9c a1=7f4c2d0a a2=0 a3=0 \
+  items=1 ppid=18293 pid=18294 auid=1001 uid=1001 gid=1001 \
+  euid=0 suid=0 fsuid=0 egid=1001 sgid=1001 fsgid=1001 \
+  tty=pts2 ses=14 comm="nano" exe="/usr/bin/nano" \
+  subj=unconfined key="sshd-config"
+
+<span class="cm"># Field breakdown:
+# type=SYSCALL        — record type
+# audit(timestamp:id) — Unix timestamp and event serial number
+# syscall=257         — openat (translate with: ausyscall 257)
+# auid=1001           — audit UID (the real user before sudo)
+# uid/euid            — actual UID and effective UID at time of call
+# comm="nano"         — command name
+# exe="/usr/bin/nano" — full path of executable
+# key="sshd-config"   — the -k label from the audit rule that matched</span>
+
+<span class="cm"># Decode syscall number to name</span>
+<span class="fn">ausyscall</span> <span class="nb">257</span>   <span class="cm"># openat</span>
+<span class="fn">ausyscall</span> --dump <span class="kw">|</span> <span class="fn">grep</span> execve</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — IMMUTABLE AUDIT LOGS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Protecting Audit Logs: <span class="accent">Immutability and Remote Forwarding</span></div>
+        <div class="slide-subtitle">Audit logs are worthless if an attacker can modify or delete them. Protect them at the storage level and forward them off-node.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Local Log Risks</div>
+                <div class="card-desc">A root-level attacker can delete or truncate <span class="ic">/var/log/audit/audit.log</span>. Setting <span class="ic">-e 2</span> locks audit rules but does not protect the log file itself. An attacker aware of this will overwrite logs before you review them.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Remote Forwarding</div>
+                <div class="card-desc">Forward audit logs to a remote, hardened, write-once SIEM or syslog server as they are generated. An attacker who compromises the source node cannot retroactively delete events that have already been forwarded. This is the correct architecture for serious environments.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/audit/auditd.conf: configure log space management</span>
+log_file = /var/log/audit/audit.log
+max_log_file = 50         <span class="cm"># MB per log file</span>
+num_logs = 10             <span class="cm"># keep 10 rotated files</span>
+max_log_file_action = ROTATE
+space_left = 250          <span class="cm"># MB free before warning</span>
+space_left_action = SYSLOG
+admin_space_left = 50
+admin_space_left_action = SUSPEND
+
+<span class="cm"># audispd: forward events to remote syslog (audisp-remote plugin)</span>
+<span class="cm"># /etc/audisp/audisp-remote.conf:</span>
+<span class="cm"># remote_server = siem.sector.local</span>
+<span class="cm"># port = 60</span>
+<span class="cm"># mode = immediate</span>
+<span class="fn">systemctl</span> restart auditd</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — CHATTR AND IMMUTABLE FILES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">chattr: <span class="accent">Filesystem-Level Immutability</span></div>
+        <div class="slide-subtitle">The immutable flag makes files undeletable and unmodifiable by any user, including root -- until the flag is removed.</div>
+
+        <div class="code-block"><span class="cm"># Set the immutable flag (+i)</span>
+<span class="fn">chattr</span> +i /var/lib/aide/aide.db
+<span class="fn">chattr</span> +i /etc/sudoers
+<span class="fn">chattr</span> +i /var/lib/integrity/baseline.sha256
+
+<span class="cm"># Attempt to modify an immutable file (even as root)</span>
+<span class="fn">echo</span> <span class="st">"test"</span> <span class="kw">&gt;&gt;</span> /var/lib/aide/aide.db
+<span class="cm"># bash: /var/lib/aide/aide.db: Operation not permitted</span>
+
+<span class="cm"># List extended attributes on a file</span>
+<span class="fn">lsattr</span> /var/lib/aide/aide.db
+<span class="cm"># ----i---------e-- /var/lib/aide/aide.db  (the 'i' indicates immutable)</span>
+
+<span class="cm"># Remove the immutable flag (required before AIDE update)</span>
+<span class="fn">chattr</span> -i /var/lib/aide/aide.db
+<span class="cm"># Perform the authorized update...</span>
+<span class="fn">aide</span> --update
+<span class="fn">mv</span> /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+<span class="fn">chattr</span> +i /var/lib/aide/aide.db    <span class="cm"># re-lock immediately</span>
+
+<span class="cm"># Append-only flag (+a): file can be written to but not truncated or deleted</span>
+<span class="cm"># Useful for log files you want to protect from being cleared</span>
+<span class="fn">chattr</span> +a /var/log/auth.log</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — PACKAGE INTEGRITY ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Package Integrity: <span class="accent">Verifying Installed Packages</span></div>
+        <div class="slide-subtitle">APT and dpkg maintain checksums for every file installed by every package. Use this to detect tampering of system binaries.</div>
+
+        <div class="code-block"><span class="cm"># Verify all files installed by a specific package</span>
+<span class="fn">dpkg</span> --verify openssh-server
+<span class="cm"># ??5?????? c /etc/ssh/sshd_config</span>
+<span class="cm"># ?????  ?  /etc/pam.d/sshd</span>
+<span class="cm"># The ? fields: p=permissions u=owner g=group d=device t=type m=mtime s=size</span>
+<span class="cm"># c = config file (expected to differ); other files should show no output if clean</span>
+
+<span class="cm"># Verify all installed packages</span>
+<span class="fn">dpkg</span> --verify
+
+<span class="cm"># Filter: show only modified non-config files (potential tampering)</span>
+<span class="fn">dpkg</span> --verify 2<span class="kw">&gt;&amp;</span>1 | <span class="fn">grep</span> -v <span class="st">' c '</span>
+
+<span class="cm"># debsums: more detailed package verification (install separately)</span>
+<span class="fn">apt</span> install debsums
+<span class="fn">debsums</span> --silent           <span class="cm"># show only files that fail</span>
+<span class="fn">debsums</span> openssh-server     <span class="cm"># check specific package</span>
+<span class="fn">debsums</span> --all --silent     <span class="cm"># check every installed file</span>
+
+<span class="cm"># Check APT's GPG key signature on downloaded packages</span>
+<span class="fn">apt-key</span> list
+<span class="fn">gpg</span> --verify /var/lib/apt/lists/security.ubuntu.com_*InRelease</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — SYSDIG AND SYSTEM CALL TRACING ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">strace and sysdig: <span class="accent">Deep Process Inspection</span></div>
+        <div class="slide-subtitle">When you need to understand exactly what a suspicious process is doing, trace its system calls in real time.</div>
+
+        <div class="code-block"><span class="cm"># strace: trace system calls for a running or new process</span>
+<span class="fn">strace</span> -p <span class="nb">14823</span>                        <span class="cm"># attach to running process</span>
+<span class="fn">strace</span> /usr/local/bin/suspicious         <span class="cm"># run and trace</span>
+
+<span class="cm"># Focus on specific syscalls (-e trace=)</span>
+<span class="fn">strace</span> -e trace=open,read,write,connect -p <span class="nb">14823</span>
+
+<span class="cm"># Save trace to file for later analysis</span>
+<span class="fn">strace</span> -o /tmp/trace-14823.log -p <span class="nb">14823</span>
+
+<span class="cm"># Follow child processes spawned by the target</span>
+<span class="fn">strace</span> -f -p <span class="nb">14823</span>
+
+<span class="cm"># ltrace: trace library calls (not syscalls)</span>
+<span class="fn">ltrace</span> /usr/local/bin/suspicious
+
+<span class="cm"># Count and summarize syscalls (quick overview)</span>
+<span class="fn">strace</span> -c -p <span class="nb">14823</span>
+<span class="cm"># Produces a frequency table: call, errors, time, calls</span>
+
+<span class="cm"># Check what files a process has open (without strace)</span>
+<span class="fn">ls</span> -la /proc/<span class="nb">14823</span>/fd
+<span class="fn">lsof</span> -p <span class="nb">14823</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — INCIDENT RESPONSE WITH AUDITD ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Incident Response: <span class="accent">Using auditd Evidence</span></div>
+        <div class="slide-subtitle">When AIDE detects a changed file, use auditd to reconstruct exactly what happened and by whom.</div>
+
+        <div class="scenario-strip">
+            AIDE alerts: /usr/local/bin/worker has been modified. The binary hash no longer matches the baseline. You need to know: who modified it, what process made the change, what UID was active, and what other files were touched in the same session.
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: find write events on the affected file</span>
+<span class="fn">ausearch</span> -f /usr/local/bin/worker -i | <span class="fn">grep</span> -A5 <span class="st">'write\|truncate\|rename'</span>
+
+<span class="cm"># Step 2: get the timestamp from Step 1, then pull all activity for that session</span>
+<span class="fn">ausearch</span> --start 04/09/2026 02:14:00 --end 04/09/2026 02:16:00 -i | <span class="fn">less</span>
+
+<span class="cm"># Step 3: identify the auid (audit UID -- the original user before sudo)</span>
+<span class="fn">ausearch</span> -f /usr/local/bin/worker -i | <span class="fn">grep</span> <span class="st">'auid='</span>
+
+<span class="cm"># Step 4: find all activity by that auid in the same window</span>
+<span class="fn">ausearch</span> --start 04/09/2026 02:00:00 -ua <span class="st">"the-user"</span> -i | <span class="fn">less</span>
+
+<span class="cm"># Step 5: check for new file creations (insmod, copies, downloads)</span>
+<span class="fn">ausearch</span> --start today -sc execve -i | <span class="fn">grep</span> -i <span class="st">'curl\|wget\|scp\|nc'</span>
+
+<span class="cm"># Step 6: generate a full audit report for the incident window</span>
+<span class="fn">aureport</span> --start 04/09/2026 02:00:00 --end 04/09/2026 03:00:00 &gt; /tmp/incident-report.txt</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — LINUX AUDIT CIS BENCHMARK RULES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">CIS Benchmark: <span class="accent">Required Audit Rules</span></div>
+        <div class="slide-subtitle">The CIS Benchmark for Linux defines a minimum audit rule set. These rules map to specific threats and compliance requirements.</div>
+
+        <div class="code-block"><span class="cm"># CIS Section 4: Logging and Auditing
+# Selected high-value rules from CIS Ubuntu 22.04 L2</span>
+
+<span class="cm">## 4.1.3 Ensure events that modify date/time information are collected</span>
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
+-a always,exit -F arch=b64 -S clock_settime -k time-change
+-w /etc/localtime -p wa -k time-change
+
+<span class="cm">## 4.1.5 Ensure events that modify the system network environment are collected</span>
+-a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale
+-w /etc/hosts      -p wa -k system-locale
+-w /etc/sysconfig/network -p wa -k system-locale
+
+<span class="cm">## 4.1.9 Ensure discretionary access control permission modification events collected</span>
+-a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -k perm_mod
+-a always,exit -F arch=b64 -S chown -S fchown -S lchown  -k perm_mod
+-a always,exit -F arch=b64 -S setxattr -S removexattr    -k perm_mod
+
+<span class="cm">## 4.1.17 Ensure kernel module loading and unloading is collected</span>
+-w /sbin/insmod   -p x -k modules
+-w /sbin/modprobe -p x -k modules
+-a always,exit -F arch=b64 -S init_module -S delete_module -k modules</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — AIDE CUSTOM RULES ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">AIDE Tuning: <span class="accent">Reducing False Positives</span></div>
+        <div class="slide-subtitle">An AIDE config that generates 200 daily alerts will be ignored. Tune it to produce only signal.</div>
+
+        <div class="code-block"><span class="cm"># The art of AIDE configuration: exclude what legitimately changes,
+# monitor everything else</span>
+
+<span class="cm"># Paths that change constantly -- exclude from hash checks</span>
+!/var/cache/apt
+!/var/lib/apt
+!/var/lib/dpkg
+!/var/lib/postgresql
+!/home/.*/.bash_history
+!/tmp
+!/var/tmp
+!/run
+!/proc
+!/sys
+!/dev
+
+<span class="cm"># Paths that change on package updates -- monitor permissions only</span>
+/usr/share/doc       p+u+g
+/usr/share/man       p+u+g
+
+<span class="cm"># Lock down: monitor everything in /etc except known-dynamic paths</span>
+/etc                 FIPSR
+!/etc/mtab
+!/etc/adjtime
+!/etc/resolv.conf    <span class="cm"># if managed by NetworkManager (changes on DHCP)</span>
+!/etc/network/interfaces.d  <span class="cm"># if using cloud-init</span>
+
+<span class="cm"># AIDE log itself -- prevent self-reference loops</span>
+!/var/log/aide</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — SUID AND SGID FILE AUDITING ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">SUID/SGID Auditing: <span class="accent">Privilege Escalation Surface</span></div>
+        <div class="slide-subtitle">SUID binaries execute as root regardless of who runs them. Every unauthorized SUID file is a privilege escalation risk.</div>
+
+        <div class="code-block"><span class="cm"># Find all SUID files on the system</span>
+<span class="fn">find</span> / -perm /4000 -type f -print <span class="nb">2&gt;</span>/dev/null | <span class="fn">sort</span>
+
+<span class="cm"># Find all SGID files</span>
+<span class="fn">find</span> / -perm /2000 -type f -print <span class="nb">2&gt;</span>/dev/null | <span class="fn">sort</span>
+
+<span class="cm"># Baseline: capture known SUID/SGID files on a clean system</span>
+<span class="fn">find</span> / -perm /6000 -type f -print0 <span class="nb">2&gt;</span>/dev/null \
+    | <span class="fn">sort</span> -z | <span class="fn">xargs</span> -0 sha256sum \
+    <span class="kw">&gt;</span> /var/lib/integrity/suid-baseline.sha256
+
+<span class="cm"># Daily check: any new SUID files not in the baseline?</span>
+<span class="fn">find</span> / -perm /6000 -type f -print <span class="nb">2&gt;</span>/dev/null | <span class="fn">sort</span> \
+    <span class="kw">&gt;</span> /tmp/suid-current.txt
+
+<span class="fn">diff</span> <span class="kw">&lt;(</span><span class="fn">awk</span> <span class="st">'{print $2}'</span> /var/lib/integrity/suid-baseline.sha256 | sort<span class="kw">)</span> \
+     /tmp/suid-current.txt | <span class="fn">grep</span> <span class="st">'^&gt;'</span>
+<span class="cm"># Any line starting with '&gt;' is a NEW SUID file not in the baseline</span>
+
+<span class="cm"># Remove SUID bit from files that should not have it</span>
+<span class="fn">chmod</span> u-s /usr/bin/some-binary</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — ROOTKIT DETECTION ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Rootkit Detection: <span class="accent">chkrootkit and rkhunter</span></div>
+        <div class="slide-subtitle">Dedicated rootkit scanners check for known rootkit signatures and common tampering indicators.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">chkrootkit</div>
+                <div class="card-desc">Checks for known rootkit signatures in installed binaries. Looks for common backdoor patterns: suspicious strings in <span class="ic">ls</span>, <span class="ic">ps</span>, <span class="ic">netstat</span>, <span class="ic">login</span>. Fast, simple, effective as a first indicator scan. Run from trusted media when rootkit is suspected.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">rkhunter (Rootkit Hunter)</div>
+                <div class="card-desc">More comprehensive. Checks file hashes of system binaries against known-good values, checks for hidden files in unusual locations, checks network interfaces in promiscuous mode, looks for suspicious strings in binaries. Weekly scheduled scan is standard practice.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install</span>
+<span class="fn">apt</span> install chkrootkit rkhunter
+
+<span class="cm"># chkrootkit: run a full scan</span>
+<span class="fn">chkrootkit</span>
+<span class="fn">chkrootkit</span> -q    <span class="cm"># quiet: show only suspect findings</span>
+
+<span class="cm"># rkhunter: update signature database and scan</span>
+<span class="fn">rkhunter</span> --update
+<span class="fn">rkhunter</span> --check --sk          <span class="cm"># --sk = skip keypress</span>
+<span class="fn">rkhunter</span> --check --sk --report-warnings-only
+
+<span class="cm"># Schedule rkhunter weekly (cron or systemd timer)</span>
+<span class="cm"># 0 3 * * 0  root  rkhunter --check --sk --report-warnings-only \</span>
+<span class="cm">#                    | mail -s "[rkhunter] $(hostname)" sec@sector.local</span>
+
+<span class="cm"># Whitelist known false positives in /etc/rkhunter.conf</span>
+<span class="cm"># SCRIPTWHITELIST=/usr/sbin/adduser</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — FILE OWNERSHIP AND WORLD-WRITABLE FILES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Ownership Audits: <span class="accent">World-Writable and Orphaned Files</span></div>
+        <div class="slide-subtitle">World-writable files are attack vectors. Orphaned files (no owner) are indicators of cleanup failure or tampering.</div>
+
+        <div class="code-block"><span class="cm"># Find world-writable files (excluding /proc, /sys, /dev)</span>
+<span class="fn">find</span> / -xdev -type f -perm -o+w -print <span class="nb">2&gt;</span>/dev/null \
+    | <span class="fn">grep</span> -v -E <span class="st">'^(/proc|/sys|/dev|/tmp|/var/tmp)'</span>
+
+<span class="cm"># Find world-writable directories (more dangerous than files)</span>
+<span class="fn">find</span> / -xdev -type d -perm -o+w -print <span class="nb">2&gt;</span>/dev/null \
+    | <span class="fn">grep</span> -v -E <span class="st">'^(/proc|/sys|/dev|/tmp|/var/tmp)'</span>
+
+<span class="cm"># Find files with no owner (uid not in /etc/passwd)</span>
+<span class="fn">find</span> / -xdev -nouser -print <span class="nb">2&gt;</span>/dev/null
+
+<span class="cm"># Find files with no group (gid not in /etc/group)</span>
+<span class="fn">find</span> / -xdev -nogroup -print <span class="nb">2&gt;</span>/dev/null
+
+<span class="cm"># Build a daily report of all three categories</span>
+<span class="kw">for</span> check <span class="kw">in</span> <span class="st">"world-writable"</span> <span class="st">"no-owner"</span> <span class="st">"no-group"</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"=== $check ==="</span>
+    <span class="kw">case</span> <span class="st">$check</span> <span class="kw">in</span>
+        world-writable) <span class="fn">find</span> / -xdev -perm -o+w -not -type l <span class="nb">2&gt;</span>/dev/null ;;
+        no-owner)       <span class="fn">find</span> / -xdev -nouser <span class="nb">2&gt;</span>/dev/null ;;
+        no-group)       <span class="fn">find</span> / -xdev -nogroup <span class="nb">2&gt;</span>/dev/null ;;
+    <span class="kw">esac</span>
+<span class="kw">done</span> <span class="kw">&gt;</span> /var/log/integrity/ownership-check-<span class="st">"$(date +%F)"</span>.log</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — INTEGRATING FIM WITH SIEM ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">FIM Integration: <span class="accent">Forwarding to SIEM</span></div>
+        <div class="slide-subtitle">File integrity events are most valuable when centralized -- a single SIEM view across the entire fleet.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">auditd to SIEM via audisp</div>
+                <div class="card-desc">The audisp (audit dispatcher) plugin forwards audit events in real time. Configure <span class="ic">audisp-remote</span> to stream events to a centralized log server. Events arrive before an attacker can delete local logs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AIDE reports via rsyslog</div>
+                <div class="card-desc">After each AIDE check, pipe the report to <span class="ic">logger</span> with a structured tag. rsyslog can then forward it to the SIEM. Use key=value format so the SIEM can parse and alert on specific fields like changed file count.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Wazuh / OSSEC</div>
+                <div class="card-desc">Wazuh is an open-source SIEM agent that includes built-in FIM, rootkit detection, log analysis, and vulnerability scanning. It ships with pre-built decoders for AIDE and auditd output. A strong choice for organizations building a unified security monitoring platform.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Forward AIDE results to syslog for SIEM pickup</span>
+<span class="fn">aide</span> --check <span class="nb">2&gt;&amp;1</span> | <span class="fn">logger</span> -t aide -p local0.warning</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — CHANGE MANAGEMENT AND FIM ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Change Management: <span class="accent">Expected vs Unexpected Changes</span></div>
+        <div class="slide-subtitle">FIM generates events on every change -- authorized or not. Integrating with change management distinguishes the two.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# pre-change.sh -- run before an authorized maintenance window
+# Records current state and creates a maintenance window marker</span>
+
+WINDOW_FILE=<span class="st">"/var/run/maintenance-$(date +%F-%H%M).window"</span>
+touch <span class="st">"$WINDOW_FILE"</span>
+<span class="fn">echo</span> <span class="st">"Maintenance window opened: $WINDOW_FILE"</span>
+<span class="fn">logger</span> -t change-mgmt <span class="st">"Maintenance window opened: ticket ${CHANGE_TICKET:-UNSET}"</span>
+
+<span class="cm"># Temporarily disable AIDE alerting during window (record, don't alert)</span>
+<span class="fn">systemctl</span> stop aide-check.timer     <span class="cm"># pause scheduled AIDE checks</span></div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# post-change.sh -- run after authorized change to update baseline</span>
+
+<span class="cm"># Update AIDE database to reflect authorized changes</span>
+<span class="fn">chattr</span> -i /var/lib/aide/aide.db
+<span class="fn">aide</span> --update
+<span class="fn">mv</span> /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+<span class="fn">chattr</span> +i /var/lib/aide/aide.db
+
+<span class="cm"># Re-enable scheduled checks</span>
+<span class="fn">systemctl</span> start aide-check.timer
+
+<span class="fn">logger</span> -t change-mgmt <span class="st">"Maintenance window closed, baseline updated"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — AUDITD PERFORMANCE TUNING ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">auditd Performance: <span class="accent">Tuning for High-Volume Systems</span></div>
+        <div class="slide-subtitle">Too many audit rules on a busy system can cause performance degradation. Tune intelligently.</div>
+
+        <div class="code-block"><span class="cm"># Check if audit events are being dropped</span>
+<span class="fn">auditctl</span> -s | <span class="fn">grep</span> <span class="st">'lost\|backlog'</span>
+<span class="cm"># If 'lost' is non-zero, increase buffer size</span>
+
+<span class="cm"># Increase buffer size: default 8192, increase for busy systems</span>
+<span class="cm"># In /etc/audit/rules.d/sector-security.rules:</span>
+-b 32768
+
+<span class="cm"># Exclude noisy events: filter by UID (ignore system daemon noise)</span>
+-a never,exit -F auid=4294967295  <span class="cm"># exclude events with no auid (kernel, daemons)</span>
+-a never,exit -F auid=0           <span class="cm"># CAREFUL: excluding root hides attacks</span>
+
+<span class="cm"># Exclude specific paths that generate noise</span>
+-a never,watch -F path=/var/lib/ceph     <span class="cm"># high-I/O storage daemon</span>
+-a never,watch -F path=/var/lib/docker
+
+<span class="cm"># Monitor auditd load in real time</span>
+<span class="fn">watch</span> -n1 <span class="st">"auditctl -s | grep -E 'backlog|lost|enabled|pid'"</span>
+
+<span class="cm"># View audit log write rate</span>
+<span class="fn">watch</span> -n1 <span class="st">"ls -lh /var/log/audit/audit.log"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — COMPLIANCE EVIDENCE GENERATION ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Compliance Evidence: <span class="accent">Generating Audit Reports</span></div>
+        <div class="slide-subtitle">Auditors need evidence that FIM and auditing are running, configured correctly, and reviewed. Automate the evidence package.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# compliance-evidence.sh -- generate monthly FIM and audit evidence package</span>
+<span class="fn">set</span> -euo pipefail
+
+MONTH=<span class="st">"$(date +%Y-%m)"</span>
+OUTDIR=<span class="st">"/var/lib/compliance/evidence-${MONTH}"</span>
+<span class="fn">mkdir</span> -p <span class="st">"$OUTDIR"</span>
+
+<span class="cm"># 1. auditd configuration snapshot</span>
+<span class="fn">auditctl</span> -l <span class="kw">&gt;</span> <span class="st">"${OUTDIR}/audit-rules.txt"</span>
+<span class="fn">cp</span> /etc/audit/auditd.conf <span class="st">"${OUTDIR}/"</span>
+
+<span class="cm"># 2. AIDE configuration snapshot</span>
+<span class="fn">cp</span> /etc/aide/aide.conf <span class="st">"${OUTDIR}/"</span>
+
+<span class="cm"># 3. Authentication report</span>
+<span class="fn">aureport</span> --auth --start <span class="st">"${MONTH}-01"</span> \
+    <span class="kw">&gt;</span> <span class="st">"${OUTDIR}/auth-events-${MONTH}.txt"</span>
+
+<span class="cm"># 4. AIDE check results this month</span>
+<span class="fn">find</span> /var/log/aide -name <span class="st">"check-${MONTH}-*.log"</span> \
+    -exec <span class="fn">cp</span> {} <span class="st">"$OUTDIR"</span> \;
+
+<span class="cm"># 5. Summary package</span>
+<span class="fn">sha256sum</span> <span class="st">"${OUTDIR}"</span>/* <span class="kw">&gt;</span> <span class="st">"${OUTDIR}/MANIFEST.sha256"</span>
+<span class="fn">tar</span> -czf <span class="st">"/var/lib/compliance/evidence-${MONTH}.tar.gz"</span> <span class="st">"$OUTDIR"</span>
+<span class="fn">echo</span> <span class="st">"Evidence package: /var/lib/compliance/evidence-${MONTH}.tar.gz"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICAL SCENARIO ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Applied Scenario</div>
+        <div class="slide-title">Applied: <span class="accent">Post-Compromise Investigation</span></div>
+        <div class="slide-subtitle">A full investigation workflow using the tools from this lecture, given a suspected compromise.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Run <code>aide --check</code> immediately. List every changed, added, and removed file. Save the full output -- this is your forensic baseline.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">For each changed file, run <code>ausearch -f /path/to/file -i</code> to identify who wrote it, when, and what process made the change.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Find all SUID files: <code>find / -perm /4000 -type f</code>. Compare against your baseline. Any new SUID file is a critical finding.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Check for new cron jobs: <code>ausearch -k cron -i --start 7 days ago</code>. Attackers frequently install persistence via cron.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Run <code>dpkg --verify</code> across all packages. Modified system binaries will show with hash failures in non-config-file paths.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Run <code>aureport --auth --failed --start 30 days ago</code> to identify the initial access pattern that preceded the compromise.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-07 Summary</div>
+        <div class="slide-title">File Integrity: <span class="accent">What You Now Know</span></div>
+
+        <div class="scenario-strip">
+            A sector node where every file change is recorded, every audit event is captured at the kernel level, every critical file is hashed and monitored, and every deviation generates an alert -- that is a defended node. This is the foundation of operational security at the systems level.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Use SHA-256 for integrity. MD5 is broken -- collisions are engineered. SHA-256 has no known practical attacks.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">AIDE detects WHAT changed. auditd tells you WHO changed it, WHEN, and HOW. Both are required for a complete FIM implementation.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">The AIDE database must be protected: <code>chattr +i aide.db</code>. If the attacker can update the database, FIM provides no protection.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Audit rules use <code>-k</code> keys for labeling. Use <code>ausearch -k keyname</code> to pull all related events instantly during an investigation.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><code>-e 2</code> in audit rules locks the audit configuration until reboot. Prevents an attacker from silencing auditing after compromise.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Forward audit logs off-node in real time. Local logs can be deleted. Remote logs cannot be retroactively modified by the attacker.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Check for new SUID files daily. A new <code>/tmp/.bash</code> with SUID root is the most common post-compromise persistence mechanism.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><code>dpkg --verify</code> detects tampering of system binaries using the package manager's own checksums. Run it during any incident investigation.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">An unreviewed FIM alert is the same as no FIM at all. The system is only as effective as the human review process attached to its output.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w4-integrity', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

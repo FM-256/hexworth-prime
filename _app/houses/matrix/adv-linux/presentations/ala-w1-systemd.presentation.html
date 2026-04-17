@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Authority — systemd Deep Dive | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Service Authority -- systemd Deep Dive | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-02 &nbsp;|&nbsp; Week 1 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Service Authority<br>
+                <span class="accent">systemd Deep Dive</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Unit Types &nbsp;&bull;&nbsp; Unit File Anatomy &nbsp;&bull;&nbsp; Dependencies &nbsp;&bull;&nbsp; systemctl &nbsp;&bull;&nbsp; journalctl
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Sector command requires three services to come online in the correct order -- the database before the API, the API before the gateway. One misconfigured dependency and the gateway starts against a cold database. This module is how you specify that order and guarantee it.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-02</span>
+            <span>Week 1 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS SYSTEMD ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">What Is <span class="accent">systemd?</span></div>
+        <div class="slide-subtitle">PID 1. The first process the kernel starts. Everything else depends on it.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">PID 1 and the Init System</div>
+                <div class="card-desc">When the Linux kernel finishes loading, it executes exactly one process: init. Since Ubuntu 15.04, that process is systemd. It is responsible for starting all other processes, managing their lifecycles, and shutting the system down cleanly. Kill PID 1 and the system halts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Replaced</div>
+                <div class="card-desc">systemd replaced SysV init (the legacy System V init scripts). SysV used shell scripts in <span class="ic">/etc/init.d/</span> executed sequentially. systemd uses declarative unit files and parallel activation. Boot time dropped from minutes to seconds on modern systems.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What systemd Controls</div>
+                <div class="card-desc">Services (daemons), sockets, timers, mount points, swap devices, system targets (runlevels), device nodes, and more. It is not just an init system -- it is a system and service manager. <span class="ic">journalctl</span>, <span class="ic">hostnamectl</span>, <span class="ic">timedatectl</span>, <span class="ic">localectl</span> are all part of the ecosystem.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Exam Note</div>
+            On CompTIA Linux+, RHCSA, and LPIC-1 exams, systemd unit file syntax, systemctl commands, and journalctl filtering are heavily tested. Everything in this module appears on certification exams.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — UNIT TYPES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Unit Types: <span class="accent">What systemd Manages</span></div>
+        <div class="slide-subtitle">Every resource systemd manages is a unit. Each type has its own file extension and behavior.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">.service</div>
+                <div class="card-desc">A daemon or one-shot process. The most common unit type. Defines how to start, stop, and restart a service process. Examples: <span class="ic">nginx.service</span>, <span class="ic">ssh.service</span>, <span class="ic">postgresql.service</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.socket</div>
+                <div class="card-desc">A socket activation unit. systemd listens on a socket (TCP port, Unix socket, FIFO) and only starts the associated service when a connection arrives. Saves resources -- the service does not run until it is needed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">.timer</div>
+                <div class="card-desc">A scheduled unit. Replaces cron for systemd-managed systems. Activates another unit on a schedule. Supports monotonic timers (after boot, after last run) and calendar timers (specific dates/times). Has better logging than cron.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">.target</div>
+                <div class="card-desc">A synchronization point. Groups related units. <span class="ic">multi-user.target</span> is the traditional equivalent of runlevel 3 (multi-user, network up, no GUI). <span class="ic">graphical.target</span> = runlevel 5. <span class="ic">network-online.target</span> means the network is fully up.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.mount</div>
+                <div class="card-desc">Manages filesystem mount points. Automatically generated from <span class="ic">/etc/fstab</span> entries. Can be manually written for complex mount configurations with proper dependency ordering. Mount unit names must match the mount path (slashes become dashes).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">.path</div>
+                <div class="card-desc">Activates a unit when a filesystem path changes (created, modified, deleted). Uses inotify. Useful for watch-and-process workflows -- e.g., start a processing service when a new file arrives in a directory.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — UNIT FILE LOCATIONS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Unit File <span class="accent">Locations</span></div>
+        <div class="slide-subtitle">Three directories. Precedence matters. Editing the wrong one is a common mistake.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label"><span class="ic">/lib/systemd/system/</span></div>
+                <div class="card-desc">Vendor-provided units. Installed by packages (apt, dpkg). Never edit files here directly -- package updates will overwrite your changes silently. On Ubuntu 22.04, <span class="ic">/lib/systemd/system/</span> is a symlink to <span class="ic">/usr/lib/systemd/system/</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label"><span class="ic">/etc/systemd/system/</span></div>
+                <div class="card-desc">Administrator-created and overriding units. Files here take precedence over <span class="ic">/lib/systemd/system/</span>. This is where you put custom service files and drop-in override files. Survives package updates. Always work here.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label"><span class="ic">/run/systemd/system/</span></div>
+                <div class="card-desc">Runtime units created dynamically. Not persistent across reboots. Created by systemd itself or by other programs at runtime. You rarely write files here manually -- these are managed programmatically.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># List all unit files and their states</span>
+<span class="fn">systemctl</span> list-unit-files
+
+<span class="cm"># Find where a specific unit's file lives</span>
+<span class="fn">systemctl</span> cat nginx.service          <span class="cm"># shows the file with its path in a header comment</span>
+
+<span class="cm"># Show the effective configuration (vendor + overrides merged)</span>
+<span class="fn">systemctl</span> show nginx.service
+
+<span class="cm"># Your custom unit files go here</span>
+<span class="fn">ls</span> -la /etc/systemd/system/</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — SERVICE UNIT ANATOMY ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Service Unit: <span class="accent">[Unit] Section</span></div>
+        <div class="slide-subtitle">Metadata and dependency declarations. Read before the service is started.</div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/system/sector-api.service
+# [Unit] section: describes the unit and declares dependencies</span>
+
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector API Application Server</span>
+Documentation=<span class="st">https://internal.docs/sector-api</span>
+
+<span class="cm"># After: this unit starts AFTER the listed units are active</span>
+After=<span class="st">network-online.target sector-db.service</span>
+
+<span class="cm"># Requires: hard dependency — if sector-db.service stops, this stops too</span>
+Requires=<span class="st">sector-db.service</span>
+
+<span class="cm"># Wants: soft dependency — try to start, but continue even if it fails</span>
+Wants=<span class="st">network-online.target</span>
+
+<span class="cm"># ConditionPathExists: only start if this file exists</span>
+ConditionPathExists=<span class="st">/opt/sector-api/sector-api.jar</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Description</div>
+                <div class="card-desc">A human-readable name shown in <span class="ic">systemctl status</span> output. Make it descriptive. This is the first thing an operator reads when troubleshooting an unknown service at 3 AM.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Documentation</div>
+                <div class="card-desc">A URI pointing to documentation. Supports <span class="ic">http://</span>, <span class="ic">https://</span>, <span class="ic">man:</span>, <span class="ic">file:</span> URIs. <span class="ic">systemctl help unit-name</span> opens the URI. Include it -- your future self will thank you.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — SERVICE SECTION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Service Unit: <span class="accent">[Service] Section</span></div>
+        <div class="slide-subtitle">How to start, stop, and supervise the process. The most complex section.</div>
+
+        <div class="code-block">[<span class="kw">Service</span>]
+<span class="cm"># Type: defines how systemd tracks when the service is "ready"</span>
+Type=<span class="st">simple</span>          <span class="cm"># default: process started = service ready</span>
+<span class="cm"># Type=forking      # old-style daemons that fork and exit parent</span>
+<span class="cm"># Type=notify       # service sends sd_notify() when ready</span>
+<span class="cm"># Type=oneshot      # short-lived task, not a daemon</span>
+
+<span class="cm"># Run as this user/group</span>
+User=<span class="st">sector-svc</span>
+Group=<span class="st">sector-svc</span>
+
+<span class="cm"># Working directory</span>
+WorkingDirectory=<span class="st">/opt/sector-api</span>
+
+<span class="cm"># Environment variables</span>
+EnvironmentFile=<span class="st">/etc/sector-api/env</span>
+Environment=<span class="st">"LOG_LEVEL=INFO"</span>
+
+<span class="cm"># The actual command to start the service</span>
+ExecStart=<span class="st">/usr/bin/java -jar /opt/sector-api/sector-api.jar</span>
+
+<span class="cm"># Optional: run before ExecStart for setup</span>
+ExecStartPre=<span class="st">/usr/bin/test -f /opt/sector-api/sector-api.jar</span>
+
+<span class="cm"># Restart policy</span>
+Restart=<span class="st">on-failure</span>
+RestartSec=<span class="st">5</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — SERVICE TYPE REFERENCE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Service <span class="accent">Type Values</span></div>
+        <div class="slide-subtitle">The wrong Type causes systemd to mistrack your service. Understand each one.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Type=simple</div>
+                <div class="card-desc">The default. systemd considers the service started as soon as ExecStart runs. The process does NOT fork. Use for modern daemons that stay in the foreground. Most Python, Java, and Node.js services use this type.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Type=forking</div>
+                <div class="card-desc">For traditional Unix daemons that fork a child and exit the parent. systemd waits for the parent to exit, then tracks the child. You must also set <span class="ic">PIDFile=</span> so systemd knows which PID to track after the fork. Legacy -- avoid in new code.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Type=notify</div>
+                <div class="card-desc">The service calls <span class="ic">sd_notify("READY=1")</span> when it is fully initialized. systemd waits for this notification before marking the service active. Use for services with non-trivial startup (loading config, connecting to DB). nginx, PostgreSQL, and systemd-networkd use this.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Type=oneshot</div>
+                <div class="card-desc">For short-lived tasks that run and exit (not daemons). systemd waits for ExecStart to exit before marking the unit active. Set <span class="ic">RemainAfterExit=yes</span> if you want the unit to show as "active" after the task completes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Type=dbus</div>
+                <div class="card-desc">Service is considered ready when it acquires a specific name on the D-Bus system bus. Specify <span class="ic">BusName=</span>. Used by desktop services and some system daemons. Rare in server environments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — INSTALL SECTION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Service Unit: <span class="accent">[Install] Section</span></div>
+        <div class="slide-subtitle">Controls what happens when you run systemctl enable. Not read at runtime.</div>
+
+        <div class="code-block">[<span class="kw">Install</span>]
+<span class="cm"># WantedBy: which target "wants" this unit when enabled
+# multi-user.target = start at boot in multi-user mode (no GUI)
+# graphical.target  = start when GUI is available</span>
+WantedBy=<span class="st">multi-user.target</span>
+
+<span class="cm"># RequiredBy: hard dependency from the target to this unit
+# If the target fails to start this unit, the target itself fails</span>
+<span class="cm"># RequiredBy=multi-user.target</span>
+
+<span class="cm"># Alias: alternative names for the unit</span>
+<span class="cm"># Alias=api.service</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What systemctl enable Does</div>
+                <div class="card-desc">Creates a symlink in <span class="ic">/etc/systemd/system/multi-user.target.wants/</span> pointing to your unit file. This symlink is what causes the service to start at boot. <span class="ic">systemctl disable</span> removes the symlink. Neither starts nor stops the service immediately.</span></div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">enable vs start</div>
+                <div class="card-desc"><span class="ic">enable</span> = set to auto-start at boot. <span class="ic">start</span> = start right now. Do both after writing a new service: <span class="ic">systemctl enable --now unit-name</span> enables AND starts in one command. This is the standard deployment pattern.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Deployment Pattern</div>
+            After writing a new unit file: <span class="ic">systemctl daemon-reload</span> (load the new file), then <span class="ic">systemctl enable --now sector-api.service</span> (enable at boot and start now). Two commands, correct order, every time.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — RESTART POLICIES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Restart Policies: <span class="accent">Service Resilience</span></div>
+        <div class="slide-subtitle">systemd can automatically recover from service failures. Configure it explicitly.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Restart=no</div>
+                <div class="card-desc">Default. systemd does not restart the service on any exit. If it crashes, it stays down until an operator manually starts it. Appropriate for one-shot tasks or services where unexpected restarts would cause harm.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Restart=on-failure</div>
+                <div class="card-desc">Restart only if the process exits with a non-zero code, is killed by a signal, times out, or hits a watchdog. Does NOT restart on clean exit (exit 0). The most common setting for production services -- handles crashes without restarting intentional shutdowns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Restart=always</div>
+                <div class="card-desc">Always restart, regardless of exit code. Even a clean exit triggers a restart. Use for services that are expected to run forever and where no exit is intentional from systemd's perspective. Combine with <span class="ic">StartLimitIntervalSec</span> to prevent restart storms.</div>
+            </div>
+        </div>
+
+        <div class="code-block">[<span class="kw">Service</span>]
+Restart=<span class="st">on-failure</span>
+RestartSec=<span class="st">5</span>                 <span class="cm"># wait 5 seconds before restarting</span>
+
+<span class="cm"># Prevent infinite restart storms: allow max 5 restarts in 60 seconds</span>
+StartLimitIntervalSec=<span class="st">60</span>
+StartLimitBurst=<span class="st">5</span>
+
+<span class="cm"># After hitting the burst limit, the unit enters "failed" state
+# Recovery: systemctl reset-failed unit-name && systemctl start unit-name</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — DEPENDENCY DIRECTIVES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Dependencies: <span class="accent">Requires, Wants, After, Before</span></div>
+        <div class="slide-subtitle">Four directives. Requires and Wants declare what must exist. After and Before declare order.</div>
+
+        <div class="scenario-strip">
+            These four directives answer two distinct questions: "What do I need?" (Requires/Wants) and "When do I start relative to them?" (After/Before). They are orthogonal -- declaring Requires does NOT imply After. You must specify both if you need both.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Requires=unit</div>
+                <div class="card-desc">Hard dependency. If the required unit cannot be started, this unit fails. If the required unit stops (for any reason) while this unit is running, this unit is also stopped. Use when the dependency is truly non-negotiable.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Wants=unit</div>
+                <div class="card-desc">Soft dependency. systemd will try to start the wanted unit alongside this one, but this unit is not affected if the wanted unit fails. Use for optional dependencies or services that enhance but are not required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">After=unit</div>
+                <div class="card-desc">Ordering only. This unit starts AFTER the listed unit is considered active. Does NOT imply Requires or Wants -- just controls sequence. If both units would start at boot, this one waits. If only this unit is started, After has no effect.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Before=unit</div>
+                <div class="card-desc">This unit must be active before the listed unit starts. The inverse of After. If unit A has <span class="ic">Before=B</span>, it is equivalent to B having <span class="ic">After=A</span>. Use in units that are consumed by others, rather than in consumers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — COMMON TARGETS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">System <span class="accent">Targets</span></div>
+        <div class="slide-subtitle">Targets are synchronization points. They replaced SysV runlevels.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">multi-user.target</div>
+                <div class="card-desc">The standard server target. Multi-user, non-graphical, network up. Equivalent to SysV runlevel 3. Most server services declare <span class="ic">WantedBy=multi-user.target</span> in their [Install] section. The default target on Ubuntu Server installs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">network-online.target</div>
+                <div class="card-desc">Reached when at least one network interface is configured and online. Critical distinction: <span class="ic">network.target</span> means network is UP but may not yet have an address. <span class="ic">network-online.target</span> means an address is assigned and routing works. Use the latter for services that need connectivity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">rescue.target / emergency.target</div>
+                <div class="card-desc"><span class="ic">rescue.target</span> = single-user mode, minimal services, root shell. <span class="ic">emergency.target</span> = most minimal state possible, read-only root. Used for system repair. Boot into them by adding <span class="ic">systemd.unit=rescue.target</span> to the kernel command line in GRUB.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># See the current default target (boots to)</span>
+<span class="fn">systemctl</span> get-default
+
+<span class="cm"># Change the default target</span>
+<span class="fn">systemctl</span> set-default multi-user.target
+
+<span class="cm"># Switch to a target immediately (without rebooting)</span>
+<span class="fn">systemctl</span> isolate rescue.target
+
+<span class="cm"># List all targets and their active state</span>
+<span class="fn">systemctl</span> list-units --type=target</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SYSTEMCTL REFERENCE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title"><span class="accent">systemctl</span> Command Reference</div>
+        <div class="slide-subtitle">The primary interface for managing units. Know every command in this slide.</div>
+
+        <div class="code-block"><span class="cm"># Service lifecycle</span>
+<span class="fn">systemctl</span> start   nginx.service      <span class="cm"># start the service now</span>
+<span class="fn">systemctl</span> stop    nginx.service      <span class="cm"># send SIGTERM, then SIGKILL after timeout</span>
+<span class="fn">systemctl</span> restart nginx.service      <span class="cm"># stop then start</span>
+<span class="fn">systemctl</span> reload  nginx.service      <span class="cm"># send SIGHUP — reload config, no downtime</span>
+<span class="fn">systemctl</span> reload-or-restart nginx    <span class="cm"># reload if supported, restart otherwise</span>
+
+<span class="cm"># Enable/disable (boot persistence)</span>
+<span class="fn">systemctl</span> enable  nginx.service      <span class="cm"># create symlink, starts at boot</span>
+<span class="fn">systemctl</span> disable nginx.service      <span class="cm"># remove symlink</span>
+<span class="fn">systemctl</span> enable --now nginx.service <span class="cm"># enable AND start immediately</span>
+<span class="fn">systemctl</span> mask    nginx.service      <span class="cm"># prevent start entirely (symlink to /dev/null)</span>
+<span class="fn">systemctl</span> unmask  nginx.service
+
+<span class="cm"># Status and inspection</span>
+<span class="fn">systemctl</span> status  nginx.service      <span class="cm"># human-readable status with recent logs</span>
+<span class="fn">systemctl</span> is-active  nginx.service   <span class="cm"># prints "active" or "inactive"</span>
+<span class="fn">systemctl</span> is-enabled nginx.service   <span class="cm"># prints "enabled" or "disabled"</span>
+<span class="fn">systemctl</span> is-failed  nginx.service   <span class="cm"># returns 0 if in failed state</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — DAEMON-RELOAD ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title"><span class="accent">daemon-reload</span> and Why It Matters</div>
+        <div class="slide-subtitle">After editing any unit file, you must tell systemd to re-read its configuration.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What daemon-reload Does</div>
+                <div class="card-desc">systemd caches unit file contents in memory. When you create or modify a unit file on disk, systemd does not see the changes until you run <span class="ic">systemctl daemon-reload</span>. This command re-reads all unit files. It does NOT restart any services.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Happens Without It</div>
+                <div class="card-desc">You edit a unit file, run <span class="ic">systemctl restart service</span>, and wonder why nothing changed. The service restarted using the old cached unit definition. This is the number one cause of "I edited the file but nothing changed" confusion in systemd.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Correct workflow for any unit file change:</span>
+
+<span class="cm"># 1. Edit or create the unit file</span>
+<span class="fn">nano</span> /etc/systemd/system/sector-api.service
+
+<span class="cm"># 2. Reload systemd's unit file cache</span>
+<span class="fn">systemctl</span> daemon-reload
+
+<span class="cm"># 3. Restart the service to apply changes</span>
+<span class="fn">systemctl</span> restart sector-api.service
+
+<span class="cm"># 4. Verify the new configuration is running</span>
+<span class="fn">systemctl</span> status sector-api.service</div>
+
+        <div class="box box-red">
+            <div class="box-label">Never Skip Step 2</div>
+            Always run <span class="ic">daemon-reload</span> after editing unit files. Make it muscle memory. The sequence is: edit, reload, restart, verify. Skipping daemon-reload wastes time and causes baffling debugging sessions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — DROP-IN OVERRIDES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Drop-In <span class="accent">Override Files</span></div>
+        <div class="slide-subtitle">Customize vendor units without touching the original file. Survives package upgrades.</div>
+
+        <div class="scenario-strip">
+            nginx is installed via apt. The vendor unit file in <span class="ic">/lib/systemd/system/</span> does not have your required environment variables or restart policy. You cannot edit the vendor file without losing changes on the next apt upgrade. Drop-in files solve this.
+        </div>
+
+        <div class="code-block"><span class="cm"># Method 1: systemctl edit (recommended -- creates the directory for you)</span>
+<span class="fn">systemctl</span> edit nginx.service
+<span class="cm"># Opens an editor. Save your overrides. Automatically runs daemon-reload.</span>
+<span class="cm"># Creates: /etc/systemd/system/nginx.service.d/override.conf</span>
+
+<span class="cm"># Method 2: manual creation</span>
+<span class="fn">mkdir</span> -p /etc/systemd/system/nginx.service.d/
+
+<span class="cm"># /etc/systemd/system/nginx.service.d/override.conf</span>
+[<span class="kw">Service</span>]
+Environment=<span class="st">"NGINX_ENV=production"</span>
+Restart=<span class="st">always</span>
+RestartSec=<span class="st">3</span>
+
+<span class="cm"># Reload and verify the override was applied</span>
+<span class="fn">systemctl</span> daemon-reload
+<span class="fn">systemctl</span> cat nginx.service    <span class="cm"># shows vendor file + override file concatenated</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Rule</div>
+            Drop-in files are merged with the original unit file. You only need to specify the directives you are changing -- everything else is inherited. A 3-line override file is cleaner and safer than copying and modifying a 50-line vendor file.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — SECURITY DIRECTIVES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Service Security: <span class="accent">Sandboxing Directives</span></div>
+        <div class="slide-subtitle">systemd provides namespace-based isolation without containers. Use it for every production service.</div>
+
+        <div class="code-block">[<span class="kw">Service</span>]
+<span class="cm"># Run as non-root user</span>
+User=<span class="st">sector-svc</span>
+Group=<span class="st">sector-svc</span>
+
+<span class="cm"># Read-only filesystem -- except specified directories</span>
+ProtectSystem=<span class="st">strict</span>              <span class="cm"># entire filesystem read-only</span>
+ReadWritePaths=<span class="st">/opt/sector/data</span>   <span class="cm"># exception: this path is writable</span>
+
+<span class="cm"># Hide sensitive paths from the service</span>
+InaccessiblePaths=<span class="st">/etc/shadow /etc/gshadow /root</span>
+
+<span class="cm"># Prevent the service from gaining new privileges</span>
+NoNewPrivileges=<span class="st">true</span>
+
+<span class="cm"># Limit which system calls the service can make (allowlist approach)</span>
+SystemCallFilter=<span class="st">@system-service</span>  <span class="cm"># common syscalls for services</span>
+
+<span class="cm"># Private /tmp: service gets its own isolated /tmp</span>
+PrivateTmp=<span class="st">true</span>
+
+<span class="cm"># Private network namespace (no network access)</span>
+<span class="cm"># PrivateNetwork=true  -- use only if service needs no networking</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Exam and Real-World Note</div>
+            <span class="ic">systemd-analyze security unit-name</span> gives your service a security score and specific recommendations. Run it on every service you write and address the high-severity items. This is production-quality hardening with zero additional software.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — JOURNALCTL INTRO ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title"><span class="accent">journalctl</span> — The systemd Journal</div>
+        <div class="slide-subtitle">Structured, indexed, queryable logs. Replaces scattered text files for systemd-managed services.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Why Journal Over Text Files</div>
+                <div class="card-desc">Traditional logs are plain text. Searching them with grep is slow on large files. The journal stores logs in a binary indexed format. Queries by time range, unit, priority, or PID are fast regardless of log volume. Timestamps are stored with nanosecond precision.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Journal Persistence</div>
+                <div class="card-desc">By default on Ubuntu 22.04, the journal persists to <span class="ic">/var/log/journal/</span> after creating the directory (or if it already exists). Without it, logs are kept in <span class="ic">/run/log/journal/</span> and lost on reboot. Check with <span class="ic">journalctl --disk-usage</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># View all journal entries (most recent last)</span>
+<span class="fn">journalctl</span>
+
+<span class="cm"># Follow new entries in real time (like tail -f)</span>
+<span class="fn">journalctl</span> -f
+
+<span class="cm"># View journal for a specific unit</span>
+<span class="fn">journalctl</span> -u nginx.service
+
+<span class="cm"># Follow a specific unit in real time</span>
+<span class="fn">journalctl</span> -fu nginx.service
+
+<span class="cm"># Show only the last 50 lines of a unit's log</span>
+<span class="fn">journalctl</span> -u nginx.service -n <span class="nb">50</span>
+
+<span class="cm"># Show disk usage of the journal</span>
+<span class="fn">journalctl</span> --disk-usage</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — JOURNALCTL FILTERING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">journalctl: <span class="accent">Advanced Filtering</span></div>
+        <div class="slide-subtitle">Time ranges, priority levels, and structured field queries.</div>
+
+        <div class="code-block"><span class="cm"># Filter by time range</span>
+<span class="fn">journalctl</span> --since <span class="st">"2026-04-09 08:00:00"</span>
+<span class="fn">journalctl</span> --since <span class="st">"1 hour ago"</span>
+<span class="fn">journalctl</span> --since <span class="st">"today"</span> --until <span class="st">"now"</span>
+<span class="fn">journalctl</span> -u nginx.service --since <span class="st">"2026-04-09"</span> --until <span class="st">"2026-04-09 23:59:59"</span>
+
+<span class="cm"># Filter by priority level (0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug)</span>
+<span class="fn">journalctl</span> -p err                    <span class="cm"># errors and above (0-3)</span>
+<span class="fn">journalctl</span> -p warning..err           <span class="cm"># range: warning to error</span>
+<span class="fn">journalctl</span> -p crit -u nginx.service  <span class="cm"># critical events from nginx</span>
+
+<span class="cm"># Filter by PID or executable path</span>
+<span class="fn">journalctl</span> _PID=<span class="nb">14823</span>
+<span class="fn">journalctl</span> _EXE=/usr/sbin/sshd
+
+<span class="cm"># JSON output for machine processing</span>
+<span class="fn">journalctl</span> -u nginx.service -o json-pretty <span class="kw">|</span> <span class="fn">head</span> -40
+
+<span class="cm"># Export for sharing or archival</span>
+<span class="fn">journalctl</span> -u nginx.service --since <span class="st">"today"</span> <span class="kw">&gt;</span> /tmp/nginx-today.log</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — JOURNALCTL BOOT LOGS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">journalctl: <span class="accent">Boot Logs and Boot Analysis</span></div>
+        <div class="slide-subtitle">Diagnose boot failures and track changes across reboots.</div>
+
+        <div class="code-block"><span class="cm"># List all recorded boot sessions</span>
+<span class="fn">journalctl</span> --list-boots
+
+<span class="cm"># View logs from the current boot</span>
+<span class="fn">journalctl</span> -b
+
+<span class="cm"># View logs from the previous boot (useful after a crash)</span>
+<span class="fn">journalctl</span> -b -<span class="nb">1</span>
+
+<span class="cm"># View logs from two boots ago</span>
+<span class="fn">journalctl</span> -b -<span class="nb">2</span>
+
+<span class="cm"># Errors and above from the previous boot</span>
+<span class="fn">journalctl</span> -b -<span class="nb">1</span> -p err
+
+<span class="cm"># systemd-analyze: boot time performance breakdown</span>
+<span class="fn">systemd-analyze</span>                        <span class="cm"># total boot time</span>
+<span class="fn">systemd-analyze</span> blame                  <span class="cm"># which units took longest</span>
+<span class="fn">systemd-analyze</span> critical-chain         <span class="cm"># the critical path that determined total boot time</span>
+
+<span class="cm"># Plot boot sequence to an SVG</span>
+<span class="fn">systemd-analyze</span> plot <span class="kw">&gt;</span> /tmp/boot-chart.svg</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — WRITING A CUSTOM SERVICE UNIT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Writing a Custom <span class="accent">Service Unit</span></div>
+        <div class="slide-subtitle">Full working example: a Node.js API server with security hardening.</div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/system/sector-api.service</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector API Service</span>
+Documentation=<span class="st">https://internal.docs/sector-api</span>
+After=<span class="st">network-online.target</span>
+Wants=<span class="st">network-online.target</span>
+
+[<span class="kw">Service</span>]
+Type=<span class="st">simple</span>
+User=<span class="st">sector-svc</span>
+Group=<span class="st">sector-svc</span>
+WorkingDirectory=<span class="st">/opt/sector-api</span>
+EnvironmentFile=<span class="st">-/etc/sector-api/env</span>      <span class="cm"># leading - means: ignore if missing</span>
+ExecStartPre=<span class="st">/usr/bin/node --check /opt/sector-api/server.js</span>
+ExecStart=<span class="st">/usr/bin/node /opt/sector-api/server.js</span>
+Restart=<span class="st">on-failure</span>
+RestartSec=<span class="st">5</span>
+StandardOutput=<span class="st">journal</span>
+StandardError=<span class="st">journal</span>
+SyslogIdentifier=<span class="st">sector-api</span>
+NoNewPrivileges=<span class="st">true</span>
+PrivateTmp=<span class="st">true</span>
+ProtectSystem=<span class="st">strict</span>
+ReadWritePaths=<span class="st">/opt/sector-api/data /var/log/sector-api</span>
+StartLimitIntervalSec=<span class="st">60</span>
+StartLimitBurst=<span class="st">5</span>
+
+[<span class="kw">Install</span>]
+WantedBy=<span class="st">multi-user.target</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — TIMER UNITS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Timer Units: <span class="accent">Replacing Cron</span></div>
+        <div class="slide-subtitle">Scheduled tasks with full systemd logging, dependencies, and failure detection.</div>
+
+        <div class="scenario-strip">
+            A cron job that fails silently is a compliance nightmare. systemd timers write every execution to the journal, support systemd dependencies, and can be inspected with <span class="ic">systemctl status</span>. Migrate critical cron jobs to timers.
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/system/sector-backup.service (the task to run)</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector Database Backup</span>
+After=<span class="st">sector-db.service</span>
+
+[<span class="kw">Service</span>]
+Type=<span class="st">oneshot</span>
+User=<span class="st">backup-svc</span>
+ExecStart=<span class="st">/opt/sector/scripts/backup.sh</span>
+
+<span class="cm">---</span>
+<span class="cm"># /etc/systemd/system/sector-backup.timer (the schedule)</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Run Sector Backup Nightly</span>
+
+[<span class="kw">Timer</span>]
+OnCalendar=<span class="st">*-*-* 02:30:00</span>         <span class="cm"># every day at 02:30</span>
+AccuracySec=<span class="st">1m</span>                      <span class="cm"># allow 1 min drift for system load</span>
+Persistent=<span class="st">true</span>                     <span class="cm"># run missed execution on next boot</span>
+
+[<span class="kw">Install</span>]
+WantedBy=<span class="st">timers.target</span>
+
+<span class="cm">---</span>
+<span class="cm"># Enable and start the timer (not the service -- the timer fires the service)</span>
+<span class="fn">systemctl</span> enable --now sector-backup.timer
+<span class="fn">systemctl</span> list-timers                   <span class="cm"># see all timers and next fire time</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — TIMER CALENDAR SYNTAX ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Timer: <span class="accent">Calendar Syntax Reference</span></div>
+        <div class="slide-subtitle">OnCalendar expressions. More expressive than cron and verifiable with systemd-analyze.</div>
+
+        <div class="code-block"><span class="cm"># systemd calendar event format: DOW YYYY-MM-DD HH:MM:SS
+# * = any value  , = list  .. = range  / = step</span>
+
+OnCalendar=<span class="st">daily</span>                     <span class="cm"># 00:00:00 every day (shorthand)</span>
+OnCalendar=<span class="st">hourly</span>                    <span class="cm"># top of every hour</span>
+OnCalendar=<span class="st">weekly</span>                    <span class="cm"># Monday 00:00:00</span>
+OnCalendar=<span class="st">monthly</span>                   <span class="cm"># first of each month at 00:00:00</span>
+
+OnCalendar=<span class="st">*-*-* 02:30:00</span>           <span class="cm"># every day at 02:30</span>
+OnCalendar=<span class="st">Mon *-*-* 06:00:00</span>       <span class="cm"># every Monday at 06:00</span>
+OnCalendar=<span class="st">Mon..Fri *-*-* 09:00:00</span>  <span class="cm"># weekdays at 09:00</span>
+OnCalendar=<span class="st">*-*-1 00:00:00</span>           <span class="cm"># first of every month</span>
+OnCalendar=<span class="st">*-*-* *:00/15:00</span>         <span class="cm"># every 15 minutes</span>
+
+<span class="cm"># Verify a calendar expression before deploying</span>
+<span class="fn">systemd-analyze</span> calendar <span class="st">"Mon..Fri *-*-* 09:00:00"</span>
+<span class="cm"># Output shows the next 10 scheduled fire times</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Tip</div>
+            Always run <span class="ic">systemd-analyze calendar "your-expression"</span> before deploying a timer. It shows the next scheduled execution times, so you can verify you wrote the expression correctly before it misses a production backup window.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — SOCKET ACTIVATION ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Socket Activation: <span class="accent">On-Demand Services</span></div>
+        <div class="slide-subtitle">systemd listens on a socket. The service only starts when a connection arrives.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">The Problem It Solves</div>
+                <div class="card-desc">Some services are needed infrequently. Running them continuously wastes RAM. With socket activation, systemd holds the socket open. When a client connects, systemd starts the service and hands it the accepted connection. Zero client delay -- from the client's perspective the service was always listening.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SSH Uses This</div>
+                <div class="card-desc"><span class="ic">ssh.socket</span> listens on port 22. <span class="ic">sshd.service</span> activates when a connection arrives. On low-traffic servers this saves the sshd process running constantly for connections that happen twice a day. Check with <span class="ic">systemctl status ssh.socket</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/system/sector-worker.socket</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector Worker Socket</span>
+
+[<span class="kw">Socket</span>]
+ListenStream=<span class="st">127.0.0.1:9000</span>    <span class="cm"># TCP socket on port 9000</span>
+Accept=<span class="st">false</span>                     <span class="cm"># pass connected socket to service (not fork)</span>
+
+[<span class="kw">Install</span>]
+WantedBy=<span class="st">sockets.target</span>
+
+<span class="cm">---</span>
+<span class="cm"># /etc/systemd/system/sector-worker.service</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector Worker (Socket Activated)</span>
+
+[<span class="kw">Service</span>]
+ExecStart=<span class="st">/opt/sector/worker</span>
+StandardInput=<span class="st">socket</span>             <span class="cm"># read from the socket handed by systemd</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — DEPENDENCIES IN PRACTICE ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Dependency Chains: <span class="accent">Multi-Service Startup</span></div>
+        <div class="slide-subtitle">Design a correct startup sequence for a three-tier application stack.</div>
+
+        <div class="scenario-strip">
+            Three services: PostgreSQL database, a REST API, and an nginx reverse proxy. PostgreSQL must be active before the API. The API must be active before nginx serves traffic. If the database dies, the API must stop. If the API dies, nginx must stop.
+        </div>
+
+        <div class="code-block"><span class="cm"># sector-db.service (PostgreSQL wrapper)</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector Database (PostgreSQL)</span>
+After=<span class="st">network-online.target</span>
+
+<span class="cm">---</span>
+<span class="cm"># sector-api.service</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector API</span>
+Requires=<span class="st">sector-db.service</span>           <span class="cm"># hard: if db stops, api stops</span>
+After=<span class="st">sector-db.service</span>              <span class="cm"># ordering: start after db is active</span>
+
+<span class="cm">---</span>
+<span class="cm"># sector-proxy.service (nginx)</span>
+[<span class="kw">Unit</span>]
+Description=<span class="st">Sector Proxy (nginx)</span>
+Requires=<span class="st">sector-api.service</span>           <span class="cm"># hard: if api stops, proxy stops</span>
+After=<span class="st">sector-api.service</span>             <span class="cm"># ordering: start after api is active</span>
+
+<span class="cm">---</span>
+<span class="cm"># Visualize the dependency graph</span>
+<span class="fn">systemd-analyze</span> dot sector-proxy.service <span class="kw">|</span> <span class="fn">dot</span> -Tsvg <span class="kw">&gt;</span> /tmp/deps.svg</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — SYSTEMD-ANALYZE ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title"><span class="accent">systemd-analyze</span> — Diagnostics Toolkit</div>
+        <div class="slide-subtitle">Analyze boot performance, unit dependencies, and security posture.</div>
+
+        <div class="code-block"><span class="cm"># Overall boot time breakdown</span>
+<span class="fn">systemd-analyze</span>
+<span class="cm"># Startup finished in 1.923s (kernel) + 4.516s (userspace) = 6.439s graphical.target</span>
+
+<span class="cm"># Which units slowed boot the most?</span>
+<span class="fn">systemd-analyze</span> blame
+<span class="cm"># 3.201s apt-daily-upgrade.service</span>
+<span class="cm"># 1.893s snapd.service</span>
+
+<span class="cm"># Show the dependency chain that determined total boot time</span>
+<span class="fn">systemd-analyze</span> critical-chain
+
+<span class="cm"># Security score for a unit (0 = worst, 10 = best)</span>
+<span class="fn">systemd-analyze</span> security nginx.service
+<span class="cm"># UNSAFE 2.1 (most vendor units are poorly sandboxed by default)</span>
+
+<span class="cm"># Validate a unit file for syntax errors</span>
+<span class="fn">systemd-analyze</span> verify /etc/systemd/system/sector-api.service
+
+<span class="cm"># Generate full dependency graph (requires graphviz)</span>
+<span class="fn">systemd-analyze</span> dot --require <span class="kw">|</span> <span class="fn">dot</span> -Tsvg <span class="kw">&gt;</span> /tmp/full-deps.svg</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — UNIT STATUS STATES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Unit States: <span class="accent">Reading systemctl status</span></div>
+        <div class="slide-subtitle">Understand every field in the status output before you can diagnose failures.</div>
+
+        <div class="code-block"><span class="cm"># systemctl status nginx.service output anatomy</span>
+<span class="st">* nginx.service - A high performance web server</span>
+<span class="st">     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)</span>
+<span class="cm">#              ^path                                ^boot-state  ^whether enabled by default</span>
+<span class="st">     Active: active (running) since Wed 2026-04-09 08:00:01 UTC; 2h 17min ago</span>
+<span class="cm">#             ^load-state  ^sub-state  ^timestamp</span>
+<span class="st">       Docs: man:nginx(8)</span>
+<span class="st">   Main PID: 1847 (nginx)</span>
+<span class="st">      Tasks: 5 (limit: 9446)</span>
+<span class="st">     Memory: 6.8M</span>
+<span class="st">        CPU: 345ms</span>
+<span class="st">     CGroup: /system.slice/nginx.service</span>
+<span class="st">             |- 1847 "nginx: master process /usr/sbin/nginx"</span>
+<span class="st">             |- 1848 "nginx: worker process"</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Active States</div>
+                <div class="card-desc"><span class="ic">active (running)</span> = one or more processes active. <span class="ic">active (exited)</span> = oneshot completed successfully. <span class="ic">active (waiting)</span> = waiting for an event (path, timer, socket).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Inactive States</div>
+                <div class="card-desc"><span class="ic">inactive (dead)</span> = not running, no failure. <span class="ic">failed</span> = exited with error or killed by signal. <span class="ic">activating</span> = starting up. <span class="ic">deactivating</span> = shutting down. <span class="ic">reloading</span> = config reload in progress.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Load States</div>
+                <div class="card-desc"><span class="ic">loaded</span> = file read successfully. <span class="ic">not-found</span> = unit file does not exist. <span class="ic">masked</span> = unit is symlinked to /dev/null -- cannot be started. <span class="ic">bad-setting</span> = unit file has a syntax error.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — CGROUPS AND RESOURCE LIMITS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">cgroups: <span class="accent">Resource Limits for Services</span></div>
+        <div class="slide-subtitle">Prevent a runaway service from consuming all CPU, RAM, or I/O on the system.</div>
+
+        <div class="code-block">[<span class="kw">Service</span>]
+<span class="cm"># CPU: limit to 50% of one CPU core</span>
+CPUQuota=<span class="st">50%</span>
+
+<span class="cm"># Memory: hard limit -- kernel OOM-kills at this threshold</span>
+MemoryMax=<span class="st">512M</span>
+
+<span class="cm"># Memory: soft limit -- kernel applies memory pressure above this</span>
+MemoryHigh=<span class="st">400M</span>
+
+<span class="cm"># I/O weight (relative to other services, 100 = default)</span>
+IOWeight=<span class="st">50</span>
+
+<span class="cm"># Limit the number of tasks (threads + processes)</span>
+TasksMax=<span class="st">64</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Inspect Live cgroup Usage</div>
+                <div class="card-desc"><span class="ic">systemctl status unit-name</span> shows Memory and CPU in its output. <span class="ic">systemd-cgtop</span> shows real-time resource usage by cgroup -- like htop but organized by service. <span class="ic">cat /sys/fs/cgroup/system.slice/nginx.service/memory.current</span> shows raw bytes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters</div>
+                <div class="card-desc">Without resource limits, a memory leak in one service can trigger the OOM killer system-wide, taking down unrelated services. CPUQuota prevents one service from monopolizing cores during a spike. These directives are mandatory for multi-tenant servers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — TRANSIENT UNITS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Transient Units: <span class="accent">systemd-run</span></div>
+        <div class="slide-subtitle">Run a command as a systemd service without writing a unit file. Useful for testing and one-off jobs.</div>
+
+        <div class="code-block"><span class="cm"># Run a command as a transient service unit</span>
+<span class="fn">systemd-run</span> --unit=scan-job /opt/scripts/network-scan.sh
+
+<span class="cm"># Check its status and logs like any unit</span>
+<span class="fn">systemctl</span> status scan-job.service
+<span class="fn">journalctl</span> -u scan-job.service
+
+<span class="cm"># Run with resource limits (test your limits before writing unit files)</span>
+<span class="fn">systemd-run</span> --unit=limited-job --property=MemoryMax=100M <span class="fn">python3</span> /opt/process-data.py
+
+<span class="cm"># Run as a different user</span>
+<span class="fn">systemd-run</span> --uid=www-data --gid=www-data /usr/bin/php /opt/task.php
+
+<span class="cm"># Run with a specific environment variable</span>
+<span class="fn">systemd-run</span> -E SECTOR_ENV=staging /opt/sector/deploy.sh
+
+<span class="cm"># Interactive shell in a transient scope (useful for debugging cgroup isolation)</span>
+<span class="fn">systemd-run</span> --user --pty -p MemoryMax=512M /bin/bash</div>
+
+        <div class="box box-green">
+            <div class="box-label">Use Case</div>
+            Use <span class="ic">systemd-run</span> to test a command under the same cgroup constraints you plan to use in a unit file. Validate that MemoryMax values are appropriate before writing the production unit. Faster than writing, deploying, testing, and rolling back a unit file.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — DEBUGGING FAILED SERVICES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Debugging <span class="accent">Failed Services</span></div>
+        <div class="slide-subtitle">A systematic approach. Follow this sequence before escalating or googling.</div>
+
+        <div class="scenario-strip">
+            <span class="ic">systemctl start sector-api</span> returns immediately. <span class="ic">systemctl status</span> shows "failed." You need to find the root cause in under 3 minutes. This is the sequence.
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: Read the status output (includes last 10 log lines)</span>
+<span class="fn">systemctl</span> status sector-api.service
+
+<span class="cm"># Step 2: Read the full journal for this unit, this boot</span>
+<span class="fn">journalctl</span> -u sector-api.service -b --no-pager
+
+<span class="cm"># Step 3: If it failed to start, check ExecStart path and permissions</span>
+<span class="fn">systemctl</span> cat sector-api.service    <span class="cm"># see the unit file</span>
+<span class="fn">ls</span> -la /opt/sector-api/server.js    <span class="cm"># does the file exist?</span>
+<span class="fn">stat</span> /opt/sector-api/server.js       <span class="cm"># what user:group owns it?</span>
+
+<span class="cm"># Step 4: Check if the unit file has a syntax error</span>
+<span class="fn">systemd-analyze</span> verify sector-api.service
+
+<span class="cm"># Step 5: Reset failure state and try again with verbose output</span>
+<span class="fn">systemctl</span> reset-failed sector-api.service
+SYSTEMD_LOG_LEVEL=debug <span class="fn">systemctl</span> start sector-api.service
+<span class="fn">journalctl</span> -u sector-api.service -n 50 -b</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — ENVIRONMENT FILES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Environment Files: <span class="accent">Secrets and Config</span></div>
+        <div class="slide-subtitle">Keep credentials out of unit files and version control. Load them at service start.</div>
+
+        <div class="code-block"><span class="cm"># /etc/sector-api/env  (mode 600, owned by sector-svc)</span>
+DB_PASSWORD=<span class="st">s3cr3t-db-key</span>
+API_SECRET=<span class="st">a1b2c3d4e5f6</span>
+LOG_LEVEL=<span class="st">INFO</span>
+LISTEN_PORT=<span class="st">8080</span>
+
+<span class="cm">---</span>
+<span class="cm"># Reference the env file in the unit (leading - means OK if missing)</span>
+[<span class="kw">Service</span>]
+EnvironmentFile=<span class="st">-/etc/sector-api/env</span>
+
+<span class="cm"># The environment variables are then available to the process</span>
+ExecStart=<span class="st">/usr/bin/node /opt/sector-api/server.js</span>
+
+<span class="cm">---</span>
+<span class="cm"># Verify the environment variables are loaded correctly</span>
+<span class="fn">systemctl</span> show sector-api.service -p Environment
+
+<span class="cm"># Lock down the env file -- only sector-svc and root can read it</span>
+<span class="fn">chown</span> root:sector-svc /etc/sector-api/env
+<span class="fn">chmod</span> <span class="nb">640</span> /etc/sector-api/env</div>
+
+        <div class="box box-red">
+            <div class="box-label">Never Do This</div>
+            Never hardcode credentials in the unit file itself. Unit files are world-readable by default (<span class="ic">-rw-r--r--</span>). Any user on the system can run <span class="ic">systemctl cat sector-api.service</span> and read them. Use EnvironmentFile with locked-down permissions instead.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — WATCHDOG ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Watchdog: <span class="accent">Liveness Monitoring</span></div>
+        <div class="slide-subtitle">systemd can restart services that stop responding, even if they do not crash.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What the Watchdog Does</div>
+                <div class="card-desc">With <span class="ic">WatchdogSec=</span> set, systemd expects the service to send <span class="ic">sd_notify("WATCHDOG=1")</span> at least once per watchdog interval. If the service goes silent (deadlock, infinite loop, hung thread), systemd kills and restarts it after the interval expires.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Service Requirements</div>
+                <div class="card-desc">The service must be instrumented to call <span class="ic">sd_notify("WATCHDOG=1")</span> periodically. Read the interval from <span class="ic">WATCHDOG_USEC</span> environment variable and notify at half the interval. Most modern service frameworks support this natively.</div>
+            </div>
+        </div>
+
+        <div class="code-block">[<span class="kw">Service</span>]
+Type=<span class="st">notify</span>                       <span class="cm"># required for watchdog</span>
+WatchdogSec=<span class="st">30</span>                      <span class="cm"># restart if silent for 30 seconds</span>
+Restart=<span class="st">on-failure</span>
+
+<span class="cm">---</span>
+<span class="cm"># In the service process (Python example using systemd bindings)</span>
+<span class="cm"># from systemd.daemon import notify, WATCHDOG_USEC</span>
+<span class="cm"># import time, os</span>
+<span class="cm"># interval = int(os.environ.get('WATCHDOG_USEC', 30000000)) / 2000000</span>
+<span class="cm"># while True:</span>
+<span class="cm">#     do_work()</span>
+<span class="cm">#     notify('WATCHDOG=1')   # tell systemd "I'm alive"</span>
+<span class="cm">#     time.sleep(interval)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — LISTING AND INSPECTING UNITS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Inspecting the System: <span class="accent">List Commands</span></div>
+        <div class="slide-subtitle">Find services, understand what is running, and audit the system state.</div>
+
+        <div class="code-block"><span class="cm"># List all active units</span>
+<span class="fn">systemctl</span> list-units
+
+<span class="cm"># List only service units</span>
+<span class="fn">systemctl</span> list-units --type=service
+
+<span class="cm"># List only failed units</span>
+<span class="fn">systemctl</span> list-units --state=failed
+
+<span class="cm"># List all unit files and their enablement state</span>
+<span class="fn">systemctl</span> list-unit-files --type=service
+
+<span class="cm"># List all timers with next activation time</span>
+<span class="fn">systemctl</span> list-timers --all
+
+<span class="cm"># List dependencies of a unit (what it depends on)</span>
+<span class="fn">systemctl</span> list-dependencies nginx.service
+
+<span class="cm"># List reverse dependencies (what depends on this unit)</span>
+<span class="fn">systemctl</span> list-dependencies --reverse nginx.service
+
+<span class="cm"># Show all properties of a unit</span>
+<span class="fn">systemctl</span> show nginx.service
+
+<span class="cm"># Check whether a specific property is set</span>
+<span class="fn">systemctl</span> show nginx.service -p Restart -p RestartSec</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — JOURNAL MANAGEMENT ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Journal <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Control journal size, rotation, and retention. Prevent unbounded disk growth.</div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/journald.conf -- key settings</span>
+
+<span class="cm"># Maximum journal size on disk</span>
+SystemMaxUse=<span class="st">500M</span>
+
+<span class="cm"># Maximum size of a single journal file</span>
+SystemMaxFileSize=<span class="st">50M</span>
+
+<span class="cm"># Keep journals for this many days</span>
+MaxRetentionSec=<span class="st">30day</span>
+
+<span class="cm"># Compress journal files</span>
+Compress=<span class="st">yes</span>
+
+<span class="cm">---</span>
+<span class="cm"># Apply changes after editing journald.conf</span>
+<span class="fn">systemctl</span> restart systemd-journald
+
+<span class="cm"># Manually vacuum old journal files</span>
+<span class="fn">journalctl</span> --vacuum-size=200M       <span class="cm"># keep only last 200 MB of journals</span>
+<span class="fn">journalctl</span> --vacuum-time=7d         <span class="cm"># delete journals older than 7 days</span>
+<span class="fn">journalctl</span> --vacuum-files=5         <span class="cm"># keep only last 5 archive journal files</span>
+
+<span class="cm"># Check current disk usage</span>
+<span class="fn">journalctl</span> --disk-usage</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these before the lab ends. Use your Ubuntu 22.04 VM.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Write a complete service unit for a Python script of your choice. Include all three sections ([Unit], [Service], [Install]), a non-root User, PrivateTmp=true, and Restart=on-failure. Deploy it with daemon-reload and verify it starts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Create a drop-in override for <code>ssh.service</code> that adds <code>Restart=always</code> and <code>RestartSec=3</code>. Verify with <code>systemctl cat ssh.service</code> that the override is merged correctly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a timer + service pair that runs a one-line script every 5 minutes. Verify with <code>systemctl list-timers</code> that it fires correctly. Check the journal to confirm execution.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Use <code>journalctl</code> to find all errors from the current boot for all units. Then narrow it to just the <code>ssh</code> service for the past 24 hours. Export the result to a file.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Run <code>systemd-analyze security nginx.service</code> and identify the top 3 security improvements recommended. Implement at least one using a drop-in override. Re-run the analysis and verify the score improved.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — WHAT'S NEXT ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">What's <span class="accent">Next</span></div>
+        <div class="slide-subtitle">systemd runs your services. Week 2 digs into what those services connect to.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">ALA-03: Network Configuration</div>
+                <div class="card-desc">Netplan YAML, ip link and ip addr, NetworkManager vs systemd-networkd, bonding modes, VLAN configuration. network-online.target will make sense in new ways after this module.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ALA-04: Grid Diagnostics</div>
+                <div class="card-desc">ss, ip route, dig, tcpdump, nmap. When services start but clients cannot reach them, you need these tools. The ss output maps directly to the socket units you just learned to configure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Week 2: Storage and Security</div>
+                <div class="card-desc">LVM volume management, LUKS encryption, filesystem tuning. The ProtectSystem and ReadWritePaths directives you wrote today will interact with everything you learn about storage in Week 2.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Integration Point</div>
+            Every service you administer -- nginx, PostgreSQL, custom applications -- is now a unit you can manage, constrain, monitor, and schedule with the tools from this module. systemd is not a complexity tax. It is the control plane for the entire system.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-02</div>
+        <div class="slide-title">ALA-02 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You can now design, deploy, harden, and troubleshoot systemd services. You understand the difference between Requires and Wants, why After and Requires are orthogonal, and why daemon-reload is never optional. These are not basics -- this is how professional Linux administrators operate.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">systemd is PID 1. Unit files live in <code>/lib/systemd/system/</code> (vendor) and <code>/etc/systemd/system/</code> (admin). Always work in <code>/etc/</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Three sections: <code>[Unit]</code> (metadata + dependencies), <code>[Service]</code> (process config), <code>[Install]</code> (boot integration). All three are required for a complete unit.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>Requires</code> = hard dependency (stop together). <code>Wants</code> = soft dependency. <code>After</code> = ordering only. You must specify both Requires and After to get both behavior and order.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">After editing any unit file: <code>daemon-reload</code> then <code>restart</code>. Never skip daemon-reload. It costs 0.1 seconds and saves hours of confusion.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Use drop-in overrides (<code>systemctl edit</code>) to modify vendor units. Never edit files in <code>/lib/systemd/system/</code> directly -- package updates will overwrite them.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><code>journalctl -u unit -b -p err</code> is your first debugging tool. <code>systemd-analyze verify</code> catches syntax errors before deployment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Timers replace cron. They log to the journal, support dependencies, and can be inspected with <code>systemctl list-timers</code>. Migrate critical cron jobs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text"><code>PrivateTmp</code>, <code>ProtectSystem</code>, <code>NoNewPrivileges</code>, and <code>User=</code> are the minimum security baseline for every new service unit. Run <code>systemd-analyze security</code> to verify.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w1-systemd', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

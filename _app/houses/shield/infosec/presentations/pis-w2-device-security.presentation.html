@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Security | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue  { border-left-color: #3b82f6; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Device Security | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-07 &nbsp;|&nbsp; Week 2 of 8 &nbsp;|&nbsp; SY0-701: 3.1, 3.3</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Device<br>
+                <span class="accent">Security</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                MDM &nbsp;&bull;&nbsp; BYOD &nbsp;&bull;&nbsp; IoT &nbsp;&bull;&nbsp; SCADA/ICS &nbsp;&bull;&nbsp; Embedded Systems &nbsp;&bull;&nbsp; Containerization &nbsp;&bull;&nbsp; Secure Boot
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Asset Inventory Anomaly. The facility network monitoring system has detected 47 unregistered devices on the research wing subnet. Six are environmental sensors with default credentials. Fourteen are personal mobile phones. The remaining twenty-seven are unidentified embedded controllers communicating with external IP addresses. Unmanaged devices are unprotected devices. The attack surface is whatever connects to your network.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-07</span>
+            <span>Week 2 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- DEVICE SECURITY LANDSCAPE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The Device Security <span class="accent">Landscape</span></div>
+        <div class="slide-subtitle">Modern enterprises manage a heterogeneous mix of device types, each with distinct capabilities, constraints, and threat profiles.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Managed Corporate Devices</div>
+                <div class="card-desc">Laptops, desktops, and servers owned and managed by the organization. Subject to full security controls: EDR, FDE, patch management, configuration baselines. The organization controls the hardware, OS, and software stack. Highest security assurance level -- risk is understood and controlled.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Mobile and Personal Devices</div>
+                <div class="card-desc">Smartphones and tablets, both corporate-issued and personal (BYOD). Different OS security models (iOS sandboxing vs. Android sideloading). Limited administrative access by design. MDM can manage corporate data and applications without full device control. Loss and theft are primary concerns. Mixing personal and corporate data creates compliance exposure.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IoT and Embedded Devices</div>
+                <div class="card-desc">Sensors, cameras, HVAC controllers, building automation, industrial controllers. Often run minimal or custom embedded OSes. Rarely support endpoint agents. Infrequently patched. Frequently shipped with default credentials. Cannot easily be removed from network because they serve operational functions. The fastest-growing and least-controlled segment of the enterprise attack surface.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The Security Assumption Gap</div>
+            Traditional security was designed for managed Windows and Linux systems where an agent can be deployed and policies can be enforced. IoT, OT, and BYOD devices do not fit this model. Security programs that assume full agent coverage are blind to the majority of devices on modern enterprise networks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- MDM OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Mobile Device Management <span class="accent">(MDM)</span></div>
+        <div class="slide-subtitle">MDM platforms provide centralized management, policy enforcement, and remote control for mobile devices in the enterprise.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Core MDM Capabilities</div>
+                <div class="card-desc">Device enrollment and inventory. Remote configuration and policy push. Application management (deploy, update, remove). Remote lock and remote wipe. Certificate deployment for Wi-Fi and VPN authentication. Compliance enforcement (require PIN, require encryption, block jailbroken devices). Reporting and audit trail for compliance documentation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">UEM -- Unified Endpoint Management</div>
+                <div class="card-desc">Extended MDM that manages all endpoint types from a single platform: mobile, laptop, desktop, IoT, and rugged devices. Vendors: Microsoft Intune, VMware Workspace ONE, Jamf. UEM eliminates separate management consoles for different device types and provides a unified compliance posture view. Required for Zero Trust device health assessment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MAM -- Mobile Application Management</div>
+                <div class="card-desc">Manages only specific applications and their data on a device, without full device control. Useful in BYOD scenarios where the employee retains control of the device but the organization controls its data within managed apps. Corporate email and documents remain in a managed container; personal apps are untouched. Reduces employee privacy concerns.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">MDM Enrollment Methods</div>
+                <div class="card-desc">Zero-touch enrollment (Apple DEP, Android Zero-Touch): device enrolls automatically on first boot -- purchased devices receive corporate profile before the employee ever touches them. User-initiated enrollment: employee installs MDM profile manually. BYOD programs use user-initiated enrollment with acceptance of monitoring terms. Auto-enrollment via Azure AD join.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- MDM POLICIES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">MDM <span class="accent">Policies and Controls</span></div>
+        <div class="slide-subtitle">MDM enforces a security baseline on every managed device. Devices not meeting the baseline can be quarantined or denied access.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Device Compliance Policies</div>
+                <div class="card-desc">Minimum OS version (block devices running EOL OS versions). PIN/biometric lock required. Screen lock timeout. Full-disk encryption required. Jailbreak/root detection -- block access from compromised devices. Minimum patch level. Conditional access integration: non-compliant devices cannot access corporate resources until they remediate.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Remote Wipe</div>
+                <div class="card-desc">Selectively remove corporate data (managed wipe) or factory reset the entire device (full wipe). Managed wipe is appropriate for BYOD -- removes corporate apps and data while preserving personal content. Full wipe is used for lost or stolen corporate-owned devices. Requires device to be online to receive the wipe command -- offline device protection requires pre-enrollment encryption.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Certificate-Based Authentication</div>
+                <div class="card-desc">MDM deploys per-device certificates from the organization's PKI. Corporate Wi-Fi (WPA2-Enterprise with EAP-TLS) and VPN authenticate the device certificate rather than a password. Certificate authentication proves both user identity and device identity. A compromised password alone cannot connect to corporate resources without the matching device certificate.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Geofencing and Geolocation</div>
+            MDM policies can trigger actions based on device location. Disabling the camera automatically when the device enters a secure facility (geofenced). Blocking access to corporate resources when the device is detected in a prohibited country. Geolocation data can also be used forensically to understand where a device was when an incident occurred -- requires employee consent and privacy policy disclosure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- BYOD POLICY ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">BYOD <span class="accent">Policy and Risk</span></div>
+        <div class="slide-subtitle">Bring Your Own Device programs expand the attack surface by introducing uncontrolled hardware into the corporate environment.</div>
+
+        <div class="scenario-strip">
+            Researcher R-31 connects their personal Android phone to the facility Wi-Fi to access the internal portal. The phone is running an unpatched OS version. It has a stalkerware application installed by a family member. The phone connects to the facility's flat research VLAN. The stalkerware begins exfiltrating whatever it can reach on the network. BYOD without MDM enrollment and network segmentation is an open door.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">BYOD Risks</div>
+                <div class="card-desc">Unpatched devices introduce known vulnerabilities. Malware on personal devices accesses corporate data in shared apps. Data exfiltration through personal cloud sync (photos, documents sync to personal storage automatically). Device sharing (family member access). Physical theft of device with no corporate ability to enforce remote wipe. Limited forensic capability during incident response.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BYOD Policy Options</div>
+                <div class="card-desc">Full MDM enrollment (high control, high employee pushback on privacy). MAM only (manage apps, not device). Corporate-Only (COPE: Corporate Owned, Personally Enabled -- organization owns the hardware, employee can use personally). CYOD (Choose Your Own Device -- employee selects from approved list, organization owns). No BYOD (supply corporate devices, prohibit personal device access).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Network Segmentation for BYOD</div>
+                <div class="card-desc">Personal devices should never be on the same network segment as corporate servers and sensitive resources. A dedicated BYOD VLAN with internet access only (no path to internal systems) allows employees to work from personal devices without exposing the corporate network. MDM-enrolled devices can access a separate compliant-device VLAN with more internal access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Acceptable Use Policy</div>
+                <div class="card-desc">Documents what employees may and may not do with corporate data on personal devices. Required before MDM enrollment -- employees consent to monitoring and remote wipe capability on their device. Specifies prohibited applications, data handling requirements, reporting obligations for lost or stolen devices. Legal counsel reviews to ensure local labor law compliance regarding device monitoring.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- IOT SECURITY OVERVIEW ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">IoT Security <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Internet of Things devices are purpose-built for function, not security. They represent the fastest-growing and least-defended segment of enterprise infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Default Credentials</div>
+                <div class="card-desc">IoT devices ship with default usernames and passwords (admin/admin, admin/password, root/1234). Manufacturers document these defaults publicly for setup convenience. Attackers use default credential databases to compromise devices en masse. Mirai botnet was built entirely from IoT devices with unchanged default credentials. Change defaults before deployment -- this is not optional.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Infrequent Patching</div>
+                <div class="card-desc">IoT firmware updates are rarely automatic. Many vendors provide limited support windows and stop releasing patches years before devices are decommissioned. Devices may require scheduled downtime for firmware updates, which operational teams resist. Result: IoT devices accumulate unpatched CVEs over their lifetime. Vulnerability scanning must include IoT devices -- most organizations do not scan them.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">No Agent Support</div>
+                <div class="card-desc">Embedded Linux on a camera or thermostat does not support EDR agents, vulnerability scanners, or log forwarding in the traditional sense. Security must be applied externally: network segmentation to limit blast radius, firewall rules to restrict communications, passive network monitoring to detect anomalous behavior. Perimeter security is the primary control for agentless devices.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Mirai as a Case Study</div>
+            Mirai (2016) infected 600,000 IoT devices using only 62 default credential combinations. It generated 1.1 Tbps of DDoS traffic -- the largest recorded at that time. The infected devices were IP cameras, DVRs, and home routers. The lesson: IoT devices connected to the internet with default credentials are weaponized within minutes of exposure. Default credential scanning is fully automated.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- IOT ARCHITECTURE RISKS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">IoT Architecture <span class="accent">Risks</span></div>
+        <div class="slide-subtitle">IoT ecosystems involve devices, gateways, cloud backends, and mobile apps -- each is an attack surface.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Insecure Update Mechanisms</div>
+                <div class="card-desc">Firmware updates over unencrypted channels allow MITM replacement of update packages with malicious firmware. Updates not signed by the vendor cannot be verified as authentic. An attacker who can intercept the update process can push malicious firmware to every device receiving an update. Signed firmware with verified boot is the required architecture.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Insecure Cloud Backend</div>
+                <div class="card-desc">IoT devices communicate with vendor cloud services for remote management. If the cloud backend is compromised, the attacker gains control of every device connected to it. Cloud APIs with weak authentication (API keys in device firmware, no rate limiting) expose the entire device fleet. Security researchers routinely find IoT cloud APIs with authentication bypass vulnerabilities.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Physical Tampering</div>
+                <div class="card-desc">Devices installed in physically accessible locations can be tampered with. Debug interfaces (JTAG, UART, SPI) on device PCBs allow firmware extraction and direct shell access. Devices without physical tamper protection expose their entire firmware to anyone with physical access and a $20 hardware debugger. Secure enclosures, tamper-evident seals, and fuse-disabled debug ports are required for sensitive deployments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Protocol Weaknesses</div>
+                <div class="card-desc">IoT uses specialized protocols: MQTT (Message Queuing Telemetry Transport) for device telemetry, CoAP (Constrained Application Protocol) for low-power devices, Zigbee and Z-Wave for mesh networks, BLE (Bluetooth Low Energy) for proximity devices. Many deployments use these protocols without TLS or authentication. Network monitoring must cover these protocols, not just HTTP/HTTPS.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- IOT SECURITY CONTROLS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">IoT Security <span class="accent">Controls</span></div>
+        <div class="slide-subtitle">Since IoT devices cannot be internally hardened, security must be applied through network architecture and external controls.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Network Segmentation</div>
+                <div class="card-desc">Place all IoT devices on isolated VLANs with no path to corporate networks, sensitive data, or management infrastructure. IoT VLAN allows only the specific outbound connections each device requires (e.g., temperature sensor: UDP to collector on port 514 only). Default deny all other traffic. A compromised camera cannot reach Active Directory if it is on an isolated VLAN.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Device Inventory and Discovery</div>
+                <div class="card-desc">You cannot protect what you do not know exists. Passive network discovery tools (Forescout, Armis, Claroty) fingerprint device types from traffic patterns without requiring agents. Active scanning identifies open ports and running services. 802.1X network access control prevents unknown devices from connecting at all. Asset inventory must be continuous, not annual.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Firmware Management</div>
+                <div class="card-desc">Subscribe to vendor security bulletins for all deployed IoT device models. Establish a firmware patching SLA. Maintain an inventory of device models and current firmware versions for rapid response when CVEs are published. For devices that cannot be patched (EOL hardware), compensating controls: network isolation, additional monitoring, planned replacement timeline.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">NIST SP 800-213 IoT Guidance</div>
+            NIST SP 800-213 provides a framework for integrating IoT devices into federal and enterprise risk management programs. Key recommendations: identify device capabilities and limitations before purchase, establish device management lifecycle processes, implement network architecture controls to compensate for device-level limitations. Apply this framework before any IoT deployment, not after discovery of a breach.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- SCADA AND ICS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">SCADA and <span class="accent">Industrial Control Systems</span></div>
+        <div class="slide-subtitle">ICS and SCADA control physical processes -- power grids, water treatment, manufacturing, pipelines. Security failures here have physical-world consequences.</div>
+
+        <div class="scenario-strip">
+            The facility's containment environmental controls -- temperature, pressure, and gas composition -- are managed by a SCADA system originally installed in 2008. The system runs Windows XP Embedded with no updates applied since 2014. It is connected to the same flat network as researcher workstations for "convenience." A ransomware infection on a workstation propagates to the SCADA system. Containment protocols are now under attacker control.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">SCADA vs. ICS vs. DCS</div>
+                <div class="card-desc">ICS (Industrial Control System): umbrella term for all systems controlling industrial processes. SCADA (Supervisory Control and Data Acquisition): monitoring and control of geographically dispersed systems (pipelines, electrical grid). DCS (Distributed Control System): localized continuous process control (chemical plant, refinery). PLC (Programmable Logic Controller): the embedded controller that executes the actual physical process commands.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why ICS Security Is Different</div>
+                <div class="card-desc">Availability is the primary requirement -- a momentary patch reboot could cause physical damage, production loss, or safety hazards. Systems run for decades without replacement. Patching requires maintenance windows coordinated with production schedules. Many ICS protocols (Modbus, DNP3, Profibus) have no authentication or encryption. "Security through obscurity" (proprietary protocols) was the original design assumption.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">IT/OT Convergence Risks</div>
+                <div class="card-desc">Legacy OT networks were air-gapped by default. The push for remote monitoring, efficiency analytics, and integration with enterprise systems has connected OT networks to IT networks. Each connection is a potential lateral movement path. Stuxnet reached its target through infected USB drives introduced to the air-gapped network. The connection does not have to be intentional to be real.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ICS ATTACK HISTORY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">ICS Attack <span class="accent">History</span></div>
+        <div class="slide-subtitle">ICS attacks are not theoretical. Each example below caused real physical or operational damage at national scale.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Stuxnet (2010)</div>
+                <div class="card-desc">The first known cyberweapon designed to cause physical damage. Targeted Siemens S7-315 PLCs controlling centrifuges at Iran's Natanz uranium enrichment facility. Caused centrifuges to spin at destructive speeds while reporting normal operation to operators. Delivered via USB drives to an air-gapped network. Destroyed approximately 1,000 centrifuges. The template for nation-state ICS attacks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ukraine Power Grid (2015, 2016)</div>
+                <div class="card-desc">Sandworm (Russian GRU) compromised Ukrainian power distribution companies via spearphishing, persisted for months, used SCADA access to open circuit breakers remotely, and simultaneously launched KillDisk wiper malware on operator workstations. 2015: 230,000 customers lost power. 2016: INDUSTROYER malware spoke native ICS protocols (IEC 101, 104, 61850). First known malware designed specifically for power grid disruption.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Oldsmar Water Treatment (2021)</div>
+                <div class="card-desc">Attacker accessed a Florida water treatment facility's controls remotely via TeamViewer (a remote access tool with a shared password). Increased sodium hydroxide concentration from 111 ppm to 11,100 ppm -- 100x the safe level. An alert operator noticed the cursor moving and reversed the change within seconds. Consequence: catastrophic poisoning of the municipal water supply was minutes away. Default credentials plus remote access plus no monitoring.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ICS SECURITY CONTROLS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">ICS Security <span class="accent">Controls</span></div>
+        <div class="slide-subtitle">ICS security requires a different control set from traditional IT -- availability cannot be sacrificed, so controls must be non-disruptive.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Network Segmentation (Purdue Model)</div>
+                <div class="card-desc">The Purdue Enterprise Reference Architecture defines five levels: Level 0 (field devices/PLCs), Level 1 (basic control), Level 2 (supervisory/SCADA), Level 3 (operations), DMZ, Level 4 (enterprise IT). Each level boundary is enforced by firewalls. No direct connection between Level 0-2 and Level 4+. The DMZ hosts data historians and engineering workstations accessible from both sides without direct interconnection.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Unidirectional Security Gateways</div>
+                <div class="card-desc">Hardware-enforced one-way data flow. Data can flow from the OT network to the IT network (sensor readings, historian data) but the gateway physically prevents any signal from traveling the other direction. No software vulnerability can cause a unidirectional gateway to allow inbound traffic -- the hardware does not have a return path. Waterfall Security Solutions and Owl Cyber Defense are primary vendors.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Passive Monitoring</div>
+                <div class="card-desc">Active scanning of OT devices can cause them to crash or behave erratically -- unacceptable in production environments. Passive monitoring tools (Claroty, Dragos, Nozomi Networks) analyze network traffic copies without sending any probes to OT devices. They baseline normal communication patterns and alert on deviations: new devices appearing, unusual protocol commands, connections to unexpected endpoints.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Compensating Controls for Unpatched Systems</div>
+                <div class="card-desc">When OT systems cannot be patched (running end-of-life OS, patching requires extended downtime, no vendor support), compensating controls must reduce risk: strict network isolation (whitelist-only firewall rules), application allowlisting (only known good processes can execute), out-of-band management (separate network for administration), enhanced monitoring, and a documented exception with risk acceptance sign-off.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- EMBEDDED SYSTEMS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Embedded System <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Embedded systems have constrained resources that limit security capabilities. Security must be designed in from the start -- it cannot be added later.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Hardware Attack Surfaces</div>
+                <div class="card-desc">JTAG, UART, SPI, and I2C debug interfaces on embedded PCBs provide direct hardware access to running systems. Firmware can be extracted from flash storage using hardware programmers. Side-channel attacks (power analysis, electromagnetic analysis) can extract cryptographic keys from devices by observing physical emissions during cryptographic operations. Hardware security must be considered alongside software security.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Firmware Analysis</div>
+                <div class="card-desc">Extracted firmware can be analyzed for hardcoded credentials, private keys, known vulnerable libraries, and exposed debug functionality. Tools like binwalk extract file systems from firmware images. Strings analysis finds hardcoded credentials. OWASP's Firmware Security Testing Methodology provides a systematic approach. Many IoT vendors ship with hardcoded credentials that are identical across all units of a product line.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Real-Time Operating Systems (RTOS)</div>
+                <div class="card-desc">Embedded devices often run RTOS (FreeRTOS, VxWorks, ThreadX, RTEMS) instead of general-purpose OS. RTOS is designed for deterministic timing, not security. Memory protection may be absent or minimal. No privilege separation between tasks. CVEs in RTOS components (Ripple20, BadAlloc) affected hundreds of millions of embedded devices simultaneously because all devices running the affected stack were vulnerable.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Secure Hardware Design Principles</div>
+            Disable debug interfaces in production builds (fuse eFuse bits to disable JTAG). Encrypt firmware at rest and verify signature on boot. Implement hardware root of trust (TPM, secure element, ARM TrustZone). Minimize external attack surface (disable unused peripherals, close unused ports). Use hardware random number generators for cryptographic operations. Security requirements must appear in the PCB design specification, not as a post-production afterthought.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- SECURE BOOT ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title"><span class="accent">Secure Boot</span></div>
+        <div class="slide-subtitle">Secure Boot ensures that only software signed with trusted keys can execute during the boot process. The chain of trust starts in hardware.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">UEFI Secure Boot</div>
+                <div class="card-desc">The UEFI firmware contains a database of trusted signing keys (db) and a database of revoked keys (dbx). Before executing a bootloader or OS kernel, UEFI verifies the signature against the db. If the signature is invalid, is not present, or matches a revoked key in dbx, the firmware refuses to execute it. Prevents bootkits and rootkits from persisting in the boot process. Required by Microsoft for Windows 11 Certified devices.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Chain of Trust</div>
+                <div class="card-desc">Root of Trust (hardware, immutable) verifies the bootloader. Bootloader verifies the OS kernel. OS kernel verifies kernel modules and drivers. Each link in the chain verifies the next before passing control. A compromise of any link below is detectable at the next link up. The root of trust must be in hardware (ROM, TPM, secure element) because software roots of trust can be bypassed by pre-boot attacks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TPM -- Trusted Platform Module</div>
+                <div class="card-desc">A dedicated cryptographic chip that provides: secure key storage (private keys cannot be extracted even with OS root access), platform attestation (TPM records hash measurements of boot components -- any modification changes the measurements), and sealed storage (data decryptable only when the system is in a known good state). BitLocker uses TPM to bind disk encryption keys to the platform's boot state.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Measured Boot and Attestation</div>
+                <div class="card-desc">Each boot component hashes itself into the TPM's Platform Configuration Registers (PCRs) before execution. The chain of measurements is signed by the TPM's endorsement key. Remote attestation allows a verifier to receive the PCR values, verify they were signed by a genuine TPM, and confirm the device booted with expected software. Zero Trust implementations use attestation to verify device health before granting access.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- DISK ENCRYPTION ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Full Disk <span class="accent">Encryption (FDE)</span></div>
+        <div class="slide-subtitle">FDE protects data on stolen or seized devices. Without FDE, physical access to hardware equals access to all data.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">How FDE Works</div>
+                <div class="card-desc">The entire disk (or volume) is encrypted with a Data Encryption Key (DEK). The DEK is encrypted with a Key Encryption Key (KEK) derived from the user's PIN, password, or TPM measurement. At boot, the user provides their credential (or the TPM is unlocked) to decrypt the KEK, which decrypts the DEK, which mounts the volume. The OS sees plaintext; the physical media contains only ciphertext.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">BitLocker (Windows)</div>
+                <div class="card-desc">Microsoft's FDE solution. TPM mode: key is sealed to TPM PCR values -- the disk decrypts automatically if the system boots normally, preventing only cold-theft attacks. TPM+PIN: requires PIN entry at boot -- prevents attacks even when the attacker has the hardware and can present the same TPM. Recovery key stored in Active Directory or Azure AD. Managed via MDM or Group Policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FileVault (macOS) and LUKS (Linux)</div>
+                <div class="card-desc">FileVault 2: AES-XTS 128-bit or 256-bit. Recovery key escrowed to iCloud or MDM. Decryption key derived from login password. LUKS (Linux Unified Key Setup): standard for Linux FDE. Multiple key slots allow multiple passwords and recovery keys. LUKS2 with Argon2 key derivation function increases resistance to brute-force. Used by default in most major Linux distributions during installation when encryption is selected.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">FDE Limitations</div>
+            FDE protects against cold theft -- someone stealing the physical device when it is off. It does not protect against a running system with an authenticated OS session. Memory scraping attacks against a running system can extract the DEK from RAM. Cold boot attacks freeze RAM and read decryption keys before they dissipate. FDE is necessary but not sufficient -- pair with endpoint security on the running system.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- ENDPOINT HARDENING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Endpoint <span class="accent">Hardening</span></div>
+        <div class="slide-subtitle">Reducing the attack surface of individual endpoints by removing unnecessary features, services, and capabilities.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">OS Hardening</div>
+                <div class="card-desc">Remove unnecessary roles and services. Disable unused ports and protocols. Apply security configuration baselines (CIS Benchmarks, DISA STIGs). Enable host-based firewall with default-deny for inbound. Enable audit logging (Windows: Security event log; Linux: auditd). Remove software not required for the system's function. Every unnecessary component is an unmonitored attack surface.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Application Allowlisting</div>
+                <div class="card-desc">Only explicitly approved applications can execute. Any binary not on the allowlist -- including newly dropped malware -- is blocked from running. Windows Defender Application Control (WDAC), AppLocker, and Carbon Black enforce allowlists. Highly effective against living-off-the-land attacks that use LOLBins (legitimate system binaries). Most operationally challenging control in this list -- requires comprehensive application inventory.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">EDR -- Endpoint Detection and Response</div>
+                <div class="card-desc">Continuous monitoring and recording of endpoint activity: process execution, file creation/modification, registry changes, network connections, user logons. When malicious behavior is detected, EDR can isolate the endpoint, kill the process, and roll back changes. Telemetry is stored in a cloud platform for threat hunting. EDR replaced traditional AV for serious enterprise security programs. CrowdStrike, SentinelOne, Microsoft Defender for Endpoint.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Patch Management</div>
+                <div class="card-desc">The single highest-impact security control for managed endpoints. The majority of successful exploits use vulnerabilities with available patches. Establish patching SLAs: critical (CVSS 9+) -- 24-48 hours for externally accessible systems, 7 days for internal. High -- 30 days. Medium -- 90 days. Automated patch deployment (WSUS, Intune, Jamf) reduces the window between patch availability and deployment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- CONTAINERIZATION OVERVIEW ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Containerization <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Containers isolate applications using OS-level virtualization. Security isolation, however, is more limited than hardware virtualization.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Containers vs. VMs</div>
+                <div class="card-desc">Virtual machines emulate hardware -- a separate OS kernel runs inside the hypervisor. Strong isolation: exploiting the guest OS does not automatically compromise the host. Containers share the host OS kernel -- a kernel exploit inside a container may escalate to the host. Containers are faster and smaller than VMs. VMs provide stronger isolation for multi-tenant and sensitive workloads; containers provide better density.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Docker Architecture</div>
+                <div class="card-desc">Docker uses Linux namespaces (isolate PID, network, mount, IPC, UTS) and cgroups (limit CPU, memory, I/O). Images are layered -- base OS layer plus application layers. Images can contain vulnerabilities inherited from the base image. The Docker daemon runs as root by default, meaning container escapes may grant root on the host. Rootless Docker and user namespaces reduce this risk.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Container Escape Vulnerabilities</div>
+                <div class="card-desc">runc CVE-2019-5736 (runC file descriptor overwrite): allowed a malicious container to overwrite the host's runc binary and gain root on the host. CVE-2022-0492 (cgroup namespace escape): allowed privilege escalation to the host. Kernel vulnerabilities are particularly dangerous in containerized environments because all containers share the same kernel -- a single kernel CVE affects all containers simultaneously.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Container Image Security</div>
+                <div class="card-desc">Images pulled from public registries (Docker Hub) may contain vulnerabilities, malware, or cryptocurrency miners. Image scanning tools (Trivy, Snyk, Clair) identify CVEs in base images and dependencies. Use minimal base images (Alpine, distroless) to reduce attack surface. Implement image signing (Docker Content Trust, Cosign) to verify images were not tampered with between build and deployment. Never run containers as root unless required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- KUBERNETES SECURITY ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Kubernetes <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Kubernetes orchestrates containers at scale. Its control plane and default configurations introduce additional security challenges.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Exposed API Server</div>
+                <div class="card-desc">The Kubernetes API server is the control plane for the entire cluster. Exposed to the internet without authentication (anonymous access enabled by default in older versions), an attacker can create pods, read secrets, and pivot to the cloud account. The API server should be accessible only from authorized management networks, require mTLS client certificates, and enforce RBAC. Shodan regularly finds exposed Kubernetes API servers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RBAC and Least Privilege</div>
+                <div class="card-desc">Kubernetes RBAC controls which subjects (users, service accounts) can perform which actions on which resources. Default service accounts often have excessive permissions. Pods should run with a dedicated service account with only the permissions they require. Cluster-admin role should not be used for automation. Audit RBAC bindings regularly -- permission sprawl in Kubernetes is as common as in Active Directory.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Network Policies</div>
+                <div class="card-desc">By default, all pods in Kubernetes can communicate with all other pods. Network Policies restrict pod-to-pod communication based on namespace, labels, and ports. A database pod should only accept connections from the application pod in the same namespace. Default-deny network policy at the namespace level with explicit allow rules implements microsegmentation within the cluster. Requires a CNI plugin that supports Network Policies (Calico, Cilium, Weave).</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Secret Management in Kubernetes</div>
+            Kubernetes Secrets are base64-encoded (not encrypted) by default. They are stored in etcd, which should itself be encrypted at rest. Secrets mounted as environment variables are visible in process listings. Prefer mounting secrets as files with restrictive permissions. External secret managers (HashiCorp Vault, AWS Secrets Manager) with operator integration provide stronger protection. Audit what has access to secrets -- overly permissive RBAC on Secrets is a critical finding.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- VIRTUALIZATION SECURITY ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Virtualization <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Hypervisors provide strong isolation between VMs, but hypervisor vulnerabilities and misconfigurations can compromise all VMs on a host.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Hypervisor Attack Surface</div>
+                <div class="card-desc">Type 1 hypervisors (VMware ESXi, Hyper-V, Xen) run directly on hardware -- a compromise grants access to all VMs. Type 2 hypervisors (VMware Workstation, VirtualBox) run on a host OS -- a compromise of the host OS allows manipulation of VMs. VM escape vulnerabilities (Venom, Ghost, Escape Room) allow a compromised guest to break out to the host. Hypervisor patching is critical-priority -- a single CVE affects the entire host's VM population.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VM Isolation Controls</div>
+                <div class="card-desc">Separate VMs for different security domains (production vs. development, high-security vs. standard). Disable shared features that cross VM boundaries (clipboard sharing, drag-and-drop, shared folders) in multi-tenant environments. Restrict VM-to-VM network traffic through virtual switches with firewall rules. Use dedicated hardware for high-sensitivity VMs where the shared hypervisor model is unacceptable (sensitive workloads may require bare metal).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Snapshot Security</div>
+                <div class="card-desc">VM snapshots capture the running state including memory (which contains encryption keys, credentials, and session tokens). Snapshots stored on unencrypted storage or accessible to unauthorized administrators are a data exposure risk. Snapshot permissions must be restricted. Long-running snapshots delay patching because the snapshot state includes the unpatched OS -- a reverted snapshot undoes months of patches.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Side-Channel Attacks</div>
+                <div class="card-desc">Spectre and Meltdown (2018) demonstrated that co-resident VMs on shared hardware can infer each other's memory contents through CPU cache timing. These attacks affected all modern CPUs. Mitigations: microcode updates, OS patches (KPTI -- Kernel Page Table Isolation), hypervisor updates. Performance overhead from mitigations ranges from 5-30% depending on workload. Cloud providers patched hypervisor layers; OS and microcode patching is the customer's responsibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- MOBILE OS SECURITY MODELS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Mobile OS <span class="accent">Security Models</span></div>
+        <div class="slide-subtitle">iOS and Android take different approaches to application isolation, permission control, and security updates. Each model has distinct strengths and weaknesses.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">iOS Security Model</div>
+                <div class="card-desc">All apps run in sandboxes with no inter-app data access (except through defined sharing APIs). Apps are reviewed by Apple before App Store publication. Secure Enclave handles biometric templates and cryptographic keys in isolated hardware -- even Apple cannot extract them. System integrity protection prevents unauthorized modification of core OS components. iOS updates are deployed simultaneously to all supported devices.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Android Security Model</div>
+                <div class="card-desc">Linux-based. Apps run as separate Linux users, providing process isolation. Permissions model allows fine-grained access control (camera, contacts, location). Sideloading (installing apps from outside the Play Store) is possible -- increases malware exposure. Android fragmentation: device manufacturers customize Android and control updates, leading to delayed patches on non-Pixel devices. Manufacturers provide varying support windows.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Jailbreaking and Rooting</div>
+                <div class="card-desc">Jailbreaking (iOS) / rooting (Android) removes OS-enforced security restrictions. The device can install unsigned apps, access root filesystem, and circumvent App Store review. MDM detects rooted and jailbroken devices and can block access to corporate resources. A jailbroken device has no effective security sandbox -- any malicious app gains root-level access to all data on the device.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Work Profile (Android Enterprise)</div>
+                <div class="card-desc">Android Enterprise creates a cryptographically separated work profile on BYOD devices. Work apps and data exist in the work container -- personal apps cannot access work data and vice versa. IT manages only the work profile; personal profile is entirely private. The work profile can be wiped without affecting personal data. Strongest technical architecture for BYOD privacy and corporate data protection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- DECOMMISSIONING AND DATA DISPOSAL ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Device Decommissioning and <span class="accent">Data Disposal</span></div>
+        <div class="slide-subtitle">End-of-life devices must be sanitized before disposal. Data recovery from improperly disposed drives is a real and well-documented threat.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Data Remanence</div>
+                <div class="card-desc">Deleted files are not erased -- the filesystem marks the space as available but the data remains until overwritten. "Recycle bin" deletion leaves the data entirely intact. Formatted drives retain data recoverable with standard forensic tools. Even overwritten HDDs may retain residual magnetic signals (though the practical risk of recovering overwritten data from modern HDDs is near-zero). SSDs present different challenges due to wear leveling -- data may persist in blocks not accessible through normal write operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST SP 800-88 Media Sanitization</div>
+                <div class="card-desc">Three categories: Clear (overwrite with software, acceptable for non-sensitive reassignment within the organization), Purge (cryptographic erase or multi-pass overwrite to a standard defeating forensic tools, required before external transfer), Destroy (physical destruction via shredding, disintegration, or incineration, required for classified media). The appropriate method depends on data classification and the device's next destination.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Cryptographic Erasure</div>
+                <div class="card-desc">If the drive was fully encrypted from the start, deleting the encryption key makes all data permanently and instantly irrecoverable -- regardless of what physical traces remain on the media. This is the most efficient method for large-scale device decommissioning (particularly cloud storage and SSDs where traditional overwrite is unreliable). Requires that FDE was enabled before data was stored, not as a disposal afterthought.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- ENDPOINT DETECTION CAPABILITIES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Endpoint Detection <span class="accent">Capabilities</span></div>
+        <div class="slide-subtitle">Modern endpoint security moved beyond signature-based AV to behavioral detection, threat hunting, and automated response.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Traditional AV vs. NGAV</div>
+                <div class="card-desc">Traditional AV matches file hashes against a signature database. Zero-day malware with no signature is invisible. Fileless malware that lives entirely in memory produces no file to hash. NGAV (Next-Generation Antivirus) adds behavioral detection: process injection, memory manipulation, anomalous parent-child process relationships, LOLBin abuse. NGAV detects malicious behavior regardless of whether the file has a known signature.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">EDR Telemetry</div>
+                <div class="card-desc">EDR agents record a continuous stream of endpoint events: every process creation (including command line arguments), every file written, every registry modification, every network connection attempted. This telemetry is stored in a cloud data lake. Security teams can hunt for specific indicators months after they were recorded, reconstruct full attack timelines, and determine root cause precisely. The telemetry is the forensic record.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Threat Hunting with EDR</div>
+                <div class="card-desc">Proactive search through EDR telemetry for indicators of compromise that did not trigger automated alerts. Examples: search for all processes that wrote to the Startup folder, all PowerShell executions with encoded commands, all outbound connections to TLDs associated with threat actor infrastructure. Hunting assumes breach and looks for evidence of attacker activity that evaded automated detection.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Isolation and Automated Response</div>
+                <div class="card-desc">EDR platforms can automatically isolate a compromised endpoint from the network (while maintaining the EDR agent connection for investigation) when high-confidence malicious activity is detected. Isolation blocks lateral movement immediately without waiting for human analyst decision. False positive isolation impacts availability -- automated containment policies should require high-confidence detections to avoid disrupting legitimate users.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- DEVICE LIFECYCLE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Device <span class="accent">Lifecycle Management</span></div>
+        <div class="slide-subtitle">Security must be applied at every phase of the device lifecycle -- from procurement through secure disposal.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Procurement:</strong> Evaluate vendor security practices, firmware signing capability, support lifetime, and published CVE history. Avoid devices with known default credential patterns or no firmware signing support.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Deployment:</strong> Change all default credentials. Apply latest firmware. Enroll in MDM or asset management system. Document IP address, MAC, firmware version, and owner. Apply network segmentation controls before the device goes live.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Operations:</strong> Continuous vulnerability scanning. Firmware patching per SLA. Configuration drift monitoring. Log collection and SIEM integration. Annual access review to remove unnecessary permissions. Verify MDM compliance posture continuously.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Maintenance:</strong> Incident response capability -- ability to isolate, image for forensics, and rebuild from known-good baseline. Spare hardware for rapid replacement. Configuration backup for all network and security devices.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Decommissioning:</strong> Remove from asset inventory. Remove from MDM enrollment. Revoke certificates issued to the device. Sanitize storage per NIST SP 800-88. Document disposal. For mobile devices: MDM wipe and unenroll before transfer.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- CLOUD-BASED DEVICE MANAGEMENT ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Cloud-Based <span class="accent">Device Management</span></div>
+        <div class="slide-subtitle">Cloud MDM and UEM platforms enable management of globally distributed devices without on-premises infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Microsoft Intune</div>
+                <div class="card-desc">Cloud-based UEM integrated with Azure AD and Microsoft 365. Manages Windows, macOS, iOS, Android, and Linux endpoints. Conditional Access policies block resource access from non-compliant devices. Autopilot enables zero-touch Windows deployment. Co-management bridges on-premises SCCM with cloud Intune. Native integration with Defender for Endpoint provides EDR compliance posture enforcement.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Apple Business Manager</div>
+                <div class="card-desc">Apple's zero-touch enrollment program. Organizations purchase devices through Apple or authorized resellers. Devices are pre-enrolled in the organization's MDM (Intune, Jamf) before being unboxed by the employee. The device automatically downloads the corporate MDM profile on first boot. Cannot be removed by the user without MDM authorization (Supervised mode). Eliminates manual enrollment and ensures every Apple device is managed from day one.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Conditional Access Integration</div>
+                <div class="card-desc">Combines device compliance data from MDM with identity verification from the IdP. Policy example: "Grant access to SharePoint only if the user has completed MFA AND the device is MDM-enrolled AND the device is compliant (patched, FDE enabled, no jailbreak detected)." Device posture becomes a continuous access control signal, not a one-time enrollment gate. Non-compliant devices are quarantined until they remediate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- SPECIALIZED DEVICES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Specialized <span class="accent">Device Security</span></div>
+        <div class="slide-subtitle">Some device categories have specific security requirements driven by their operational context.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Medical Devices (IoMT)</div>
+                <div class="card-desc">Internet of Medical Things: infusion pumps, imaging equipment, patient monitors. FDA regulated. Often run embedded Windows 7 or XP. Cannot be patched without FDA re-approval in some cases. Connected to hospital networks for data transmission. Patient safety is a physical consequence of compromise. Compensating controls: network segmentation, unidirectional data flow, monitoring. HIPAA applies to any device handling PHI.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Printers and MFDs</div>
+                <div class="card-desc">Multifunction devices store job data, credentials (LDAP, email server), and complete print histories in onboard storage. They run embedded OSes with network services (web admin, FTP, SMB) and are rarely patched. Printers with hard drives should be sanitized before disposal. Hard disk encryption should be enabled. Network access should be restricted to printing ports only. Admin interfaces must not use default credentials.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">HVAC and Building Systems</div>
+                <div class="card-desc">Building automation systems (BAS) control HVAC, lighting, physical access, and elevators. Connected to IP networks for remote management. Target Network breach (2013) originated via a compromised HVAC vendor with remote access to the network. Building systems must be on isolated networks with no path to sensitive systems. Vendor remote access requires VPN with MFA and time-limited sessions, not persistent connections.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Point of Sale (POS) Systems</div>
+                <div class="card-desc">POS systems process payment card data and must comply with PCI DSS. They are high-value targets. Network isolation on a dedicated POS VLAN. End-to-end encryption of card data (P2PE). Regular integrity checks on POS software (malware injection into POS systems is how major retail breaches occur). Physical tamper detection on card readers. Restrict internet access to only required update and payment processor endpoints.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- HARDWARE SECURITY MODULES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Hardware Security Modules <span class="accent">(HSM)</span></div>
+        <div class="slide-subtitle">Dedicated hardware for cryptographic key management and operations. Keys stored in HSMs cannot be extracted by software, even with OS root access.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">What HSMs Provide</div>
+                <div class="card-desc">Tamper-resistant key storage. Keys generated inside the HSM never leave the hardware boundary in plaintext. Cryptographic operations (signing, encryption) occur inside the HSM -- the requesting application receives only the result, not the key. Physical tamper detection triggers automatic key deletion. FIPS 140-2 Level 3 certified HSMs are required for federal and payment processing applications.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HSM Use Cases</div>
+                <div class="card-desc">CA root key storage (the most sensitive key in a PKI hierarchy lives in an HSM). TLS certificate private key protection (prevent web server compromise from exposing private keys). Code signing key protection. Payment card PIN block encryption (Thales, Futurex). Cloud HSMs (AWS CloudHSM, Azure Dedicated HSM) provide HSM capabilities without physical hardware management. Single-tenant isolation in cloud HSMs is critical -- shared HSMs could theoretically leak data via side channels.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">TPM vs. HSM</div>
+            TPM is a commodity security chip soldered to a motherboard -- inexpensive, limited functionality, tied to one device. HSM is a dedicated, high-performance cryptographic processor -- expensive, supports many simultaneous clients, high-volume operations, network accessible. TPM protects the device it is installed in. HSM protects keys for services and applications across the entire organization. Both are hardware roots of trust for different scopes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- MOBILE THREAT DEFENSE ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Mobile Threat <span class="accent">Defense (MTD)</span></div>
+        <div class="slide-subtitle">MTD solutions extend threat detection to mobile devices, filling the visibility gap left by MDM-only approaches.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Device-Level Threats</div>
+                <div class="card-desc">Jailbreak/root detection (MDM provides this too). Malicious app detection: behavioral analysis of apps beyond signature matching. OS vulnerability detection: identify unpatched CVEs on the device. System configuration risks: developer mode enabled, USB debugging active, unsigned app installation permitted. MTD agents run on the device and report posture to the MDM/UEM platform for conditional access enforcement.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network-Level Threats</div>
+                <div class="card-desc">Rogue Wi-Fi and evil twin detection: identify networks with unusually weak encryption or suspicious characteristics. SSL stripping detection: identify when HTTPS sessions are being downgraded. MITM certificate detection: alert when a certificate chain is anomalous (corporate proxy vs. genuine attacker). DNS hijacking detection: compare DNS responses against expected values. These checks run continuously from the device.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Application-Level Threats</div>
+                <div class="card-desc">Malware detection: apps with suspicious permission combinations or behaviors (SMS reading app that also opens network connections). Vulnerability detection in third-party apps. Data leakage detection: apps sending corporate data to unrecognized endpoints. Phishing detection: analyze URLs in browsers and messaging apps. MTD integrates with MAM containers to block data access from apps on non-compliant devices.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- FIRMWARE SECURITY ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Firmware <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Firmware-level persistence survives OS reinstallation and disk formatting. UEFI rootkits and firmware implants represent the most persistent attack form.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">UEFI Rootkits</div>
+                <div class="card-desc">Malware that persists in UEFI firmware survives OS reinstallation, hard drive replacement, and factory reset. LoJax (2018, APT28): first UEFI rootkit used in the wild. MoonBounce (2022), CosmicStrand (2022): sophisticated UEFI implants detected in targeted attacks. These implants are nearly impossible to remove without reflashing the firmware. Secure Boot prevents unauthorized modification of the boot process -- but not all devices have Secure Boot properly configured.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Firmware Validation</div>
+                <div class="card-desc">UEFI Secure Boot validates firmware and bootloader integrity using stored cryptographic keys. Platform Firmware Resiliency (PFR -- NIST SP 800-193) defines requirements: Protect (prevent unauthorized modifications), Detect (identify modifications if they occur), Recover (restore to known good state). Intel Platform Firmware Resilience technology implements PFR in hardware. Critical infrastructure and government systems require firmware validation as a baseline control.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Supply Chain Firmware Attacks</div>
+                <div class="card-desc">Firmware implants inserted during manufacturing or distribution before the device reaches the end user. The attacker does not need to compromise the organization -- they compromise the supply chain. Bloomberg "The Big Hack" (2018) claimed server firmware implants at manufacture, though disputed by vendors. NSA ANT catalog (Snowden) documented factory firmware implant capabilities. Firmware signing and verification at deployment catches supply chain firmware modification.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Firmware Defense</div>
+                <div class="card-desc">Enable UEFI Secure Boot with platform-specific key enrollment. Enable Secure Boot in Microsoft-Only mode (prevents key substitution). Disable legacy BIOS/CSM mode. Use UEFI password to prevent unauthorized firmware changes. Enable BIOS Write Protection where available. Verify firmware integrity hashes against vendor-published values before deployment. Subscribe to vendor firmware security advisories for all deployed hardware models.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- ASSET MANAGEMENT ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Asset Management and <span class="accent">Inventory</span></div>
+        <div class="slide-subtitle">Every security control depends on knowing what devices exist. An unknown device cannot be managed, patched, monitored, or protected.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">CIS Control 1: Asset Inventory</div>
+                <div class="card-desc">The first CIS Critical Security Control is inventory and control of enterprise assets. You cannot protect assets you do not know about. Comprehensive inventory includes: hardware assets (physical and virtual), software assets, data assets, and service accounts. The inventory must be continuous, not point-in-time -- assets are added and removed constantly. Unmanaged assets are attacker infrastructure waiting to happen.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network-Based Discovery</div>
+                <div class="card-desc">Active scanning (nmap, Nessus, Qualys) identifies live hosts, open ports, and operating systems. Passive monitoring fingerprints devices from traffic patterns (Forescout, Darktrace, Claroty for OT). DHCP logs provide IP-to-MAC mappings. DNS records identify named hosts. 802.1X NAC logs show all connection attempts. Combining multiple sources gives the most complete picture. No single source is comprehensive.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Shadow IT and Rogue Devices</div>
+                <div class="card-desc">Devices connected to the network without IT authorization: personal devices on corporate Wi-Fi, unauthorized cloud services, development systems built outside the standard provisioning process, IoT devices installed by facilities or line-of-business teams without security review. Shadow IT is inevitable -- the goal is detection and risk-based response, not denial that it exists. Implement 802.1X to require authentication before network access.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- CONFIGURATION MANAGEMENT ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Configuration Management <span class="accent">and Baselines</span></div>
+        <div class="slide-subtitle">Security configurations drift over time. Baseline management ensures devices remain in a known and secure state.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Security Configuration Baselines</div>
+                <div class="card-desc">Documented standard configurations for each device type: Windows workstation, Linux server, network device, IoT gateway. CIS Benchmarks provide vendor-independent benchmarks with specific settings and values. DISA STIGs provide government-grade hardening guidance. A baseline is a minimum security floor -- all deployed instances must meet or exceed it. Deviations require documented exceptions with risk acceptance.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Infrastructure as Code (IaC)</div>
+                <div class="card-desc">Define infrastructure configuration in version-controlled code (Terraform, Ansible, Chef, Puppet). Every server is provisioned from code -- no manual configuration. Drift from the defined configuration is detectable (and correctable) because the desired state is explicitly defined. Security hardening applied in code propagates to all instances automatically. IaC enables consistent security posture at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Configuration Drift Detection</div>
+                <div class="card-desc">After initial deployment, configurations change: administrators make one-off changes, applications modify registries, users change local settings. Configuration Management Databases (CMDB) track the desired state. Compliance scanners verify current state against baseline and report drift. Automated remediation (Ansible idempotent playbooks) can return drifted configurations to baseline. Unauthorized changes are security events requiring investigation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Change Management</div>
+                <div class="card-desc">Every configuration change to a production system should be approved, documented, and tested before implementation. Emergency changes (security patching, incident response) have expedited processes with post-implementation review. Change records link to the specific systems changed and the person who authorized each change. Without change management, configuration drift and unauthorized changes are indistinguishable from intentional security events.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- SUPPLY CHAIN DEVICE RISK ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Supply Chain <span class="accent">Device Risk</span></div>
+        <div class="slide-subtitle">Devices can be compromised before they arrive. Hardware and firmware integrity must be verified before deployment in sensitive environments.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Hardware Implants</div>
+                <div class="card-desc">Malicious hardware components inserted during manufacturing or distribution. A hardware implant at the PCB level is invisible to software scanning. The NSA ANT catalog documents capabilities for hardware implants in servers, network equipment, and cables. DARPA's SHIELD program and hardware trust programs use die-level authentication to verify component authenticity. High-security environments use hardware from trusted suppliers with documented chain of custody.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Counterfeit Components</div>
+                <div class="card-desc">Counterfeit integrated circuits are sold through gray market distributors. Counterfeits may fail under operational conditions, perform worse than specified, or contain deliberate backdoors. The US military has documented counterfeit chips in mission-critical systems. Procurement from authorized channels and component testing are required for sensitive deployments. GIDEP (Government-Industry Data Exchange Program) tracks known counterfeit components.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Secure Supply Chain Practices</div>
+                <div class="card-desc">Procure hardware from authorized vendors with documented chain of custody. Verify firmware hashes against vendor-published values before deployment. Inspect devices for unexpected components in high-security environments. Use tamper-evident packaging and log any indication of prior access. Apply NIST SP 800-161 supply chain risk management guidance. For critical infrastructure, consider third-party hardware validation before network connection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- CDC SCENARIO: DEVICE COMPROMISE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">CDC Scenario: <span class="accent">Unmanaged Device Compromise</span></div>
+        <div class="slide-subtitle">Apply the device security taxonomy to a facility scenario. Identify what failed, what should have been in place, and the remediation path.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">An IP camera in the specimen storage area was found communicating with a Chinese IP address. The camera runs firmware 1.0.2 (released 2019, current version 2.1.8). Default admin credentials were never changed. What three controls failed and what is immediate remediation? <strong>(Default credential change, firmware patching, and IoT network segmentation all failed. Immediately: isolate camera from all networks, factory reset, change credentials, update firmware, redeploy on isolated VLAN with outbound-only firewall rules.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A researcher's personal Android phone (unmanaged, not MDM-enrolled) was connected to the research VLAN. The phone had a trojanized fitness app installed from a third-party APK. The app was exfiltrating data from devices on the same segment. What policy and technical control would have prevented network access? <strong>(BYOD policy requiring MDM enrollment before Wi-Fi access. 802.1X port authentication blocking unenrolled devices. Dedicated BYOD VLAN with no path to research segment.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The SCADA system controlling containment pressures ran Windows XP Embedded with no network segmentation from workstations. Ransomware propagated from a workstation to the SCADA system. How should the network have been architected? <strong>(Purdue model segmentation: SCADA on Level 2 segment, workstations on Level 3, firewall between each level, no direct workstation-to-PLC communication. Unidirectional gateway for data historian access.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- DEVICE SECURITY COMPARISON ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Device Security <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">Map device type to primary risk, primary control, and SY0-701 exam focus.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">A</span>
+                <span class="fact-text"><strong>Mobile (MDM):</strong> Risk: lost device, data exposure. Control: FDE, remote wipe, MDM compliance policy. Exam: MAM vs. MDM, COPE vs. BYOD, geofencing.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">B</span>
+                <span class="fact-text"><strong>IoT:</strong> Risk: default credentials, no patching, no agent. Control: network segmentation, credential management, firmware updates. Exam: Mirai reference, default credential risk.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">C</span>
+                <span class="fact-text"><strong>SCADA/ICS:</strong> Risk: availability impact, physical consequences, IT/OT convergence. Control: Purdue model, unidirectional gateways, passive monitoring. Exam: Stuxnet, air gap vs. connected OT.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">D</span>
+                <span class="fact-text"><strong>Embedded:</strong> Risk: hardware debug interfaces, no update mechanism, hardcoded credentials. Control: fuse debug ports, signed firmware, secure boot. Exam: TPM, secure boot chain of trust.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">E</span>
+                <span class="fact-text"><strong>Containers:</strong> Risk: kernel sharing, image vulnerabilities, container escape. Control: image scanning, rootless containers, network policies, RBAC. Exam: container vs. VM isolation difference.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">F</span>
+                <span class="fact-text"><strong>VM:</strong> Risk: hypervisor escape, side-channel (Spectre/Meltdown), snapshot data. Control: hypervisor patching, VM isolation, encrypted storage. Exam: Type 1 vs. Type 2 hypervisor isolation strength.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SY0-701 SCENARIO PRACTICE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">SY0-701 <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">Exam-style device security scenarios. Identify the device category, the specific risk, and the correct control.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">An organization allows employees to use personal phones for work email. They need to wipe corporate data from a device when an employee leaves, without erasing the employee's personal photos. Which MDM approach enables this? <strong>(Mobile Application Management / MDM with Selective Wipe / Android Work Profile. Corporate container is wiped independently of personal storage.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A manufacturer's SCADA system controls industrial pumps. The vendor cannot patch it for six months. What two compensating controls reduce risk most effectively in the interim? <strong>(Network segmentation/isolation -- whitelist-only firewall rules blocking all non-essential traffic. Application allowlisting on SCADA workstations to prevent malware execution.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A container running on a shared Kubernetes cluster exploits a kernel vulnerability and gains root on the host node. Which security property makes containers less isolated than VMs? <strong>(Containers share the host OS kernel. A kernel exploit in a container can escalate to the host. VMs run a separate kernel, isolated by the hypervisor, providing stronger separation.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">After a laptop is stolen, the organization discovers the drive was not encrypted. The laptop contained patient records. What control would have made the stolen hardware a non-reportable incident? <strong>(Full Disk Encryption. Encrypted data on a stolen device is unreadable without the key -- classified as a hardware loss, not a data breach in most regulatory frameworks.)</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A UEFI rootkit survives a complete OS reinstall on an infected server. What control verifies the integrity of firmware and prevents unauthorized firmware modifications? <strong>(Secure Boot with UEFI Secure Boot enabled. TPM with Measured Boot records firmware hash measurements. Platform Firmware Resiliency (NIST SP 800-193) for protection, detection, and recovery.)</strong></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next module. Exercises 3 and 4 require written analysis.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Perform a network scan of your lab environment. Identify all devices, their operating systems, and open ports. Categorize each device: managed endpoint, mobile device, IoT, network infrastructure, or other. Flag any devices with default services or credentials.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Examine the MDM (Intune, Jamf, or available platform) compliance policies in your lab environment. Identify which compliance requirements are enforced, which generate alerts, and which are not monitored. Document gaps against the CIS Mobile Device Benchmark.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">A hospital has 400 IoT medical devices: infusion pumps, patient monitors, and imaging equipment. All run embedded Windows 7. The vendor has not released patches in two years. Write a risk treatment plan: risk assessment, immediate compensating controls, long-term remediation plan, and metrics to track progress.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Design a BYOD policy for a 500-person organization with employees in three countries. Cover: enrollment requirements, acceptable device types, data handling rules, monitoring disclosure, remote wipe process and employee consent, and offboarding procedure. Identify the legal considerations for each country.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Verify that Secure Boot is enabled on your workstation. Check the firmware version and compare it to the vendor's current release. Verify that the TPM is active and its version. Document the findings and describe what additional hardware security features could be enabled.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Device security is about managing the full lifecycle of every device on your network -- from procurement to decommissioning. What you do not manage, you cannot protect.</div>
+
+        <div class="box box-blue" style="margin-bottom: 4px;">
+            The single thread connecting every topic in this module: visibility and control. You cannot enforce MDM on a device you do not know about. You cannot segment an IoT device you have not inventoried. You cannot patch a SCADA system you have not assessed. Asset inventory is not an IT administrative function -- it is the foundational security control that makes every other control possible.
+        </div>
+
+        <div class="section-label">10 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">MDM enforces compliance policies, remote wipe, certificate deployment, and conditional access on mobile devices. MAM manages applications only, preserving personal device privacy for BYOD.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">BYOD risk: unpatched devices, personal malware, data commingling. Mitigations: MDM enrollment (or MAM), BYOD-specific network VLAN, acceptable use policy with signed consent.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">IoT: default credentials, no patch support, no agent support. Defense: change defaults, network segmentation, passive monitoring, firmware lifecycle management.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">SCADA/ICS: availability first, physical consequences, legacy systems. Defense: Purdue model segmentation, unidirectional gateways, passive OT monitoring, air gap where feasible.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Secure Boot verifies firmware and bootloader using cryptographic keys. Chain of trust: hardware root of trust verifies each subsequent component. TPM records measurements for attestation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Containers share the host OS kernel -- weaker isolation than VMs. VMs use a separate kernel per guest -- hypervisor escape is required to reach the host. Container security requires image scanning, RBAC, network policies, and rootless operation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">FDE protects data on stolen devices. Cryptographic erasure (delete the key) is the most efficient disposal method for encrypted drives. NIST SP 800-88 defines Clear, Purge, and Destroy sanitization categories.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">EDR replaces traditional AV with behavioral detection, continuous telemetry, and automated response. Threat hunting uses EDR telemetry to proactively search for undetected compromises.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">HSMs store cryptographic keys in tamper-resistant hardware. Keys never leave the HSM in plaintext. Required for CA root keys, payment systems, and code signing. TPM is a device-level hardware security chip; HSM is an organizational cryptographic service.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">Asset inventory is the foundational control. CIS Control 1. Unknown devices cannot be managed, patched, monitored, or protected. 802.1X NAC prevents unregistered devices from connecting to the network at all.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w2-device-security', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

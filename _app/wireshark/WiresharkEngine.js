@@ -177,7 +177,13 @@ const WiresharkEngine = (() => {
         card.style.setProperty('--sec-color', section.color);
         card.style.setProperty('--sec-dim', section.colorDim);
 
+        // Favorites
+        const hasFav = typeof FavoritesManager !== 'undefined';
+        const isFav = hasFav && FavoritesManager.isFavorite(section.id);
+        const favHtml = hasFav ? `<button class="wh-fav-btn${isFav ? ' favorited' : ''}" data-sec-id="${section.id}">${isFav ? '\u2665' : '\u2661'}</button>` : '';
+
         card.innerHTML = `
+            ${favHtml}
             <div class="wh-card-header">
                 <img src="${section.icon}" alt="" class="wh-card-icon" width="22" height="22">
                 <div class="wh-card-info">
@@ -196,6 +202,24 @@ const WiresharkEngine = (() => {
                 </div>
                 <span class="wh-card-expand-hint">View modules</span>
             </div>`;
+
+        // Wire up favorite button
+        const favBtn = card.querySelector('.wh-fav-btn');
+        if (favBtn) {
+            favBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const meta = {
+                    title: section.name,
+                    house: 'wireshark',
+                    type: 'wireshark-section',
+                    href: 'wireshark/index.html'
+                };
+                const nowFav = FavoritesManager.toggle(section.id, meta);
+                favBtn.classList.toggle('favorited', nowFav);
+                favBtn.textContent = nowFav ? '\u2665' : '\u2661';
+            });
+        }
 
         card.addEventListener('click', () => _toggleSection(section));
         card.addEventListener('keydown', e => {
@@ -422,11 +446,21 @@ const WiresharkEngine = (() => {
 
             /* ── Section Card ── */
             .wh-section-card {
+                position: relative;
                 background: ${BG_CARD}; border: 1px solid rgba(255,255,255,0.07);
                 border-radius: 10px; padding: 18px 20px; cursor: pointer;
                 transition: border-color 0.2s, box-shadow 0.2s;
                 outline: none;
             }
+            /* Favorite heart button */
+            .wh-fav-btn {
+                position: absolute; top: 10px; right: 10px;
+                background: none; border: none; font-size: 1.2rem;
+                cursor: pointer; opacity: 0.3; transition: all 0.2s;
+                padding: 2px 4px; line-height: 1; z-index: 2; color: #e0e0e0;
+            }
+            .wh-fav-btn:hover { opacity: 0.8; transform: scale(1.2); }
+            .wh-fav-btn.favorited { opacity: 1; color: #ef4444; }
             .wh-section-card:hover,
             .wh-section-card:focus-visible {
                 border-color: var(--sec-color, ${ACCENT});

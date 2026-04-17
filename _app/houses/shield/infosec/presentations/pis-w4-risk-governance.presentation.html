@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management &amp; Governance | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px;
+            border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #3b82f6; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #22c55e; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+        .ic { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Risk Management &amp; Governance | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; PIS-15 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; SY0-701: 5.0</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Risk Management &amp;<br>
+                <span class="accent">Security Governance</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Risk Assessment &nbsp;&bull;&nbsp; BIA &nbsp;&bull;&nbsp; RTO/RPO &nbsp;&bull;&nbsp; Policies &nbsp;&bull;&nbsp; NIST / ISO / SOC 2 &nbsp;&bull;&nbsp; GDPR / HIPAA / PCI-DSS
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Containment Protocol Zeta. The facility director stands before the board of directors. Three weeks ago, a ransomware attack encrypted the specimen database and disabled the containment monitoring systems for 14 hours. The board wants to know: what was the financial exposure, how did it happen, and what is the governance framework that will prevent it next time? Risk. Resilience. Accountability.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>PIS-15</span>
+            <span>Week 4 of 8</span>
+            <span>CompTIA SY0-701</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — RISK FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Risk <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Risk is the intersection of threat, vulnerability, and impact. Understanding each component is the foundation of every security program.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Risk Definition</div>
+                <div class="card-desc">Risk = the probability that a threat exploits a vulnerability, causing an adverse impact. Risk is not the threat itself -- it is the measured likelihood and consequence combination. Security programs do not eliminate risk -- they manage it to an acceptable level. Zero risk is impossible; the goal is risk reduction to within organizational risk tolerance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Any circumstance or event with potential to cause harm. Categories: adversarial (external attacker, insider, nation-state), accidental (employee error, misconfiguration, hardware failure), environmental (fire, flood, power outage), structural (aging systems, vendor bankruptcy). Threat actors have intent, capability, and opportunity -- all three must be present for an attack to succeed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness in a system, process, or control that a threat could exploit. Technical (unpatched CVE, default credentials, misconfiguration), administrative (lack of policy, untrained staff, poor change management), physical (unlocked server room, no surveillance). Vulnerability management is the systematic process of discovering, prioritizing, and remediating vulnerabilities before they are exploited.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Impact</div>
+                <div class="card-desc">The consequence of a successful exploit. Dimensions: financial (direct loss, regulatory fine, remediation cost, lost revenue), reputational (customer trust, brand damage, executive departure), operational (downtime, reduced capability, supply chain disruption), legal/regulatory (GDPR fine, litigation, consent decree, license revocation). Impact severity drives prioritization -- not just likelihood.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Risk Appetite vs. Risk Tolerance</div>
+                <div class="card-desc">Risk appetite: the amount and type of risk an organization is willing to pursue or retain to achieve objectives. Set at board level. Example: "We accept moderate operational risk in pursuit of innovation but have zero tolerance for regulatory compliance risk." Risk tolerance: the acceptable variation around risk appetite thresholds. Tolerance defines the trigger point for escalation or action.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Residual Risk</div>
+                <div class="card-desc">The risk that remains after security controls have been applied. No control eliminates 100% of risk -- residual risk is always present. Residual risk must be explicitly accepted (documented decision by accountable owner), monitored, and reviewed as the threat and vulnerability landscape changes. Inherent risk = risk before controls. Residual risk = risk after controls. Risk register tracks both.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — RISK ASSESSMENT APPROACHES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Risk Assessment <span class="accent">Approaches</span></div>
+        <div class="slide-subtitle">Qualitative and quantitative risk assessment methods serve different purposes -- both are needed in a mature risk program.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Qualitative Risk Assessment</div>
+                <div class="card-desc">Descriptive scales (Low/Medium/High/Critical or 1-5). Risk matrix: Likelihood x Impact = Risk Rating. Fast to perform, accessible to non-technical stakeholders, useful for initial triage and prioritization. Weakness: subjective -- "high likelihood" means different things to different people. No dollar values -- cannot directly compare to control costs or insurance premiums. Used in: initial risk register development, vendor risk questionnaires, threat modeling workshops.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Quantitative Risk Assessment</div>
+                <div class="card-desc">Dollar-based calculations. SLE (Single Loss Expectancy) = Asset Value x Exposure Factor. ALE (Annualized Loss Expectancy) = SLE x ARO (Annualized Rate of Occurrence). ALE enables direct comparison to control cost: if ALE = $500K and control costs $50K/year, control is cost-justified. Challenge: difficult to estimate ARO and Exposure Factor accurately. Requires actuarial data or industry loss statistics. FAIR (Factor Analysis of Information Risk) is the leading quantitative framework.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Semi-Quantitative Methods</div>
+                <div class="card-desc">Hybrid: qualitative ratings mapped to dollar ranges (Low = $0-50K, Medium = $50K-500K, High = $500K+). Provides rough financial ordering without full actuarial analysis. Risk scoring models assign numerical weights to multiple factors. Common in: vendor risk assessment platforms, GRC tools, regulatory risk self-assessments. More defensible than pure qualitative but less precise than full quantitative analysis.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">FAIR Model (Factor Analysis of Information Risk)</div>
+                <div class="card-desc">Open standard for quantitative information risk analysis. Decomposes risk into: Loss Event Frequency (LEF = Contact Frequency x Probability of Action x Vulnerability) and Loss Magnitude (Primary + Secondary Loss). Probabilistic ranges (Monte Carlo simulation) rather than point estimates -- more honest about uncertainty. Output: probability distribution of annual loss, not a single number. FAIR Institute certification. Increasingly required by risk-mature financial and insurance organizations.</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">Quantitative Risk Formulas -- Know These for SY0-701</span>
+<span class="fn">SLE</span> = Asset Value (AV) x Exposure Factor (EF)
+     <span class="cm">= $2,000,000 x 0.40 = $800,000 (40% of asset lost per incident)</span>
+<span class="fn">ALE</span> = SLE x Annualized Rate of Occurrence (ARO)
+     <span class="cm">= $800,000 x 0.25 = $200,000/year (incident expected once every 4 years)</span>
+<span class="fn">Control Cost Justification</span>: ALE before control - ALE after control - Annual Control Cost
+     <span class="cm">= $200,000 - $20,000 - $15,000 = $165,000 net savings/year</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — RISK TREATMENT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Risk Treatment <span class="accent">Options</span></div>
+        <div class="slide-subtitle">Every identified risk must be addressed with a documented treatment decision. There are exactly four options -- and accepting risk is a valid and sometimes correct choice.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Mitigate (Reduce)</div>
+                <div class="card-desc">Implement controls to reduce likelihood, reduce impact, or both. Most common treatment. Controls: technical (patching, encryption, MFA), administrative (policy, training, procedures), physical (locks, surveillance, environmental controls). Mitigation does not eliminate risk -- it reduces it to residual risk. The goal is to reduce risk to within risk appetite. Ongoing: mitigation effectiveness must be monitored and controls kept current.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Transfer (Share)</div>
+                <div class="card-desc">Shift financial consequences of risk to a third party. Mechanisms: cyber liability insurance (covers breach costs, notification, crisis management, legal, regulatory fines in some policies), contractual SLAs with vendors (breach of SLA triggers financial remedy), outsourcing (MSP takes on operational risk for specific functions). Important: transfer moves financial liability but does NOT transfer reputational or regulatory risk. You cannot insure your way out of a GDPR fine.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Avoid (Eliminate)</div>
+                <div class="card-desc">Eliminate the activity, system, or asset that carries the risk. Most effective treatment -- if the risk source does not exist, the risk does not exist. Examples: not collecting personal data you do not need (eliminates breach risk for that data), discontinuing a legacy system that cannot be patched (eliminates that attack surface), not entering a market with regulatory requirements the organization cannot meet. Often overlooked -- "do we actually need this?"</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accept (Retain)</div>
+                <div class="card-desc">Acknowledge the risk exists and deliberately choose not to act on it -- because the cost of control exceeds the expected loss, or the residual risk is within risk tolerance. Must be documented (Risk Acceptance Form or entry in Risk Register) with: risk description, current risk rating, acceptance rationale, responsible risk owner (executive who accepts accountability), and review date. Acceptance without documentation is not acceptance -- it is negligence.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Risk Treatment Selection Heuristic</div>
+            If risk exceeds tolerance AND control cost is justified by ALE reduction: Mitigate. If risk exceeds tolerance AND mitigation is not feasible or cost-effective: Transfer. If the activity creating risk is not essential to the mission: Avoid. If risk is within tolerance AND cost of control exceeds expected loss: Accept with documented owner and review date.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — RISK REGISTER ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Risk Register &amp; <span class="accent">Risk Management Process</span></div>
+        <div class="slide-subtitle">The risk register is the central artifact of the risk management program -- a living document tracking every identified risk through its lifecycle.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Risk Register Fields</div>
+                <div class="card-desc">Risk ID, Risk Description, Risk Category (Strategic/Operational/Compliance/Financial/Reputational), Asset or Process Affected, Threat Source, Vulnerability, Inherent Likelihood, Inherent Impact, Inherent Risk Rating, Current Controls, Residual Likelihood, Residual Impact, Residual Risk Rating, Treatment Decision, Treatment Owner, Target Date, Review Date, Status. Minimum: description + rating + owner + treatment + review date.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Risk Management Lifecycle</div>
+                <div class="card-desc">Identify (discover risks through threat modeling, audits, incident analysis, vendor assessments, regulatory changes). Analyze (assess likelihood and impact -- qualitative or quantitative). Evaluate (compare against risk criteria -- does this exceed tolerance?). Treat (select and implement treatment option). Monitor and Review (track residual risk, control effectiveness, emerging threats). Communicate and Report (risk committee, board, regulators). Cycle is continuous -- not an annual event.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk Ownership</div>
+                <div class="card-desc">Each risk must have a named owner -- the accountable business leader who bears responsibility for the risk and its management. Not the security team (who manages the program) -- the business unit owner who operates the affected system or process. Risk owner: accepts treatment decisions, funds mitigation, reports status. Security team: advises, facilitates, and monitors. Board/Risk Committee: sets risk appetite and reviews aggregate risk posture.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Threat Modeling</div>
+                <div class="card-desc">Structured approach to identifying risks in a system during design phase. STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) -- developed by Microsoft. PASTA (Process for Attack Simulation and Threat Analysis) -- risk-centric, attacker-centric. DREAD (Damage, Reproducibility, Exploitability, Affected Users, Discoverability) -- scoring model. OCTAVE (Operational Critical Threat Asset and Vulnerability Evaluation) -- organizational risk focus.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Risk Communication</div>
+                <div class="card-desc">Different audiences require different risk communication formats. Board/Executive: business impact language, dollar ranges, regulatory exposure, peer benchmarking, top 5 risks. Risk Committee: risk register summary, heat map, trend analysis, control effectiveness metrics. Operational teams: specific control gaps, remediation steps, responsible parties, deadlines. Regulators: evidence of risk program maturity, control effectiveness, and treatment of identified risks.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Risk Heat Map</div>
+                <div class="card-desc">Visual representation of risk register: 5x5 grid with Likelihood on one axis and Impact on the other. Color-coded zones: green (low -- monitor), yellow (moderate -- plan to mitigate), orange (high -- active mitigation required), red (critical -- immediate escalation). Heat map makes risk portfolio visible to non-technical stakeholders. Trend: risks moving toward red over time indicate degrading control environment. Used in quarterly risk committee meetings and board risk briefings.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — BUSINESS IMPACT ANALYSIS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Business Impact Analysis <span class="accent">(BIA)</span></div>
+        <div class="slide-subtitle">The BIA identifies the business functions that are most critical and determines the maximum tolerable downtime -- the foundation for all continuity planning.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">BIA Purpose</div>
+                <div class="card-desc">Determine: which business processes are essential to survival, how quickly each must be recovered, what resources they depend on, and what the financial impact of downtime is. The BIA produces the prioritization and recovery time requirements that drive the Business Continuity Plan (BCP) and Disaster Recovery Plan (DRP). Conducted by interviewing business process owners -- not by the IT department alone.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RTO (Recovery Time Objective)</div>
+                <div class="card-desc">Maximum acceptable time from disruption to recovery of a function. Business-defined, not IT-defined. Example: payment processing RTO = 4 hours (longer = customer churn + regulatory exposure). IT infrastructure RTO must be <= process RTO. If the business can tolerate 4 hours of payment downtime but the database has no recovery plan faster than 12 hours, there is a gap that must be addressed. RTOs drive technology investment decisions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RPO (Recovery Point Objective)</div>
+                <div class="card-desc">Maximum acceptable data loss measured in time -- how old can the most recent backup be and still be acceptable? RPO = 1 hour means the organization accepts losing up to 1 hour of data. Drives backup frequency: if RPO = 1 hour, backups must run at least every hour. RPO near zero requires synchronous replication (continuous data protection). Financial trading: RPO = seconds. Email server: RPO = 24 hours may be acceptable. RPO drives storage and replication architecture decisions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">MTD / MTPD and RTO Relationship</div>
+                <div class="card-desc">MTD (Maximum Tolerable Downtime) or MTPD (Maximum Tolerable Period of Disruption): the absolute maximum time a business process can be unavailable before causing irreversible business harm (bankruptcy, regulatory action, permanent customer loss). MTD >= RTO: the RTO must be achievable before MTD is reached. If MTD = 8 hours and RTO = 12 hours, the DRP will fail to prevent irreversible impact -- MTD shortfall must be addressed through investment or risk acceptance.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Dependency Mapping</div>
+                <div class="card-desc">Each critical business function depends on: IT systems (application, database, middleware), infrastructure (network, power, cooling), personnel (key person dependencies -- who cannot be sick?), vendors and third parties (SaaS providers, critical suppliers), physical facilities. Dependency mapping reveals hidden single points of failure -- critical process dependent on single server, single vendor, or single employee. Used to design resilient architecture and identify personnel cross-training needs.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">BIA Financial Quantification</div>
+                <div class="card-desc">For each critical process: hourly revenue impact of downtime, regulatory penalty exposure, contractual SLA penalty, cost of manual workaround operations, reputational damage (quantified as customer churn rate per day of incident coverage). Aggregate: total financial exposure per hour of downtime. This data justifies investment in high-availability infrastructure, off-site replication, and redundant vendors -- framed as an insurance calculation, not a technology purchase.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — SECURITY POLICIES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Security Policies &amp; <span class="accent">Policy Hierarchy</span></div>
+        <div class="slide-subtitle">Security policies are the formal expression of security requirements. The policy hierarchy translates high-level intent into specific, enforceable rules.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Policy Hierarchy</div>
+                <div class="card-desc">Policy (WHY): high-level directive from leadership. "The organization shall protect the confidentiality, integrity, and availability of information assets." Approved by board or executive. Standard (MANDATORY WHAT): specific mandatory requirements implementing the policy. "All systems processing payment data must implement TLS 1.2 or higher." Baseline/Guideline (RECOMMENDED WHAT): recommended but not mandatory. Procedure (HOW): step-by-step instructions for implementing standards.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Policy Types</div>
+                <div class="card-desc">Acceptable Use Policy (AUP): permitted and prohibited uses of organization systems and data. Information Security Policy: overall governance framework. Password Policy (or now: Authentication Policy per NIST 800-63B). Access Control Policy. Data Classification Policy. Incident Response Policy. Change Management Policy. Vendor/Third-Party Risk Policy. Remote Work / Telework Policy. BYOD Policy. Records Retention and Disposal Policy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Policy Lifecycle</div>
+                <div class="card-desc">Develop (draft, stakeholder input, legal review). Approve (executive sponsor or board). Publish (accessible to all affected employees -- intranet, onboarding documentation). Communicate and Train (mandatory annual acknowledgment, role-based training). Monitor and Enforce (policy violations tracked, corrective action documented). Review and Update (annual review minimum, triggered review on significant change, incident, or regulatory update). Archive (superseded versions retained for audit trail).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Policy Exceptions</div>
+                <div class="card-desc">No policy can anticipate every situation. Formal exception process: submit exception request with business justification, risk assessment of the exception, compensating controls that partially mitigate the risk, and requested duration (no permanent exceptions). Approval: risk owner + security team sign-off. Track exceptions in risk register. Review at expiration. Exception register is auditor-reviewed -- unexpired exceptions with no compensating controls are findings. Exception process prevents shadow IT and undocumented workarounds.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC policy program. The password policy states accounts must have 12+ character passwords rotated every 90 days. The legacy lab management system was built in 2003 and cannot support passwords longer than 8 characters. A formal exception is submitted: 8-character password compensated by: network isolation of the system, quarterly access review, monitoring of all authentication events, and an upgrade project with a committed completion date. Exception approved for 12 months.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — NIST FRAMEWORKS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">NIST Frameworks &amp; <span class="accent">Standards</span></div>
+        <div class="slide-subtitle">NIST publishes the most widely referenced US cybersecurity frameworks and special publications. These form the backbone of federal and many commercial security programs.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">NIST CSF 2.0 (Cybersecurity Framework)</div>
+                <div class="card-desc">Six Functions (not five -- CSF 2.0 added GOVERN): Govern (policies, risk management strategy, supply chain), Identify (asset management, risk assessment), Protect (access control, awareness training, data security), Detect (anomalies, continuous monitoring), Respond (incident response, communications), Recover (recovery planning, improvements). Each function has Categories and Subcategories. Technology/sector neutral -- intended for all organizations. Free, voluntary, but increasingly expected by insurance carriers, contracts, and regulators.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NIST SP 800-53</div>
+                <div class="card-desc">Security and Privacy Controls for Information Systems and Organizations. ~1,000 controls organized into 20 control families (AC, AT, AU, CA, CM, CP, IA, IR, MA, MP, PE, PL, PM, PS, PT, RA, SA, SC, SI, SR). Baselines: Low/Moderate/High impact. Mandatory for federal agencies (FISMA compliance). Widely adopted in defense (DFARS), healthcare, and financial sectors. SP 800-53B provides the baseline control selections. SP 800-53A provides assessment procedures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NIST SP 800-171 / CMMC</div>
+                <div class="card-desc">SP 800-171: Protecting CUI (Controlled Unclassified Information) in non-federal systems. 110 security requirements in 14 families. Required for DoD contractors handling CUI (DFARS 252.204-7012). CMMC (Cybersecurity Maturity Model Certification): DoD's third-party verification of SP 800-171 compliance. Level 1 (17 practices -- basic safeguarding), Level 2 (110 practices -- advanced cybersecurity), Level 3 (additional 24 practices from SP 800-172 -- high-value asset protection). CMMC 2.0 final rule effective 2025.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST SP 800-37 (RMF)</div>
+                <div class="card-desc">Risk Management Framework. Six steps: Prepare (organizational risk management activities), Categorize (system based on impact -- FIPS 199), Select (security controls -- NIST 800-53 baseline), Implement (controls in system), Assess (determine if controls are effective -- SP 800-53A), Authorize (ATO -- Authorize to Operate -- risk acceptance decision by AO), Monitor (ongoing effectiveness). Mandatory for federal systems. ATO is the federal system's "permission to operate" -- revoked when risk level exceeds authorized parameters.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">FIPS Standards</div>
+                <div class="card-desc">Federal Information Processing Standards. FIPS 140-2/3: Cryptographic module validation (four security levels). Required for cryptography in federal systems. FIPS 197: AES specification. FIPS 180-4: SHA-1, SHA-2 hash specifications. FIPS 186-5: DSA, RSA, ECDSA digital signature. FIPS 199: security categorization (impact: Low/Moderate/High for C/I/A). FIPS 200: minimum security requirements for federal information systems. Cryptographic products must be FIPS 140-2/3 validated for federal use.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">NIST AI RMF and Post-Quantum</div>
+                <div class="card-desc">NIST AI RMF (2023): framework for managing risks of AI systems -- Govern, Map, Measure, Manage. SP 800-218 (SSDF): Secure Software Development Framework. Post-Quantum Cryptography: NIST finalized first PQC standards in 2024 -- ML-KEM (CRYSTALS-Kyber, FIPS 203), ML-DSA (CRYSTALS-Dilithium, FIPS 204), SLH-DSA (SPHINCS+, FIPS 205). Organizations must develop crypto-agility plans -- ability to swap cryptographic algorithms without major system redesign. "Harvest now, decrypt later" threat makes PQC migration urgent.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — ISO 27001 ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">ISO/IEC 27001 &amp; the <span class="accent">ISMS</span></div>
+        <div class="slide-subtitle">ISO 27001 is the international standard for Information Security Management Systems -- providing a certifiable framework for holistic information security governance.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">ISO 27001 Structure</div>
+                <div class="card-desc">Clauses 4-10 (mandatory): Context (4), Leadership (5), Planning (6), Support (7), Operations (8), Performance Evaluation (9), Improvement (10). Annex A: 93 controls across 4 themes -- Organizational (37), People (8), Physical (14), Technological (34). 2022 revision: reorganized from 14 domains to 4 themes, 114 controls to 93, added 11 new controls including threat intelligence, ICT readiness for business continuity, and data masking. Annex A controls are not all required -- risk assessment determines which are applicable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ISMS (Information Security Management System)</div>
+                <div class="card-desc">An ISMS is the management system for information security -- policies, processes, procedures, and controls managed as a system with defined scope, objectives, and continuous improvement. ISO 27001 provides the specification. The ISMS scope can be the entire organization or a defined part (e.g., only the cloud services division). Certification audits: Stage 1 (document review -- is the ISMS designed to meet the standard?), Stage 2 (on-site evidence -- is the ISMS actually implemented and effective?). Annual surveillance audits. 3-year recertification cycle.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Statement of Applicability (SoA)</div>
+                <div class="card-desc">The SoA is the core document of ISO 27001: for each of the 93 Annex A controls, state whether it is included or excluded from the ISMS, the justification for the decision, and the implementation status. Excluded controls require documented justification (no applicable risk). The SoA is the contract between the organization and the auditor -- what controls did you commit to implement? Auditors verify the SoA against actual implementation evidence. Gaps between SoA and reality are findings.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ISO 27001 vs. NIST CSF</div>
+                <div class="card-desc">ISO 27001: international, certifiable (third-party audit + certificate), prescriptive ISMS management system requirements, 93 specific controls in Annex A, annual audit + 3-year recertification. NIST CSF: US-originated, non-certifiable (no official certificate), outcome-based framework (not prescriptive), sector/technology neutral, voluntary, free. Common approach: use NIST CSF for strategic self-assessment and roadmap, implement ISO 27001 ISMS for certifiable international compliance. Many organizations do both.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">ISO 27002 and Related Standards</div>
+            ISO 27002: Code of practice -- implementation guidance for Annex A controls. ISO 27005: risk management for information security. ISO 27017: cloud security controls. ISO 27018: PII protection in cloud. ISO 27035: incident management. ISO 27701: privacy information management (GDPR alignment). Organizations certified to ISO 27001 often implement 27002 guidance and 27701 for privacy.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — SOC 2 ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">SOC 2 &amp; <span class="accent">Trust Services Criteria</span></div>
+        <div class="slide-subtitle">SOC 2 is the dominant security assurance report for technology and cloud service providers in the United States -- increasingly required by enterprise customers.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SOC Report Types</div>
+                <div class="card-desc">SOC 1: internal controls over financial reporting (ICFR) -- for auditors and financial stakeholders. SOC 2: security, availability, processing integrity, confidentiality, and privacy -- for security-focused customers. SOC 3: public summary version of SOC 2 -- can be published on website. Type I: point-in-time assessment (are controls designed appropriately?). Type II: period-in-time (6-12 months): are controls operating effectively throughout the period? Type II is significantly more valuable than Type I.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Trust Services Criteria (TSC)</div>
+                <div class="card-desc">CC (Common Criteria -- Security): CC1 Control Environment, CC2 Communication, CC3 Risk Assessment, CC4 Monitoring, CC5 Control Activities, CC6 Logical Access, CC7 System Operations, CC8 Change Management, CC9 Risk Mitigation. Security (CC) is mandatory. Optional TSC: Availability (service uptime commitments), Processing Integrity (complete and accurate processing), Confidentiality (data classified as confidential protected), Privacy (personal information lifecycle). Most customer requirements focus on Security + Availability.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SOC 2 Audit Process</div>
+                <div class="card-desc">Readiness assessment: internal review of controls against TSC (often with auditor or consultant). Remediation: close gaps identified in readiness phase. Type I audit: auditor assesses design of controls at a point in time -- 1-3 months. Type II audit: auditor tests operating effectiveness over observation period (6-12 months) -- evidence sampling, employee interviews, policy review, system configurations. Report issued: Management Assertion + Auditor Opinion + System Description + Control Tests + Results. Customer NDA required to share report.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Common SOC 2 Control Categories</div>
+                <div class="card-desc">Access control (unique IDs, MFA, regular access reviews, prompt deprovisioning). Change management (SDLC, code review, testing, deployment approvals). Vulnerability management (scanning, patching SLAs, penetration testing). Incident response (documented procedures, testing, notification commitments). Vendor management (third-party assessments, contractual security requirements). Business continuity (BCP/DRP documented and tested). Security awareness training (annual, phishing simulations). Physical security (data center access controls, visitor log).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SOC 2 vs. ISO 27001</div>
+                <div class="card-desc">SOC 2: AICPA standard, US-centric, report (not certificate), auditor attestation on specific criteria over a period, customer-requested, typically annual. ISO 27001: ISO standard, international, certifiable certificate issued by accredited CB (Certification Body), covers full ISMS management system, 3-year certificate with annual surveillance. Market: US B2B technology companies typically start with SOC 2. International or EU customers often require ISO 27001. Many companies maintain both.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Subservice Organizations</div>
+                <div class="card-desc">If you use cloud providers (AWS, Azure) or other vendors that host in-scope systems, they are subservice organizations. Carve-out method: report excludes subservice -- customer must separately obtain AWS SOC 2. Inclusive method: report includes subservice controls. Most modern SOC 2 reports use carve-out and include the complementary user entity controls (CUECs) -- things the customer must do for the controls to be effective. CUECs include: configure MFA, implement your own access control policies, monitor logs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — GDPR ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">GDPR — General Data Protection <span class="accent">Regulation</span></div>
+        <div class="slide-subtitle">GDPR is the EU privacy regulation with the broadest global reach -- any organization processing EU residents' personal data must comply, regardless of where the organization is located.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">GDPR Scope and Territorial Reach</div>
+                <div class="card-desc">Applies to: EU/EEA established organizations processing personal data (controller or processor), and non-EU organizations that: offer goods/services to EU residents (website accepting orders from Germany), or monitor EU resident behavior (behavioral advertising, analytics). Personal data: any information relating to an identified or identifiable natural person (name, email, IP address, cookie ID, location, biometric data, health data). Special category data: race, religion, health, biometric, genetic data -- requires explicit consent or other legal basis.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">GDPR Principles (Article 5)</div>
+                <div class="card-desc">Lawfulness, fairness, transparency. Purpose limitation (collect for specified, explicit, legitimate purposes -- not further processed incompatibly). Data minimisation (adequate, relevant, limited to what is necessary). Accuracy (kept up to date, corrected without delay). Storage limitation (no longer than necessary -- retention periods must be defined). Integrity and confidentiality (appropriate security including against accidental loss, destruction, or damage). Accountability (controller responsible for and able to demonstrate compliance).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Lawful Bases for Processing</div>
+                <div class="card-desc">Consent (freely given, specific, informed, unambiguous -- must be withdrawable). Contract (processing necessary for performance of contract with the data subject). Legal obligation (processing required by EU/member state law). Vital interests (protect someone's life). Public task (exercise of official authority). Legitimate interests (balancing test -- your legitimate interest vs. individual's rights and freedoms). Special category data: explicit consent or specific exemptions required. Basis must be determined before processing begins and documented.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Subject Rights</div>
+                <div class="card-desc">Right of access (get a copy of their data). Right to rectification (correct inaccuracies). Right to erasure / "right to be forgotten" (delete data when no longer needed or consent withdrawn -- subject to retention obligations). Right to restriction of processing. Right to data portability (receive data in machine-readable format). Right to object (stop processing based on legitimate interest). Rights relating to automated decision-making. Response required within 1 month. Verify identity of requestor before responding.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Breach Notification</div>
+                <div class="card-desc">Article 33: notify Supervisory Authority (SA) within 72 hours of becoming aware of a personal data breach -- unless breach unlikely to result in risk to individuals. What to include: nature of breach, categories and approximate number of individuals/records affected, contact DPO details, likely consequences, measures taken or proposed. Article 34: notify affected individuals without undue delay when breach likely to result in high risk to their rights and freedoms. High risk: financial damage, discrimination, identity theft, reputation damage.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">GDPR Fines</div>
+                <div class="card-desc">Tier 1: up to 10 million EUR or 2% of global annual turnover (whichever higher) -- for violations of controllers/processors obligations, supervisory authority orders. Tier 2: up to 20 million EUR or 4% of global annual turnover (whichever higher) -- for violations of basic principles (Article 5), data subject rights, international transfers. Notable fines: Meta 1.2 billion EUR (2023 -- SCCs/data transfer), Amazon 746 million EUR (2021 -- consent). Fines reflect seriousness, intentionality, categories of data affected, and cooperation with SA.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — HIPAA ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">HIPAA — Health Insurance Portability &amp; <span class="accent">Accountability Act</span></div>
+        <div class="slide-subtitle">HIPAA establishes the privacy and security requirements for protected health information (PHI) in the US healthcare ecosystem.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">HIPAA Applicability</div>
+                <div class="card-desc">Covered Entities (CE): healthcare providers (hospitals, clinics, physicians), health plans (insurance companies, HMOs), healthcare clearinghouses. Business Associates (BA): any vendor or contractor that creates, receives, maintains, or transmits PHI on behalf of a CE (cloud storage providers, EHR vendors, billing companies, IT managed service providers). BAA (Business Associate Agreement) required between CE and all BAs before PHI is shared. BA's subcontractors who handle PHI are also business associates -- chain of BAAs required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Privacy Rule and Minimum Necessary</div>
+                <div class="card-desc">PHI (Protected Health Information): individually identifiable health information. 18 identifiers make information PHI (name, SSN, DOB, address, phone, diagnosis codes, account numbers, photos, etc.). Minimum necessary standard: access to PHI limited to what is needed for the specific purpose. Uses and disclosures of PHI permitted without authorization: treatment, payment, operations (TPO), public health reporting, judicial proceedings. Marketing, research, and most other uses require patient authorization (written). De-identification: remove all 18 identifiers -- no longer PHI.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Rule (ePHI)</div>
+                <div class="card-desc">Applies to electronic PHI (ePHI). Three safeguard categories: Administrative (security officer, workforce training, access management, risk analysis -- REQUIRED). Physical (facility access controls, workstation use, device and media controls). Technical (access control, audit controls, integrity controls, authentication, transmission security). Required vs. Addressable: addressable specifications must be implemented unless a documented alternative measure equivalent to the standard is used. "Addressable" does NOT mean optional.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Breach Notification Rule</div>
+                <div class="card-desc">Presumption of breach unless CE demonstrates low probability of compromise based on 4-factor risk assessment: (1) nature and extent of PHI involved, (2) who used or may have accessed, (3) whether PHI was actually acquired or viewed, (4) extent to which risk has been mitigated. Notification: affected individuals (within 60 days), HHS (annual log for small breaches, within 60 days for 500+ affected), media notice (500+ individuals in state/jurisdiction). HHS Wall of Shame: public list of breaches 500+ individuals -- includes healthcare AI vendor breaches.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">HIPAA Penalties (HITECH-Enhanced)</div>
+            Tier 1 (did not know): $100-$50,000 per violation, max $25K/year for same violation type. Tier 2 (reasonable cause): $1,000-$50,000 per violation, max $100K/year. Tier 3 (willful neglect, corrected): $10,000-$50,000 per violation, max $250K/year. Tier 4 (willful neglect, not corrected): $50,000 per violation, max $1.5M/year. Criminal penalties: up to 10 years imprisonment for intentional misuse of PHI.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — PCI DSS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">PCI DSS — Payment Card Industry <span class="accent">Data Security Standard</span></div>
+        <div class="slide-subtitle">PCI DSS v4.0 is the contractual security standard for all organizations that store, process, or transmit cardholder data -- enforced through contractual relationships, not law.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">PCI DSS Applicability</div>
+                <div class="card-desc">Any merchant or service provider that stores, processes, or transmits cardholder data (CHD) or sensitive authentication data (SAD). SAD: full track data, CVV/CVV2, PIN/PIN block -- never stored. CHD: PAN (Primary Account Number), cardholder name, expiration date, service code. Merchant levels (1-4) based on annual transaction volume -- Level 1 (6M+ Visa transactions): annual QSA audit. Levels 2-4: SAQ (Self-Assessment Questionnaire) + quarterly network scan. Enforced by card brands (Visa/Mastercard) through acquiring banks via contracts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">12 PCI DSS v4.0 Requirements</div>
+                <div class="card-desc">1. Network security controls. 2. Secure configurations. 3. Protect stored cardholder data. 4. Protect data in transit (TLS). 5. Protect against malware. 6. Secure systems and software. 7. Restrict access by need-to-know. 8. Identify users and authenticate access (MFA for CDE). 9. Restrict physical access. 10. Log and monitor all access. 11. Test security systems and processes (scans, pen test, IDS). 12. Support information security with policies and programs. CDE (Cardholder Data Environment) = scope for all requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scope Reduction</div>
+                <div class="card-desc">PCI DSS scope = CDE + systems connected to CDE + systems that could impact security of CDE. Largest lever for compliance cost reduction: minimize CDE scope. Techniques: tokenization (replace PAN with random token -- token is not CHD, system holding token is out of scope), iframe/hosted payment page (payment form hosted by PCI-compliant payment processor -- card data never enters your environment), point-to-point encryption (P2PE -- data encrypted at card swipe, decrypted only at processor -- minimizes scope). Confirmed by QSA as a true scope reduction measure.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">New in PCI DSS v4.0</div>
+                <div class="card-desc">Customized approach: alternative control design that meets security objective through different means -- requires more documentation and QSA validation but provides flexibility. Targeted risk analysis: use risk analysis to determine frequency for controls where v3.2.1 prescribed fixed intervals. Phishing-resistant MFA: phishing-resistant authenticators now required for all CDE access (Req. 8.4.2 -- effective 2025). DMARC (Req. 5.4.1): anti-phishing controls for email. Web application protection expanded. Effective for new assessments from March 2024; v3.2.1 retired Dec 2024.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">ASV Scanning and Pen Testing</div>
+                <div class="card-desc">Approved Scanning Vendor (ASV): quarterly external vulnerability scans of internet-facing systems in scope -- must use a PCI-approved ASV. Passing scan: no unresolved CVSS 4.0+ vulnerabilities on internet-facing systems. Annual penetration test: segmentation test (verify CDE segmentation is effective) + application and network pen test. Levels 1-2 merchants: must use QSA or ISA. Web application: WAF or web app pen test required. Penetration test must follow a defined methodology (PTES, OWASP, NIST SP 800-115).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Non-Compliance Consequences</div>
+                <div class="card-desc">Not a law -- no government penalty. Contractual: card brands can fine acquiring banks ($5,000-$100,000/month), who pass fines to merchants. In breach: forensic investigation cost (PFI -- Payment Forensic Investigator), mandatory issuer card replacement costs ($3-$10/card), increased transaction fees, loss of card acceptance rights (rare but devastating). Reputational: card brand public notification. Payment processors may terminate merchant account. SEC disclosure requirements if publicly traded and material breach occurs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — OTHER REGULATIONS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Additional Regulatory <span class="accent">Frameworks</span></div>
+        <div class="slide-subtitle">Beyond GDPR, HIPAA, and PCI DSS, organizations face sector-specific and jurisdictional regulations that impose security and privacy obligations.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SOX (Sarbanes-Oxley)</div>
+                <div class="card-desc">US law for public companies (SEC-registered). Section 302: CEO/CFO certify accuracy of financial reports and effectiveness of disclosure controls. Section 404: annual management assessment of internal controls over financial reporting (ICFR) + auditor attestation for large accelerated filers. IT general controls (ITGC): access controls, change management, operations, DR -- all must be tested. Deficiencies: material weakness = potentially inaccurate financials = SEC disclosure required = stock impact.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">GLBA (Gramm-Leach-Bliley Act)</div>
+                <div class="card-desc">US financial services law. Safeguards Rule (FTC-updated 2023): financial institutions must implement a comprehensive information security program. Requires: risk assessment, access controls, MFA for systems with customer financial data, encryption in transit and at rest, penetration testing annually, vulnerability assessment semi-annually, data retention and disposal, incident response plan, security awareness training, designated qualified individual overseeing the program. Small financial institutions under $10M: simplified requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">FERPA (Education)</div>
+                <div class="card-desc">Family Educational Rights and Privacy Act. Protects education records at institutions receiving federal funding. Students have right to access their records, request corrections, and consent to disclosures. Schools must notify students of FERPA rights annually. Security implication: student records are protected -- unauthorized disclosure is a FERPA violation. Breach: no mandatory breach notification in FERPA itself but state laws may apply. Relevant for higher education institutions and edtech platforms accessing student data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">US State Privacy Laws</div>
+                <div class="card-desc">CCPA/CPRA (California): consumer rights (access, deletion, opt-out of sale), required privacy notice, data mapping, opt-out mechanism. Similar laws in Virginia (VCDPA), Colorado (CPA), Connecticut (CTDPA), Texas, Florida, and others -- each with variations. No federal omnibus privacy law in the US (ADPPA proposed but not passed as of 2024). Multi-state compliance strategy: identify highest-standard requirements, apply consistently across all consumers as baseline.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">NIS2 Directive (EU)</div>
+                <div class="card-desc">EU Network and Information Security Directive 2 -- effective 2024. Expands NIS1 scope to more sectors: essential entities (energy, transport, banking, health, water, digital infrastructure, ICT) and important entities (postal, waste, manufacturing, food, chemicals, research). Requirements: risk management measures, incident reporting (24-hour early warning, 72-hour initial notification), supply chain security, encryption, vulnerability disclosure, MFA, access control, cyber hygiene training. Personal liability for senior management if non-compliant.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">FISMA and FedRAMP</div>
+                <div class="card-desc">FISMA (Federal Information Security Modernization Act): requires federal agencies to implement information security programs based on NIST standards (RMF, SP 800-53). Annual CIO reporting to OMB. FedRAMP (Federal Risk and Authorization Management Program): cloud service authorization for federal use. CSPs (Cloud Service Providers) obtain FedRAMP authorization (Low/Moderate/High) through 3PAO (Third Party Assessment Organization) assessment. "Authorize once, use many times" -- agencies can leverage existing authorizations. Mandatory for federal cloud procurement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — THIRD-PARTY RISK ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Third-Party Risk <span class="accent">Management (TPRM)</span></div>
+        <div class="slide-subtitle">Supply chain and vendor risk has become the dominant breach vector. Managing third-party risk is a governance requirement, not just a security nicety.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Why TPRM Matters</div>
+                <div class="card-desc">SolarWinds (2020): software update mechanism compromised -- 18,000 customers' networks backdoored. MOVEit (2023): zero-day in file transfer software -- 2,000+ organizations breached through a single vendor. Kaseya (2021): MSP management tool exploited -- 1,500 downstream businesses ransomed. Your security posture is only as strong as your weakest vendor with access to your environment. 60%+ of breaches in Verizon DBIR involve third parties in some capacity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">TPRM Lifecycle</div>
+                <div class="card-desc">Identification: inventory all third parties with access to your data, systems, or facilities. Classification: tier vendors by risk level (Tier 1: critical/high access, Tier 2: moderate, Tier 3: low). Due Diligence: security questionnaire, SOC 2 report review, pen test results, certifications, financial stability. Contracting: security requirements in MSA/DPA, breach notification SLA, audit rights, data handling obligations. Ongoing Monitoring: annual re-assessment, continuous monitoring for breaches (SecurityScorecard, BitSight). Offboarding: data deletion verification, access revocation confirmation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Contractual Security Requirements</div>
+                <div class="card-desc">Standard contractual clauses for vendors with access to sensitive data: right to audit, security incident notification within 72 hours, data processing agreement (for GDPR), no subcontracting without prior approval, return or destruction of data at contract end, specific technical controls required (encryption, MFA, vulnerability management), compliance with applicable regulations, cyber insurance minimums, liability/indemnification provisions, SLA for system availability and security patch response times.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Software Supply Chain Security</div>
+                <div class="card-desc">SBOM (Software Bill of Materials): inventory of all components in software -- required for federal procurement (EO 14028) and increasingly by contracts. Enables rapid response when a component (e.g., log4j) has a critical CVE -- scan SBOM, identify affected systems, prioritize patches. SCA (Software Composition Analysis) tools: OWASP Dependency-Check, Snyk, Mend (WhiteSource), FOSSA -- scan dependencies for known vulnerabilities. Signed builds (SLSA Level 3+) verify integrity of build artifacts from source to deployment.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC specimen management vendor. The TPRM program identifies a cloud-based specimen tracking vendor as Tier 1 (has access to the CDC network via site-to-site VPN and stores specimen metadata). Annual assessment finds the vendor lacks MFA on their admin console and has an unpatched critical CVE in their web application. Risk finding escalated: vendor given 30 days to remediate with compensating control (monitoring their VPN connection) applied immediately.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — GOVERNANCE STRUCTURES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Security Governance <span class="accent">Structures</span></div>
+        <div class="slide-subtitle">Effective security governance requires clear accountability, defined roles, and structured decision-making bodies at the right organizational level.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Board and Executive Accountability</div>
+                <div class="card-desc">Board: sets risk appetite, receives quarterly risk report, ensures adequate resources for security program. CEO: accountable for organizational security posture -- sets tone from the top. CISO: security strategy, risk communication to board, security program ownership. CFO: security budget authority, financial risk quantification. Legal/General Counsel: regulatory compliance, breach notification decisions. CIO/CTO: technology risk, security architecture decisions. Each executive is accountable for risk in their domain.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Risk Committee</div>
+                <div class="card-desc">Cross-functional committee meeting quarterly (or more frequently during incidents). Members: CISO, CIO, Legal, Compliance, Business unit leaders, Audit. Agenda: review of risk register, treatment progress, new emerging risks, exception approvals, compliance status, incident debrief. Outputs: approved risk treatment decisions, escalation to board for high risks, resource allocation recommendations, policy updates. Minutes and decisions documented -- evidence of governance for auditors and regulators.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CISO Reporting Structure</div>
+                <div class="card-desc">CISO reporting to CIO: convenient (aligned with IT) but potential conflict of interest (security vs. delivery speed). CISO reporting to CEO or Chief Risk Officer: independent voice, peer to CIO, better for escalation. CISO reporting to General Counsel: aligned with legal/compliance -- common in regulated industries. Best practice (and increasingly regulatory expectation): CISO with direct board access for reporting (CISO presents directly at board meetings), regardless of day-to-day reporting line. SEC rules (2023) require public companies to disclose material cybersecurity incidents within 4 days.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">GRC Tools</div>
+                <div class="card-desc">Governance, Risk, and Compliance (GRC) platforms: ServiceNow GRC, Archer, MetricStream, OneTrust, Vanta, Drata. Functions: risk register management, policy lifecycle management, control mapping (one control mapped to multiple frameworks -- efficiency gain), compliance calendar, evidence collection and workflow, audit management, vendor risk management, exception tracking. Key benefit: map one control to NIST CSF + SOC 2 + ISO 27001 + PCI DSS simultaneously -- no duplicate evidence collection. ROI: significant time savings in audit preparation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Security Steering Committee</div>
+                <div class="card-desc">Operational-level governance body (separate from or subsidiary to Risk Committee). Focus: security program execution, priority-setting, resource conflicts. Members: CISO, Security Architects, Engineering leads, Operations leads. Cadence: monthly. Topics: project status, vulnerability remediation priorities, security tool decisions, emerging threats requiring architectural response, security debt management. Connects security strategy to day-to-day execution. Bridges the gap between board-level risk decisions and engineering team workloads.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Security Metrics for Leadership</div>
+                <div class="card-desc">Board-level metrics: MTTD (Mean Time to Detect), MTTR (Mean Time to Respond/Recover), % critical vulnerabilities patched within SLA, MFA adoption rate (%), phishing click rate (%), vendor risk tier 1 assessment completion rate (%), open critical risks by age, security investment vs. industry benchmarks, cyber insurance coverage vs. exposure. Avoid technical metrics for board -- translate to business impact, financial exposure, and peer comparison. Tell the story: "We detect threats 3x faster than last year and our peer average."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — SECURITY AWARENESS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Security Awareness &amp; <span class="accent">Training Program</span></div>
+        <div class="slide-subtitle">The human element is the most commonly exploited attack vector -- and the most cost-effective control to improve through a well-designed awareness program.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Program Design Principles</div>
+                <div class="card-desc">Continuous, not annual: one training module per year is not sufficient. Monthly micro-learning, quarterly simulations, and teachable moments at time of risk (just-in-time training after a failed simulation). Relevant content: scenarios relevant to the audience (finance team gets wire fraud scenarios, developers get secure coding, executives get spear-phishing). Measurable outcomes: track click rates, reporting rates, quiz scores. Culture change: report a phish = positive reinforcement, not blame for clicking.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Phishing Simulation Programs</div>
+                <div class="card-desc">Monthly or quarterly simulated phishing campaigns. Metrics: click rate (% who clicked), report rate (% who reported), credential submission rate (most dangerous -- submitted password to fake page), attachment open rate. Progressive difficulty: start with easier templates, increase sophistication over time. Remediation: users who click receive immediate targeted training (not punishment). Goal: build muscle memory for recognizing and reporting suspicious email. Report-a-phish button in email client reduces friction and provides threat intelligence.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Role-Based Training</div>
+                <div class="card-desc">General workforce: phishing, password hygiene, physical security, social engineering, clean desk, incident reporting. IT/Security: secure configuration, access management, incident response, vulnerability management. Developers: OWASP Top 10, secure SDLC, code review, secrets management, dependency scanning. Finance team: wire transfer fraud, social engineering (CEO fraud/BEC), invoice fraud. Executives: spear-phishing, executive impersonation, M&amp;A confidentiality risks, secure travel practices. Each audience needs scenarios matching their real attack surface.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Regulatory Training Requirements</div>
+                <div class="card-desc">HIPAA: annual security awareness training for workforce handling ePHI -- reminders of policies and procedures. PCI DSS Req. 12.6: annual security awareness program for all employees in CDE scope. GLBA Safeguards Rule: security awareness training as part of required information security program. CMMC Level 2: AT.2.056 (awareness activities), AT.3.058 (role-based training). ISO 27001 Annex A 6.3: security awareness, education, and training. Training completion records must be maintained and produced for auditors.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Measuring Program Effectiveness</div>
+            KPIs: phishing click rate trend (month-over-month improvement), report rate trend (more people reporting = better culture), repeat offender rate (same employees clicking repeatedly -- need targeted intervention), quiz completion rate (compliance), quiz pass rate (comprehension). Annual: social engineering exercise results, security culture survey scores. Present metrics at Security Steering Committee to show program ROI and drive continued investment.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — CHANGE MANAGEMENT ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Change Management &amp; <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Change management controls prevent unauthorized or uncoordinated changes that introduce vulnerabilities -- a critical but often underappreciated security control.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Change Advisory Board (CAB)</div>
+                <div class="card-desc">Cross-functional review body for change requests. Standard changes (low-risk, pre-approved): automatic approval (e.g., apply OS patch to test server). Normal changes: submit RFC (Request for Change), CAB review (risk assessment, rollback plan, approval), scheduled change window. Emergency changes: streamlined approval for urgent fixes (post-approval documentation required). Major changes: full CAB + senior stakeholder approval. Security team reviews all changes affecting security controls, firewall rules, or privileged access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Change Risk Assessment</div>
+                <div class="card-desc">For each change: probability of failure, impact of failure (production impact, data risk, security impact), rollback feasibility, test evidence. Change risk drives approval requirements. High-risk changes: require security review (does this change weaken a security control?), testing evidence in non-prod environment, confirmed rollback plan, change window in maintenance period (low user impact time), monitoring plan for post-change period. "Move fast" culture and change management discipline are not mutually exclusive -- pre-approved standard changes enable speed within guardrails.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Configuration Baseline</div>
+                <div class="card-desc">Documented secure configuration state for each system type (CIS Benchmarks: Windows, Linux, cloud services, network devices, containers). Baseline enforced via: Group Policy (Windows), Ansible/Chef/Puppet (Linux/infrastructure), AWS Config Rules / Azure Policy (cloud), DISA STIGs (DoD). Configuration drift: actual configuration diverges from baseline over time. Drift detection: continuous scanning against baseline, alert on deviation. Change management prevents unauthorized configuration changes; baseline management catches configuration creep.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Separation of Environments</div>
+                <div class="card-desc">Development: unrestricted, no production data. Test/Staging: production-like, anonymized or synthetic data. UAT: user acceptance testing, near-production. Production: locked down -- all changes through change management process. No developer direct access to production (SoD: developer writes code, separate role deploys). Code promotion path: dev -- test -- staging -- production. Any change to production requires change ticket, approval, and documentation. Audit finding: developer with production database write access = control failure.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Infrastructure as Code Change Control</div>
+                <div class="card-desc">IaC (Terraform, CloudFormation, Ansible): all infrastructure changes defined in code, stored in version control (git). Pull request workflow: peer review of infrastructure changes before merge. Branch protection: main/prod branch requires N approvals + CI checks (security scanning, compliance validation). Terraform plan output reviewed in PR comments -- explicit "what will change" visibility. Merge to main = automated deployment to production (GitOps model). Full audit trail in git history: who approved what change when.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Patch Management as Change</div>
+                <div class="card-desc">Security patching should flow through the change management process -- but with aggressive timelines. Critical/zero-day: emergency change process, 24-72 hours maximum. High severity: standard change, 7-30 days based on criticality and exploitability. Medium/low: quarterly patch cycle. Patch management metrics: % critical patches applied within SLA, average time from patch release to application, end-of-life software count (unsupported -- no patches available). These metrics are reviewed by auditors and cyber insurance underwriters.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — CONTINUITY PLANNING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Business Continuity &amp; <span class="accent">Resilience Planning</span></div>
+        <div class="slide-subtitle">Continuity planning ensures the organization can maintain critical functions during and after a disruption -- from natural disasters to ransomware attacks.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">BCP vs. DRP Scope</div>
+                <div class="card-desc">BCP (Business Continuity Plan): maintains critical business functions during a disruption -- manual workarounds, alternate locations, supply chain alternatives, personnel cross-training, communication plans, work from home enablement. Addresses the business side of recovery. DRP (Disaster Recovery Plan): recovers IT systems and infrastructure after a disaster -- backup restoration, failover procedures, infrastructure rebuild. Supports the BCP. Both are required and interrelated -- DRP without BCP leaves the business function unsupported during the recovery period.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Recovery Site Types</div>
+                <div class="card-desc">Hot site: fully operational duplicate infrastructure, real-time data replication. Can switch in minutes to hours. Highest cost. Used for: financial trading, critical healthcare, emergency services. Warm site: hardware in place, software configured, data periodically synchronized (hours to days behind). Recovery time: hours to days. Moderate cost. Cold site: facility available, hardware must be delivered and configured, data restored from backup. Recovery time: days to weeks. Lowest cost. Cloud: on-demand infrastructure closest to hot site economics for most workloads (IaaS + automated failover).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Backup Strategy</div>
+                <div class="card-desc">3-2-1 Rule: 3 copies of data, on 2 different media types, 1 offsite. Expanded 3-2-1-1-0: +1 offline/air-gapped/immutable copy (ransomware protection), 0 errors verified by regular restore testing. Immutable backups (WORM: Write Once Read Many): cannot be deleted or encrypted by ransomware -- most critical control for ransomware recovery. Backup retention: meet RPO for each system tier. Test restores quarterly -- untested backups are assumptions, not guarantees. Document: what is backed up, frequency, retention period, restore time, responsible team, test schedule.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuity Testing</div>
+                <div class="card-desc">Tabletop exercise: discuss scenario walk-through, identify gaps in plan -- lowest cost, most accessible. Walk-through drill: physically walk through the procedures without actually executing them -- confirms documentation accuracy. Functional exercise: specific functions tested in isolation (IT failover test, call tree test). Full interruption test (live failover): actually switch to recovery environment -- highest fidelity, highest risk. Frequency: tabletop annually minimum, functional exercise annually, full interruption for critical systems every 1-3 years. Document results -- findings drive plan improvements.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            CDC ransomware incident. All primary database servers encrypted Saturday at 03:00. CIRT invoked BCP: manual specimen tracking using paper logs (business continuity workaround). DRP invoked: failover to warm site with backups restored from immutable offline copies. RTO for specimen database: 4 hours -- achieved 3.5 hours after incident declaration. RPO: 2 hours -- last offline backup was 1.5 hours old. BIA prediction was accurate. Tabletop exercise 6 months earlier identified the paper log procedure gap -- it had been corrected before the real event.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — RISK QUANTIFICATION DEEP DIVE ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Quantitative Risk <span class="accent">Calculation Deep Dive</span></div>
+        <div class="slide-subtitle">The SY0-701 exam tests quantitative risk formulas directly. Practice these calculations until they are automatic.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Complete Formula Set</div>
+                <div class="card-desc">Asset Value (AV): dollar value of the asset. Exposure Factor (EF): % of asset value lost if the threat occurs (0-100%). Single Loss Expectancy (SLE) = AV x EF. Annualized Rate of Occurrence (ARO): expected frequency of the loss event per year (0.1 = once every 10 years, 10 = 10 times per year). Annualized Loss Expectancy (ALE) = SLE x ARO. Control cost justification = (ALE before control) - (ALE after control) - (Annual control cost). Positive result = control is cost-justified.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Worked Example</div>
+                <div class="card-desc">Database server AV = $1,500,000. Ransomware EF = 70% (70% of value lost per incident). SLE = $1,500,000 x 0.70 = $1,050,000. ARO = 0.5 (expected once every 2 years). ALE = $1,050,000 x 0.5 = $525,000/year. Immutable backup solution: annual cost $80,000, reduces EF to 15% (most data recoverable). ALE after = $1,500,000 x 0.15 x 0.5 = $112,500. Savings = $525,000 - $112,500 - $80,000 = $332,500/year net benefit. Control is strongly justified.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Exam Traps</div>
+                <div class="card-desc">EF is always a percentage (decimal) -- never multiply AV by EF% without converting to decimal. ARO less than 1 = less than once per year (0.25 = every 4 years). Always compute SLE before ALE -- two-step calculation. "Which control is cost-justified?" -- calculate ALE reduction for each option, subtract control cost, select option with highest net benefit. Asset value should include replacement cost + productivity loss + data value -- not just hardware cost. Qualitative ratings cannot be used in quantitative formulas.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Using ALE for Budget Justification</div>
+                <div class="card-desc">Security budget request: "We are requesting $200,000 for an XDR platform. Current ALE for undetected endpoint compromise is $800,000. With XDR, we expect MTTD to drop from 180 days to 7 days, reducing ALE to $120,000. Net annual savings: $480,000. ROI in Year 1: 140%." This is the language that gets budget approved -- quantified risk reduction, not FUD (fear, uncertainty, doubt). Most effective when AV and ARO estimates are defensible using industry data (Verizon DBIR, IBM Cost of Data Breach Report, IC3 statistics).</div>
+            </div>
+        </div>
+        <div class="code-block"><span class="cm">Practice Problems -- Solve Before Checking</span>
+<span class="cm">Q1: AV=$500K, EF=0.60, ARO=2. What is ALE?</span>
+<span class="cm">Q2: ALE_before=$240K, ALE_after=$40K, control_cost=$50K/yr. Net benefit?</span>
+<span class="cm">Q3: SLE=$75K, ARO=0.1. What is ALE?</span>
+<span class="cm">Answers: Q1=$600K  Q2=$150K/yr  Q3=$7,500/yr</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — PRIVACY ENGINEERING ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Privacy Engineering &amp; <span class="accent">Privacy by Design</span></div>
+        <div class="slide-subtitle">Privacy engineering integrates data protection into system design from the start -- rather than retrofitting privacy controls after deployment.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Privacy by Design Principles (Cavoukian)</div>
+                <div class="card-desc">1. Proactive, not reactive. 2. Privacy as default (highest privacy setting is the default, no user action required). 3. Privacy embedded into design (not bolted on). 4. Full functionality (positive-sum: privacy AND security AND functionality -- not zero-sum trade-off). 5. End-to-end security (lifecycle protection). 6. Visibility and transparency (open policies, verifiable). 7. Respect for user privacy (user-centric). GDPR codifies Privacy by Design in Article 25 (data protection by design and by default).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Data Minimization in Practice</div>
+                <div class="card-desc">Collect only what you need for your stated purpose. Ask: "Do we actually need this field?" before adding it to a form. Retention: define how long each data type is retained, automate deletion at expiration. Pseudonymization: replace direct identifiers with pseudonyms -- data still useful for analysis but less impactful if breached. Anonymization: irreversibly remove all identifying information -- no longer personal data under GDPR. Differential privacy: add statistical noise to aggregate queries -- cannot reconstruct individual records.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Protection Impact Assessment (DPIA)</div>
+                <div class="card-desc">GDPR Article 35: DPIA required before high-risk processing (systematic monitoring of public areas, large-scale processing of special category data, automated decision-making with significant effect, novel technologies). DPIA process: describe the processing, assess necessity and proportionality, identify and assess risks, identify measures to address risks. Output: documented risk assessment with chosen mitigations. If residual risk remains high after mitigations, consult supervisory authority before proceeding. US equivalent: Privacy Impact Assessment (PIA) required for federal systems (E-Government Act).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Technical Privacy Controls</div>
+                <div class="card-desc">Encryption: renders data unreadable without the key -- GDPR considers encrypted data that cannot be decrypted by attacker as not a notifiable breach. Tokenization: replace PII with tokens, store mapping in secure vault. Data masking: production data masked for test environments (no real PII in development). Consent management platforms (CMP): record consent signals, enable preference management, block processing before consent obtained. Privacy-enhancing technologies (PETs): federated learning (train ML models without centralizing data), secure multi-party computation, homomorphic encryption.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Data Mapping and Records of Processing</div>
+                <div class="card-desc">GDPR Article 30: controllers must maintain records of processing activities (RoPA). For each processing activity: controller identity, purposes, categories of data subjects and data, recipients, transfers, retention periods, security measures. Data mapping process: interview business process owners, catalog all data flows (collection, use, sharing, storage, deletion). Output: data flow diagram + RoPA. Used for: GDPR compliance demonstration, breach notification scoping (which data was affected?), DSR response (where is this person's data?), DPIA initiation trigger.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cross-Border Data Transfers</div>
+                <div class="card-desc">GDPR restricts transfer of personal data to non-EEA countries without adequate protection. Mechanisms: Adequacy Decision (EU Commission approves the country's protection level -- US: EU-US DPF 2023), Standard Contractual Clauses (SCCs -- pre-approved contract terms), Binding Corporate Rules (BCRs -- internal policies for multinational transfers), derogations (explicit consent, contract necessity). Schrems II (2020) invalidated Privacy Shield -- new EU-US DPF challenged. Any organization transferring EU personal data to the US must have a current, valid transfer mechanism.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — CYBER INSURANCE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Cyber Insurance &amp; <span class="accent">Risk Transfer</span></div>
+        <div class="slide-subtitle">Cyber insurance transfers financial risk to an insurer -- but only if the policy is structured correctly and the organization meets the underwriting requirements.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Coverage Types</div>
+                <div class="card-desc">First-party coverage: direct losses to the insured. Includes: incident response costs (forensics, legal, notification), ransomware payments (varies by policy), business interruption/lost revenue during downtime, data restoration costs, extortion costs, reputation management. Third-party coverage: claims from others due to your breach. Includes: customer notification costs (if covered), regulatory defense costs, fines (only in some jurisdictions -- GDPR fines typically not covered), litigation settlements, media liability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Underwriting Requirements</div>
+                <div class="card-desc">Insurers now require documented security controls as prerequisites for coverage and as factors in premium pricing. Common requirements: MFA on remote access and email, EDR deployed, vulnerability scanning and patching program, email security (DMARC/anti-phishing), privileged access management (documented), backup and recovery tested, incident response plan documented, security awareness training, vendor management program. Gap in any of these may result in: coverage denial, exclusion (specific attack types not covered), premium surcharge, lower coverage limit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Policy Exclusions and Traps</div>
+                <div class="card-desc">War exclusion: state-sponsored cyberattack may be excluded (Lloyd's 2022 war exclusion clarification). Systemic risk exclusion: attack affecting many insureds simultaneously may hit policy aggregate limits. Prior known incidents: must disclose known vulnerabilities and incidents during application -- non-disclosure can void coverage. Regulatory fines: GDPR fines typically not insurable in EU (contrary to public policy). Ransomware exclusion: some policies exclude ransom payment or limit it. Read the policy: exclusions buried in definitions sections can significantly limit effective coverage.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cyber Insurance as GRC Driver</div>
+                <div class="card-desc">Increasingly, cyber insurance application questionnaires serve as de facto security assessment frameworks. The 30-50 control questions asked by insurers often align with NIST CSF and SOC 2 criteria. Some CISOs use the annual renewal questionnaire as a risk assessment exercise. Security improvements made to satisfy insurance requirements improve overall security posture. Renewal negotiation: strong security posture + favorable claims history = lower premiums + higher limits. Build relationship with insurance broker's risk engineering team -- they often provide free security assessments.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Adequate Coverage Sizing</div>
+            Coverage amount should be based on quantified exposure: cost of incident response + notification ($100-$500/record, depending on state law) x records at risk + business interruption revenue loss x expected downtime + regulatory defense costs. IBM Cost of Data Breach Report 2023: average breach cost $4.45M globally, $9.48M in US healthcare. Organizations underestimate their exposure -- policy limits should be tested against actual risk scenarios in tabletop exercises.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — METRICS AND REPORTING ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Security Metrics &amp; <span class="accent">Performance Reporting</span></div>
+        <div class="slide-subtitle">What gets measured gets managed. A mature metrics program demonstrates security posture to leadership and drives continuous improvement.</div>
+        <div class="code-block"><span class="cm">METRIC CATEGORY      | KEY INDICATOR                           | TARGET / BENCHMARK</span>
+<span class="cm">---------------------|------------------------------------------|-------------------</span>
+<span class="fn">Detection</span>            | Mean Time to Detect (MTTD)               | &lt; 24 hours for critical
+<span class="fn">Response</span>             | Mean Time to Respond (MTTR)              | &lt; 4 hours for critical
+<span class="fn">Vulnerability Mgmt</span>  | % Critical patches applied within SLA   | &gt; 95% within 30 days
+<span class="fn">Vulnerability Mgmt</span>  | Average vulnerability age (weighted)     | Trend down YoY
+<span class="fn">Identity</span>             | MFA adoption rate                        | &gt; 99% for all users
+<span class="fn">Awareness</span>            | Phishing click rate                      | &lt; 5% (target &lt; 2%)
+<span class="fn">Awareness</span>            | Phishing report rate                     | &gt; 70% of simulation emails
+<span class="fn">Compliance</span>           | Open critical risks by age bucket        | 0 over 90 days
+<span class="fn">Continuity</span>           | Last successful DR test date             | Within 12 months
+<span class="fn">Vendor</span>               | Tier 1 assessments current               | 100% assessed annually</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Leading vs. Lagging Indicators</div>
+                <div class="card-desc">Lagging: measure outcomes after the fact (number of incidents, breach costs, compliance findings). Easy to measure, report past performance. Leading: predict future risk (% unpatched critical vulns, MFA adoption rate, phishing click rate, vendor assessment currency). Harder to measure, more actionable. Best programs use both: lagging to validate leading indicators are working, leading to drive preventive action before incidents occur.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reporting Cadence</div>
+                <div class="card-desc">Daily: SOC operational dashboard (active incidents, alert volume, SIEM health). Weekly: vulnerability scan results, patch status, anomaly summary. Monthly: security steering committee dashboard (top risks, metrics trends, open items). Quarterly: risk committee (risk register review, compliance status, material risk changes). Annually: board presentation (program maturity, peer benchmarking, strategic roadmap). Incident-triggered: board notification within regulatory timeframes (SEC 4-day rule for material incidents).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — MATURITY MODELS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Security Maturity <span class="accent">Models</span></div>
+        <div class="slide-subtitle">Maturity models provide a structured way to assess current security posture and define a roadmap for improvement -- independent of compliance frameworks.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">NIST CSF Maturity Tiers</div>
+                <div class="card-desc">Tier 1 Partial: risk management is ad hoc, limited awareness of risk. Tier 2 Risk Informed: risk management exists but not enterprise-wide, inconsistent. Tier 3 Repeatable: risk management formally defined, regularly updated, consistent enterprise-wide practice. Tier 4 Adaptive: risk management continuously adapted based on lessons learned and predictive indicators. Organizations should target at least Tier 3. Most insurers now expect Tier 2-3 minimum for competitive premiums. Tier progression requires investment and time -- 3-5 years to move from Tier 1 to Tier 3.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CMMI and C2M2</div>
+                <div class="card-desc">CMMI (Capability Maturity Model Integration): original process maturity model (Levels 0-5). C2M2 (Cybersecurity Capability Maturity Model): DoE model for energy sector, now widely adopted across critical infrastructure. 10 domains, MIL 1-3 (Management Indicator Levels): MIL1 (initiated -- practices performed), MIL2 (performed -- documented and enforced), MIL3 (managed -- governed, measured, continuously improved). Used for self-assessment against specific domains like asset management, threat management, and risk management.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SOC Maturity (SOC-CMM)</div>
+                <div class="card-desc">SOC-CMM (Security Operations Center Capability Maturity Model): 5 levels from informal to optimizing. Dimension 1: Business (mission, stakeholder management). Dimension 2: People (staff skills, training). Dimension 3: Process (documented, tested, improved). Dimension 4: Technology (tooling maturity). Dimension 5: Services (detection, response, intelligence, hunting capabilities). Assessment against each dimension identifies the weakest pillar holding back overall SOC effectiveness. Used as a self-assessment tool and for benchmarking against peer organizations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Security Program Roadmap</div>
+                <div class="card-desc">Maturity assessment (current state) + risk assessment (most critical gaps) + resource constraints + regulatory requirements = security program roadmap. Roadmap structure: Now (12 months -- close critical gaps, win quick wins, build foundation), Next (12-24 months -- systematic improvement, program maturity), Later (24-36 months -- optimization, advanced capabilities, culture change). Board presents the roadmap: "We are at Level 2 in identity management. To reach Level 3 by year-end, we are investing $X in IGA, which will reduce our top-ranked identity risk from High to Low."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — AUDIT AND ASSURANCE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Audit &amp; <span class="accent">Security Assurance</span></div>
+        <div class="slide-subtitle">Security audits verify that controls are designed appropriately and operating effectively -- providing assurance to leadership, customers, and regulators.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Internal vs. External Audit</div>
+                <div class="card-desc">Internal audit: independent function within the organization. Provides risk-based assurance to board audit committee. Tests controls, issues findings, tracks remediation. Should be structurally independent of operations -- reports to audit committee, not management. External audit: third-party firm. Required for: SOX 404 auditor attestation, SOC 2 report, ISO 27001 certification, PCI QSA assessment, FedRAMP 3PAO. Provides objective assurance to customers, regulators, and capital markets. ISACA (CISA certification) and IIA define professional standards for IT and internal audit.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Audit Evidence Types</div>
+                <div class="card-desc">Testimonial: interviews and representations from management. Documented: policies, procedures, training records, meeting minutes. Observational: auditor witnesses a control being performed (watching a change management procedure, observing a security guard procedure). System-generated: logs, reports, configuration exports, access lists. Strongest evidence: system-generated + documented + observed. Weakest: testimonial alone. Auditors will ask for multiple evidence types for the same control. Pre-populate an evidence repository before the audit begins -- reduces auditor fieldwork friction.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Penetration Testing as Assurance</div>
+                <div class="card-desc">Penetration test: authorized simulated attack to discover and exploit vulnerabilities before attackers do. Assurance value: real-world validation that controls work under attack conditions -- higher fidelity than compliance checklist. Types: network (internal + external), web application, social engineering, red team (sophisticated multi-phase attack). Required by: PCI DSS (annually), NIST 800-53 CA-8, most cyber insurance policies. Rules of engagement: scope, authorized targets, authorized techniques, out-of-scope items, emergency stop conditions, communication plan. Findings drive vulnerability remediation priorities.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuous Assurance</div>
+                <div class="card-desc">Point-in-time compliance is increasingly insufficient. Continuous monitoring platforms (Vanta, Drata, Secureframe, Tugboat Logic) connect to cloud environments, SSO, MDM, and other controls. Real-time compliance dashboard: "92% of SOC 2 controls passing today." Alert when controls drift out of compliance. Evidence automatically collected daily -- no pre-audit scramble. Customers can request access to compliance portal for real-time view instead of waiting for annual SOC 2 report. Reduces audit cost by automating evidence collection.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Audit Findings Management</div>
+                <div class="card-desc">Finding severity: Critical (compensating controls required immediately), High (remediation within 30 days), Medium (90 days), Low (180 days or accept). Each finding: assigned owner, remediation plan, target date, status tracking. Finding aging: any finding open beyond its target date escalated to risk committee. Audit report: issue summary, management response, agreed remediation actions. Follow-up audit: verify remediation was implemented. Repeat findings (same finding in consecutive audits): significant governance concern -- indicator of ineffective risk management or resource constraints.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Regulatory Examination</div>
+                <div class="card-desc">Government examinations (OCC bank exams, SEC cybersecurity exams, FTC investigations): similar to audits but with regulatory enforcement authority. Examiners review same artifacts: policies, procedures, logs, configurations, incident records, access reviews, training records. Key difference: findings can result in regulatory orders, fines, and public action -- not just internal remediation items. Preparation: same as audit preparation. Examination cooperation: respond promptly, document all responses, involve legal counsel, do not provide more information than requested.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — SUPPLY CHAIN RISK ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Supply Chain &amp; <span class="accent">Software Risk</span></div>
+        <div class="slide-subtitle">Software supply chain attacks compromise the development or distribution process to deliver malicious code to thousands of downstream targets simultaneously.</div>
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Supply Chain Attack Patterns</div>
+                <div class="card-desc">Compromised update mechanism (SolarWinds): malicious code inserted into legitimate software update -- customers installed it trusting the vendor's signing certificate. Open-source dependency poisoning (event-stream, colors): popular package compromised by new maintainer, malicious code inserted into transitive dependency. Typosquatting: malicious package published with name similar to popular package (requests vs. request). Build system compromise: CI/CD pipeline hijacked to insert backdoor during compilation. Counterfeit hardware: compromised hardware shipped with implanted firmware.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">SBOM and Dependency Management</div>
+                <div class="card-desc">SBOM (Software Bill of Materials): machine-readable inventory of all software components (direct + transitive dependencies) with version numbers, licenses, and known vulnerabilities. Required by EO 14028 for software sold to US federal government. Formats: SPDX (ISO standard), CycloneDX (OWASP standard). Process: generate SBOM at build time, store with artifact, analyze against known CVE databases, alert on new CVEs matching components. SCA (Software Composition Analysis) tools automate this in CI/CD pipeline: Snyk, Mend, FOSSA, Anchore.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SLSA Framework</div>
+                <div class="card-desc">Supply-chain Levels for Software Artifacts (SLSA -- "salsa"). Four levels of build integrity guarantees: SLSA Level 1 (provenance generated), Level 2 (provenance signed, tamper-resistant), Level 3 (build platform provides strong provenance guarantees, no cross-build contamination), Level 4 (two-party review of all changes, hermetic builds). Provenance: cryptographic attestation of how an artifact was built -- who built it, from what source, with what inputs. Sigstore: OIDC-based code signing infrastructure for open-source packages (npm, PyPI, Maven). Verify package provenance before trusting.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST SP 800-161 (SCRM)</div>
+                <div class="card-desc">Supply Chain Risk Management practices for federal information systems. Key activities: identify supply chain risks, establish security requirements for suppliers, assess supplier security posture, include security requirements in contracts, monitor supply chain risks continuously, respond to supply chain incidents. Specific controls: require SBOM from software suppliers, verify software integrity via cryptographic hash, assess development practices for high-criticality components, require notification of security incidents affecting components in use. CMMC Level 2 includes SCRM requirements.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Dependency Risk Mitigation Practices</div>
+            Pin dependency versions (prevent automatic upgrades to malicious new versions). Verify package signatures before installing. Use private/internal package registries (mirror trusted packages). Scan for new CVEs in dependencies daily in CI/CD. Review all new transitive dependencies in PRs. Minimize dependency count (more dependencies = larger attack surface). Prefer well-maintained packages with active security response processes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — ENTERPRISE RISK PROGRAM ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Building an Enterprise <span class="accent">Risk Program</span></div>
+        <div class="slide-subtitle">A mature enterprise risk program integrates cybersecurity risk into the broader enterprise risk management (ERM) framework -- making security risk visible alongside operational, financial, and strategic risk.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">ERM Integration</div>
+                <div class="card-desc">Cyber risk is one risk category among many (strategic, financial, operational, compliance, reputational). Integration benefits: board sees cyber risk in context of other risks, resource allocation decisions balance cyber vs. other business investments, risk appetite set holistically. COSO ERM framework: enterprise risk framework that can incorporate cyber risk. ISO 31000: international risk management standard applicable to cyber risk. NIST CSF GOVERN function explicitly connects security to enterprise risk management.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Risk Program Maturity Indicators</div>
+                <div class="card-desc">Beginning: no formal risk register, ad hoc responses to incidents, security driven by compliance checklist. Developing: risk register exists, annual review, some quantification, CISO reports to board. Defined: integrated risk management process, quarterly reviews, quantitative ALE analysis for major risks, risk appetite formally defined. Advanced: real-time risk monitoring, predictive risk indicators, cyber risk integrated into ERM, CISO peers with CRO/CFO. Optimizing: risk-based decision making embedded in all business decisions, automated risk quantification, board cyber competency demonstrated.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk Program Structure</div>
+                <div class="card-desc">Governance layer: board risk committee, CISO with board access, defined risk appetite, annual risk strategy. Management layer: risk committee (quarterly), risk register maintained by GRC team, exception management process, vendor risk program. Operational layer: security operations center, vulnerability management, change management, identity management. Assurance layer: internal audit, external audit (SOC 2, ISO 27001), penetration testing, red team exercises. Each layer feeds information up to the next -- operational findings become management risks become governance decisions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Strategic Risk Roadmap</div>
+                <div class="card-desc">Align security investment to risk reduction. For each major risk in the register: what is the current ALE, what controls would reduce it, what would those controls cost, what is the net risk reduction per dollar spent? This produces a prioritized investment list that leadership can approve based on ROI rather than best-guess intuition. Present to board: "Our top 5 risks represent $8M in annual expected loss. The proposed 3-year roadmap invests $2M to reduce that exposure to $1.5M -- a 5.5x return on security investment." This is how mature programs get funded.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Key Risk Indicators (KRIs)</div>
+                <div class="card-desc">Leading indicators that signal elevated risk before an incident occurs. Examples: increasing vulnerability backlog (more unpatched than being remediated = growing attack surface), declining MFA adoption rate (accounts becoming more vulnerable), increasing phishing click rate (workforce less aware), vendor not completing annual assessment (unknown risk in supply chain), open critical findings from last audit exceeding 90 days (governance failure). KRI thresholds: green/amber/red RAG status. Amber requires management attention; red triggers risk committee escalation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Risk Program Failures</div>
+                <div class="card-desc">Risk register never updated (annual snapshot treated as living document). Risk owners not engaged (security team owns all risks -- no business accountability). No quantification (qualitative ratings that cannot be prioritized or compared to control costs). Compliance conflated with security (passing an audit =/= being secure). No exception governance (exceptions approved but never reviewed or closed). CISO unable to communicate in business language (technical metrics to business audience). Risk appetite not defined (no basis for accept/escalate decisions). Board not educated on cyber risk (cannot ask the right questions).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — RISK FRAMEWORKS COMPARISON ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Framework <span class="accent">Comparison Reference</span></div>
+        <div class="slide-subtitle">Choosing the right framework(s) depends on industry, regulatory requirements, customer requirements, and organizational maturity.</div>
+        <div class="code-block"><span class="cm">FRAMEWORK       | TYPE           | CERTIFIABLE | SECTOR      | KEY USE CASE</span>
+<span class="cm">----------------|----------------|-------------|-------------|----------------------</span>
+<span class="fn">NIST CSF 2.0</span>   | Framework      | No          | All         | Strategic self-assessment, roadmap
+<span class="fn">NIST 800-53</span>    | Controls       | No (FedRAMP) | Federal     | Federal system controls, FISMA
+<span class="fn">NIST 800-171</span>   | Requirements   | Via CMMC    | DoD supply  | CUI protection, DFARS
+<span class="fn">ISO 27001</span>      | ISMS Standard  | Yes (CB)    | International| Global compliance, customer trust
+<span class="fn">SOC 2</span>          | Audit Report   | Yes (CPA)   | US SaaS/Tech | Customer assurance, US B2B
+<span class="fn">PCI DSS</span>        | Standard       | Yes (QSA)   | Payment card | Cardholder data processing
+<span class="fn">HIPAA</span>          | Regulation     | No (OCR)    | US Healthcare| ePHI protection
+<span class="fn">GDPR</span>           | Regulation     | No (SA)     | EU/global   | EU personal data processing
+<span class="fn">CIS Controls</span>   | Controls       | No          | All         | Practical hardening prioritization
+<span class="fn">COBIT</span>          | Governance     | Yes (ISACA) | Enterprise  | IT governance alignment</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — EMERGING RISK AREAS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Emerging Risk <span class="accent">Domains</span></div>
+        <div class="slide-subtitle">The risk landscape evolves continuously. These domains represent the highest-growth areas of organizational security risk entering the late 2020s.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AI and Machine Learning Risk</div>
+                <div class="card-desc">Adversarial inputs: carefully crafted data that causes AI model to make wrong decision (autonomous vehicle misdirected, spam filter bypassed). Model inversion: reconstruct training data from model outputs -- privacy risk if PII in training set. Data poisoning: corrupt training data to influence model behavior. AI-generated social engineering: deepfake audio/video, hyper-personalized phishing at scale. LLM prompt injection: attacker-controlled input hijacks AI agent actions. NIST AI RMF addresses these. EU AI Act: risk-based regulation of AI systems (2024-2026 phased implementation).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Post-Quantum Cryptography Risk</div>
+                <div class="card-desc">"Harvest now, decrypt later": nation-state adversaries collecting encrypted data today, planning to decrypt it with quantum computers in 5-15 years. Data with long confidentiality requirements (health records, classified info, trade secrets) is most at risk. Migration urgency: organizations should begin crypto-agility assessment now. NIST 2024 PQC standards (ML-KEM, ML-DSA, SLH-DSA) provide the migration targets. Priority: TLS key exchange (most exposed to harvest attacks), data encryption for long-lived sensitive data, digital signatures in PKI infrastructure. CISA guidance: critical infrastructure by 2030.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Operational Technology (OT) Risk</div>
+                <div class="card-desc">Convergence of IT and OT: SCADA, ICS, DCS, PLCs in manufacturing, energy, water, healthcare. OT environments have legacy systems with 20-30 year lifespans that cannot be patched. Physical consequence of OT compromise: Colonial Pipeline shutdown, Ukraine power grid attacks, Oldsmar water treatment attack (chlorine level modified). IT security controls don't translate directly: you cannot reboot a gas turbine, antivirus cannot run on a PLC. IEC 62443 standard for OT security. Defense: network segmentation, unidirectional gateways (data diodes), anomaly detection for OT protocols (OT-SIEM).</device></div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Ransomware and Extortion Risk</div>
+                <div class="card-desc">Ransomware-as-a-Service (RaaS): commodity -- criminal affiliates deploy ransomware for % of ransom payment. Double extortion: encrypt AND exfiltrate data (ransom for decrypt key + ransom to not publish). Triple extortion: add DDoS on victim during negotiation, add pressure on victim's customers. Average ransom payment: $1.5M+ for enterprise targets (Mandiant 2023). Average downtime: 22 days. Largest payments: $40M+ for critical infrastructure. Immutable backups + tested recovery is the primary defense; EDR + network segmentation limits spread. Cyber insurance covers some ransom costs (policy-dependent, declining coverage trend).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">GenAI and Shadow AI Risk</div>
+                <div class="card-desc">Employees using unauthorized AI tools (shadow AI) -- equivalent of shadow IT but with data exfiltration risk (confidential business data, PII, trade secrets uploaded to external AI services as prompts). Examples: customer data pasted into ChatGPT for summarization, code with hardcoded secrets submitted to AI code completion, health records used as AI training examples. Governance requirements: AI acceptable use policy, data classification reminders, CASB monitoring for AI service uploads, approved enterprise AI tools with contractual data protection, AI literacy training for employees.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Critical Infrastructure Risk</div>
+                <div class="card-desc">CISA 16 critical infrastructure sectors (energy, water, healthcare, finance, transportation, etc.). SLTT (State/Local/Tribal/Territorial) government: severely resource-constrained, high-value targets (ransomware and data theft). National security implications: disruption of power grid, water treatment, financial clearing -- systemic risk beyond single organization. Cross-sector dependencies: power grid attacks affect ALL other sectors simultaneously. Resilience investments: federal grants (BRIC, BEAD, ReCIPE), CISA advisories and resources, ISACs (Information Sharing and Analysis Centers) for sector-specific threat intelligence sharing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — RISK CULTURE ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Security Culture &amp; <span class="accent">Organizational Risk</span></div>
+        <div class="slide-subtitle">Technical controls fail when the organizational culture does not support security. Culture is the final and most powerful control layer.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Tone from the Top</div>
+                <div class="card-desc">Executive behavior sets the cultural norm for security. If the CEO bypasses security procedures because they are inconvenient, every employee sees that security is optional for leadership. Positive signals: executive CISO relationship visible, security mentioned in all-hands meetings, CEO acknowledges security incidents transparently, executives complete security training alongside employees, security metrics presented at board meetings. Negative signals: CISO excluded from major projects, security budget repeatedly cut, known risks accepted without documentation, executives granted policy exceptions without scrutiny.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Psychological Safety for Reporting</div>
+                <div class="card-desc">Employees must feel safe reporting security incidents, near misses, and mistakes without fear of punishment. If the culture punishes the employee who clicked a phishing link rather than treating it as a learning opportunity, future incidents will be hidden instead of reported. "Just culture" applied to security: focus on systemic causes, not individual blame. Encouraged behaviors: report suspicious email (with easy button), report accidental data disclosure promptly, escalate security concerns without fear of retaliation. Incentivize reporting -- some programs reward early reporters.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Champion Program</div>
+                <div class="card-desc">Embed security advocates in each business unit and development team. Security Champions: not full-time security staff -- development, operations, or business staff who receive additional security training and become the local security resource. Functions: raise security issues in team meetings, review PRs for security concerns, coordinate with security team, deliver micro-training, provide grassroots awareness. Multiplies security team capacity without headcount. Champions attend security team meetings and receive advanced training -- career development incentive.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Measuring Security Culture</div>
+                <div class="card-desc">Annual security culture survey: "Do you know how to report a security incident?" "Do you feel you can report mistakes without fear of punishment?" "Is security leadership visible in your organization?" "Do you have the training you need to do your job securely?" Phishing simulation metrics (click rate, report rate) as cultural proxies. Policy acknowledgment rates. Incident report rates vs. incident discovery rates (high discovery vs. self-report = reporting culture gap). Culture change takes 2-3 years of consistent messaging and leadership modeling -- not a one-time campaign.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Security Culture Maturity Spectrum</div>
+            Level 1 (Compliance): security is a requirement to meet, not a value. Minimal engagement. Level 2 (Awareness): employees know what to do but do not always do it. Level 3 (Managed): most employees actively follow security practices; culture enforced by peers. Level 4 (Proactive): employees proactively identify and report risks; security embedded in daily decisions. Level 5 (Optimizing): security is a competitive differentiator; customers and partners trust the organization because of its security culture.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — SCENARIO ANALYSIS PART 1 ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Scenario <span class="accent">Analysis</span></div>
+        <div class="slide-subtitle">Apply risk and governance concepts to realistic organizational scenarios.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Scenario A: Risk Treatment Decision</div>
+                <div class="card-desc">A legacy server running an EOL operating system processes internal employee timesheets. AV = $50,000 (server replacement cost + 2 weeks payroll admin disruption). EF = 0.40. ARO = 0.10. Upgrade cost: $120,000 one-time. Virtual patching (compensating control): $5,000/year. Calculate inherent ALE. Is the $120,000 upgrade cost-justified based purely on ALE? What additional factors (not captured in ALE) might affect the treatment decision? What treatment would you recommend?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Scenario B: Compliance Gap Assessment</div>
+                <div class="card-desc">A healthcare IT services company processes ePHI for 3 hospital clients. An internal audit finds: no formal written policies for encryption at rest, no documented risk analysis (last performed 5 years ago), business associate agreements with 2 of 3 clients but not the third, no workforce training records for the past 18 months. Classify each finding against HIPAA requirements. Which finding creates the highest regulatory exposure? What is the correct order of remediation priority?</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Scenario C: BCP Validation</div>
+                <div class="card-desc">Company BCP states RTO = 4 hours for ERP system. The DRP has not been tested in 3 years. A ransomware attack encrypts the ERP server Saturday night. Recovery team discovers: last backup is 36 hours old (backup job had been silently failing for 5 days), the recovery runbook references a server that was decommissioned, and the recovery site hardware is in another city. Identify each BCP/DRP failure. What controls would have detected each issue before the actual incident? What is the likely actual RTO given these conditions?</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scenario D: GDPR Breach Assessment</div>
+                <div class="card-desc">A SaaS company discovers an unauthorized party accessed their customer database for 3 days before detection. The database contains: name, email, hashed passwords (bcrypt), billing address, last 4 digits of credit card. No full card numbers, no SSN, no health data. Determine: (1) Is this a GDPR Article 33 notifiable breach? (2) What is the 72-hour notification deadline measured from? (3) Is Article 34 notification to affected individuals likely required? (4) What factors would increase or decrease regulatory penalty risk?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — REGULATORY SUMMARY TABLE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Regulatory Frameworks <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">High-density exam reference for regulatory and framework comparison questions.</div>
+        <div class="code-block"><span class="cm">REGULATION  | SECTOR           | BREACH NOTICE   | MAX PENALTY      | KEY CONTROLS</span>
+<span class="cm">------------|------------------|-----------------|------------------|---------------------------</span>
+<span class="fn">GDPR</span>        | EU personal data  | 72 hrs to SA    | 4% global rev    | Consent, DPO, DPIA, data rights
+<span class="fn">HIPAA</span>       | US healthcare     | 60 days to HHS  | $1.5M/year/viol  | Risk analysis, BAA, min necessary
+<span class="fn">PCI DSS</span>     | Payment cards     | To card brands  | Contractual      | CDE segmentation, QSA audit
+<span class="fn">SOX</span>         | US public co.     | 4 days (SEC)    | Criminal/civil   | ICFR controls, SoD, audit rights
+<span class="fn">GLBA</span>        | US financial      | FTC varies      | FTC enforced     | Safeguards rule, risk assessment
+<span class="fn">CCPA/CPRA</span>  | CA consumers      | 72 hrs (if 500+)| $7,500/violation | Data rights, opt-out, PIA
+<span class="fn">NIS2</span>        | EU critical infra | 24hr early warn | 10M EUR / 2%     | Risk measures, supply chain
+<span class="fn">FISMA</span>       | US federal        | US-CERT 1 hr    | Agency action    | RMF, SP 800-53 controls</div>
+        <div class="box box-blue">
+            <div class="box-label">Common Exam Anchors</div>
+            GDPR 72-hour SA notification -- HIPAA 60-day notification -- PCI DSS 12 requirements -- SOC 2 Type II = period assessment -- ISO 27001 = certifiable ISMS -- NIST CSF = 6 functions (Govern/Identify/Protect/Detect/Respond/Recover) -- NIST 800-171 = 110 controls for CUI -- FIPS 140-2/3 = cryptographic module validation -- ALE = SLE x ARO -- SLE = AV x EF
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Work through each question before reviewing the answer reasoning.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Q1 -- Risk Calculations</div>
+                <div class="card-desc">A web application server: AV = $300,000. A DDoS attack has EF = 0.25 (downtime costs) and ARO = 4 (estimated 4 times per year). A DDoS mitigation service costs $18,000/year and would reduce ARO to 0.5. (A) What is the current ALE? (B) What is the ALE after the mitigation service? (C) What is the net annual benefit of the control? (D) Is the $18,000 control cost-justified?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Q2 -- Framework Selection</div>
+                <div class="card-desc">A healthcare SaaS startup processes ePHI for hospital clients (US). They are preparing for enterprise sales and the first large hospital client requires proof of security posture. They want to build a sustainable compliance program that satisfies both hospital clients (US-focused) and potential EU clients. Recommend: (A) What compliance framework should they prioritize first? (B) What should they pursue second? (C) What continuous compliance tooling helps maintain both? Justify each recommendation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Q3 -- Risk Treatment Selection</div>
+                <div class="card-desc">Security team identifies that a legacy VPN product (end-of-support) is used by 200 remote employees. The vendor will no longer release security patches. The risk is rated High. Options: (A) Continue using it as-is. (B) Pay vendor for extended support contract at $50,000/year. (C) Replace with ZTNA solution at $120,000 first-year cost, $30,000/year thereafter. (D) Require all remote users to come on-premises only. For each option, identify the risk treatment type (mitigate/transfer/avoid/accept) and evaluate the trade-offs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Q4 -- Policy Hierarchy</div>
+                <div class="card-desc">Classify each of the following as Policy, Standard, Guideline, or Procedure: (A) "The organization is committed to protecting the confidentiality, integrity, and availability of information assets." (B) "All passwords for systems processing customer data must be a minimum of 14 characters and must not contain the user's name." (C) "It is recommended that users use a password manager to generate unique passwords for each account." (D) "Step 1: Open Active Directory Users and Computers. Step 2: Right-click the user account..."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — MORE PRACTICE ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">Practice Exercises <span class="accent">Continued</span></div>
+        <div class="slide-subtitle">Additional exam practice scenarios.</div>
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Q5 -- BIA Concepts</div>
+                <div class="card-desc">An e-commerce company's BIA determines: Order processing system MTD = 6 hours. Current DRP RTO = 8 hours. Customer service system MTD = 24 hours. Current DRP RTO = 12 hours. Payment processing MTD = 2 hours. No DRP exists for payment processing (the vendor manages it). (A) Which systems have an RTO gap? (B) What is the risk for systems with RTO > MTD? (C) What should the organization do about the payment processing gap?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Q6 -- Regulatory Identification</div>
+                <div class="card-desc">Identify the primary applicable regulation for each scenario: (A) A US hospital stores patient MRI scans digitally and contracts with a cloud storage provider. (B) A fintech startup in Berlin processes transaction data for EU consumers. (C) A mid-size US retailer accepts Visa and Mastercard in physical stores. (D) A publicly traded US company must report a major breach to the SEC. (E) A DoD subcontractor handles technical specifications for military equipment. Note: some scenarios may involve more than one framework.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Q7 -- Risk Acceptance Documentation</div>
+                <div class="card-desc">The operations team requests formal risk acceptance for running an EOL database server for 18 more months (while the replacement project completes). The database holds internal operational reports only (no PII, no financial data). The risk owner is willing to accept. What should the formal risk acceptance record include? Who should sign it? What compensating controls would you recommend be included in the acceptance? When should it be reviewed?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Q8 -- Third-Party Risk</div>
+                <div class="card-desc">Your organization signs a new contract with a payroll processing vendor who will have API access to your HR system (employee names, SSNs, bank account numbers). The vendor sends you their SOC 2 Type II report (6 months old). (A) What additional due diligence steps are still required? (B) What contractual terms must be included before the integration goes live? (C) What ongoing monitoring is required after contract signing? (D) What is your incident response dependency on this vendor?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; PIS-15 &nbsp;|&nbsp; Module Complete</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Risk = Threat x Vulnerability x Impact. Four treatment options: Mitigate (reduce), Transfer (insurance/contract), Avoid (eliminate the activity), Accept (document with owner and review date). Residual risk always remains -- must be documented and owned.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Quantitative formulas: SLE = AV x EF. ALE = SLE x ARO. Control justification = ALE_before - ALE_after - control_cost. Positive result = justified. These formulas are directly tested on SY0-701.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">BIA identifies critical functions and their RTO (maximum acceptable downtime) and RPO (maximum acceptable data loss). MTD must exceed RTO -- if RTO > MTD, recovery plan will fail to prevent irreversible impact. BIA drives DR/BCP investment decisions.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Policy hierarchy: Policy (why) -- Standard (mandatory what) -- Guideline (recommended what) -- Procedure (how). Policies require executive approval, regular review, annual acknowledgment, and formal exception process with compensating controls.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">NIST CSF 2.0: 6 functions -- Govern, Identify, Protect, Detect, Respond, Recover. NIST 800-53: ~1,000 controls in 20 families for federal systems. NIST 800-171: 110 controls for CUI (DoD supply chain). FIPS 140-2/3: cryptographic module validation required for federal use.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">ISO 27001: international ISMS standard, certifiable, 93 Annex A controls in 4 themes, Statement of Applicability required. SOC 2: AICPA attestation report, Type II tests operating effectiveness over 6-12 months, Security TSC (CC) mandatory, others optional. Both increasingly required by enterprise customers.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">GDPR: 72-hour SA notification, data subject rights, 4% global revenue maximum fine, Privacy by Design (Article 25). HIPAA: 60-day HHS notification, BAA required, Minimum Necessary standard, addressable =/= optional. PCI DSS: 12 requirements, QSA audit for Level 1, scope reduction via tokenization/P2PE.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Third-party risk: SolarWinds, MOVEit, and Kaseya showed supply chain as primary breach vector. TPRM lifecycle: identify, classify, due diligence, contract, monitor, offboard. SBOM enables rapid response to open-source CVEs. SLSA framework provides build provenance attestation.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Recovery: 3-2-1 rule (3 copies, 2 media types, 1 offsite). Add: 1 offline/immutable (ransomware protection), 0 errors (tested restores). Hot site (minutes), warm site (hours/days), cold site (days/weeks). Tabletop exercises annually minimum -- full interruption test every 1-3 years for critical systems.</span></div>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-risk-governance', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

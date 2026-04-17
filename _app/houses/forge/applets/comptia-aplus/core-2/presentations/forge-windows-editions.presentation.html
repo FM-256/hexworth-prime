@@ -4,1107 +4,950 @@
     <meta charset="UTF-8">
     <!-- Access Control -->
     <script src="../../../../../../components/AccessGuard.js"></script>
-    <script>
-        AccessGuard.require('sorted');
-    </script>
+    <script>AccessGuard.require('sorted');</script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Windows Editions - House of the Forge</title>
+    <title>Windows Editions | A+ Core 2</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0d0d12 0%, #1a1520 50%, #0d0d12 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #c4b5d4;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        /* Header */
-        .presentation-header {
-            padding: 20px 40px;
-            background: rgba(10, 10, 15, 0.9);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 6px;
-            color: #a78bfa;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: rgba(139, 92, 246, 0.2);
-            border-color: rgba(139, 92, 246, 0.5);
-        }
-
-        .house-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            color: #8b7a9e;
-            letter-spacing: 0.1em;
-        }
-
-        .house-badge-icon {
-            font-size: 1.2rem;
-        }
-
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .progress-bar {
-            width: 150px;
-            height: 4px;
-            background: rgba(139, 92, 246, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            font-size: 0.75rem;
-            color: #6b5b7e;
-        }
-
-        /* Slide Container */
-        .slides-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
+        /* ── SLIDE SYSTEM ── */
         .slide {
-            display: none;
-            animation: fadeIn 0.5s ease;
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
         }
-
         .slide.active {
-            display: block;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        /* Slide Styles */
-        .slide-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-            text-align: center;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .slide-subtitle {
-            font-size: 1.1rem;
-            color: #8b7a9e;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover {
-            border-color: rgba(139, 92, 246, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .card-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            color: #e8d5f5;
-            margin-bottom: 10px;
-        }
-
-        .card-description {
-            font-size: 0.9rem;
-            color: #8b7a9e;
-            line-height: 1.6;
-        }
-
-        /* Edition Cards */
-        .edition-card {
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .edition-card:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.15);
-        }
-
-        .edition-card.home { border-top: 3px solid #60a5fa; }
-        .edition-card.pro { border-top: 3px solid #34d399; }
-        .edition-card.enterprise { border-top: 3px solid #f59e0b; }
-        .edition-card.education { border-top: 3px solid #ec4899; }
-
-        .edition-name {
-            font-size: 1.4rem;
-            color: #e8d5f5;
-            margin-bottom: 8px;
-        }
-
-        .edition-tagline {
-            font-size: 0.85rem;
-            color: #6b5b7e;
-            margin-bottom: 20px;
-        }
-
-        .edition-price {
-            font-size: 0.9rem;
-            color: #a78bfa;
-            margin-bottom: 15px;
-        }
-
-        .edition-features {
-            text-align: left;
-            font-size: 0.85rem;
-            color: #8b7a9e;
-        }
-
-        .edition-features li {
-            margin: 8px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .edition-features li::before {
-            content: '✓';
-            position: absolute;
-            left: 0;
-            color: #34d399;
-        }
-
-        /* Comparison Table */
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
-            font-size: 0.9rem;
-        }
-
-        .comparison-table th {
-            background: rgba(139, 92, 246, 0.15);
-            padding: 15px;
-            text-align: left;
-            color: #e8d5f5;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-        }
-
-        .comparison-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-            color: #a89aba;
-        }
-
-        .comparison-table tr:hover td {
-            background: rgba(139, 92, 246, 0.05);
-        }
-
-        .feature-yes { color: #34d399; }
-        .feature-no { color: #6b5b7e; }
-        .feature-limited { color: #f59e0b; }
-
-        /* Interactive Elements */
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            padding: 30px;
-            margin: 30px 0;
-        }
-
-        .scenario-title {
-            font-size: 1.1rem;
-            color: #a78bfa;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .scenario-content {
-            font-size: 0.95rem;
-            color: #c4b5d4;
-            line-height: 1.7;
-        }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 15px 20px;
-            margin: 10px 0;
-            background: rgba(20, 15, 30, 0.6);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 8px;
-            color: #c4b5d4;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        .quiz-option:hover {
-            border-color: rgba(139, 92, 246, 0.5);
-            background: rgba(139, 92, 246, 0.1);
-        }
-
-        .quiz-option.correct {
-            border-color: #34d399;
-            background: rgba(52, 211, 153, 0.1);
-        }
-
-        .quiz-option.incorrect {
-            border-color: #f87171;
-            background: rgba(248, 113, 113, 0.1);
-        }
-
-        .feedback {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        .feedback.correct {
-            background: rgba(52, 211, 153, 0.1);
-            border: 1px solid rgba(52, 211, 153, 0.3);
-            color: #34d399;
-            display: block;
-        }
-
-        .feedback.incorrect {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-            color: #f87171;
-            display: block;
-        }
-
-        /* Key Points */
-        .key-points {
-            background: rgba(20, 15, 30, 0.6);
-            border-left: 3px solid #a78bfa;
-            padding: 20px 25px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 {
-            color: #a78bfa;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
-            letter-spacing: 0.05em;
-        }
-
-        .key-points ul {
-            list-style: none;
-        }
-
-        .key-points li {
-            padding: 8px 0;
-            padding-left: 25px;
-            position: relative;
-            color: #c4b5d4;
-            font-size: 0.9rem;
-        }
-
-        .key-points li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: #8b5cf6;
-        }
-
-        /* Navigation */
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(139, 92, 246, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 30px;
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 8px;
-            color: #a78bfa;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-block;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-blue  { border-left-color: #60a5fa; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover {
-            background: rgba(139, 92, 246, 0.25);
-            border-color: rgba(139, 92, 246, 0.5);
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+        .check { color: #3ab577; font-weight: 700; }
+        .cross { color: #ef4444; font-weight: 700; }
+        .partial { color: #c9a83a; font-weight: 700; }
 
-        .nav-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+        /* ── DIAGRAM HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            border: none;
-            color: white;
-        }
-
-        .nav-btn.primary:hover {
-            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.3);
-        }
-
-        .slide-dots {
-            display: flex;
-            gap: 8px;
-        }
-
-        .slide-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(139, 92, 246, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .slide-dot.active {
-            background: #a78bfa;
-            transform: scale(1.2);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .presentation-header {
-                flex-direction: column;
-                gap: 15px;
-                padding: 15px 20px;
-            }
-
-            .slide-title {
-                font-size: 1.8rem;
-            }
-
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .comparison-table {
-                font-size: 0.8rem;
-            }
-
-            .slide-nav {
-                flex-direction: column;
-                gap: 20px;
-            }
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">← Back</a>
-            <div class="house-badge">
-                <span class="house-badge-icon"><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Windows Editions</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">A+ Core 2 &mdash; 220-1102 &nbsp;|&nbsp; Domain 1.1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Windows<br>
+                <span class="accent">Editions &amp; Features</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                Home, Pro, Enterprise, and Education &mdash; understanding which edition ships with which capabilities is a core A+ 220-1102 objective.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 8</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>Domain 1.1</span>
+            <span>Editions &bull; BitLocker &bull; Group Policy &bull; Upgrade Paths</span>
+            <span>Exam 220-1102</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Windows Editions</h1>
-            <p class="slide-subtitle">Understanding the differences that matter</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-window.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h2 class="card-title">Why Multiple Editions?</h2>
-                    <p class="card-description">Microsoft offers different Windows editions to serve diverse user needs—from home users to enterprise environments—each with features tailored to specific use cases.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Business Impact</h3>
-                    <p class="card-description">Choosing the right edition affects security capabilities, management options, and total cost of ownership. The wrong choice can cost organizations significantly.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">What You'll Learn</h3>
-                    <p class="card-description">By the end of this module, you'll be able to recommend the appropriate Windows edition for any scenario and explain the key differences.</p>
-                </div>
+<!-- ==================== SLIDE 2 — WHY EDITIONS MATTER ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">Why <span class="accent">Editions Matter</span></div>
+        <div class="slide-subtitle">The feature set a user or admin can access is locked by their Windows edition.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Exam Weight</div>
+                <div class="card-desc">Domain 1.1 "Identify basic features of Microsoft Windows editions" is consistently tested. Questions describe a business scenario and ask which edition is required or appropriate.</div>
             </div>
-
-            <div class="key-points">
-                <h4>KEY TAKEAWAY</h4>
-                <ul>
-                    <li>Windows editions are NOT about performance—they're about <strong>features and management capabilities</strong></li>
-                    <li>The same hardware runs the same speed on Home or Enterprise</li>
-                    <li>Licensing and features are what differentiate editions</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Technician Impact</div>
+                <div class="card-desc">A client calls: BitLocker is not available. You look at winver and see Windows 11 Home. Diagnosis complete &mdash; BitLocker Drive Encryption requires Pro or higher. Edition awareness saves diagnostic time.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: The Four Main Editions -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">The Four Main Editions</h2>
-            <p class="slide-subtitle">Each designed for a specific audience</p>
-
-            <div class="content-grid">
-                <div class="edition-card home" onclick="showEditionDetails('home')">
-                    <h3 class="edition-name">Windows Home</h3>
-                    <p class="edition-tagline">For personal use</p>
-                    <p class="edition-price">~$139 retail</p>
-                    <ul class="edition-features">
-                        <li>Core Windows experience</li>
-                        <li>Microsoft Store access</li>
-                        <li>Windows Security</li>
-                        <li>Cortana & Edge</li>
-                    </ul>
-                </div>
-
-                <div class="edition-card pro" onclick="showEditionDetails('pro')">
-                    <h3 class="edition-name">Windows Pro</h3>
-                    <p class="edition-tagline">For professionals & small business</p>
-                    <p class="edition-price">~$199 retail</p>
-                    <ul class="edition-features">
-                        <li>Everything in Home, plus:</li>
-                        <li>BitLocker encryption</li>
-                        <li>Remote Desktop (host)</li>
-                        <li>Domain join capability</li>
-                    </ul>
-                </div>
-
-                <div class="edition-card enterprise" onclick="showEditionDetails('enterprise')">
-                    <h3 class="edition-name">Windows Enterprise</h3>
-                    <p class="edition-tagline">For large organizations</p>
-                    <p class="edition-price">Volume licensing only</p>
-                    <ul class="edition-features">
-                        <li>Everything in Pro, plus:</li>
-                        <li>DirectAccess</li>
-                        <li>AppLocker</li>
-                        <li>Windows Defender Credential Guard</li>
-                    </ul>
-                </div>
-
-                <div class="edition-card education" onclick="showEditionDetails('education')">
-                    <h3 class="edition-name">Windows Education</h3>
-                    <p class="edition-tagline">For schools & universities</p>
-                    <p class="edition-price">Academic licensing</p>
-                    <ul class="edition-features">
-                        <li>Same features as Enterprise</li>
-                        <li>Optimized for education</li>
-                        <li>Special pricing for schools</li>
-                        <li>Cortana disabled by default</li>
-                    </ul>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Deployment Reality</div>
+                <div class="card-desc">Enterprises standardize on Pro or Enterprise. Education institutions use Education. Consumer hardware ships Home. Knowing the tier hierarchy lets you recommend upgrades without guessing.</div>
             </div>
+        </div>
+        <div class="scenario-strip">
+            A small business owner purchased 10 laptops with Windows 11 Home. They now need to join them to an Active Directory domain. You must inform them that domain join requires Pro or Enterprise &mdash; a field-level edition upgrade is needed before AD enrollment is possible.
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: Key Feature Differences -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">Key Feature Differences</h2>
-            <p class="slide-subtitle">What you get (and don't get) with each edition</p>
-
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Feature</th>
-                        <th scope="col">Home</th>
-                        <th scope="col">Pro</th>
-                        <th scope="col">Enterprise</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Domain Join</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>BitLocker Encryption</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Remote Desktop (Host)</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Group Policy</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Hyper-V</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Windows Sandbox</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>AppLocker</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>DirectAccess</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Credential Guard</strong></td>
-                        <td class="feature-no">✗</td>
-                        <td class="feature-limited">Limited</td>
-                        <td class="feature-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Windows Update Control</strong></td>
-                        <td class="feature-limited">Limited</td>
-                        <td class="feature-yes">✓</td>
-                        <td class="feature-yes">✓ Full</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="key-points">
-                <h3>EXAM TIP</h3>
-                <ul>
-                    <li><strong>BitLocker</strong> = Pro and above (NOT Home)</li>
-                    <li><strong>Domain Join</strong> = Pro and above (NOT Home)</li>
-                    <li><strong>AppLocker</strong> = Enterprise only</li>
-                    <li><strong>DirectAccess</strong> = Enterprise only</li>
-                </ul>
+<!-- ==================== SLIDE 3 — FOUR EDITIONS OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">The Four <span class="accent">Core Editions</span></div>
+        <div class="slide-subtitle">Windows 10 and 11 ship in four primary editions tested on A+ 220-1102.</div>
+        <div class="card-grid-4">
+            <div class="card c-blue">
+                <div class="card-label">Home</div>
+                <div class="card-desc">Consumer edition. Retail OEM. No domain join, no BitLocker, no Group Policy editor. Designed for personal use.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: BitLocker Deep Dive -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">BitLocker: The Security Differentiator</h2>
-            <p class="slide-subtitle">Full disk encryption that separates Home from Pro</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">What is BitLocker?</h3>
-                    <p class="card-description">BitLocker is Microsoft's full-disk encryption feature that protects data by encrypting entire volumes. If a device is lost or stolen, BitLocker prevents unauthorized access to data.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">How It Works</h3>
-                    <p class="card-description">BitLocker uses TPM (Trusted Platform Module) chip to store encryption keys securely. The system won't boot if the drive is moved to another computer without the recovery key.</p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pro</div>
+                <div class="card-desc">Business-tier consumer. Adds BitLocker, domain join, Hyper-V, Remote Desktop host, Group Policy editor.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Real-World Scenario</div>
-                <div class="scenario-content">
-                    <p>A company laptop containing sensitive client data is stolen from an employee's car. With BitLocker enabled:</p>
-                    <ul style="margin: 15px 0 0 20px; color: #a89aba;">
-                        <li>The thief cannot access any data on the drive</li>
-                        <li>Even removing the drive and connecting to another PC won't work</li>
-                        <li>The data remains encrypted without the BitLocker key</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #34d399;"><strong>This is why businesses need Pro or higher—Home edition has no BitLocker.</strong></p>
-                </div>
+            <div class="card c-gold">
+                <div class="card-label">Enterprise</div>
+                <div class="card-desc">Volume licensing only. Adds AppLocker, DirectAccess, BranchCache, Windows To Go (legacy), longer support.</div>
             </div>
-
-            <div class="key-points">
-                <h4>BITLOCKER REQUIREMENTS</h4>
-                <ul>
-                    <li>Windows Pro, Enterprise, or Education</li>
-                    <li>TPM 1.2 or higher (recommended)</li>
-                    <li>Can work without TPM using USB key (less secure)</li>
-                    <li>UEFI firmware for newer systems</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">Education</div>
+                <div class="card-desc">Enterprise-level features for academic institutions. Same feature parity as Enterprise. Licensed through academic programs.</div>
             </div>
+        </div>
+        <!-- SVG: 32-bit vs 64-bit architecture comparison -->
+        <div class="diagram-center">
+            <svg width="680" height="105" viewBox="0 0 680 105" aria-label="32-bit versus 64-bit Windows architecture comparison: address space, RAM limit, app compatibility" role="img">
+                <!-- 32-bit column -->
+                <rect x="10" y="5" width="300" height="95" rx="6" fill="rgba(100,116,139,0.1)" stroke="#475569" stroke-width="1.5"/>
+                <text x="160" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#64748b">32-bit (x86)</text>
+                <line x1="10" y1="30" x2="310" y2="30" stroke="rgba(100,116,139,0.2)" stroke-width="1"/>
+                <text x="24" y="47" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Max RAM: 4 GB (practical ~3.2 GB)</text>
+                <text x="24" y="61" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Address space: 2^32 = 4,294,967,296</text>
+                <text x="24" y="75" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Can run 32-bit apps only</text>
+                <text x="24" y="89" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Cannot use PAE beyond ~3.2 GB usable</text>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+                <!-- VS -->
+                <text x="340" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="900" fill="#c9a83a">VS</text>
 
-        <!-- Slide 5: Domain vs Workgroup -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Domain Join: Enterprise Management</h2>
-            <p class="slide-subtitle">Why this single feature is worth the upgrade for businesses</p>
+                <!-- 64-bit column -->
+                <rect x="370" y="5" width="300" height="95" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="520" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#c9a83a">64-bit (x64)</text>
+                <line x1="370" y1="30" x2="670" y2="30" stroke="rgba(201,168,58,0.2)" stroke-width="1"/>
+                <text x="384" y="47" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Max RAM: 128 GB (Home), 2 TB (Pro/Ent)</text>
+                <text x="384" y="61" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Address space: 2^64 (theoretical)</text>
+                <text x="384" y="75" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Runs 64-bit AND 32-bit apps (WOW64)</text>
+                <text x="384" y="89" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Windows 11 is 64-bit ONLY</text>
+            </svg>
+        </div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Workgroup (Home)</h3>
-                    <p class="card-description">
-                        <strong>Peer-to-peer network:</strong><br>
-                        • Each PC manages its own users<br>
-                        • Settings configured individually<br>
-                        • No centralized management<br>
-                        • Maximum 20 computers recommended
-                    </p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Domain (Pro/Enterprise)</h3>
-                    <p class="card-description">
-                        <strong>Centralized management:</strong><br>
-                        • Active Directory controls users<br>
-                        • Group Policy for settings<br>
-                        • Single sign-on across resources<br>
-                        • Scales to thousands of computers
-                    </p>
-                </div>
+        <div class="box box-gold">
+            <div class="box-label">Tier Hierarchy</div>
+            Home &lt; Pro &lt; Enterprise = Education. Each tier inherits all features from tiers below it. Pro for Workstations sits between Pro and Enterprise for high-end hardware support (NVMe RAID, AMD EPYC/Intel Xeon).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SVG COMPARISON MATRIX ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Edition <span class="accent">Feature Matrix</span></div>
+        <div class="slide-subtitle">Key features by edition &mdash; the most exam-tested comparison.</div>
+
+        <!-- SVG: animated feature comparison grid — rows appear sequentially -->
+        <div class="diagram-center">
+            <svg id="matrix-svg" width="860" height="300" viewBox="0 0 860 300" aria-label="Windows edition feature comparison matrix" role="img">
+                <!-- Column header backgrounds -->
+                <rect x="0"   y="0"  width="260" height="36" fill="rgba(30,41,59,0.6)" rx="4"/>
+                <rect x="265" y="0"  width="140" height="36" fill="rgba(96,165,250,0.15)" rx="4"/>
+                <rect x="410" y="0"  width="140" height="36" fill="rgba(6,182,212,0.15)" rx="4"/>
+                <rect x="555" y="0"  width="140" height="36" fill="rgba(201,168,58,0.15)" rx="4"/>
+                <rect x="700" y="0"  width="155" height="36" fill="rgba(58,181,119,0.15)" rx="4"/>
+
+                <!-- Header labels -->
+                <text x="130" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#64748b" letter-spacing="0.06em">FEATURE</text>
+                <text x="335" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#60a5fa">HOME</text>
+                <text x="480" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#06b6d4">PRO</text>
+                <text x="625" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#c9a83a">ENTERPRISE</text>
+                <text x="777" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">EDUCATION</text>
+
+                <!-- Row data: feature | home | pro | enterprise | education -->
+                <!-- Row 1: BitLocker -->
+                <g class="matrix-row" id="mrow-1" opacity="0">
+                    <rect x="0" y="40" width="860" height="32" fill="rgba(255,255,255,0.02)" rx="2"/>
+                    <text x="10"  y="61" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">BitLocker Encryption</text>
+                    <text x="335" y="61" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="61" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="625" y="61" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="61" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.3s" fill="freeze"/>
+                </g>
+                <!-- Row 2: Domain Join -->
+                <g class="matrix-row" id="mrow-2" opacity="0">
+                    <rect x="0" y="76" width="860" height="32" fill="rgba(255,255,255,0.035)" rx="2"/>
+                    <text x="10"  y="97" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">Domain Join (AD)</text>
+                    <text x="335" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="625" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.6s" fill="freeze"/>
+                </g>
+                <!-- Row 3: Group Policy -->
+                <g class="matrix-row" id="mrow-3" opacity="0">
+                    <rect x="0" y="112" width="860" height="32" fill="rgba(255,255,255,0.02)" rx="2"/>
+                    <text x="10"  y="133" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">Group Policy Editor (gpedit)</text>
+                    <text x="335" y="133" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="133" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="625" y="133" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="133" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.9s" fill="freeze"/>
+                </g>
+                <!-- Row 4: Remote Desktop Host -->
+                <g class="matrix-row" id="mrow-4" opacity="0">
+                    <rect x="0" y="148" width="860" height="32" fill="rgba(255,255,255,0.035)" rx="2"/>
+                    <text x="10"  y="169" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">Remote Desktop (host)</text>
+                    <text x="335" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="625" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="1.2s" fill="freeze"/>
+                </g>
+                <!-- Row 5: Hyper-V -->
+                <g class="matrix-row" id="mrow-5" opacity="0">
+                    <rect x="0" y="184" width="860" height="32" fill="rgba(255,255,255,0.02)" rx="2"/>
+                    <text x="10"  y="205" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">Hyper-V Virtualization</text>
+                    <text x="335" y="205" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="205" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="625" y="205" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="205" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="1.5s" fill="freeze"/>
+                </g>
+                <!-- Row 6: AppLocker -->
+                <g class="matrix-row" id="mrow-6" opacity="0">
+                    <rect x="0" y="220" width="860" height="32" fill="rgba(255,255,255,0.035)" rx="2"/>
+                    <text x="10"  y="241" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">AppLocker / Software Restriction</text>
+                    <text x="335" y="241" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="241" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="625" y="241" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="241" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="1.8s" fill="freeze"/>
+                </g>
+                <!-- Row 7: BranchCache -->
+                <g class="matrix-row" id="mrow-7" opacity="0">
+                    <rect x="0" y="256" width="860" height="32" fill="rgba(255,255,255,0.02)" rx="2"/>
+                    <text x="10"  y="277" font-family="Segoe UI,sans-serif" font-size="11.5" fill="#cbd5e1">BranchCache / DirectAccess</text>
+                    <text x="335" y="277" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="480" y="277" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#ef4444">X</text>
+                    <text x="625" y="277" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <text x="777" y="277" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" font-weight="700" fill="#3ab577">&#10003;</text>
+                    <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="2.1s" fill="freeze"/>
+                </g>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — WINDOWS HOME ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Home</span></div>
+        <div class="slide-subtitle">Consumer edition &mdash; most common OEM install on purchased hardware.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What It Includes</div>
+                <div class="card-desc">Cortana, Microsoft Store, Windows Hello, Edge, OneDrive integration, Windows Defender, Windows Update, basic local user accounts, HomeGroup (removed in 1803+), WSL 2.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Why This Matters</div>
-                <div class="scenario-content">
-                    <p>Imagine managing 500 computers in an organization:</p>
-                    <p style="margin: 15px 0;"><strong>With Workgroup (Home):</strong> You'd need to visit each PC to change a password policy, install software, or configure settings. That's potentially 500 individual changes.</p>
-                    <p><strong>With Domain (Pro+):</strong> Change one Group Policy, and all 500 computers update automatically. Deploy software to all computers with a few clicks.</p>
-                </div>
+            <div class="card c-red">
+                <div class="card-label">What It Lacks</div>
+                <div class="card-desc">No BitLocker (Device Encryption partial), no domain join, no gpedit.msc, no Remote Desktop host, no Hyper-V, no Assigned Access (kiosk mode), no AppLocker.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Enterprise-Only Features -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Enterprise-Only Features</h2>
-            <p class="slide-subtitle">Advanced security and management for large organizations</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">AppLocker</h3>
-                    <p class="card-description">Control which applications users can run. Create rules based on publisher, path, or file hash. Block unauthorized software and malware from executing.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">DirectAccess</h3>
-                    <p class="card-description">Automatic, always-on VPN connection for domain-joined computers. Users connect securely without manually starting a VPN. IT can manage remote devices as if they were on-premises.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Credential Guard</h3>
-                    <p class="card-description">Uses virtualization-based security to isolate credentials. Prevents pass-the-hash and pass-the-ticket attacks. Critical defense against credential theft malware.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Defender ATP</h3>
-                    <p class="card-description">Advanced threat protection with behavioral analysis. Cloud-powered security intelligence. Detailed security analytics and threat hunting capabilities.</p>
-                </div>
+            <div class="card c-gold">
+                <div class="card-label">Licensing</div>
+                <div class="card-desc">OEM (tied to hardware) or retail. OEM cannot be transferred to new hardware. Retail can. Most consumer laptops and desktops ship with OEM Home.</div>
             </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Exam Trap</div>
+            Windows 11 Home does include "Device Encryption" on qualifying hardware &mdash; this is NOT the same as full BitLocker. BitLocker with management controls (BitLocker Drive Encryption via Control Panel, manage-bde) requires Pro or higher.
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>WHEN TO RECOMMEND ENTERPRISE</h4>
-                <ul>
-                    <li>Organizations with 500+ devices</li>
-                    <li>High-security environments (government, finance, healthcare)</li>
-                    <li>Need for advanced threat protection</li>
-                    <li>Regulatory compliance requirements</li>
-                </ul>
+<!-- ==================== SLIDE 6 — WINDOWS PRO ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Pro</span></div>
+        <div class="slide-subtitle">The minimum edition for business workstation deployment in most organizations.</div>
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">BitLocker</div>
+                <div class="card-desc">Full disk encryption using AES. Managed via Control Panel, manage-bde.exe, or MDM. Requires TPM 2.0 for OS drive protection. Recovery key stored in AD or Azure AD. Protects data at rest if the drive is physically removed.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Knowledge Check -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Test your understanding</p>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario 1</div>
-                <div class="scenario-content">
-                    <p>A small law firm with 15 employees needs to encrypt their laptops due to client confidentiality requirements. They don't have an IT department and won't be joining a domain. Which edition should they use?</p>
-
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">A) Windows Home - It's the cheapest option</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1')">B) Windows Pro - They need BitLocker for encryption</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">C) Windows Enterprise - Maximum security for legal</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">D) Windows Education - Available at discount</button>
-
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Domain Join &amp; Azure AD</div>
+                <div class="card-desc">Join Windows Server Active Directory domains or Azure AD tenants. Required for Group Policy application from a domain controller, SSO to corporate resources, and centralized patch management via WSUS or Intune.</div>
             </div>
-
-            <div class="scenario-box" id="quiz2">
-                <div class="scenario-title"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Scenario 2</div>
-                <div class="scenario-content">
-                    <p>A hospital with 2,000 workstations needs to prevent staff from installing unauthorized software and requires advanced threat protection. Which edition?</p>
-
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">A) Windows Home - Less expensive at scale</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">B) Windows Pro - Has Group Policy</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2')">C) Windows Enterprise - AppLocker and Defender ATP</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">D) Windows Education - Healthcare qualifies</button>
-
-                    <div class="feedback" id="feedback-quiz2"></div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Remote Desktop Host</div>
+                <div class="card-desc">Accept inbound RDP connections (port 3389). Home can only be an RDP client. Pro can be both client and server. Enable via Settings &gt; System &gt; Remote Desktop, or via sysdm.cpl.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Summary -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Summary</h2>
-            <p class="slide-subtitle">Key points to remember</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Home</h3>
-                    <p class="card-description">
-                        <strong>Best for:</strong> Personal/home use<br>
-                        <strong>Key limitation:</strong> No BitLocker, no domain join<br>
-                        <strong>Remember:</strong> Cannot be centrally managed
-                    </p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Windows Pro</h3>
-                    <p class="card-description">
-                        <strong>Best for:</strong> Small business, professionals<br>
-                        <strong>Key features:</strong> BitLocker, domain join, Hyper-V<br>
-                        <strong>Remember:</strong> The minimum for business use
-                    </p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Enterprise</h3>
-                    <p class="card-description">
-                        <strong>Best for:</strong> Large organizations<br>
-                        <strong>Key features:</strong> AppLocker, DirectAccess, Credential Guard<br>
-                        <strong>Remember:</strong> Volume licensing only
-                    </p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Education</h3>
-                    <p class="card-description">
-                        <strong>Best for:</strong> Schools and universities<br>
-                        <strong>Key features:</strong> Same as Enterprise<br>
-                        <strong>Remember:</strong> Academic licensing required
-                    </p>
-                </div>
+        </div>
+        <div class="card-grid-2" style="margin-top:0;">
+            <div class="card c-gold">
+                <div class="card-label">Group Policy Editor</div>
+                <div class="card-desc">gpedit.msc. Locally apply security policies, software restrictions, drive mapping, and user rights without a domain. Critical for standalone Pro workstation hardening.</div>
             </div>
-
-            <div class="key-points">
-                <h4>DECISION FRAMEWORK</h4>
-                <ul>
-                    <li><strong>Need encryption?</strong> → Pro minimum (BitLocker)</li>
-                    <li><strong>Joining a domain?</strong> → Pro minimum</li>
-                    <li><strong>Need AppLocker?</strong> → Enterprise only</li>
-                    <li><strong>Educational institution?</strong> → Education edition</li>
-                    <li><strong>Personal use only?</strong> → Home is fine</li>
-                </ul>
+            <div class="card c-gold">
+                <div class="card-label">Hyper-V</div>
+                <div class="card-desc">Type-1 hypervisor built into Pro and above. Requires 64-bit CPU with SLAT. Create and run VMs locally. Exam: Home does not support Hyper-V; use VirtualBox/VMware instead.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box" style="text-align: center;">
-                <div class="scenario-title" style="justify-content: center;"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Module Complete!</div>
-                <div class="scenario-content">
-                    <p>You now understand Windows editions and can recommend the right one for any scenario.</p>
-                    <p style="margin-top: 15px;"><strong>Next Steps:</strong> Try the interactive Edition Selector applet or complete the hands-on lab.</p>
-                </div>
+<!-- ==================== SLIDE 7 — WINDOWS ENTERPRISE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Enterprise</span></div>
+        <div class="slide-subtitle">Volume license edition with advanced management, security, and deployment features.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">AppLocker</div>
+                <div class="card-desc">Whitelist or blacklist which applications users can run, by publisher, path, or hash rule. Applied via Group Policy. Replaces older Software Restriction Policies. Enterprise and Education only.</div>
             </div>
+            <div class="card c-gold">
+                <div class="card-label">BranchCache</div>
+                <div class="card-desc">Caches content from central servers at branch office machines, reducing WAN bandwidth consumption. Operates in Distributed Cache or Hosted Cache mode.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DirectAccess</div>
+                <div class="card-desc">Always-on remote access without a traditional VPN client. Uses IPv6 over IPsec tunnels. Requires Windows Server 2012 R2 or later on the server side. Being superseded by Always On VPN in newer deployments.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Licensing Model</div>
+            Enterprise is not available at retail. It requires volume licensing through Microsoft (EA, Open Value, or CSP). Organizations manage activation via KMS (Key Management Service) or MAK (Multiple Activation Key). No single-unit retail purchase path.
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module ✓</button>
-            </nav>
-        </section>
-    </main>
+<!-- ==================== SLIDE 8 — WINDOWS EDUCATION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Education</span></div>
+        <div class="slide-subtitle">Enterprise feature parity for academic institutions under academic licensing agreements.</div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Feature Parity with Enterprise</div>
+                <div class="card-desc">Education includes AppLocker, BranchCache, DirectAccess, and all Pro features. Functionally equivalent to Enterprise. The difference is licensing channel, not capability.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Academic Licensing</div>
+                <div class="card-desc">Available through Microsoft Enrollment for Education Solutions (EES) and Shape the Future programs. Often includes faculty, staff, and student use rights. Priced per-device or per-user.</div>
+            </div>
+        </div>
+        <table class="slide-table">
+            <thead>
+                <tr><th>Edition</th><th>Licensing Channel</th><th>Typical Deployer</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Home</strong></td><td>OEM / Retail</td><td>Consumer PC purchaser</td></tr>
+                <tr><td><strong>Pro</strong></td><td>Retail / OEM / CSP</td><td>SMB, IT-managed workstations</td></tr>
+                <tr><td><strong>Enterprise</strong></td><td>Volume License (EA, CSP)</td><td>Medium-to-large enterprise IT</td></tr>
+                <tr><td><strong>Education</strong></td><td>Academic Volume License (EES)</td><td>K-12, colleges, universities</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 8;
+<!-- ==================== SLIDE 9 — BITLOCKER DEEP DIVE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">BitLocker <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">Full disk encryption &mdash; Pro, Enterprise, and Education only.</div>
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">BitLocker encrypts the entire volume using AES-128 or AES-256. The Volume Master Key (VMK) is sealed by the TPM. Without the TPM releasing the key at boot, the drive reads as unreadable ciphertext on any other machine.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TPM Requirement</div>
+                <div class="card-desc">TPM 2.0 is required for OS drive encryption without a startup PIN or USB key. TPM validates the boot environment; if the BIOS or bootloader changes, TPM withholds the key and prompts for the recovery key.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Recovery Key</div>
+                <div class="card-desc">48-digit numeric key generated at encryption time. Should be saved to AD, Azure AD, USB, or printed. Technicians retrieve this from Active Directory Users and Computers or the Azure portal when a locked drive is presented.</div>
+            </div>
+        </div>
+        <!-- SVG: BitLocker encryption flow — drive data through AES to sealed VMK via TPM -->
+        <div class="diagram-center">
+            <svg width="740" height="95" viewBox="0 0 740 95" aria-label="BitLocker encryption flow: plaintext drive data encrypted with AES key, key sealed by TPM, recovery key as backup" role="img">
+                <defs>
+                    <marker id="bl-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#334155"/></marker>
+                    <marker id="bl-arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#3ab577"/></marker>
+                </defs>
+                <!-- Plaintext -->
+                <rect x="5"   y="28" width="100" height="38" rx="5" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="55"  y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#60a5fa">Plaintext</text>
+                <text x="55"  y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Drive data</text>
+                <line x1="105" y1="47" x2="128" y2="47" stroke="#334155" stroke-width="1.5" marker-end="url(#bl-arr)"/>
+                <!-- AES Engine -->
+                <rect x="130" y="18" width="120" height="58" rx="5" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="190" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">AES-128/256</text>
+                <text x="190" y="52" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8">Encryption engine</text>
+                <text x="190" y="66" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">FVE driver</text>
+                <line x1="250" y1="47" x2="273" y2="47" stroke="#334155" stroke-width="1.5" marker-end="url(#bl-arr)"/>
+                <!-- Encrypted volume -->
+                <rect x="275" y="28" width="100" height="38" rx="5" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="325" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">Ciphertext</text>
+                <text x="325" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Encrypted volume</text>
+                <!-- VMK sealed by TPM -->
+                <line x1="190" y1="18" x2="190" y2="5" stroke="#c9a83a" stroke-width="1" stroke-dasharray="2 2"/>
+                <rect x="130" y="3" width="120" height="3" rx="1" fill="#c9a83a" opacity="0.4"/>
+                <text x="190" y="2" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="#c9a83a">VMK sealed here</text>
+                <!-- TPM chip -->
+                <rect x="415" y="18" width="110" height="58" rx="5" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="470" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a78bfa">TPM 2.0</text>
+                <text x="470" y="52" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8">Seals / releases</text>
+                <text x="470" y="66" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Volume Master Key</text>
+                <line x1="375" y1="47" x2="413" y2="47" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#bl-arr)"/>
+                <text x="394" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="#a78bfa">unlock</text>
+                <!-- Recovery key -->
+                <rect x="555" y="28" width="160" height="38" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="635" y="44" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#3ab577">Recovery Key</text>
+                <text x="635" y="57" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">48-digit backup key</text>
+                <line x1="525" y1="47" x2="553" y2="47" stroke="#3ab577" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#bl-arr-g)"/>
+                <text x="539" y="42" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="#3ab577">fallback</text>
+                <!-- Bottom label -->
+                <text x="370" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#334155">TPM validates boot environment; changed BIOS = key withheld = recovery key required</text>
+            </svg>
+        </div>
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = `Slide ${currentSlide} of ${totalSlides}`;
+        <div class="box box-gold">
+            <div class="box-label">Exam Focus</div>
+            Know the command: <strong>manage-bde -status C:</strong> shows encryption state. <strong>manage-bde -on C: -recoverypassword</strong> enables BitLocker from the command line. Questions may present a scenario where a drive cannot be read after hardware swap &mdash; the answer involves the BitLocker recovery key.
+        </div>
+    </div>
+</section>
 
-            // Update dots
-            document.querySelectorAll('.slide-dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+<!-- ==================== SLIDE 10 — REMOTE DESKTOP ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Remote Desktop <span class="accent">Protocol</span></div>
+        <div class="slide-subtitle">RDP allows graphical remote access to Windows desktops and servers.</div>
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Client vs. Host</div>
+                <div class="card-desc">Every Windows edition includes the RDP client (mstsc.exe). Only Pro, Enterprise, and Education can serve as the RDP host (accept incoming connections). Home blocks incoming RDP by design.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Port &amp; Security</div>
+                <div class="card-desc">Default port: TCP 3389. Network Level Authentication (NLA) requires credentials before the full session loads, reducing attack surface. Enable NLA via System Properties &gt; Remote tab &gt; "Allow connections only from computers running Remote Desktop with NLA."</div>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Enable Steps</div>
+                <div class="card-desc">Settings &gt; System &gt; Remote Desktop &gt; toggle On. Or: sysdm.cpl &gt; Remote tab. Or: PowerShell: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Value 0.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Firewall Rule</div>
+                <div class="card-desc">Enabling Remote Desktop automatically creates a Windows Firewall inbound rule allowing TCP 3389. If manually blocked or deleted, connections will fail. Verify with: netsh advfirewall firewall show rule name="Remote Desktop".</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Session Limits</div>
+                <div class="card-desc">Pro/Enterprise workstation: 1 concurrent remote session. Windows Server: multiple concurrent sessions via Remote Desktop Services (RDS) with appropriate licensing (CALs). Exam will not confuse workstation and server RDS.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            // Update slides
-            document.querySelectorAll('.slide').forEach((slide, index) => {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
+<!-- ==================== SLIDE 11 — GROUP POLICY ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">Group Policy <span class="accent">Editor</span></div>
+        <div class="slide-subtitle">gpedit.msc &mdash; available on Pro, Enterprise, and Education. Not on Home.</div>
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Local Group Policy</div>
+                <div class="card-desc">gpedit.msc applies policies to the local machine only. Organized into Computer Configuration and User Configuration trees. Contains Security Settings, Administrative Templates, Software Settings. No domain required.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Domain Group Policy</div>
+                <div class="card-desc">On domain-joined machines, domain GPOs from the DC override local policy (LSDOU processing order: Local, Site, Domain, OU). Managed via Group Policy Management Console (gpmc.msc) on Windows Server or admin workstations.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Key Policy Locations</div>
+            Password policy: Computer Config &gt; Windows Settings &gt; Security Settings &gt; Account Policies &gt; Password Policy.
+            Disable USB drives: Computer Config &gt; Admin Templates &gt; System &gt; Removable Storage Access.
+            Restrict Control Panel: User Config &gt; Admin Templates &gt; Control Panel &gt; Prohibit access to Control Panel.
+        </div>
+        <div class="scenario-strip">
+            A technician receives a call: "I can't open gpedit.msc &mdash; it says it was not found." Before guessing malware, ask: what edition of Windows? Home does not ship with gpedit.msc. The answer is edition, not a missing file.
+        </div>
+    </div>
+</section>
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+<!-- ==================== SLIDE 12 — HYPER-V ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Hyper-V <span class="accent">Virtualization</span></div>
+        <div class="slide-subtitle">Pro and above only. Type-1 hypervisor built into Windows.</div>
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Requirements</div>
+                <div class="card-desc">64-bit CPU with SLAT (Second Level Address Translation). Hardware virtualization enabled in BIOS/UEFI (Intel VT-x or AMD-V). Minimum 4 GB RAM. Windows Pro, Enterprise, or Education. Not available on Home or ARM editions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Enable Method</div>
+                <div class="card-desc">Turn Windows features on or off &gt; check Hyper-V. Or: DISM /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V. Requires reboot. Hyper-V Manager (virtmgmt.msc) then available for VM creation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Use Cases</div>
+                <div class="card-desc">Run test VMs, legacy OS environments, isolated development environments, sandbox testing. Docker Desktop on Windows uses Hyper-V or WSL 2 as its container engine depending on configuration.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Conflict Note</div>
+            Enabling Hyper-V installs a hypervisor layer between the hardware and Windows. Some third-party hypervisors (older VMware Workstation, VirtualBox) cannot run simultaneously with Hyper-V enabled. Check compatibility before enabling.
+        </div>
+    </div>
+</section>
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+<!-- ==================== SLIDE 13 — UPGRADE PATHS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Edition <span class="accent">Upgrade Paths</span></div>
+        <div class="slide-subtitle">In-place edition upgrades are supported without reinstalling Windows.</div>
+        <table class="slide-table">
+            <thead>
+                <tr><th>From Edition</th><th>Can Upgrade To</th><th>Method</th><th>Data Preserved</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Home</strong></td><td>Pro</td><td>Settings &gt; Update &gt; Activation &gt; Change product key</td><td>Yes</td></tr>
+                <tr><td><strong>Pro</strong></td><td>Enterprise</td><td>Volume license key / MDM enrollment</td><td>Yes</td></tr>
+                <tr><td><strong>Pro</strong></td><td>Education</td><td>Academic product key or EES</td><td>Yes</td></tr>
+                <tr><td><strong>Home</strong></td><td>Enterprise</td><td>Not directly supported in-place</td><td>Requires clean install</td></tr>
+            </tbody>
+        </table>
+        <!-- SVG: Windows upgrade path diagram — edition boxes with allowed upgrade arrows -->
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" aria-label="Windows edition upgrade paths: Home upgrades to Pro, Pro upgrades to Enterprise or Education, no direct Home to Enterprise" role="img">
+                <defs>
+                    <marker id="up-arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#3ab577"/></marker>
+                    <marker id="up-arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0 0,6 3,0 6" fill="#ef4444"/></marker>
+                </defs>
+                <!-- Home -->
+                <rect x="20" y="38" width="120" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="80" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#60a5fa">Home</text>
+                <text x="80" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Consumer</text>
+                <!-- Home to Pro arrow -->
+                <line x1="140" y1="57" x2="235" y2="57" stroke="#3ab577" stroke-width="2" marker-end="url(#up-arr-g)"/>
+                <text x="188" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" font-weight="700" fill="#3ab577">Product Key</text>
+                <!-- Pro -->
+                <rect x="238" y="38" width="120" height="38" rx="6" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="298" y="53" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Pro</text>
+                <text x="298" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Business / Power</text>
+                <!-- Pro to Enterprise -->
+                <line x1="358" y1="52" x2="450" y2="30" stroke="#3ab577" stroke-width="2" marker-end="url(#up-arr-g)"/>
+                <text x="415" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" font-weight="700" fill="#3ab577">VL / MDM</text>
+                <!-- Enterprise -->
+                <rect x="452" y="8" width="130" height="38" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="517" y="23" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#ef4444">Enterprise</text>
+                <text x="517" y="38" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Large org / SA</text>
+                <!-- Pro to Education -->
+                <line x1="358" y1="65" x2="450" y2="82" stroke="#3ab577" stroke-width="2" marker-end="url(#up-arr-g)"/>
+                <text x="415" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" font-weight="700" fill="#3ab577">EES / Academic</text>
+                <!-- Education -->
+                <rect x="452" y="63" width="130" height="38" rx="6" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="517" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">Education</text>
+                <text x="517" y="93" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">Schools / EDU</text>
+                <!-- Home to Enterprise blocked -->
+                <line x1="140" y1="45" x2="452" y2="18" stroke="#ef4444" stroke-width="1" stroke-dasharray="5 4"/>
+                <text x="300" y="26" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">NOT direct — clean install required</text>
+                <!-- Animated upgrade token -->
+                <circle r="4" fill="#3ab577" opacity="0.9">
+                    <animateMotion dur="3.5s" repeatCount="indefinite" path="M 80,57 L 298,57 L 517,27"/>
+                </circle>
+            </svg>
+        </div>
 
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        <div class="card-grid-2" style="margin-top:0;">
+            <div class="box box-gold">
+                <div class="box-label">Home to Pro Cost</div>
+                As of Windows 11, the in-place upgrade from Home to Pro can be purchased from the Microsoft Store directly within Settings &gt; Activation. The upgrade is ~$99 USD retail and preserves all data, apps, and settings.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Downgrade Not Supported</div>
+                You cannot in-place downgrade from Pro to Home or Enterprise to Pro without a clean install. This is tested: a scenario asking how to move from Enterprise to Home requires reinstallation, not a key swap.
+            </div>
+        </div>
+    </div>
+</section>
 
-        function checkAnswer(button, isCorrect, quizId) {
-            const feedbackEl = document.getElementById('feedback-' + quizId);
-            const options = button.parentElement.querySelectorAll('.quiz-option');
+<!-- ==================== SLIDE 14 — WINDOWS 10 vs 11 REQUIREMENTS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Windows 10 vs. Windows <span class="accent">11 Requirements</span></div>
+        <div class="slide-subtitle">Windows 11 introduced hardware requirements that blocked many existing PCs.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Windows 10 Requirements</div>
+                <div class="card-desc">1 GHz CPU, 1 GB RAM (32-bit) or 2 GB (64-bit), 16/20 GB storage, DirectX 9 graphics. Broad hardware compatibility. EOL: October 14, 2025.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows 11 Requirements</div>
+                <div class="card-desc">1 GHz dual-core 64-bit CPU from approved list, 4 GB RAM, 64 GB storage, TPM 2.0, Secure Boot capable UEFI, DirectX 12 graphics with WDDM 2.0 driver, 720p display.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">TPM 2.0 Gate</div>
+            The most common reason a PC cannot upgrade to Windows 11 is TPM 2.0 not enabled or not present. Check in BIOS/UEFI or run: tpm.msc. If TPM version shows 1.2, Windows 11 will not install. If TPM is not enabled in UEFI firmware settings, enable it under Security or Advanced settings.
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">PC Health Check Tool</div>
+            Microsoft's PC Health Check app runs all Windows 11 hardware checks and reports pass/fail with specific failure reasons. A technician advising on upgrade eligibility should run this tool before quoting upgrade costs.
+        </div>
+    </div>
+</section>
 
-            // Disable all options
-            options.forEach(opt => {
-                opt.style.pointerEvents = 'none';
-            });
+<!-- ==================== SLIDE 15 — ACTIVATION METHODS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">Windows <span class="accent">Activation Methods</span></div>
+        <div class="slide-subtitle">How Windows verifies a valid license with Microsoft.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Retail / OEM Key</div>
+                <div class="card-desc">25-character product key (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX). Activates over the internet or phone. OEM keys are embedded in UEFI firmware (MSDM table) &mdash; no key entry needed on reinstall if Windows edition matches.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">KMS (Key Management Service)</div>
+                <div class="card-desc">Enterprise volume activation. A KMS server activates clients internally. Requires a minimum of 25 machines for Windows KMS. Clients re-activate every 180 days. Used in large AD environments to avoid per-machine online activation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">MAK (Multiple Activation Key)</div>
+                <div class="card-desc">Volume key with a fixed activation count. Each activation consumes one count against Microsoft's servers. Used for small volume deployments or air-gapped systems that cannot reach a KMS server.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A workstation shows "Windows is not activated" after being reimaged. It is on an Enterprise license. The volume license administrator checks the KMS server &mdash; the workstation's FQDN is not resolving, so KMS discovery is failing. Fix DNS, run: slmgr /ato to force activation.
+        </div>
+    </div>
+</section>
 
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✓ Correct! Windows Pro provides BitLocker encryption without the complexity of Enterprise. Perfect for small businesses without IT staff.';
-                } else {
-                    feedbackEl.textContent = '✓ Correct! A hospital of this size needs Enterprise for AppLocker (to prevent unauthorized software) and Windows Defender ATP for advanced threat protection—both critical for healthcare compliance.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = '✗ Not quite. Windows Home lacks BitLocker encryption. Enterprise is overkill for 15 users without IT staff. Education requires academic affiliation.';
-                } else {
-                    feedbackEl.textContent = '✗ Not quite. Home lacks domain capabilities. Pro doesn\'t have AppLocker. Education is for academic institutions, not healthcare.';
-                }
+<!-- ==================== SLIDE 16 — WINVER AND SYSTEM INFO ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Identifying Editions: <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">Commands and utilities to determine Windows edition, version, and build in the field.</div>
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">winver</div>
+                <div class="card-desc">Run from Start or Win+R. Displays the Windows edition name, version (e.g., 22H2), and OS build number (e.g., 22621.2715). Quick way to confirm if a machine is Home vs. Pro before attempting unsupported operations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">systeminfo</div>
+                <div class="card-desc">Command Prompt: systeminfo. Returns OS Name (including edition), OS Version, OS Build Type, Processor, RAM, domain membership, hotfixes, and network adapters. Verbose output useful for remote triage.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Settings &gt; System &gt; About</div>
+                <div class="card-desc">GUI path. Shows Edition, Version, Installed on date, OS build, and Serial number. Also shows Device specifications: RAM, processor, system type (32-bit vs. 64-bit). Activation status at the bottom of the page.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">PowerShell One-Liner</div>
+            Get-WindowsEdition -Online &mdash; returns the edition name. (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ProductName &mdash; returns the full product name string including edition from the registry.
+        </div>
+    </div>
+</section>
 
-                // Highlight correct answer
-                options.forEach(opt => {
-                    if (opt.textContent.includes('Pro') && quizId === 'quiz1') {
-                        opt.classList.add('correct');
-                    }
-                    if (opt.textContent.includes('Enterprise') && quizId === 'quiz2') {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
+<!-- ==================== SLIDE 17 — DOMAIN vs WORKGROUP ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Domain vs. <span class="accent">Workgroup</span></div>
+        <div class="slide-subtitle">Network membership model is determined by both edition and organizational policy.</div>
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Workgroup</div>
+                <div class="card-desc">Peer-to-peer. Each machine manages its own user accounts and security. No centralized authentication. Maximum ~20 machines is practical. Home and Pro can join. No AD infrastructure required. Default state out of box.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Domain</div>
+                <div class="card-desc">Centralized authentication via Active Directory Domain Services (AD DS) on Windows Server. Users log in with domain credentials. GPOs applied centrally. Requires Pro, Enterprise, or Education &mdash; Home cannot join a domain.</div>
+            </div>
+        </div>
+        <table class="slide-table">
+            <thead>
+                <tr><th>Characteristic</th><th>Workgroup</th><th>Domain</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Account management</strong></td><td>Local SAM per machine</td><td>Centralized AD/LDAP</td></tr>
+                <tr><td><strong>Scale</strong></td><td>Small (&lt;20 practical)</td><td>Unlimited</td></tr>
+                <tr><td><strong>Policy management</strong></td><td>Local GPO only</td><td>Domain/OU GPO</td></tr>
+                <tr><td><strong>Windows edition required</strong></td><td>Any</td><td>Pro, Enterprise, Education</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
 
-        function showEditionDetails(edition) {
-            // Could expand to show modal with more details
-        }
+<!-- ==================== SLIDE 18 — EXAM SCENARIOS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Exam <span class="accent">Scenario Drills</span></div>
+        <div class="slide-subtitle">Match the requirement to the correct minimum edition.</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Scenario:</strong> A user needs to enable BitLocker on their laptop. Current edition: Windows 11 Home. <strong>Answer:</strong> Upgrade to Pro before BitLocker Drive Encryption is available.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Scenario:</strong> IT needs to join 50 workstations to Active Directory. All have Windows 10 Home. <strong>Answer:</strong> Upgrade to Pro (or Enterprise via volume license). Home cannot join a domain.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Scenario:</strong> A university must deploy application restrictions via AppLocker to student labs. <strong>Answer:</strong> Requires Education or Enterprise. AppLocker is not available in Home or Pro.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Scenario:</strong> A developer wants to run Hyper-V VMs on their laptop. Current edition: Windows 11 Home. <strong>Answer:</strong> Upgrade to Pro. Hyper-V is not available on Home.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Scenario:</strong> A company needs to activate 300 Enterprise workstations without individual internet activation. <strong>Answer:</strong> Deploy a KMS server on the internal network. Each client activates against the KMS server.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Scenario:</strong> A user asks whether they can accept Remote Desktop connections on Windows 10 Home. <strong>Answer:</strong> No. RDP incoming connections require Pro, Enterprise, or Education. Home can only be an RDP client.</span>
+            </div>
+        </div>
+    </div>
+</section>
 
-        function completeModule() {
-            // Use ModuleProgress for unified completion handling
-            // This triggers achievements, updates streaks, and saves progress
-            ModuleProgress.complete('forge', 'forge-windows-editions', {
-                returnUrl: '../index.html'
-            });
-        }
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19</div>
+        <div class="slide-title">Windows Editions <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key retention points for Domain 1.1.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Pro-Only Features (Not Home)</div>
+                <div class="card-desc">BitLocker, Domain Join, gpedit.msc, Remote Desktop host, Hyper-V, Assigned Access, Windows Sandbox, Encrypting File System (EFS).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Enterprise / Education Only</div>
+                <div class="card-desc">AppLocker, BranchCache, DirectAccess, Credential Guard, Device Guard, Long-Term Servicing Channel (LTSC) eligibility.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">The Three Edition Rules for A+</div>
+            <strong>1.</strong> BitLocker = Pro minimum. &nbsp;
+            <strong>2.</strong> Domain Join = Pro minimum. &nbsp;
+            <strong>3.</strong> AppLocker = Enterprise or Education only.
+            These three rules cover the majority of edition-related exam questions in Domain 1.1.
+        </div>
+        <div class="scenario-strip">
+            If a question describes a feature and asks "which edition is required" &mdash; work backward from the feature. BitLocker, RDP host, gpedit, Hyper-V all point to Pro. AppLocker, BranchCache, DirectAccess point to Enterprise or Education. Everything else is available on Home.
+        </div>
+    </div>
+</section>
 
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                prevSlide();
-            }
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../index.html" class="nav-btn back-btn" aria-label="Back to Core 2 hub">Back to Core 2</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark presentation complete">Mark Complete</button>
+</nav>
+
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 19;
+    let current = 1;
+
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
+
+        prev.classList.remove('active');
+        next.classList.add('active');
+        current = n;
+
+        /* Progress bar: fill proportionally across all slides */
+        const pct = (current / TOTAL) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+
+        /* Restart SVG animations on the incoming slide */
+        next.querySelectorAll('animate, animateMotion, animateTransform').forEach(function(el) {
+            el.beginElement();
         });
+    }
 
-        // Initialize
-        updateProgress();
-    </script>
-<script src="../../../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../../../components/PresentationA11y.js"></script>
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to Core 2 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-windows-editions', {
+            returnUrl: '../index.html'
+        });
+    }
+</script>
 </body>
 </html>

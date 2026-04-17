@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Professionals and Ethics | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d001a 0%, #130020 50%, #160025 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 0, 26, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #0d001a; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8f5; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8f5; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">IT Professionals and Ethics | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:3.03%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 33 &nbsp;|&nbsp; ETH-W1-02 &nbsp;|&nbsp; Week 1</div>
+        <div class="title-hero">
+            <div class="big-title">
+                IT Professionals:<br>
+                <span class="accent">Relationships and Obligations</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Professionalism &nbsp;&bull;&nbsp; Codes of Ethics &nbsp;&bull;&nbsp; Stakeholder Obligations &nbsp;&bull;&nbsp; Compliance vs. Ethics
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Warehouse memo: SAP paid $3.9 billion in fines after subsidiaries bribed government officials across multiple countries to secure software contracts. The software worked. The sales process was criminal. The engineers who built the product were not the ones in the dock -- but the organization they worked for ran a global corruption operation. At what point does an IT professional's obligation to their employer end and their obligation to everyone else begin?
+        </div>
+        <div class="title-meta-row">
+            <span>33 Slides</span>
+            <span>ETH-W1-02</span>
+            <span>Week 1</span>
+            <span>Ethics in IT</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- PROFESSIONAL VS. WORKER ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 33</div>
+        <div class="slide-title">Professional vs. <span class="accent">Worker</span></div>
+        <div class="slide-subtitle">The distinction matters more than it first appears. One carries obligations beyond the employment contract.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Worker</div>
+                <div class="card-desc">Exchanges labor for compensation. Obligations are contractual: show up, perform the agreed tasks, follow instructions from supervisors within legal limits. The ethical horizon is narrow: do not steal from the employer, do not lie on your timesheet, comply with workplace policy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Professional</div>
+                <div class="card-desc">Holds specialized knowledge and skill that others rely upon and cannot independently verify. Bound by a code of ethics that operates independent of the employment contract. Obligations extend to clients, users, third parties, and the public -- not just the employer. Cannot fully discharge ethical obligations by following orders.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Critical Difference</div>
+            A lawyer cannot follow client instructions to commit perjury. A doctor cannot comply with an employer's instruction to falsify test results. An engineer cannot simply implement what management requests when the implementation poses unreasonable safety or harm risk. The professional's duty to the public is not subordinate to the employer relationship.
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Is IT a Profession?</div>
+            The debate continues. IT lacks the formal licensure of law and medicine. Entry is not gated by board exams with enforceable ethical standards. But the social impact of IT decisions rivals those of licensed professions. The practical implication: IT professionals should hold themselves to professional standards even where no external enforcement exists.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- WHAT MAKES A PROFESSION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 33</div>
+        <div class="slide-title">What Makes a <span class="accent">Profession</span></div>
+        <div class="slide-subtitle">Sociology of professions identifies consistent characteristics. Most of them apply -- with complications -- to IT.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Specialized Knowledge</div>
+                <div class="card-desc">Acquired through extended formal education. Clients cannot independently evaluate the quality of the work -- they must trust the professional's judgment. This information asymmetry is what creates both the professional's power and the ethical obligation not to abuse it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Autonomy and Judgment</div>
+                <div class="card-desc">Professionals exercise independent judgment -- they are not merely executing instructions. A professional who blindly follows every instruction from a superior, even into clearly unethical territory, has abdicated professional judgment. Autonomy is both a privilege and a responsibility.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Self-Regulation</div>
+                <div class="card-desc">Professional bodies (ACM, IEEE, ISACA, (ISC)2) establish codes of conduct and have some disciplinary capability. Certification bodies can revoke credentials. Bar associations can disbar lawyers. None of these mechanisms are as strong in IT as in law or medicine, which is itself an ethical problem for the field.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Service Orientation</div>
+                <div class="card-desc">Professions exist to serve clients and society, not just to generate income. Medicine exists for patients. Law exists for justice. Engineering exists for the public good. IT's stated purpose is value creation -- but the alignment between that and public good requires active, deliberate attention.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RELATIONSHIP: EMPLOYER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 33</div>
+        <div class="slide-title">Relationship: <span class="accent">Employer</span></div>
+        <div class="slide-subtitle">The primary employment relationship. Where most day-to-day ethical decisions originate.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Obligations to Employer</div>
+                <div class="card-desc">Competent performance of assigned work. Honest representation of skills and work product. Protection of confidential and proprietary information. Avoidance of conflicts of interest. Compliance with legitimate workplace policies. These are the baseline obligations every employee holds regardless of professional status.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Limits of That Obligation</div>
+                <div class="card-desc">Loyalty to employer does not require participation in fraud, deception of customers, violation of applicable law, or actions that pose unreasonable risk to public safety. An IT professional who follows an employer's instruction to do any of these things bears personal ethical responsibility -- the instruction does not transfer it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Intellectual Property</div>
+                <div class="card-desc">Work product created during employment using employer resources generally belongs to the employer. This is both a legal and ethical obligation. Using company code, algorithms, or customer data to benefit a subsequent employer or personal venture violates both the employment agreement and the trust placed in the professional.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Handling Unethical Instructions</div>
+                <div class="card-desc">First response: clarify intent and scope. Second: express concern and propose alternatives. Third: escalate through appropriate internal channels. If internal channels fail or are complicit, the professional must weigh the obligation to resist against the personal cost -- and document the entire process.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- RELATIONSHIP: CLIENT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 33</div>
+        <div class="slide-title">Relationship: <span class="accent">Client</span></div>
+        <div class="slide-subtitle">The client pays for expertise. The professional's obligation goes beyond delivering what was requested to delivering what is actually needed.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Competence</div>
+                <div class="card-desc">Accept only engagements for which you have or can acquire the necessary competence. Do not overrepresent your capabilities to win work. A professional who takes a contract they cannot perform, then subcontracts it without disclosure, has violated the trust relationship from the outset.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Honest Advice</div>
+                <div class="card-desc">Tell clients what they need to hear, not what they want to hear. If a client's planned approach is insecure, inadequate, or likely to fail, the professional's obligation is to say so clearly -- even if the client resists, even if the contract does not require it, and even if the honest advice threatens the business relationship.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Conflicts of Interest</div>
+                <div class="card-desc">Disclose any personal interest that could compromise your ability to give objective advice. Recommending a vendor in which you hold an undisclosed financial interest is a conflict of interest regardless of whether the vendor is actually the best choice. Disclosure is required; the client then decides.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Confidentiality</div>
+                <div class="card-desc">Client information acquired during an engagement is confidential. It cannot be used for personal benefit, shared with competitors, or disclosed to third parties without consent. This obligation survives the end of the engagement and often the end of the professional relationship.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- RELATIONSHIP: SUPPLIER ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 33</div>
+        <div class="slide-title">Relationship: <span class="accent">Supplier</span></div>
+        <div class="slide-subtitle">The vendor relationship. Ethics flow both directions -- from IT professional to vendor and from vendor to IT professional.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Procurement Ethics</div>
+                <div class="card-desc">Selection decisions must be based on merit, capability, and total cost of ownership -- not personal relationships, gifts, or indirect compensation. IT professionals who influence purchasing decisions and have undisclosed relationships with vendors have a conflict of interest that must be disclosed and managed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Constitutes a Gift</div>
+                <div class="card-desc">Free software licenses, hospitality, conference tickets, meals, referral fees, future employment discussions -- all can constitute inducements. Most organizations have formal gift policies defining acceptable limits. The ethical test is independent of the dollar value: would this influence your recommendation?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Vendor Evaluation Honesty</div>
+                <div class="card-desc">Providing dishonest vendor references -- positive to maintain a relationship, or negative to favor a competitor -- harms the organizations relying on those references. IT professionals asked to provide vendor assessments have an obligation to be accurate, balanced, and to disclose the basis of their evaluation.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            A vendor offers you a free all-expenses-paid trip to their annual user conference in Las Vegas. You are currently evaluating three competing products including theirs. Your manager says it is your call. What do you do?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- RELATIONSHIP: USER ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 33</div>
+        <div class="slide-title">Relationship: <span class="accent">User</span></div>
+        <div class="slide-subtitle">Users are often the most important stakeholders and the least represented in the decisions that affect them.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Absent Stakeholder Problem</div>
+                <div class="card-desc">Users are typically not in the room when system requirements are written, features are designed, or deployment decisions are made. The IT professional is often their only advocate in those conversations. When no one asks "how does this affect users?" the professional has an ethical obligation to ask it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Accessibility</div>
+                <div class="card-desc">Building systems that exclude users with disabilities is both a legal risk (ADA, Section 508) and an ethical failure. Accessibility is not a feature request -- it is a baseline obligation. Systems that work for everyone by default are the professional standard; systems that require users to request accommodation are the ethical minimum floor.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Informed Consent</div>
+                <div class="card-desc">Users should understand what a system does with their data, how it makes decisions that affect them, and what their options are. EULA acceptance is not meaningful consent -- a 50-page document in legalese accepted under compulsion is theater, not ethics. Plain language disclosure is an ethical standard, not a legal one.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Safety-Critical Systems</div>
+                <div class="card-desc">When systems affect health, safety, or physical integrity, user protection becomes an absolute obligation. Medical device software, autonomous vehicle systems, industrial control systems, and critical infrastructure all operate under a higher ethical duty of care than consumer entertainment applications.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- RELATIONSHIP: SOCIETY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 33</div>
+        <div class="slide-title">Relationship: <span class="accent">Society</span></div>
+        <div class="slide-subtitle">The broadest stakeholder. No employment contract defines this relationship -- it emerges from the social power that technology confers.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Public Safety</div>
+                <div class="card-desc">IT professionals who become aware of system flaws that pose significant public safety risks have an obligation that overrides employer confidentiality in extreme cases. A security researcher who discovers that a public utility's SCADA system can be remotely compromised cannot simply accept a vendor's "we will get to it eventually."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Democratic Institutions</div>
+                <div class="card-desc">Systems that manipulate elections, suppress political participation, or enable state surveillance of political dissidents harm democratic institutions. IT professionals asked to build or operate such systems have the same ethical choice that confronted engineers in every other field where technology was weaponized against civil society.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Economic Inclusion</div>
+                <div class="card-desc">Systems that systematically exclude people from economic participation -- lending, employment, housing, insurance -- on the basis of protected characteristics or as the incidental byproduct of biased design create measurable social harm. The duty to avoid this harm rests with the professionals who build and maintain these systems.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Scope of Responsibility</div>
+            You will never meet most of the people affected by the systems you build. That does not reduce your responsibility to them. The ACM Code puts it directly: "Contribute to society and to human well-being, acknowledging that all people are stakeholders in computing." All people. Not just the ones paying.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- COMPETING OBLIGATIONS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 33</div>
+        <div class="slide-title">When Obligations <span class="accent">Conflict</span></div>
+        <div class="slide-subtitle">The hardest professional ethics problems occur when obligations to different stakeholders point in opposite directions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Employer vs. User</div>
+                <div class="card-desc">Employer instructs you to build a feature that harvests user contacts without explicit disclosure. Employer's interest: competitive advantage from social graph data. User's interest: control over who can see their private contact relationships. The conflict is real and the resolution is not automatic.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Client vs. Society</div>
+                <div class="card-desc">Client requests a system that technically complies with applicable law but creates discriminatory outcomes for communities that have no legal recourse. Legal compliance satisfies the client. But the system causes measurable harm to people who had nothing to do with the contract. Whose interest governs?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">A Priority Framework</div>
+                <div class="card-desc">When obligations conflict: public safety and welfare generally takes precedence. Then come legal obligations. Then professional ethical codes. Then organizational obligations. Then individual preference. This is not a rigid algorithm -- it is a hierarchy for structuring reasoning when interests collide.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Role of Documentation</div>
+                <div class="card-desc">When you identify a conflict between stakeholder obligations and resolve it, document the reasoning. "I was told to" is not a resolution -- it is a transfer. If you proceed with something you believe is ethically questionable, record your objection and the decision chain that overrode it. This matters later.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- ACM CODE OVERVIEW ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 33</div>
+        <div class="slide-title">ACM Code of Ethics: <span class="accent">Structure</span></div>
+        <div class="slide-subtitle">The 2018 ACM Code is the most comprehensive professional ethics code in computing. Understanding its structure prepares you to apply it.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Section 1: General Moral Imperatives</div>
+                <div class="card-desc">Contribute to society. Avoid harm. Be honest and trustworthy. Be fair. Honor property rights. Give proper credit. Respect privacy. Honor confidentiality. These are baseline obligations every computing professional holds regardless of role or employer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Section 2: Professional Responsibilities</div>
+                <div class="card-desc">Strive for excellence in professional practice. Know and respect existing laws. Accept and provide professional review. Provide comprehensive and thorough evaluations. Honor contracts and agreements. Improve public understanding of computing. Access computing resources only when authorized.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Section 3: Leadership Principles</div>
+                <div class="card-desc">Articulate social responsibilities. Manage personnel and systems to enhance quality of life. Acknowledge and support proper use of computing resources. Create systems that enhance the quality of working conditions. Support policies that protect the dignity of users.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Key Point</div>
+            The ACM Code is aspirational and not externally enforced by state authority. The (ISC)2 Code of Ethics for CISSP holders is more specific and carries the threat of certification revocation. ISACA's Code applies to CISA/CISM holders. Know which codes apply to your certifications.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- (ISC)2 CODE OF ETHICS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 33</div>
+        <div class="slide-title">(ISC)2 Code of <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">The four canons of the (ISC)2 Code. The order matters -- higher canons take precedence over lower ones.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Protect society, the common good, necessary public trust and confidence, and the infrastructure.</strong> The public interest is the highest obligation. A CISSP who discovers a public safety risk cannot subordinate that to employer confidentiality.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Act honorably, honestly, justly, responsibly, and legally.</strong> Personal integrity is the second canon. Honesty in all professional dealings, compliance with law, and accountability for one's actions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Provide diligent and competent service to principals.</strong> Principals are employers, clients, and contractors. Competence, professionalism, and delivery on commitments. This comes third -- below public interest and personal integrity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Advance and protect the profession.</strong> Contribute to the body of knowledge. Mentor others. Support professional development. Refrain from actions that bring the profession into disrepute. Lowest priority -- but still an obligation.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Hierarchy in Practice</div>
+            If following your employer's instruction (Canon 3) would require you to lie (Canon 2) in a way that endangers the public (Canon 1), the higher canon governs. The code resolves the conflict explicitly: you do not comply with employer instructions that violate the higher obligations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- COMPLIANCE VS. ETHICS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 33</div>
+        <div class="slide-title">Compliance vs. <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">One of the most practically important distinctions in professional life. Compliance is the floor. Ethics requires more.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Compliance Provides</div>
+                <div class="card-desc">A checklist of minimum required behaviors. HIPAA compliance means implementing required technical safeguards and having required policies. PCI DSS compliance means meeting the 12 control requirements. Compliant organizations have documented, auditable evidence that they met the minimum standard. This is valuable and necessary -- but it is not an ethical ceiling.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Compliance Cannot Provide</div>
+                <div class="card-desc">Compliance frameworks are backward-looking -- they define requirements based on past harms. Novel harms are not covered. The spirit of a regulation may be violated while the letter is technically satisfied. Compliance with a standard that is inadequate to the actual risk does not fulfill the ethical obligation to protect the people who trust you with their data.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The "We Are Compliant" Defense</div>
+                <div class="card-desc">Organizations that lead with "we are compliant" when asked about ethics are revealing their priorities. Compliance establishes the floor. Ethics asks: given what we know, what should we do? The answer often requires going beyond the checklist. "We complied with HIPAA" does not end the inquiry when 10 million patient records were breached.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Building an Ethical Culture</div>
+                <div class="card-desc">Compliance is enforced from outside. Ethics is internalized. Organizations with strong ethical cultures ask "should we?" alongside "are we required to?" They invest in ethics training, create safe reporting channels, and actually use them. The difference between compliance-as-theater and genuine ethical culture is visible in how organizations respond when they discover their own failures.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- INTRODUCTION TO SAP/FCPA CASE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 33 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">Case Study: <span class="accent">SAP and the FCPA</span></div>
+        <div class="slide-subtitle">One of the largest Foreign Corrupt Practices Act settlements in US history. A global technology company, a bribery network, and a question about professional responsibility.</div>
+
+        <div class="scenario-strip">
+            In 2024, SAP SE agreed to pay approximately $220 million to resolve FCPA violations involving bribing government officials in South Africa, Tanzania, Uganda, Kenya, Ghana, Indonesia, and Panama to secure software contracts. A related settlement in 2021 had already addressed $8 million in South African contracts. Total exposure exceeded $3.9 billion when combined with related settlements and disgorgement.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Mechanism</div>
+                <div class="card-desc">SAP subsidiaries used third-party agents and intermediaries to funnel payments to government officials. These payments secured software license deals and maintenance contracts with state-owned enterprises and government ministries. The bribery was organized, systematic, and extended across multiple countries and business units over years.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Technology Connection</div>
+                <div class="card-desc">SAP's products are enterprise software -- ERP systems, HR systems, financial management systems. The software itself was not defective. The sales process was corrupt. The IT professionals who implemented the software for these government clients were working for organizations that secured those contracts through criminal means.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SAP CONSEQUENCES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 33 &nbsp;|&nbsp; Case Study</div>
+        <div class="slide-title">SAP FCPA: <span class="accent">Consequences and Analysis</span></div>
+        <div class="slide-subtitle">What the case reveals about organizational ethics and the IT professional's position within corrupt organizations.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">SAP agreed to disgorgement of approximately $118 million in improper profits plus $103 million in penalties to the US DOJ and SEC, in addition to separate settlements with South African authorities totaling over $3.5 billion including disgorgement obligations.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The FCPA (Foreign Corrupt Practices Act) prohibits US-listed companies and their subsidiaries from bribing foreign government officials, regardless of where the bribery occurs. Jurisdiction is triggered by US securities listing, not by the location of the act.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Individual employees faced personal prosecution in several jurisdictions. The "I worked for the company" defense did not shield individuals who were directly involved in structuring payments to officials.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">SAP's internal compliance program existed but failed to detect or stop the scheme. A compliance program that exists on paper but does not operate in practice provides no ethical or legal protection.</span>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            You are a SAP implementation consultant working on a government contract in one of the affected countries. You begin to suspect that the contract was secured improperly. You have no direct evidence. Your next project assignment depends on this deployment going well. What is your ethical obligation?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- PROFESSIONAL COMPETENCE OBLIGATION ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 33</div>
+        <div class="slide-title">The Obligation of <span class="accent">Competence</span></div>
+        <div class="slide-subtitle">Representing yourself as capable of work you cannot perform is both an ethical and professional failure -- not just a business risk.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Know Your Limits</div>
+                <div class="card-desc">The ACM Code requires practitioners to provide service "only in their areas of competence." This is not a passive prohibition -- it requires active self-assessment. Technology changes faster than any practitioner can keep current. Knowing what you do not know is a professional competency, not a weakness to hide.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Estimation Problem</div>
+                <div class="card-desc">Project estimation is an ethics issue. Knowingly providing unrealistic estimates to win contracts, secure approval, or avoid conflict creates downstream harm for clients, colleagues, and users. An estimate you do not believe is honest is a form of deception regardless of whether it is technically a "lie."</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certification and Misrepresentation</div>
+                <div class="card-desc">Claiming certifications, credentials, or experience you do not have is fraud. In security contexts it is particularly dangerous -- organizations make risk decisions based on the claimed expertise of the professionals they hire. A security consultant who misrepresents their penetration testing experience creates real security risks for clients who trust that representation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuous Development</div>
+                <div class="card-desc">The obligation to maintain competence in a rapidly evolving field is ongoing. This includes technical competency and ethical competency -- the frameworks, regulations, and societal understanding of harm that shape what professional practice requires. CPE requirements in certifications like CISSP exist because competence decays without investment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- HONESTY AND PROFESSIONAL COMMUNICATION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 33</div>
+        <div class="slide-title">Honesty in <span class="accent">Professional Communication</span></div>
+        <div class="slide-subtitle">Truth-telling in professional contexts is more complex than it sounds. Omission, framing, and timing all matter.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Lies of Commission</div>
+                <div class="card-desc">Stating something false. Claiming a system is secure when you know it has critical vulnerabilities. Representing a project as on track when it is not. Certifying that testing was completed when it was not. These are direct violations of the professional honesty obligation and, in many contexts, they are fraud.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Lies of Omission</div>
+                <div class="card-desc">Failing to disclose known information that the other party has a legitimate interest in knowing. Delivering a system that meets every specified requirement while knowing the specification missed a critical security concern -- and not mentioning it -- is a lie of omission. The client trusted your expertise, not just your compliance with the spec.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Framing and Spin</div>
+                <div class="card-desc">Technically true statements designed to mislead. "We have never had a reported breach" -- because you have no detection capability. "This feature has been thoroughly reviewed" -- by one intern for 20 minutes. Professional communication must not only be technically accurate -- it must not be designed to create false impressions.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">The Standard</div>
+            Would the recipient of this communication, if they knew everything you know, feel they had been given an honest picture? If no, the communication has an honesty problem, regardless of whether any individual statement is technically false.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- CONFLICTS OF INTEREST ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 33</div>
+        <div class="slide-title">Conflicts of <span class="accent">Interest</span></div>
+        <div class="slide-subtitle">A conflict of interest exists when a personal interest could compromise -- or appears to compromise -- your professional judgment.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Types of Conflict</div>
+                <div class="card-desc">Financial: holding equity in a vendor you are evaluating. Personal: your former manager runs a company bidding on a contract you are reviewing. Role: being asked to audit a system you built. All three types create the same structural problem: your judgment may be compromised, and stakeholders relying on your judgment cannot know it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disclosure and Recusal</div>
+                <div class="card-desc">When a conflict exists, the obligation is disclosure to the appropriate parties, followed by a decision about whether recusal is required. The person with the conflict does not unilaterally decide whether it is material -- that determination is made by the parties whose interests are at stake.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Appearance Standard</div>
+                <div class="card-desc">Many professional codes require avoiding even the appearance of a conflict, not just actual conflicts. If your recommendation could reasonably be suspected of being influenced by a personal interest -- even if it was not -- the professional response is disclosure. The appearance of impropriety is itself a problem in positions of trust.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Post-Employment Conflicts</div>
+                <div class="card-desc">Knowledge of former employer systems, clients, and strategies creates potential conflicts in subsequent roles. Working for a competitor on matters where your former employer's confidential information would be advantageous is a conflict of interest -- and potentially a breach of fiduciary duty -- regardless of whether any data was physically transferred.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- PRIVACY OBLIGATIONS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 33</div>
+        <div class="slide-title">Professional <span class="accent">Privacy Obligations</span></div>
+        <div class="slide-subtitle">IT professionals with system access hold more personal data on more people than almost any other role in an organization.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Trust Relationship</div>
+                <div class="card-desc">When users put data into systems, they are trusting the professional community that built and maintains those systems to handle it responsibly. They did not consent to the DBA reading their messages, the sysadmin browsing medical records, or the developer using customer PII to build test environments without anonymization.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Curiosity Is Not Authorization</div>
+                <div class="card-desc">Having access to data does not mean you are authorized to view it. Many IT professionals treat privileged access as permission to explore. Reading the CEO's emails because you are curious, looking at salary data because you have database access, reviewing HR files because you can -- these are all ethical violations regardless of whether any policy explicitly prohibits them.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Test Data Practices</div>
+                <div class="card-desc">Using real production data in development and test environments is an extremely common professional practice that is also an extremely common ethical violation. Real names, real SSNs, real medical records in a development database with weaker access controls than production is a routine privacy risk that professional developers have an obligation to eliminate through data masking and synthetic data generation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Minimum Necessary Access</div>
+                <div class="card-desc">Privileged access should be requested only for specific, documented purposes and relinquished when those purposes are complete. Holding permanent administrative access to systems you rarely touch is both a security risk and a privacy ethics problem. The standard is minimum necessary, not maximum convenient.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- INTELLECTUAL PROPERTY PROFESSIONAL OBLIGATIONS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 33</div>
+        <div class="slide-title">IP and <span class="accent">Professional Obligations</span></div>
+        <div class="slide-subtitle">IT professionals interact with intellectual property constantly. The obligations are both legal and ethical.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Work-for-Hire Doctrine</div>
+                <div class="card-desc">Code, documentation, systems, and other creative work produced by an employee within the scope of employment generally belongs to the employer. Using company-developed intellectual property in outside ventures without authorization is not a gray area -- it is a clear violation of both the employment agreement and professional ethics.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Open Source Compliance</div>
+                <div class="card-desc">Incorporating GPL-licensed code in a closed-source commercial product violates the license. Incorporating LGPL code in ways that restrict user freedom similarly. These violations are both legal and ethical failures. A professional who does not understand the licensing implications of the code they incorporate has a competence obligation to learn before they use it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Attribution</div>
+                <div class="card-desc">Using code, frameworks, or designs from other sources without attribution -- even when the license does not require it -- is professional plagiarism. It misrepresents the scope and originality of your contribution. Code review and portfolio work that does not disclose heavy use of external sources is dishonest to the people evaluating it.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Ethical Violation Pattern</div>
+            An engineer builds an internal tool using GPL-licensed libraries. The company decides to commercialize it. The engineer does not disclose the license constraints because it would complicate the commercialization. This is an active ethical violation: the engineer knows information that is material to the business decision and withholds it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- WHISTLEBLOWING AND PROFESSIONAL DISSENT ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 33</div>
+        <div class="slide-title">Professional <span class="accent">Dissent</span></div>
+        <div class="slide-subtitle">The mechanisms available to IT professionals who believe their organization is acting unethically -- and the costs associated with each.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Voice</div>
+                <div class="card-desc">The first tool: raise concerns internally. Request meetings, write formal objections into the record, use ethics hotlines, escalate through compliance channels. Voice costs the least and should always be the starting point. Document every step -- the record matters if things escalate.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exit</div>
+                <div class="card-desc">If internal channels fail, resignation is a professional statement. An engineer who leaves a company because they were asked to build something they believe is harmful makes a professional decision with professional consequences. Exit does not prevent disclosure -- it is not itself a resolution -- but it removes personal complicity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">External Disclosure</div>
+                <div class="card-desc">Reporting to regulators (SEC, OSHA, FTC, EPA depending on domain), law enforcement, or the press. This carries the highest personal cost and the strongest professional justification. Required when internal channels are captured, when the harm is severe, and when the violations are ongoing and unaddressed.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Professional Standard</div>
+            Professional codes generally require IT professionals to report significant violations to appropriate parties. The ACM Code (Section 2.10): "Support professional accountability. Conduct themselves ethically and encourage others to do so." This does not mean every internal disagreement warrants external disclosure -- but it does mean professional obligation does not stop at organizational boundaries.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- SECURITY PROFESSIONAL ETHICS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 33</div>
+        <div class="slide-title">Security Professionals: <span class="accent">Elevated Obligations</span></div>
+        <div class="slide-subtitle">Access to vulnerabilities, attack tools, and sensitive security data creates professional obligations beyond those of general IT roles.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Authorized Access Only</div>
+                <div class="card-desc">A penetration tester who exceeds the scope of an authorized engagement -- testing systems not listed in the contract, pivoting to connected networks not in scope -- has committed unauthorized access regardless of their professional intent. Scope documentation is not a formality; it is the boundary of ethical conduct.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Vulnerability Handling</div>
+                <div class="card-desc">Vulnerabilities discovered in the course of professional work belong in responsible disclosure channels -- not for sale, not for personal use, not held as leverage. Selling a zero-day exploit to a buyer whose use of it you have not vetted is an ethical problem that professional security culture is still actively debating.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dual-Use Knowledge</div>
+                <div class="card-desc">Security professionals have offensive knowledge. The obligation to use that knowledge only for authorized defensive purposes is not just a legal requirement -- it is the defining characteristic of professional security practice. Exploitation of systems outside authorized engagements is criminal regardless of the professional's credentials.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Client Data Encountered During Engagements</div>
+                <div class="card-desc">Penetration testers and incident responders encounter highly sensitive client data. Professional ethical obligations require treating that data with the strictest confidentiality, not retaining it beyond engagement needs, and certainly not using it for competitive intelligence, personal gain, or future leverage.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- ETHICS IN AI DEVELOPMENT ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 33</div>
+        <div class="slide-title">IT Professionals and <span class="accent">AI Ethics</span></div>
+        <div class="slide-subtitle">Developing and deploying AI systems creates professional responsibilities that did not exist a decade ago.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Transparency About Limitations</div>
+                <div class="card-desc">AI professionals have an obligation to communicate system limitations honestly to the organizations deploying them. A model that performs well on benchmark data but poorly on real-world edge cases -- if deployed in high-stakes contexts without disclosure of those limitations -- creates foreseeable harm. Forecast accuracy must be honest, not optimistic.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disparate Impact Testing</div>
+                <div class="card-desc">Before deploying any system that makes decisions affecting people, test for differential performance across demographic groups. Disparate impact that is discovered after deployment and harm has occurred is a foreseeable failure of professional due diligence. The technical capability to test exists; the obligation to use it is professional.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Human Oversight</div>
+                <div class="card-desc">Do not deploy automated systems in high-stakes domains without meaningful human review capability. A professional who builds a loan approval system with no appeals process, no explainability mechanism, and no human override capability has failed the obligation to protect the users affected by the system's decisions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- PROFESSIONAL ACCOUNTABILITY ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 33</div>
+        <div class="slide-title">Professional <span class="accent">Accountability</span></div>
+        <div class="slide-subtitle">Accountability requires that there be identifiable humans who can be held responsible for system outcomes -- before those outcomes occur, not after.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Accepting Responsibility</div>
+                <div class="card-desc">Professional accountability means owning your decisions and their consequences -- including consequences you did not anticipate. "I did not know" is only a defense if it was reasonable not to know. A professional who failed to test for a foreseeable failure mode bears responsibility for the consequences that followed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Diffusion of Responsibility</div>
+                <div class="card-desc">In large technology organizations, accountability is systematically diffused. The algorithm was built by team A, deployed by team B, approved by committee C, and reviewed by auditor D. When it causes harm, each team points to the others. Accountability architecture must be designed as deliberately as system architecture.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Error and Learning</div>
+                <div class="card-desc">Professional accountability includes acknowledging errors promptly and learning from them. Organizations that conceal errors, revise history, or punish individuals for honest reporting create the conditions for repeated failures. Post-incident reviews that identify process improvements are accountability in action.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Proactive Responsibility</div>
+                <div class="card-desc">Accountability is not only reactive. A professional who anticipates a category of harm and says nothing until it occurs has not met a proactive professional obligation. Raising concerns about design decisions, deployment contexts, or testing adequacy before harm occurs is the higher standard of professional responsibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- PROFESSIONAL DEVELOPMENT AS ETHICS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 33</div>
+        <div class="slide-title">Professional Development <span class="accent">as Ethics</span></div>
+        <div class="slide-subtitle">Failing to maintain professional competence is itself an ethical failure -- not just a career risk.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Obligation to Stay Current</div>
+                <div class="card-desc">You are trusted with systems that affect people. If you implement solutions using obsolete security practices, deprecated algorithms, or superseded frameworks because you stopped learning, you have harmed the people who trusted your expertise. The profession moves; you must move with it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Teaching as Obligation</div>
+                <div class="card-desc">Senior professionals have an obligation to transfer knowledge. Hoarding expertise creates single points of failure, undermines organizational resilience, and fails less experienced colleagues who need mentorship. Knowledge sharing is part of the social contract of professional community.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do?</div>
+            You are a senior developer who discovers a junior colleague has implemented a critical authentication feature using MD5 hashing with no salt. You know this is dangerously inadequate. The deadline is tomorrow. The feature works as specified in the requirements document, which said nothing about hashing strength. What is your next action?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- PROFESSIONAL ETHICS UNDER ORGANIZATIONAL PRESSURE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 33</div>
+        <div class="slide-title">Maintaining Ethics Under <span class="accent">Organizational Pressure</span></div>
+        <div class="slide-subtitle">Individual professional ethics must be resilient against organizational incentive structures that push toward compromise.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Timeline Pressure</div>
+                <div class="card-desc">"Ship it now, fix it later." Security testing gets cut. Accessibility audit gets deferred. Privacy impact assessment gets skipped. These decisions create downstream harms that are foreseeable at the time the shortcuts are taken. The professional who stays silent during those decisions is complicit in the outcome.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Revenue Pressure</div>
+                <div class="card-desc">Features that harm users but drive engagement metrics. Data practices that violate user trust but improve ad targeting revenue. Products designed to create addictive usage patterns. The commercial incentive and the ethical obligation frequently point in opposite directions. The professional must name that conflict rather than quietly resolving it in favor of revenue.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Career Pressure</div>
+                <div class="card-desc">Raising ethical concerns can harm career advancement in organizations that do not value ethical culture. The professional who stays quiet to protect their next promotion has made an explicit trade: personal benefit for ethical compliance. That trade has a name: rationalization. Acknowledging the trade honestly is the first step to resisting it.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Pre-commitment Strategy</div>
+            Decide in advance what you will not do regardless of organizational pressure. Make those commitments specific, not abstract. "I will not deploy code to production without security review" is a specific commitment that is much harder to rationalize away under deadline pressure than "I take security seriously."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- GLOBAL PRACTICE ETHICS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 33</div>
+        <div class="slide-title">Ethics in <span class="accent">Global Practice</span></div>
+        <div class="slide-subtitle">IT work frequently crosses jurisdictions. Professional obligations do not always align with local law or local culture.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Corruption in Local Markets</div>
+                <div class="card-desc">In some markets, unofficial payments to government officials are normalized business practice. The FCPA (US law) and UK Bribery Act apply to conduct in those markets regardless. The professional's ethical obligation is also independent of local normalization -- widespread corruption does not make corruption ethical.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Privacy Standards Across Jurisdictions</div>
+                <div class="card-desc">GDPR applies to EU residents' data regardless of where the processing company is located. A US company with EU users is subject to GDPR. The professional implementing systems that process personal data has an obligation to understand which regulatory regimes apply -- ignorance does not provide compliance cover.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Labor Practices in Supply Chains</div>
+                <div class="card-desc">The manufacturing of hardware components, the operations of data centers in certain jurisdictions, and the conditions of content moderation contractors in lower-wage markets are supply chain ethics issues. Technology companies that tout their ethics while outsourcing harmful work to invisible supply chain actors are not meeting the full ethical standard.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Operating in Authoritarian Contexts</div>
+                <div class="card-desc">Technology deployed in support of authoritarian governments -- surveillance of dissidents, censorship infrastructure, social credit systems -- raises professional ethics questions that transcend local legal compliance. The professional who builds systems for authoritarian use must weigh the obligation to protect individual human dignity against the local legal requirement to comply.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- PROFESSIONAL ETHICS AND SOCIAL MEDIA ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 33</div>
+        <div class="slide-title">Professional Ethics and <span class="accent">Public Behavior</span></div>
+        <div class="slide-subtitle">IT professionals in public roles carry ethical obligations that extend to their public communications and associations.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Speaking as a Professional</div>
+                <div class="card-desc">When an IT professional speaks publicly about technical topics -- security vulnerabilities, data practices, AI capabilities, regulatory compliance -- they carry implicit professional authority. Misinformation from apparent experts causes disproportionate harm. Accuracy and appropriate uncertainty communication are professional obligations in public discourse.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Employer Confidentiality in Public</div>
+                <div class="card-desc">Discussing confidential employer information on social media, at conferences, or in public forums -- even without naming the employer -- is an ethical violation. System architecture details, security incidents, client information, financial performance, and personnel matters are all confidential absent explicit permission to disclose.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Peer Review and Criticism</div>
+                <div class="card-desc">Honest technical critique of published work, public systems, and professional conduct is valuable and professionally necessary. Critique should be accurate, specific, and proportionate. The professional standard for criticism is the same as the standard for all professional communication: factual, constructive, and not designed to mislead.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- CODES VS. JUDGMENT ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 33</div>
+        <div class="slide-title">Codes vs. <span class="accent">Judgment</span></div>
+        <div class="slide-subtitle">Ethics codes are necessary but not sufficient. The harder work is developing the judgment to apply them to situations the codes did not anticipate.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What Codes Cannot Do</div>
+                <div class="card-desc">Codes enumerate principles written before your specific situation existed. They cannot tell you how much weight to give each principle when they conflict. They cannot tell you at what threshold a business practice crosses from aggressive-but-acceptable to unethical. They provide vocabulary and direction -- not verdicts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Developing Judgment</div>
+                <div class="card-desc">Ethical judgment develops through exposure to cases, deliberate reflection on your own decisions, discussion with colleagues you respect, and feedback when your reasoning was wrong. It cannot be shortcut. A professional who has only ever followed instructions without evaluating them has not developed ethical judgment -- they have developed compliance habits.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Question that Builds Judgment</div>
+            For any professional decision you make this week: who does this affect who was not consulted? What would a professional I respect say about this decision if they knew everything I know? Is there a version of this that better serves all the people it touches? Ask this repeatedly. The answers build judgment.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- APPLIED SCENARIO ANALYSIS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 33</div>
+        <div class="slide-title">Applied <span class="accent">Scenario Analysis</span></div>
+        <div class="slide-subtitle">Use the frameworks from this module. Identify which stakeholder relationship is implicated and which professional obligation applies.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A developer is asked to implement usage analytics that track detailed user behavior. The privacy policy does not mention this. The product manager says "users agreed to general data collection in the terms." Which stakeholder relationship is the primary concern, and what is the professional obligation?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A security consultant discovers during a penetration test that the client is storing thousands of customer passwords in plaintext. The engagement scope was limited to network perimeter testing. What is the professional obligation -- and does it extend beyond the contracted scope?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">You are on the procurement committee evaluating a cloud storage vendor. Your former manager now works as VP of Sales at one of the vendors under evaluation. You believe their product is the best choice on merit. What is the professional obligation regarding disclosure?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">A database administrator has access to customer purchasing records. She notices her neighbor's name in the data and is curious what they buy. She views the records briefly and closes the application. Has she committed an ethical violation? Which code provision applies?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- PROFESSIONAL REPUTATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 33</div>
+        <div class="slide-title">Protecting the <span class="accent">Profession</span></div>
+        <div class="slide-subtitle">Individual professional conduct reflects on and affects the entire profession. Ethics is not only a personal obligation -- it is a collective one.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Shared Reputation</div>
+                <div class="card-desc">When IT professionals build systems that harm users, build backdoors for authoritarian governments, or misrepresent security capabilities, the entire professional community's credibility is affected. Trust in IT professionals as a class depends on the aggregate behavior of individual practitioners.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Raising Standards</div>
+                <div class="card-desc">Every IT professional who insists on ethical standards in their organization raises the baseline for the entire profession. Every professional who mentors others in ethical reasoning expands the community of practitioners who approach their work with moral seriousness. Ethics culture is contagious in both directions.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Long Game</div>
+            Professional reputations are built across decades and lost in days. The IT professional who consistently does the right thing -- even when it is costly, even when it is unpopular -- builds a reputation that survives organizational changes, technological shifts, and economic cycles. The shortcuts almost never are.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 33 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Written responses required for exercises 2 and 3.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Map the SAP FCPA case to the five stakeholder relationships covered in this module. For each relationship, identify which obligation was violated and by whom within the organization.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Write a one-page analysis of whether IT should be recognized as a formal profession with licensure requirements similar to law or medicine. Address the information asymmetry argument, the public harm argument, and the practical barriers to licensure.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">You are asked by your employer to build a feature you believe violates user privacy. Write the email you would send to your manager documenting your concerns, the specific professional ethics provisions that apply, and the alternatives you propose.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Compare the (ISC)2 Code of Ethics canon hierarchy with the ACM Code's priority structure. In a scenario where protecting the public and serving your employer conflict, how does each code resolve the tension?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ADDITIONAL RESOURCES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 33</div>
+        <div class="slide-title">Key <span class="accent">References</span></div>
+        <div class="slide-subtitle">Primary sources for the frameworks and cases covered in this module.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Codes and Standards</div>
+                <div class="card-desc">ACM Code of Ethics and Professional Conduct (2018) -- acm.org/code-of-ethics. (ISC)2 Code of Ethics -- isc2.org/ethics. IEEE Code of Ethics -- ieee.org/about/corporate/governance/p7-8.html. ISACA Code of Professional Ethics -- isaca.org/resources/isaca-journal/issues/2022/volume-1/code-of-professional-ethics.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Regulatory References</div>
+                <div class="card-desc">Foreign Corrupt Practices Act (15 USC 78dd-1) -- full text available through DOJ.gov. UK Bribery Act 2010 -- legislation.gov.uk. DOJ FCPA Resource Guide (2nd ed., 2020) -- justice.gov/criminal-fraud/file/1292051/download.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SAP Case Documents</div>
+                <div class="card-desc">US DOJ Press Release, January 2024: "SAP Agrees to Pay $220 Million." SEC Litigation Release No. 25985. Prior settlement: DOJ Press Release, February 2021, regarding South Africa and Panama conduct. All available via justice.gov and sec.gov enforcement actions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Further Reading</div>
+                <div class="card-desc">Reynolds, George W.: "Ethics in Information Technology" (current edition). Johnson, Deborah G.: "Computer Ethics" (4th ed.). Floridi, Luciano: "The Ethics of Artificial Intelligence." Zuboff, Shoshana: "The Age of Surveillance Capitalism."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SUMMARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 33 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Professional ethics is not an add-on to technical skill. It is a dimension of professional competence that affects every stakeholder relationship you hold.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            The IT professional holds obligations to employer, client, supplier, user, and society simultaneously. When those obligations conflict, the order of priority matters. Public safety and welfare come first. Not profit. Not the employment relationship. Public safety first.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A professional's duty extends beyond the employment contract to clients, users, and the public. Following orders does not transfer moral responsibility.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The five stakeholder relationships are: employer, client, supplier, user, and society. Each creates distinct ethical obligations with different limits.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">(ISC)2 Canon order: public good first, then personal integrity, then service to principals, then profession. Higher canons override lower ones when they conflict.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Compliance is the floor, not the ceiling. "We are compliant" ends the legal inquiry; it does not end the ethical one.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">SAP FCPA: systematic bribery across multiple countries over years led to $3.9 billion in combined settlements. Organizational compliance programs that only exist on paper provide no protection.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Conflicts of interest must be disclosed -- and the threshold is appearance of conflict, not just actual conflict. The disclosure decision belongs to the affected parties, not the person with the conflict.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Having system access does not equal authorization to view data. Curiosity is not a legal basis for data access, and it is not a professional ethics basis either.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">When professional obligations to different stakeholders conflict, escalate internally first, document everything, and know that professional obligation does not stop at organizational boundaries.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 33</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 33;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w1-professionals', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

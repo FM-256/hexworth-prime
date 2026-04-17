@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ethics in IT Midterm Exam | Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0d1a;
+    --card: #1a1628;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #c9a83a;
+    --accent2: #e8c44a;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f0d1a 50%, #1a0d28 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 {
+    color: var(--accent);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .exam-info ul {
+    list-style: none;
+    color: var(--muted);
+  }
+
+  .exam-info li { padding: 4px 0; }
+
+  .exam-info li::before {
+    content: "-> ";
+    color: var(--accent);
+  }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .question {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.1);
+    border-color: rgba(201, 168, 58, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(26, 22, 40, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--ink);
+  }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass {
+    border-color: var(--ok);
+    box-shadow: 0 0 40px rgba(46, 213, 115, 0.4);
+  }
+
+  .score-circle.fail {
+    border-color: var(--bad);
+    box-shadow: 0 0 40px rgba(255, 71, 87, 0.4);
+  }
+
+  .score-percent {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  .score-fraction {
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass {
+    background: rgba(46, 213, 115, 0.15);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+  }
+
+  .result-msg.fail {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--bad);
+    border: 1px solid var(--bad);
+  }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(232, 196, 74, 0.15));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 {
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Ethics in IT Hub</a>
+  <span class="brand">Hexworth Prime</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/25 answered</span>
+  <span class="timer" id="timer">50:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>Ethics in IT Midterm Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CIS4253</span>
+      <span class="tag">25 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">50 Minutes</span>
+      <span class="tag">Chapters 1-6</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers all Week 1 and Week 2 material: ethical frameworks, IT professional conduct, cybersecurity ethics, privacy, free expression, and intellectual property (Ch. 1-6)</li>
+      <li>You need 70% (18/25) to pass and unlock Week 3 content</li>
+      <li>Questions are scenario-based -- read each one carefully before selecting an answer</li>
+      <li>Time limit: 50 minutes (timer starts when the page loads)</li>
+      <li>Review your answers before submitting -- you only get one attempt</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Ethics in IT</a> | Hexworth Prime
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/divergent-eth-midterm
+const QUIZ_ID = 'divergent-eth-midterm';
+
+/* ── Exam question bank for Ethics in IT Midterm (Ch. 1-6) ──
+   25 scenario-based questions. No answers in HTML -- server-graded.
+   Array index 0 is always the correct answer; shuffle happens at render. */
+const examData = [
+  // Ch. 1: Overview of Ethics
+  {q: "A utilitarian argues that a company should disclose a data breach affecting 10 million users within 24 hours, even at the cost of stock price damage. What is the core of this utilitarian argument?", a: ["Rapid disclosure limits total harm to users and the broader public by enabling protective action", "The company has a contractual obligation to investors to disclose material events promptly", "Disclosure follows the categorical rule that honesty is always required regardless of consequences", "Regulators require disclosure within 72 hours, making the ethical and legal choices identical"]},
+
+  {q: "Which statement best describes the difference between the deontological and consequentialist approaches to an IT manager's decision to install monitoring software on employee devices?", a: ["Deontology asks whether the action respects employee autonomy as an intrinsic duty; consequentialism asks whether the monitoring produces more benefit than harm", "Deontology asks whether the outcome justifies the means; consequentialism requires a universal moral rule", "Both frameworks would evaluate the action identically if employee contracts permit monitoring", "Consequentialism focuses on the manager's intent; deontology focuses on the results for employees"]},
+
+  {q: "Virtue ethics differs from rule-based and outcome-based ethics primarily because it centers analysis on:", a: ["The character of the moral agent and whether the action reflects virtuous dispositions", "The set of universal principles that govern all rational decision-making", "The measurable outcomes produced for stakeholders affected by the decision", "The written codes of conduct established by professional organizations"]},
+
+  // Ch. 2: Ethics for IT Professionals
+  {q: "An IT professional is asked by a supervisor to falsify a compliance audit report to avoid regulatory scrutiny. The professional's refusal is best justified by:", a: ["Professional codes of ethics and the duty of honest reporting that supersede employer directives", "The statistical improbability that falsification would go undetected long-term", "The absence of any contractual clause requiring audit participation", "The likelihood that a regulator would discover the falsification through independent means"]},
+
+  {q: "A cybersecurity analyst discovers that her employer has been selling anonymized customer data to a third party in a way that is arguably re-identifiable. She has raised the concern with her manager and been told to drop it. What does professional ethics recommend as the next step?", a: ["Escalate the concern to senior leadership, legal counsel, or a compliance function before considering external options", "Accept the manager's decision as final because employment relationships require deference to authority", "Report directly to regulators without further internal escalation to maximize impact", "Disclose to the press immediately because the harm to customers is ongoing"]},
+
+  {q: "The concept of 'professional responsibility' in IT holds that software engineers bear ethical obligations that extend beyond their employers because:", a: ["Their work affects public safety and welfare in ways that create duties analogous to licensed professions like medicine and engineering", "IT certification bodies have legal enforcement authority over individual practitioners", "Employment contracts in IT universally incorporate ACM or IEEE codes of ethics by reference", "Software engineers are personally liable under tort law for defects in systems they build"]},
+
+  // Ch. 3: Cyberattacks and Cybersecurity Ethics
+  {q: "A company discovers that a nation-state actor has maintained persistent access to its network for eight months and exfiltrated customer data. Applying a utilitarian framework, the MOST ethically urgent action is:", a: ["Notify affected customers promptly to enable them to protect themselves, even though it may damage the company's reputation", "Remediate the intrusion completely before notifying anyone to prevent the attacker from learning detection has occurred", "Coordinate exclusively with law enforcement to maximize the probability of attribution and prosecution", "Assess the financial impact of disclosure before determining whether the public benefit justifies notification costs"]},
+
+  {q: "Ethical offensive security research ('vulnerability research') is distinguished from malicious hacking primarily by:", a: ["Authorization from the system owner, responsible disclosure to the vendor, and the intent to improve security", "The technical sophistication of the methods used during the engagement", "Whether the researcher accepts financial compensation for the work performed", "The nationality and jurisdiction of the researcher conducting the investigation"]},
+
+  {q: "The Mirai botnet (2016) recruited hundreds of thousands of IoT devices with default credentials to conduct distributed denial-of-service attacks. The PRIMARY ethical failure that enabled this attack was:", a: ["Manufacturers shipping consumer devices with hardcoded default credentials and no mandatory update mechanism", "The absence of international law governing cross-border cyberattacks on civilian infrastructure", "Internet service providers failing to implement ingress filtering to block spoofed traffic", "Individual consumers not changing default passwords after purchase"]},
+
+  // Ch. 4: Privacy
+  {q: "GDPR's principle of 'data minimization' requires that organizations:", a: ["Collect only the personal data that is adequate, relevant, and limited to what is necessary for the stated purpose", "Delete all personal data within 90 days of collection unless a retention exception applies", "Obtain explicit consent for every individual data processing operation performed on user data", "Store personal data only within the borders of the European Union"]},
+
+  {q: "A hospital contracts with a cloud analytics vendor to process de-identified patient data for population health research. Six months in, the vendor announces it will share derived insights with pharmaceutical companies. The hospital should:", a: ["Review the original contract and BAA; if this use was not disclosed, demand the vendor cease or renegotiate terms", "Accept the change because de-identified data is not subject to HIPAA use restrictions", "Immediately terminate the contract regardless of any financial penalties", "Notify patients of the new use and obtain fresh consent before allowing the sharing to continue"]},
+
+  {q: "An employee uses a personal mobile device for work email under a corporate BYOD policy. The company's IT team can remotely wipe the device if it is reported lost. From a privacy ethics standpoint, this arrangement:", a: ["Is ethically acceptable only if employees receive clear, advance disclosure of the remote wipe capability before enrolling", "Is always unethical because the employer has no right to control a personally owned device", "Is legally and ethically unambiguous because the employer's data on the device creates an unconditional right to wipe it", "Is ethically neutral because any reasonable employee would expect their employer to have this capability"]},
+
+  {q: "The concept of 'contextual integrity' in privacy theory, developed by Helen Nissenbaum, holds that a privacy violation occurs when:", a: ["Information flows in ways that violate the norms of the context in which the information was originally shared", "Any personally identifiable information is transferred to a party without explicit written consent", "Data is collected in excess of what a stated business purpose requires", "An organization fails to implement technical controls adequate to prevent unauthorized access"]},
+
+  // Ch. 5: Freedom of Expression
+  {q: "A social media company removes a political advertisement it determines contains factual inaccuracies. Critics argue this is censorship. The strongest defense of the company's action is:", a: ["As a private entity, the company may set editorial standards for content on its own platform without violating First Amendment rights", "Political advertising is categorically excluded from free speech protections under US law", "The company has a legal obligation to remove false political content under the FTC Act", "The removed advertisement did not constitute protected speech because it targeted a private individual"]},
+
+  {q: "Section 230 of the Communications Decency Act shields online platforms from civil liability for user-generated content primarily because:", a: ["Congress determined that treating platforms as publishers of all user content would make moderation economically impossible and chill online speech", "Platforms cannot technically monitor all content uploaded by users in real time", "The First Amendment prohibits imposing liability on intermediaries for third-party speech", "International treaties require the US to maintain safe harbor provisions for internet intermediaries"]},
+
+  {q: "A government agency demands that a technology company provide decryption keys to access encrypted communications of a terrorism suspect. The company refuses. The ethical argument most directly supporting the company's refusal is:", a: ["Creating a backdoor for one government creates a vulnerability that any sophisticated actor could eventually exploit, harming all users", "The company has no legal obligation to assist law enforcement unless presented with a valid court order", "Encryption is a fundamental right equivalent to attorney-client privilege in digital communications", "The operational security of the company's product depends on maintaining a public reputation for refusing government access"]},
+
+  // Ch. 6: Intellectual Property
+  {q: "A research university publishes an algorithm in an academic paper. Six months later, a technology company files a patent on the algorithm. The university's strongest challenge to the patent is based on:", a: ["Prior art, because the published paper publicly disclosed the algorithm before the patent application date", "Fair use, because academic research is exempt from patent protection under US law", "Copyright preemption, because the paper was published under a Creative Commons license", "The patent misuse doctrine, because software patents are categorically unenforceable"]},
+
+  {q: "Open-source licenses like the MIT License and the GNU GPL both permit free use of the licensed software. The critical ethical and legal distinction between them is:", a: ["The GPL requires derivative works to be released under the same open-source terms (copyleft), while the MIT License imposes no such requirement", "The MIT License requires attribution in all distributions; the GPL does not", "The GPL permits commercial use; the MIT License restricts commercial redistribution", "The MIT License requires sharing modifications with the original author; the GPL does not"]},
+
+  {q: "A graphic designer uses a royalty-free stock image she purchased for one project as the centerpiece of a client's billboard campaign that runs in 20 cities. She did not re-read the license terms. This situation illustrates the ethical principle that:", a: ["Purchasing content creates specific, bounded rights that require verification for each intended use -- ignorance of license terms is not a defense", "Royalty-free means no restrictions on use, and the designer has no ethical obligation to re-read the license", "Intellectual property rights apply only to digital distribution and not to physical display", "The burden of license enforcement falls on the rights holder, not the content user"]},
+
+  {q: "A startup builds a product that reverse-engineers a competitor's proprietary API to ensure interoperability. The ethical justification most commonly advanced for this practice is:", a: ["Interoperability enables competition and benefits consumers; lock-in through API control is an anticompetitive abuse of intellectual property", "Reverse engineering is always legal under the DMCA's security research exemption", "APIs cannot be copyrighted because they are functional rather than expressive works", "The competitor's API was publicly documented, making reverse engineering unnecessary"]},
+
+  // Mixed application scenarios
+  {q: "A company's terms of service include a clause permitting it to use customer content 'for any purpose, including commercial purposes, without compensation.' A user creates a photograph that becomes the company's most-shared post. Which ethical analysis applies?", a: ["The user consented to these terms, but the breadth of the clause and asymmetric bargaining power raise legitimate questions about whether meaningful consent occurred", "The company acted unethically by profiting from user content regardless of what the ToS says", "The company acted ethically because the user had a legal opportunity to read and reject the terms", "This is a copyright question with no ethical dimension beyond legal compliance"]},
+
+  {q: "A cybersecurity company sells a zero-day exploit it discovered in widely-used infrastructure software to a government intelligence agency rather than disclosing it to the vendor. The primary ethical objection is:", a: ["Withholding the vulnerability from the vendor leaves millions of systems exposed to the exploit, prioritizing profit over public safety", "Selling security research to any buyer violates ACM and ISC2 professional codes of ethics", "The company has a legal obligation to disclose vulnerabilities in critical infrastructure under FISMA", "Zero-day exploits are legally classified as weapons and their sale to governments is prohibited"]},
+
+  {q: "When applying the 'reasonable person' standard to ethical decision-making in IT, which question is being asked?", a: ["Would a competent, informed, ethically aware person in this role have acted the same way under the same circumstances?", "Would the majority of IT professionals surveyed agree that this action was acceptable?", "Does this action comply with the minimum requirements of applicable law and regulation?", "Would this action be defensible to the organization's legal counsel if challenged in court?"]},
+
+  {q: "A software developer is asked to implement dark pattern UI elements that make subscription cancellation deliberately difficult. She completes the work. Which ethical frameworks most clearly condemn her decision?", a: ["Virtue ethics (a person of integrity would not participate in deception) and deontology (manipulating users treats them as means, not ends)", "Only consequentialism condemns it, because the long-term effect on customer trust will harm the company", "Only legal compliance frameworks are relevant because dark patterns are not yet prohibited by US law", "No major ethical framework condemns implementation work; responsibility belongs solely to the designer who specified the pattern"]},
+
+  {q: "An IT organization implements an AI-driven intrusion detection system that flags and blocks network traffic in real time with no human review. A false positive blocks access to a hospital's medication management system for 14 minutes during a patient's critical care window. This scenario best illustrates which ethical concern about AI deployment?", a: ["The danger of removing human oversight from automated systems making high-stakes decisions in safety-critical environments", "The need for higher accuracy benchmarks before any AI system is used in enterprise environments", "The liability exposure created when AI systems make errors in regulated industries", "The inadequacy of current cybersecurity practices in healthcare organizations"]}
+];
+
+// Shuffle utility
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Render all questions -- answers are shuffled, correct index tracked per question
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answer order but preserve the original index (0 = correct) for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Countdown timer (50 minutes)
+let timeLeft = 50 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count in timer bar
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'radio') {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  }
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Highlight correct and incorrect selections based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result locally
+  if (passed) {
+    localStorage.setItem('hexworth_divergent_eth_midterm_passed', 'true');
+    localStorage.setItem('hexworth_divergent_eth_midterm_score', percent);
+    localStorage.setItem('hexworth_divergent_eth_midterm_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Midterm Passed' : 'Keep Studying'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'You have passed the Ethics in IT Midterm. You demonstrated command of ethical frameworks, professional conduct, privacy, expression, and intellectual property across Chapters 1-6.'
+        : `You need 70% (18/25) to pass. You scored ${score}/25. Review your Week 1 and Week 2 materials and try again.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>Midterm Complete</h3>
+        <p>Week 3 content is now unlocked. Continue with the software ethics and societal impact modules.</p>
+        <a href="../index.html" class="btn-continue">Continue to Week 3 &#8594;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/eth-w1.quiz.html" class="btn-continue" style="margin-right: 10px;">Review Week 1 Quiz</a>
+        <a href="../quizzes/eth-w2.quiz.html" class="btn-continue">Review Week 2 Quiz</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  // Record completion via ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.complete('divergent', 'eth-midterm', { returnUrl: '../index.html' });
+  }
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infosec Final Exam - Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f172a;
+    --card: #1e293b;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #c9a83a;
+    --accent2: #a8821e;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f172a 50%, #1a1400 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: "-> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.1);
+    border-color: rgba(201, 168, 58, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass { border-color: var(--ok); box-shadow: 0 0 40px rgba(46, 213, 115, 0.4); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass { background: rgba(46, 213, 115, 0.15); color: var(--ok); border: 1px solid var(--ok); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.15); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(168, 130, 30, 0.2));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Infosec Hub</a>
+  <span class="brand">
+    <img src="/assets/images/icons/icon-lock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+    Hexworth Prime
+  </span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/40 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>
+      <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+      Principles of Information Security Final Exam
+    </h1>
+    <div class="header-meta">
+      <span class="tag">Security+ SY0-701</span>
+      <span class="tag">40 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">All 5 Domains</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers all course content: Weeks 1-4 across all five Security+ SY0-701 domains</li>
+      <li>You need 70% (28/40) to pass and earn the Security Analyst certification</li>
+      <li>Passing awards the <strong>Shield Guardian</strong> badge</li>
+      <li>Time limit: 75 minutes (timer starts when page loads)</li>
+      <li>Review your answers before submitting - you only get one attempt!</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Hexworth Prime</a> | Principles of Information Security
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/shield-pis-final
+const QUIZ_ID = 'shield-pis-final';
+
+const examData = [
+  // Domain 1.0 - General Security Concepts (8 questions)
+  {q: "Which CIA Triad component ensures that sensitive biosurveillance data is only accessible to authorized personnel?", a: ["Integrity", "Availability", "Confidentiality", "Accountability"]},
+  {q: "A security policy requires that financial approvals and financial disbursements be performed by two different employees. This implements:", a: ["Least privilege", "Separation of duties", "Job rotation", "Mandatory access control"]},
+  {q: "What type of security control is a physical lock on a server room door?", a: ["Technical control", "Administrative control", "Physical control", "Deterrent control"]},
+  {q: "Defense in depth is BEST described as:", a: ["Using a single highly effective firewall", "Encrypting all data with AES-256", "Layering multiple security controls so the failure of any one does not result in total compromise", "Requiring MFA for all user accounts"]},
+  {q: "Which term refers to a flaw in a system that can be exploited by a threat actor?", a: ["Risk", "Threat", "Vulnerability", "Impact"]},
+  {q: "A government agency requires that personnel only access information classified at or below their own clearance level and relevant to their mission. This enforces:", a: ["Discretionary Access Control", "Mandatory Access Control (MAC)", "Role-Based Access Control", "Attribute-Based Access Control"]},
+  {q: "What is the difference between authentication and authorization?", a: ["Authentication grants access; authorization verifies identity", "Authentication verifies identity; authorization determines what the verified identity is permitted to do", "They are the same process in modern systems", "Authentication uses passwords; authorization uses biometrics"]},
+  {q: "Which of the following BEST describes a compensating control?", a: ["A control that prevents a threat from occurring", "An alternative control used when the primary control cannot be implemented", "A control that detects an incident after it occurs", "A control that restores systems to a pre-incident state"]},
+
+  // Domain 2.0 - Threats, Vulnerabilities, and Mitigations (8 questions)
+  {q: "A threat actor with advanced capabilities, significant resources, and a long-term objective of persistent access is known as:", a: ["Script kiddie", "Hacktivist", "Advanced Persistent Threat (APT)", "Opportunistic attacker"]},
+  {q: "Malware that appears to be legitimate software but carries a malicious payload is called a:", a: ["Worm", "Rootkit", "Trojan horse", "Logic bomb"]},
+  {q: "A CDC field researcher clicks a link in an email that appears to come from WHO headquarters. The link downloads malware that begins encrypting files. This attack sequence involves:", a: ["Spear phishing as the initial access vector, then ransomware execution", "SQL injection followed by privilege escalation", "A watering hole attack followed by a DoS", "Physical tailgating followed by credential theft"]},
+  {q: "Which technique allows an attacker to capture and retransmit valid authentication credentials to gain unauthorized access?", a: ["Credential stuffing", "Pass-the-hash / replay attack", "Kerberoasting", "Password spraying"]},
+  {q: "What is a supply chain attack?", a: ["An attacker physically breaks into a warehouse to steal hardware", "An attacker compromises a trusted third-party vendor or software component to gain access to downstream targets", "An attack that targets logistics and shipping companies only", "A DDoS attack targeting e-commerce platforms during peak seasons"]},
+  {q: "An attacker registers the domain 'g00gle.com' to capture credentials from users who mistype 'google.com'. This is known as:", a: ["Pharming", "Typosquatting", "Domain hijacking", "DNS poisoning"]},
+  {q: "Which social engineering principle does an attacker exploit when they create a fake 'limited time offer' to pressure a victim into acting without thinking?", a: ["Authority", "Familiarity", "Scarcity / urgency", "Social proof"]},
+  {q: "A logic bomb is malware that:", a: ["Spreads automatically across networks", "Activates when a specific condition is met, such as a date or the deletion of an employee account", "Encrypts files and demands ransom", "Captures and exfiltrates keystrokes"]},
+
+  // Domain 3.0 - Security Architecture (8 questions)
+  {q: "A next-generation firewall (NGFW) adds which capabilities beyond a traditional stateful firewall?", a: ["Layer 2 switching and port mirroring", "Deep packet inspection, application awareness, and integrated IPS", "Dynamic routing protocol support", "Wireless intrusion prevention"]},
+  {q: "Which network zone is designed to host internet-facing services while limiting exposure to the internal corporate network?", a: ["VLAN 1", "DMZ (Demilitarized Zone)", "Management network", "Air-gapped network"]},
+  {q: "An organization implements Zero Trust Architecture. Which principle does this model enforce?", a: ["Trust all devices inside the corporate perimeter", "Never trust, always verify -- authenticate and authorize every request regardless of source location", "Grant full access once a user passes initial authentication", "Allow all internal traffic and block only external threats"]},
+  {q: "Which protocol encrypts DNS queries to prevent eavesdropping and manipulation of DNS responses?", a: ["DNSSEC", "DoH (DNS over HTTPS) or DoT (DNS over TLS)", "EDNS0", "DANE"]},
+  {q: "A honeypot is BEST described as:", a: ["A backup system that stores encrypted credentials", "A decoy system designed to attract, detect, and analyze attacker behavior", "A network appliance that filters malicious traffic", "A segmented VLAN for guest users"]},
+  {q: "What is the purpose of network access control (NAC)?", a: ["To encrypt all traffic on the internal network", "To enforce endpoint health and identity checks before granting network access", "To replace firewalls with identity-based policies", "To assign dynamic IP addresses to endpoints"]},
+  {q: "Which of the following correctly describes the difference between IDS and IPS?", a: ["IDS blocks threats; IPS only monitors and alerts", "IDS monitors and alerts; IPS actively blocks malicious traffic inline", "IDS is hardware-based; IPS is software-based", "IDS works at Layer 3; IPS works at Layer 7"]},
+  {q: "A microsegmentation strategy in a data center prevents lateral movement by:", a: ["Encrypting all east-west traffic with TLS", "Enforcing granular access controls between individual workloads and services within the same network segment", "Placing all workloads in a single hardened VLAN", "Using MAC address filtering on all switches"]},
+
+  // Domain 4.0 - Security Operations (8 questions)
+  {q: "The NIST SP 800-61 Incident Response lifecycle lists four phases. What is the correct order?", a: ["Identify, Contain, Eradicate, Recover", "Preparation; Detection and Analysis; Containment, Eradication, and Recovery; Post-Incident Activity", "Triage, Isolation, Remediation, Reporting", "Detect, Respond, Recover, Improve"]},
+  {q: "A SIEM system correlates events from multiple log sources and fires an alert when a user account fails authentication 20 times in 60 seconds. This is an example of:", a: ["Signature-based threat detection", "Anomaly-based behavioral detection using threshold correlation", "Manual log review by a security analyst", "Endpoint detection and response (EDR)"]},
+  {q: "During containment of a ransomware incident at a hospital, the IR team disconnects affected workstations from the network. What is the risk of disconnecting too quickly?", a: ["The malware may spread to the disconnected workstations", "Volatile memory (RAM) evidence may be lost before forensic acquisition", "The hospital loses its HIPAA compliance status", "The firewall rules will be reset"]},
+  {q: "What is chain of custody in digital forensics?", a: ["The process of encrypting evidence before storage", "A documented record of who handled evidence, when, and what was done with it, maintaining its legal admissibility", "The sequence of events in an attack timeline", "The authorization chain for incident response decisions"]},
+  {q: "Which hardening technique involves removing all software, services, and accounts not required for a system's intended function?", a: ["Patch management", "Attack surface reduction (removing unnecessary components)", "Encrypting the system disk", "Enabling full audit logging"]},
+  {q: "A security analyst enables logging on all domain controllers and forwards logs to a SIEM. A week later, an alert fires on a successful logon from a terminated employee's account at 02:00 AM. This is an example of:", a: ["False positive from misconfigured SIEM rules", "True positive -- an indicator of compromise detected through log correlation", "A SIEM false negative", "Normal Kerberos ticket renewal behavior"]},
+  {q: "What is the purpose of a Business Impact Analysis (BIA)?", a: ["To document all vulnerabilities in the production environment", "To identify critical business functions and quantify the impact of their disruption", "To create a network topology diagram", "To test recovery procedures under simulated disaster conditions"]},
+  {q: "Which Recovery metric defines the maximum amount of data loss an organization can tolerate, measured in time?", a: ["RTO (Recovery Time Objective)", "MTTR (Mean Time to Repair)", "RPO (Recovery Point Objective)", "MTBF (Mean Time Between Failures)"]},
+
+  // Domain 5.0 - Security Program Management and Oversight (8 questions)
+  {q: "Under HIPAA, which category of information requires the strictest protection and encryption controls?", a: ["Publicly available health statistics", "Anonymized research datasets", "Protected Health Information (PHI)", "Aggregated de-identified billing records"]},
+  {q: "An organization accepts residual risk after implementing all cost-effective controls. This risk management strategy is called:", a: ["Risk transference", "Risk avoidance", "Risk acceptance (retention)", "Risk mitigation"]},
+  {q: "Which quantitative risk metric represents the expected annual financial loss from a specific threat?", a: ["SLE (Single Loss Expectancy)", "ARO (Annualized Rate of Occurrence)", "ALE (Annualized Loss Expectancy)", "EF (Exposure Factor)"]},
+  {q: "A penetration test is different from a vulnerability scan because:", a: ["A vulnerability scan exploits found weaknesses; a pen test only identifies them", "A penetration test actively exploits vulnerabilities to demonstrate real-world impact; a vulnerability scan only identifies potential weaknesses", "A vulnerability scan requires legal authorization; a pen test does not", "A pen test is automated; a vulnerability scan requires manual effort"]},
+  {q: "Which privacy regulation restricts the collection and processing of personal data for EU residents and imposes fines of up to 4% of annual global revenue?", a: ["HIPAA", "PCI-DSS", "GDPR (General Data Protection Regulation)", "SOX (Sarbanes-Oxley)"]},
+  {q: "A security awareness training program is classified as which type of security control?", a: ["Technical control", "Physical control", "Administrative control", "Deterrent control"]},
+  {q: "What is the purpose of a data retention policy?", a: ["To prevent all data from being deleted permanently", "To define how long different categories of data must be kept and when they must be securely destroyed", "To encrypt data before it is archived", "To classify data by sensitivity level"]},
+  {q: "During a tabletop exercise, the security team simulates a ransomware attack on the hospital's EHR system. The CDC regional office is among the affected organizations. The PRIMARY goal of this exercise is:", a: ["To identify and patch vulnerabilities in production systems", "To test the IR plan, identify gaps, and improve team coordination without real-world impact", "To satisfy a regulatory compliance audit requirement", "To train new IT staff on basic troubleshooting procedures"]},
+];
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answer options but track original index for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 75 minutes
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 600) timerEl.classList.add('warning');
+  if (timeLeft <= 120) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark user selections correct/incorrect based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_shield_pis_final_passed', 'true');
+    localStorage.setItem('hexworth_shield_pis_final_score', percent);
+    localStorage.setItem('hexworth_shield_pis_final_date', new Date().toISOString());
+  }
+
+  // Trigger ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('shield', 'pis-final', score);
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed
+      ? '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Final Exam Passed!'
+      : '<img src="/assets/images/icons/icon-alert.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep Studying'
+    }</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Excellent work. You have passed the Principles of Information Security Final Exam and earned the Shield Guardian badge.'
+        : `You need 70% (28/40) to pass. Review all four weeks of material and try again. You scored ${score}/40.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Shield Guardian Badge Earned!</h3>
+        <p>You have demonstrated mastery across all five Security+ SY0-701 domains. Course complete.</p>
+        <a href="../index.html" class="btn-continue">Return to Infosec Hub &rarr;</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/pis-w3.quiz.html" class="btn-continue" style="margin-right: 10px;">Review Week 3</a>
+        <a href="../quizzes/pis-w4.quiz.html" class="btn-continue">Review Week 4</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

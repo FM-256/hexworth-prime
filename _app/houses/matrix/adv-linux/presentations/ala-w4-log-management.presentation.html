@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Management | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Log Management | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-09 &nbsp;|&nbsp; Week 4 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Log Management<br>
+                <span class="accent">and Analysis</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                journalctl &nbsp;&bull;&nbsp; rsyslog &nbsp;&bull;&nbsp; Log Forwarding &nbsp;&bull;&nbsp; Centralized Logging &nbsp;&bull;&nbsp; Analysis Patterns
+            </div>
+        </div>
+        <div class="scenario-strip">
+            An incident happened at 02:47 AM. The database went down, three services cascaded, and 400 users saw errors. Your job is to reconstruct the exact sequence of events, identify the root cause, and prove it was not a security incident. You have two logging systems and 48 hours of data. This lecture is how you work that problem.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-09</span>
+            <span>Week 4 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — TWO LOG SYSTEMS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Two Logging Systems: <span class="accent">journald and syslog</span></div>
+        <div class="slide-subtitle">Modern Ubuntu runs both. They serve different purposes and complement each other.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">systemd-journald</div>
+                <div class="card-desc">Captures everything: kernel messages, systemd unit output, application stdout/stderr, audit events, and syslog messages. Stored in binary format in <span class="ic">/run/log/journal/</span> or <span class="ic">/var/log/journal/</span>. Queried with <span class="ic">journalctl</span>. Rich filtering by unit, user, priority, time, and field value.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">rsyslog</div>
+                <div class="card-desc">Traditional syslog daemon. Reads from the syslog socket. Writes plain-text files to <span class="ic">/var/log/</span>. Forwards to remote servers. Supports complex routing, filtering, and transformation with its rule language. Still the standard for centralized log collection and SIEM forwarding.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:0;">
+            <div class="card c-gold">
+                <div class="card-label">When to Use journalctl</div>
+                <div class="card-desc">Investigating what a specific service did. Real-time following of a service's output. Boot-time messages. Kernel messages. Anything that does not need to leave the local machine immediately.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When to Use rsyslog</div>
+                <div class="card-desc">Forwarding logs to a SIEM or central server. Long-term retention beyond the journal's rotation window. Integration with legacy tools that expect plain text. High-volume application logs with custom routing requirements.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — JOURNALCTL BASICS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">journalctl: <span class="accent">Core Commands</span></div>
+        <div class="slide-subtitle">The primary interface to the systemd journal. Learn these commands until they are reflexive.</div>
+
+        <div class="code-block"><span class="cm"># Show all journal entries (most recent last)</span>
+<span class="fn">journalctl</span>
+
+<span class="cm"># Follow in real time (like tail -f)</span>
+<span class="fn">journalctl</span> -f
+
+<span class="cm"># Last N lines</span>
+<span class="fn">journalctl</span> -n 50
+<span class="fn">journalctl</span> -n 50 -f     <span class="cm"># follow AND show last 50 on start</span>
+
+<span class="cm"># Filter by systemd unit</span>
+<span class="fn">journalctl</span> -u nginx
+<span class="fn">journalctl</span> -u nginx -u mysql   <span class="cm"># multiple units</span>
+<span class="fn">journalctl</span> -u nginx -f         <span class="cm"># follow nginx specifically</span>
+
+<span class="cm"># Filter by priority (emerg alert crit err warning notice info debug)</span>
+<span class="fn">journalctl</span> -p err              <span class="cm"># only error-level and above</span>
+<span class="fn">journalctl</span> -p err..warning     <span class="cm"># range: error through warning</span>
+<span class="fn">journalctl</span> -p 0..4             <span class="cm"># numeric: 0=emerg 4=warning</span>
+
+<span class="cm"># Kernel messages only</span>
+<span class="fn">journalctl</span> -k
+
+<span class="cm"># Boot messages for specific boot</span>
+<span class="fn">journalctl</span> -b                  <span class="cm"># current boot</span>
+<span class="fn">journalctl</span> -b -1               <span class="cm"># previous boot</span>
+<span class="fn">journalctl</span> --list-boots        <span class="cm"># list all available boots</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — JOURNALCTL TIME FILTERING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">journalctl: <span class="accent">Time-Based Queries</span></div>
+        <div class="slide-subtitle">Time filtering is the most critical skill for incident investigation. Master the since/until syntax.</div>
+
+        <div class="code-block"><span class="cm"># Absolute time ranges</span>
+<span class="fn">journalctl</span> --since <span class="st">"2026-04-09 02:30:00"</span>
+<span class="fn">journalctl</span> --since <span class="st">"2026-04-09 02:30"</span> --until <span class="st">"2026-04-09 03:00"</span>
+<span class="fn">journalctl</span> --since <span class="st">"2026-04-09 02:45:00"</span> --until <span class="st">"2026-04-09 02:46:00"</span>
+
+<span class="cm"># Relative time expressions</span>
+<span class="fn">journalctl</span> --since <span class="st">"1 hour ago"</span>
+<span class="fn">journalctl</span> --since <span class="st">"2 days ago"</span>
+<span class="fn">journalctl</span> --since today
+<span class="fn">journalctl</span> --since yesterday
+<span class="fn">journalctl</span> --since <span class="st">"30 minutes ago"</span> --until <span class="st">"5 minutes ago"</span>
+
+<span class="cm"># Combine time with unit for incident investigation</span>
+<span class="fn">journalctl</span> -u nginx --since <span class="st">"2026-04-09 02:40"</span> --until <span class="st">"2026-04-09 03:00"</span>
+
+<span class="cm"># Combine time with priority: errors in the last hour</span>
+<span class="fn">journalctl</span> -p err --since <span class="st">"1 hour ago"</span> --no-pager
+
+<span class="cm"># Reverse order (most recent first)</span>
+<span class="fn">journalctl</span> -r --since today -p err</div>
+
+        <div class="box box-green">
+            <div class="box-label">Incident Investigation Pattern</div>
+            When investigating a 02:47 incident: run <span class="ic">journalctl --since "2026-04-09 02:40" --until "2026-04-09 03:00" -p err</span> first to see all errors across all services in the incident window. This gives you the sequence of failures before you dive into any specific service.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — JOURNALCTL FIELD FILTERING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">journalctl: <span class="accent">Field Filtering and JSON Output</span></div>
+        <div class="slide-subtitle">The journal stores structured key=value fields for every entry. Filter on any field for precise queries.</div>
+
+        <div class="code-block"><span class="cm"># Filter by executable path</span>
+<span class="fn">journalctl</span> _EXE=/usr/bin/python3
+
+<span class="cm"># Filter by process UID (useful for multi-tenant systems)</span>
+<span class="fn">journalctl</span> _UID=1001
+
+<span class="cm"># Filter by hostname (relevant in centralized logging)</span>
+<span class="fn">journalctl</span> _HOSTNAME=web-01
+
+<span class="cm"># Filter by syslog identifier (the tag field)</span>
+<span class="fn">journalctl</span> SYSLOG_IDENTIFIER=nginx
+
+<span class="cm"># Combine multiple fields (AND logic)</span>
+<span class="fn">journalctl</span> _UID=1001 _EXE=/usr/bin/ssh
+
+<span class="cm"># Discover all fields in a journal entry</span>
+<span class="fn">journalctl</span> -o verbose -n 1 -u nginx
+
+<span class="cm"># JSON output for programmatic processing</span>
+<span class="fn">journalctl</span> -u nginx -o json --since <span class="st">"1 hour ago"</span> | <span class="fn">jq</span> .
+
+<span class="cm"># JSON short: one line per entry with key fields</span>
+<span class="fn">journalctl</span> -u nginx -o json-pretty --since <span class="st">"10 minutes ago"</span> | \
+    <span class="fn">jq</span> -r <span class="st">'[.__REALTIME_TIMESTAMP, .PRIORITY, .MESSAGE] | @tsv'</span>
+
+<span class="cm"># Export format for archiving</span>
+<span class="fn">journalctl</span> --since today -o export <span class="kw">&gt;</span> /var/archive/journal-$(date +%F).export</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — JOURNALD CONFIGURATION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">journald Configuration: <span class="accent">Storage and Retention</span></div>
+        <div class="slide-subtitle">The journal's storage location, size limits, and retention determine how far back you can look during an investigation.</div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/journald.conf (key settings)</span>
+[Journal]
+<span class="cm"># Storage: auto (persistent if /var/log/journal/ exists, volatile otherwise)</span>
+<span class="cm">#          persistent: always write to /var/log/journal/</span>
+<span class="cm">#          volatile: only /run/log/journal/ (lost on reboot)</span>
+Storage=persistent
+
+<span class="cm"># Max disk space for journal (total across all journals)</span>
+SystemMaxUse=2G
+
+<span class="cm"># Maximum size of a single journal file</span>
+SystemMaxFileSize=256M
+
+<span class="cm"># Maximum age to retain journal entries</span>
+MaxRetentionSec=30day
+
+<span class="cm"># Forward entries to syslog socket (enables rsyslog to read them)</span>
+ForwardToSyslog=yes
+
+<span class="cm"># Compress journal entries on disk</span>
+Compress=yes
+
+<span class="cm"># Rate limiting per service (prevent log flooding)</span>
+RateLimitIntervalSec=30s
+RateLimitBurst=10000</div>
+
+        <div class="code-block"><span class="cm"># Create persistent journal directory and apply config</span>
+<span class="fn">mkdir</span> -p /var/log/journal
+<span class="fn">systemd-tmpfiles</span> --create --prefix /var/log/journal
+<span class="fn">systemctl</span> restart systemd-journald
+
+<span class="cm"># Check journal disk usage</span>
+<span class="fn">journalctl</span> --disk-usage
+
+<span class="cm"># Vacuum old entries</span>
+<span class="fn">journalctl</span> --vacuum-time=30d      <span class="cm"># remove entries older than 30 days</span>
+<span class="fn">journalctl</span> --vacuum-size=1G       <span class="cm"># shrink to 1GB total</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — SYSLOG FACILITIES AND PRIORITIES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Syslog: <span class="accent">Facilities and Priorities</span></div>
+        <div class="slide-subtitle">The syslog protocol uses a facility.priority taxonomy to classify messages. rsyslog routes messages based on these classifications.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Facilities (Source)</div>
+                <div class="card-desc"><span class="ic">kern</span> kernel messages. <span class="ic">auth/authpriv</span> authentication events. <span class="ic">mail</span> mail system. <span class="ic">cron</span> cron jobs. <span class="ic">daemon</span> system daemons. <span class="ic">local0..local7</span> custom applications. Use <span class="ic">local0</span> through <span class="ic">local7</span> for your own applications and automation scripts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Priorities (Severity)</div>
+                <div class="card-desc"><span class="ic">emerg(0)</span> system unusable. <span class="ic">alert(1)</span> immediate action required. <span class="ic">crit(2)</span> critical conditions. <span class="ic">err(3)</span> error conditions. <span class="ic">warning(4)</span> warning conditions. <span class="ic">notice(5)</span> normal but significant. <span class="ic">info(6)</span> informational. <span class="ic">debug(7)</span> debug messages.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Syslog priority rule syntax: facility.priority
+# Lower number = higher severity
+
+# Routing examples in rsyslog.conf:</span>
+kern.*               /var/log/kern.log         <span class="cm"># all kernel messages</span>
+auth,authpriv.*      /var/log/auth.log          <span class="cm"># auth messages</span>
+*.emerg              :omusrmsg:*               <span class="cm"># emergency: alert all users</span>
+*.warning            /var/log/syslog            <span class="cm"># warning and above: syslog</span>
+local0.*             /var/log/sector/app.log    <span class="cm"># custom app logs</span>
+local0.err           @@siem.sector.local:514    <span class="cm"># forward errors to SIEM</span>
+
+<span class="cm"># The selector * means all priorities, = means only that priority
+# mail.none means exclude mail facility
+# *.warning;mail.none means all warnings except mail</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — RSYSLOG ARCHITECTURE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">rsyslog: <span class="accent">Input, Filter, Output Pipeline</span></div>
+        <div class="slide-subtitle">rsyslog processes every log message through a three-stage pipeline. Understanding this architecture is the key to building correct configurations.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Input Modules (imXXX)</div>
+                <div class="card-desc"><span class="ic">imuxsock</span> reads from the local syslog socket (<span class="ic">/dev/log</span>). <span class="ic">imklog</span> reads kernel messages. <span class="ic">imjournal</span> reads from the systemd journal. <span class="ic">imtcp</span>/<span class="ic">imudp</span> receive remote syslog over TCP/UDP. <span class="ic">imfile</span> tails log files.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Filter Rules</div>
+                <div class="card-desc">Three filter types: facility.priority selectors (traditional), property-based filters (<span class="ic">:msg, contains, "error"</span>), and RainerScript expression filters (<span class="ic">if $msg contains "CRITICAL" then</span>). Rules are evaluated in order; stop processing with <span class="ic">stop</span> or <span class="ic">&amp;</span> operator.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Output Modules (omXXX)</div>
+                <div class="card-desc"><span class="ic">omfile</span> writes to files. <span class="ic">omfwd</span> forwards over TCP/UDP syslog. <span class="ic">ommysql</span>/<span class="ic">ompgsql</span> writes to databases. <span class="ic">omrelp</span> uses the reliable RELP protocol. <span class="ic">omelasticsearch</span> indexes into Elasticsearch. <span class="ic">ommail</span> sends email alerts.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># rsyslog configuration locations</span>
+<span class="fn">ls</span> /etc/rsyslog.conf         <span class="cm"># main configuration file</span>
+<span class="fn">ls</span> /etc/rsyslog.d/           <span class="cm"># drop-in configuration files</span>
+<span class="fn">rsyslogd</span> -N1                 <span class="cm"># syntax check without running (dry run)</span>
+<span class="fn">systemctl</span> restart rsyslog    <span class="cm"># apply changes</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — RSYSLOG BASIC CONFIGURATION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">rsyslog Configuration: <span class="accent">Local Routing</span></div>
+        <div class="slide-subtitle">A well-organized rsyslog configuration separates messages into appropriate files for easy access and log rotation.</div>
+
+        <div class="code-block"><span class="cm"># /etc/rsyslog.conf (core structure)</span>
+
+<span class="cm">#### MODULES ####</span>
+module(load="imuxsock")          <span class="cm"># local syslog socket</span>
+module(load="imklog")            <span class="cm"># kernel log module</span>
+module(load="imjournal"          <span class="cm"># read from systemd journal</span>
+       StateFile="imjournal.state")
+
+<span class="cm">#### GLOBAL DIRECTIVES ####</span>
+global(workDirectory="/var/lib/rsyslog")
+
+<span class="cm">#### RULES ####</span>
+<span class="cm"># Kernel messages to dedicated file</span>
+kern.*    /var/log/kern.log
+
+<span class="cm"># Authentication: separate file for security review</span>
+auth,authpriv.*    /var/log/auth.log
+
+<span class="cm"># Mail system: its own log (rarely needed but noisy if not separated)</span>
+mail.*    -/var/log/mail.log
+
+<span class="cm"># Cron jobs: separate for easy troubleshooting</span>
+cron.*    /var/log/cron.log
+
+<span class="cm"># Custom application on local0 facility</span>
+local0.*  /var/log/sector/app.log
+
+<span class="cm"># Everything else: main syslog file</span>
+*.warning;kern.none;auth.none;mail.none;cron.none  /var/log/syslog</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — RSYSLOG TEMPLATES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">rsyslog Templates: <span class="accent">Formatting Log Output</span></div>
+        <div class="slide-subtitle">Templates control the format of every log line written by rsyslog. Structured formats enable automated parsing.</div>
+
+        <div class="code-block"><span class="cm"># Traditional syslog format (default)</span>
+template(name="TraditionalFormat" type="string"
+    string="%TIMESTAMP% %HOSTNAME% %syslogtag%%msg%\n")
+
+<span class="cm"># ISO 8601 timestamp with milliseconds (better for correlation)</span>
+template(name="ISO8601Format" type="string"
+    string="%TIMESTAMP:::date-rfc3339% %HOSTNAME% %syslogtag%%msg%\n")
+
+<span class="cm"># JSON format (machine-parseable, SIEM-friendly)</span>
+template(name="JSONFormat" type="string"
+    string="{\"ts\":\"%TIMESTAMP:::date-rfc3339%\",\"host\":\"%HOSTNAME%\",\"prog\":\"%PROGRAMNAME%\",\"pid\":%PROCID%,\"fac\":\"%syslogfacility-text%\",\"sev\":\"%syslogseverity-text%\",\"msg\":\"%msg:::json%\"}\n")
+
+<span class="cm"># Structured key=value format</span>
+template(name="KVFormat" type="string"
+    string="ts=%TIMESTAMP:::date-rfc3339% host=%HOSTNAME% prog=%PROGRAMNAME% sev=%syslogseverity-text% msg=%msg%\n")
+
+<span class="cm"># Apply a template to a file output</span>
+local0.*  action(type="omfile" file="/var/log/sector/app.log"
+                template="JSONFormat")</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — LOG FORWARDING ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Log Forwarding: <span class="accent">TCP vs UDP vs RELP</span></div>
+        <div class="slide-subtitle">Forwarding logs off the source host is the foundation of centralized logging. Protocol choice determines reliability guarantees.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">UDP (port 514)</div>
+                <div class="card-desc">Fire and forget. No acknowledgment, no retransmit. If the receiver is down or the network is congested, messages are dropped silently. Fast and simple. Acceptable only for non-critical monitoring where losing some events is tolerable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TCP (port 514)</div>
+                <div class="card-desc">Connection-oriented. If the receiver is down, rsyslog buffers messages and retransmits when the connection is restored (with disk queue configured). Better than UDP for production use. Still can lose messages during large bursts without disk queuing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RELP (port 2514)</div>
+                <div class="card-desc">Reliable Event Logging Protocol. Application-layer acknowledgment -- the sender knows each message was received and persisted. No data loss even during receiver restarts. Use RELP for compliance environments where every log entry must be accounted for.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Forward all messages via TCP with disk queue (production standard)</span>
+action(type="omfwd"
+       target="siem.sector.local"
+       port="514"
+       protocol="tcp"
+       action.resumeRetryCount="-1"
+       queue.type="LinkedList"
+       queue.filename="fwd-buffer"
+       queue.maxDiskSpace="1g"
+       queue.saveOnShutdown="on")</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — DISK QUEUE FOR RELIABLE FORWARDING ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Reliable Forwarding: <span class="accent">Disk-Assisted Queues</span></div>
+        <div class="slide-subtitle">When the SIEM or central log server goes down, a disk queue holds messages and replays them when the connection is restored.</div>
+
+        <div class="code-block"><span class="cm"># /etc/rsyslog.d/50-forward.conf
+# Forward everything to central log server with reliable disk queue</span>
+
+<span class="cm"># Load the forward output module</span>
+module(load="omfwd")
+
+<span class="cm"># Forward rule with full queue configuration</span>
+action(
+    type="omfwd"
+    target="logs.sector.local"
+    port="514"
+    protocol="tcp"
+
+    <span class="cm"># Queue type: LinkedList (in memory) or Disk (file-backed)</span>
+    queue.type="Disk"
+
+    <span class="cm"># Base filename for queue files in workDirectory</span>
+    queue.filename="logs-sector-queue"
+
+    <span class="cm"># Queue size limits</span>
+    queue.maxDiskSpace="2g"
+    queue.maxMessages="500000"
+
+    <span class="cm"># Persist queue to disk on rsyslog shutdown</span>
+    queue.saveOnShutdown="on"
+
+    <span class="cm"># Retry forever if remote is down</span>
+    action.resumeRetryCount="-1"
+
+    <span class="cm"># Retry interval backoff</span>
+    action.resumeInterval="30"
+)</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Queue Directory</div>
+            Queue files are written to the rsyslog work directory (<span class="ic">/var/lib/rsyslog/</span> by default). Monitor this directory's size. If the remote log server is down for an extended period, queue files will grow and can fill the disk. Set <span class="ic">queue.maxDiskSpace</span> to prevent this.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — RSYSLOG AS A LOG SERVER ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Central Log Server: <span class="accent">Receiving Remote Logs</span></div>
+        <div class="slide-subtitle">Configure a dedicated rsyslog server to receive logs from all fleet nodes and store them in per-host files.</div>
+
+        <div class="code-block"><span class="cm"># /etc/rsyslog.conf on the CENTRAL LOG SERVER</span>
+
+<span class="cm"># Enable TCP listener on port 514</span>
+module(load="imtcp")
+input(type="imtcp" port="514")
+
+<span class="cm"># Enable UDP listener (for legacy devices)</span>
+module(load="imudp")
+input(type="imudp" port="514")
+
+<span class="cm"># Template: per-host log files under /var/log/remote/</span>
+template(name="PerHostLogs" type="string"
+    string="/var/log/remote/%HOSTNAME%/%PROGRAMNAME%.log")
+
+<span class="cm"># Route all incoming remote messages to per-host files</span>
+if $fromhost-ip != "127.0.0.1" then {
+    action(type="omfile"
+           DynaFile="PerHostLogs"
+           template="ISO8601Format")
+    stop     <span class="cm"># do not process further (avoid writing to local syslog)</span>
+}
+
+<span class="cm"># Create log directory structure</span>
+<span class="fn">mkdir</span> -p /var/log/remote
+<span class="fn">chown</span> syslog:adm /var/log/remote
+
+<span class="cm"># Open firewall for syslog</span>
+<span class="fn">ufw</span> allow from <span class="nb">10.0.0.0/8</span> to any port <span class="nb">514</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — TLS ENCRYPTED LOG FORWARDING ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">TLS Log Forwarding: <span class="accent">Encrypted Syslog</span></div>
+        <div class="slide-subtitle">Logs contain sensitive information. Forward them over TLS to prevent interception and ensure authentication.</div>
+
+        <div class="code-block"><span class="cm"># Install TLS support for rsyslog</span>
+<span class="fn">apt</span> install rsyslog-gnutls
+
+<span class="cm"># Client configuration (/etc/rsyslog.d/60-tls-forward.conf)</span>
+module(load="omfwd")
+
+global(
+    DefaultNetstreamDriver="gtls"
+    DefaultNetstreamDriverCAFile="/etc/ssl/sector/ca.pem"
+    DefaultNetstreamDriverCertFile="/etc/ssl/sector/client-cert.pem"
+    DefaultNetstreamDriverKeyFile="/etc/ssl/sector/client-key.pem"
+)
+
+action(
+    type="omfwd"
+    target="logs.sector.local"
+    port="6514"
+    protocol="tcp"
+    StreamDriver="gtls"
+    StreamDriverMode="1"       <span class="cm"># 1 = TLS enabled</span>
+    StreamDriverAuthMode="x509/name"
+    StreamDriverPermittedPeers="logs.sector.local"
+)</div>
+
+        <div class="code-block"><span class="cm"># Server configuration (/etc/rsyslog.d/60-tls-server.conf)</span>
+module(load="imtcp"
+    StreamDriver.Name="gtls"
+    StreamDriver.Mode="1"
+    StreamDriver.Authmode="x509/name")
+
+global(
+    DefaultNetstreamDriverCAFile="/etc/ssl/sector/ca.pem"
+    DefaultNetstreamDriverCertFile="/etc/ssl/sector/server-cert.pem"
+    DefaultNetstreamDriverKeyFile="/etc/ssl/sector/server-key.pem"
+)
+input(type="imtcp" port="6514")</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — RSYSLOG PROPERTY-BASED FILTERING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">rsyslog Filtering: <span class="accent">Property-Based Rules</span></div>
+        <div class="slide-subtitle">Route messages based on their content, not just facility and priority. Essential for multi-application deployments.</div>
+
+        <div class="code-block"><span class="cm"># Property-based filter syntax: :property, comparison, "value"</span>
+
+<span class="cm"># Route messages from nginx to a dedicated file</span>
+:programname, isequal, "nginx"    /var/log/nginx/syslog.log
+
+<span class="cm"># Route messages containing "CRITICAL" to alert file</span>
+:msg, contains, "CRITICAL"        /var/log/sector/critical-alerts.log
+
+<span class="cm"># Email alert for critical messages</span>
+:msg, contains, "CRITICAL"        :omusrmsg:root
+
+<span class="cm"># Filter using regex: match any message containing "fail" or "error"</span>
+:msg, regex, "[Ff]ail|[Ee]rror"   /var/log/sector/errors.log
+
+<span class="cm"># RainerScript (modern rsyslog v7+ syntax: more powerful)</span>
+if ($programname == "sshd" and $msg contains "Failed password") then {
+    action(type="omfile" file="/var/log/ssh-failures.log")
+    action(type="omfwd" target="siem.sector.local" port="514" protocol="tcp")
+    stop
+}
+
+<span class="cm"># Forward only error+ to remote, keep everything locally</span>
+if prifilt("*.err") then {
+    action(type="omfwd" target="logs.sector.local" port="514" protocol="tcp")
+}
+<span class="cm"># No stop -- local rules continue to write to /var/log/syslog</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — LOG ANALYSIS PATTERNS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Log Analysis: <span class="accent">grep, awk, and cut Patterns</span></div>
+        <div class="slide-subtitle">The fastest log analysis tools are the ones already on the system. Master these pipelines for rapid incident triage.</div>
+
+        <div class="code-block"><span class="cm"># Count authentication failures by source IP</span>
+<span class="fn">grep</span> <span class="st">'Failed password'</span> /var/log/auth.log | \
+    <span class="fn">awk</span> <span class="st">'{print $NF}'</span> | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -20
+
+<span class="cm"># Extract error messages from nginx access log (5xx responses)</span>
+<span class="fn">awk</span> <span class="st">'$9 >= 500'</span> /var/log/nginx/access.log | \
+    <span class="fn">cut</span> -d<span class="st">'"'</span> -f2 | <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn
+
+<span class="cm"># Count events per minute (time histogram)</span>
+<span class="fn">awk</span> <span class="st">'{print $1" "$2" "$3}'</span> /var/log/syslog | \
+    <span class="fn">cut</span> -c1-16 | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | \
+    <span class="fn">tail</span> -30
+
+<span class="cm"># Find all unique programs logging errors in the last hour</span>
+<span class="fn">journalctl</span> -p err --since <span class="st">"1 hour ago"</span> -o json-pretty | \
+    <span class="fn">jq</span> -r '.SYSLOG_IDENTIFIER' | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn
+
+<span class="cm"># Timeline of all sudo activity today</span>
+<span class="fn">grep</span> <span class="st">'sudo:'</span> /var/log/auth.log | \
+    <span class="fn">awk</span> <span class="st">'{print $1" "$2" "$3" "$6" "$NF}'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — LOG ANALYSIS: NGINX ACCESS LOGS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">nginx Access Log Analysis: <span class="accent">Traffic Patterns</span></div>
+        <div class="slide-subtitle">The nginx combined log format is a gold mine. These patterns answer the most common operational questions.</div>
+
+        <div class="code-block"><span class="cm"># Top 10 IPs by request count</span>
+<span class="fn">awk</span> <span class="st">'{print $1}'</span> /var/log/nginx/access.log | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10
+
+<span class="cm"># Top 10 URLs by request count</span>
+<span class="fn">awk</span> <span class="st">'{print $7}'</span> /var/log/nginx/access.log | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10
+
+<span class="cm"># HTTP status code distribution</span>
+<span class="fn">awk</span> <span class="st">'{print $9}'</span> /var/log/nginx/access.log | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn
+
+<span class="cm"># Requests per second (approximate): unique seconds in the log</span>
+<span class="fn">awk</span> <span class="st">'{print $4}'</span> /var/log/nginx/access.log | \
+    <span class="fn">tr</span> -d <span class="st">'['</span> | <span class="fn">cut</span> -c1-20 | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -5
+
+<span class="cm"># Average response size in bytes</span>
+<span class="fn">awk</span> <span class="st">'{sum+=$10; count++} END{print "avg:", sum/count, "bytes"}'</span> /var/log/nginx/access.log
+
+<span class="cm"># Slow requests (response time > 1 second, if $request_time is logged)</span>
+<span class="fn">awk</span> <span class="st">'$NF > 1.0 {print $NF, $7}'</span> /var/log/nginx/access.log | \
+    <span class="fn">sort</span> -rn | <span class="fn">head</span> -10</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — JOURNALCTL ANALYSIS PATTERNS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">journalctl Analysis: <span class="accent">Incident Reconstruction</span></div>
+        <div class="slide-subtitle">Combine journalctl with standard text processing tools to reconstruct exactly what happened during an incident.</div>
+
+        <div class="code-block"><span class="cm"># Count errors per service in the last 24 hours</span>
+<span class="fn">journalctl</span> -p err --since <span class="st">"24 hours ago"</span> -o json | \
+    <span class="fn">jq</span> -r '.SYSLOG_IDENTIFIER' | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10
+
+<span class="cm"># Error rate histogram by hour (today)</span>
+<span class="fn">journalctl</span> -p err --since today -o json | \
+    <span class="fn">jq</span> -r '.__REALTIME_TIMESTAMP | tonumber / 1000000 | todate | .[0:13]' | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c
+
+<span class="cm"># Find the exact sequence of events during the incident window</span>
+<span class="fn">journalctl</span> --since <span class="st">"2026-04-09 02:44"</span> \
+            --until <span class="st">"2026-04-09 02:52"</span> \
+            -o short-iso-precise \
+            --no-pager | <span class="fn">less</span>
+
+<span class="cm"># Show messages from multiple units in chronological order</span>
+<span class="fn">journalctl</span> -u nginx -u postgresql -u sector-worker \
+            --since <span class="st">"2026-04-09 02:44"</span> \
+            --until <span class="st">"2026-04-09 02:52"</span> \
+            --no-pager | <span class="fn">sort</span> -k1,2
+
+<span class="cm"># Extract just the MESSAGE field for grepping</span>
+<span class="fn">journalctl</span> -u nginx --since today -o json | \
+    <span class="fn">jq</span> -r '.MESSAGE' | \
+    <span class="fn">grep</span> -i <span class="st">'connect\|timeout\|refused'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — REAL-TIME LOG MONITORING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Real-Time Monitoring: <span class="accent">Watching Multiple Streams</span></div>
+        <div class="slide-subtitle">During an active incident, monitor multiple log streams simultaneously without losing context.</div>
+
+        <div class="code-block"><span class="cm"># multitail: watch multiple log files in split-screen</span>
+<span class="fn">apt</span> install multitail
+<span class="fn">multitail</span> /var/log/syslog /var/log/nginx/error.log /var/log/auth.log
+
+<span class="cm"># Watch two journalctl streams simultaneously with tmux</span>
+<span class="cm"># Pane 1:</span>
+<span class="fn">journalctl</span> -u nginx -f -o short-iso
+<span class="cm"># Pane 2:</span>
+<span class="fn">journalctl</span> -u postgresql -f -o short-iso
+<span class="cm"># Pane 3:</span>
+<span class="fn">journalctl</span> -p err -f
+
+<span class="cm"># Alert on keywords in live log stream</span>
+<span class="fn">journalctl</span> -f | <span class="kw">while</span> <span class="fn">IFS=</span> <span class="fn">read</span> -r line; <span class="kw">do</span>
+    <span class="kw">if</span> <span class="fn">echo</span> <span class="st">"$line"</span> | <span class="fn">grep</span> -qiE <span class="st">'CRITICAL|segfault|OOM killer|panic'</span>; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="st">"[ALERT] $line"</span>
+        <span class="fn">echo</span> <span class="st">"$line"</span> | <span class="fn">mail</span> -s <span class="st">"[LOG ALERT] $(hostname)"</span> ops@sector.local
+    <span class="kw">fi</span>
+<span class="kw">done</span>
+
+<span class="cm"># Count events per second (live event rate)</span>
+<span class="fn">journalctl</span> -f -o json | <span class="kw">while</span> <span class="fn">read</span> -r line; <span class="kw">do</span>
+    (( count++ ))
+    <span class="kw">if</span> (( count % <span class="nb">100</span> == <span class="nb">0</span> )); <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"$count events"</span>; <span class="kw">fi</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — LOG AGGREGATION: LOKI ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Centralized Logging: <span class="accent">Loki and Grafana</span></div>
+        <div class="slide-subtitle">Grafana Loki is a horizontally-scalable log aggregation system designed for modern infrastructure. It indexes metadata, not content.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Architecture</div>
+                <div class="card-desc"><span class="ic">promtail</span> is the log shipper agent (similar to Filebeat). It tails local logs and the journal, adds labels, and pushes to Loki. <span class="ic">Loki</span> stores log streams indexed by label. <span class="ic">Grafana</span> provides the query UI. The stack is lightweight -- Loki does not index message content.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Labels vs Full-Text Index</div>
+                <div class="card-desc">Loki indexes only labels (metadata: hostname, service, environment). Full-text search is done by streaming content at query time. This makes Loki much cheaper to run than Elasticsearch for log data. But it makes ad-hoc text searches slower.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">LogQL</div>
+                <div class="card-desc">Loki's query language. <span class="ic">{job="nginx"} |= "error"</span> selects nginx logs containing "error". Supports regex, JSON parsing, metric extraction, and rate calculations. Integrated with Grafana alerting for threshold-based log alerts.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># promtail config: tail systemd journal and nginx logs</span>
+scrape_configs:
+  - job_name: systemd
+    journal:
+      max_age: 12h
+      labels:
+        job: systemd
+        host: sector-node-01
+  - job_name: nginx
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/*.log</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — LOG AGGREGATION: ELASTICSEARCH ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">ELK Stack: <span class="accent">Elasticsearch, Logstash, Kibana</span></div>
+        <div class="slide-subtitle">The ELK stack is the traditional enterprise log platform. Full-text indexed, powerful query language, mature ecosystem.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Elasticsearch</div>
+                <div class="card-desc">Full-text search engine that indexes every word in every log line. Supports complex queries: range filters, boolean logic, fuzzy matching, aggregations. High storage cost due to full indexing. Best for environments where ad-hoc investigation needs are high.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Logstash / Filebeat</div>
+                <div class="card-desc">Logstash is a processing pipeline: input, filter (grok, mutate, date), output. Heavyweight. Filebeat is a lightweight shipper -- reads files and forwards to Elasticsearch or Logstash. Use Filebeat for standard log shipping; Logstash only when transformation is needed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Kibana</div>
+                <div class="card-desc">Web UI for Elasticsearch. Discover view for ad-hoc search. Dashboard for visualization. Alerts for threshold-based notifications. Lens for custom charts. SIEM app for security analytics. The ELK stack is operationally expensive but feature-complete.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># rsyslog forwarding to Elasticsearch via omelasticsearch</span>
+module(load="omelasticsearch")
+action(
+    type="omelasticsearch"
+    server="elasticsearch.sector.local"
+    serverport="9200"
+    searchIndex="syslog-%$year%.%$month%.%$day%"
+    template="JSONFormat"
+)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — LOG RETENTION POLICY ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Log Retention: <span class="accent">Compliance and Operational Requirements</span></div>
+        <div class="slide-subtitle">How long you keep logs is not an operational preference -- it is determined by legal requirements and incident response needs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Compliance Minimums</div>
+                <div class="card-desc">PCI-DSS: 1 year minimum, 3 months immediately available. HIPAA: 6 years. SOX: 7 years for financial records. GDPR: minimum necessary (but security logs can justify longer retention). NIST 800-53: agency-defined, typically 3 years for AU-11.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Operational Reality</div>
+                <div class="card-desc">Security incidents are often discovered months after they occur. A 90-day local retention minimum is defensible. Compress and archive to cold storage (S3 Glacier, tape) for long-term compliance retention. On-disk for fast queries; archive for compliance evidence.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# log-archive.sh -- compress and archive logs older than 30 days</span>
+<span class="fn">set</span> -euo pipefail
+
+ARCHIVE_DIR=<span class="st">"/mnt/log-archive"</span>
+LOG_DIR=<span class="st">"/var/log/remote"</span>
+CUTOFF_DAYS=<span class="nb">30</span>
+
+<span class="fn">find</span> <span class="st">"$LOG_DIR"</span> -name <span class="st">'*.log'</span> -mtime +<span class="st">"$CUTOFF_DAYS"</span> | \
+    <span class="kw">while</span> <span class="fn">IFS=</span> <span class="fn">read</span> -r logfile; <span class="kw">do</span>
+        DEST=<span class="st">"${ARCHIVE_DIR}${logfile#$LOG_DIR}.gz"</span>
+        <span class="fn">mkdir</span> -p <span class="st">"$(dirname "$DEST")"</span>
+        <span class="fn">gzip</span> -9 -c <span class="st">"$logfile"</span> <span class="kw">&gt;</span> <span class="st">"$DEST"</span>
+        sha256sum <span class="st">"$DEST"</span> <span class="kw">&gt;&gt;</span> <span class="st">"${ARCHIVE_DIR}/MANIFEST.sha256"</span>
+        <span class="fn">rm</span> <span class="st">"$logfile"</span>
+        <span class="fn">logger</span> -t log-archive <span class="st">"Archived: $logfile"</span>
+    <span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — PARSING LOG FORMATS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Parsing Logs: <span class="accent">grok and awk Patterns</span></div>
+        <div class="slide-subtitle">Unstructured logs require parsing before they can be queried as data. These patterns cover the most common log formats.</div>
+
+        <div class="code-block"><span class="cm"># Parse nginx combined log format into fields with awk</span>
+<span class="cm"># Format: $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes</span>
+<span class="fn">awk</span> <span class="st">'BEGIN{FS=" "}
+{
+    ip=$1; ts=$4; request=$7; status=$9; size=$10;
+    gsub(/\[/, "", ts);
+    printf "IP=%s STATUS=%s URL=%s SIZE=%s\n", ip, status, request, size
+}'</span> /var/log/nginx/access.log | <span class="fn">head</span> -5
+
+<span class="cm"># Parse syslog format: extract program, PID, and message</span>
+<span class="fn">awk</span> <span class="st">'{
+    month=$1; day=$2; time=$3; host=$4;
+    prog_pid=$5; sub(/:$/, "", prog_pid);
+    split(prog_pid, a, "[");
+    prog=a[1]; pid=a[2]; gsub(/\]/, "", pid);
+    msg=""; for(i=6;i<=NF;i++) msg=msg" "$i;
+    printf "PROG=%s PID=%s MSG=%s\n", prog, pid, msg
+}'</span> /var/log/syslog | <span class="fn">head</span> -3
+
+<span class="cm"># logstash grok pattern for nginx combined format</span>
+<span class="cm"># %{IPORHOST:client_ip} - %{USER:ident} \[%{HTTPDATE:timestamp}\]</span>
+<span class="cm"># "%{WORD:method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}"</span>
+<span class="cm"># %{NUMBER:response_code} %{NUMBER:bytes}</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — SECURITY LOG ANALYSIS PATTERNS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Security Analysis: <span class="accent">Patterns to Look For</span></div>
+        <div class="slide-subtitle">Specific log patterns correlate with specific attack types. Know them on sight.</div>
+
+        <div class="code-block"><span class="cm"># SSH brute force: failed password attempts</span>
+<span class="fn">grep</span> <span class="st">'Failed password'</span> /var/log/auth.log | \
+    <span class="fn">awk</span> <span class="st">'{print $(NF-3)}'</span> | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | \
+    <span class="fn">awk</span> <span class="st">'$1 &gt; 10'</span>           <span class="cm"># IPs with >10 failures = brute force</span>
+
+<span class="cm"># Successful logins after failures (potential successful breach)</span>
+SUSPICIOUS_IP=<span class="st">"203.0.113.42"</span>
+<span class="fn">grep</span> <span class="st">"$SUSPICIOUS_IP"</span> /var/log/auth.log | \
+    <span class="fn">grep</span> -E <span class="st">'Failed|Accepted'</span>
+
+<span class="cm"># sudo privilege escalation by non-standard users</span>
+<span class="fn">grep</span> <span class="st">'sudo:'</span> /var/log/auth.log | \
+    <span class="fn">grep</span> -v <span class="st">'deploy\|ansible\|root'</span>   <span class="cm"># filter known-good accounts</span>
+
+<span class="cm"># New user accounts created (potential backdoor accounts)</span>
+<span class="fn">grep</span> <span class="st">'useradd\|adduser'</span> /var/log/auth.log
+
+<span class="cm"># Large data transfers in nginx logs (potential exfiltration)</span>
+<span class="fn">awk</span> <span class="st">'$10 > 10000000'</span> /var/log/nginx/access.log | \
+    <span class="fn">awk</span> <span class="st">'{printf "%s MB from %s to %s\n", $10/1048576, $1, $7}'</span>
+
+<span class="cm"># Check for log gaps (sign of tampering)</span>
+<span class="fn">journalctl</span> --list-boots | <span class="fn">grep</span> -v <span class="st">'^No cached'</span>
+<span class="fn">journalctl</span> -o json --since today | <span class="fn">jq</span> -r '.__REALTIME_TIMESTAMP' | \
+    <span class="fn">awk</span> <span class="st">'NR>1{diff=$1-prev; if(diff>120000000) print "GAP: "diff/1000000"s at "prev} {prev=$1}'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — IMFILE: TAILING APP LOGS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">imfile: <span class="accent">Ingesting Application Log Files</span></div>
+        <div class="slide-subtitle">Applications that write to files instead of syslog need the imfile module to bring their output into the rsyslog pipeline.</div>
+
+        <div class="code-block"><span class="cm"># /etc/rsyslog.d/40-appfiles.conf
+# Tail custom application log files and route to syslog pipeline</span>
+
+module(load="imfile" PollingInterval="10")
+
+<span class="cm"># Tail the sector application log</span>
+input(type="imfile"
+      File="/var/log/sector/app.log"
+      Tag="sector-app"
+      Severity="info"
+      Facility="local0"
+      PersistStateInterval="200"     <span class="cm"># save position every 200 lines</span>
+      StateFile="sector-app-state")
+
+<span class="cm"># Tail nginx application error log separately from access log</span>
+input(type="imfile"
+      File="/var/log/nginx/error.log"
+      Tag="nginx-error"
+      Severity="err"
+      Facility="daemon"
+      StateFile="nginx-error-state")
+
+<span class="cm"># Wildcard: tail all .log files in a directory</span>
+input(type="imfile"
+      File="/var/log/apps/*.log"
+      Tag="apps"
+      Facility="local1"
+      StateFile="apps-wildcard-state"
+      Wildcard="on")</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — JOURNALD FORWARDING TO RSYSLOG ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">journald to rsyslog: <span class="accent">Bridging the Two Systems</span></div>
+        <div class="slide-subtitle">Configure both logging systems to work together: journald captures everything locally, rsyslog forwards to central servers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Option 1: journald Forwards to Syslog</div>
+                <div class="card-desc">Set <span class="ic">ForwardToSyslog=yes</span> in <span class="ic">journald.conf</span>. journald forwards copies of all entries to the syslog socket. rsyslog receives them as normal syslog messages. Simple to configure but duplicates all entries.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Option 2: rsyslog Reads Journal Directly</div>
+                <div class="card-desc">Load the <span class="ic">imjournal</span> module in rsyslog. rsyslog reads directly from the journal binary. More efficient than the syslog socket path. Preserves journal-native fields like <span class="ic">_SYSTEMD_UNIT</span>. Disable <span class="ic">ForwardToSyslog</span> to avoid double-processing.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Recommended configuration: imjournal + no syslog forwarding</span>
+
+<span class="cm"># /etc/systemd/journald.conf</span>
+[Journal]
+ForwardToSyslog=no         <span class="cm"># rsyslog reads directly, no need to forward</span>
+Storage=persistent
+
+<span class="cm"># /etc/rsyslog.conf</span>
+<span class="cm"># Use imjournal instead of imuxsock</span>
+module(load="imjournal"
+       StateFile="/var/lib/rsyslog/imjournal.state"
+       Ratelimit.Interval="600"
+       Ratelimit.Burst="20000"
+       IgnorePreviousMessages="off"
+       UsePid="system")
+
+<span class="cm"># Now rsyslog receives all journal entries natively</span>
+<span class="cm"># and can forward them with the full rsyslog rule set</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — LOG ANOMALY DETECTION ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Anomaly Detection: <span class="accent">Volume-Based Alerting</span></div>
+        <div class="slide-subtitle">A sudden spike in error rates is often the first visible symptom of an incident, before users start reporting problems.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# log-rate-monitor.sh -- alert if error rate spikes above threshold</span>
+<span class="fn">set</span> -euo pipefail
+
+THRESHOLD=<span class="nb">50</span>      <span class="cm"># errors per minute threshold</span>
+WINDOW=<span class="nb">1</span>          <span class="cm"># minutes to look back</span>
+
+RECENT_ERRORS=<span class="st">"$(journalctl -p err --since "${WINDOW} minute ago" -q \
+    --no-pager 2&gt;/dev/null | wc -l)"</span>
+
+<span class="kw">if</span> (( RECENT_ERRORS &gt; THRESHOLD )); <span class="kw">then</span>
+    MSG=<span class="st">"ERROR SPIKE: $RECENT_ERRORS errors in last ${WINDOW}min on $(hostname)"</span>
+    <span class="fn">logger</span> -t log-monitor -p local0.crit <span class="st">"$MSG"</span>
+    <span class="fn">echo</span> <span class="st">"$MSG"</span> | <span class="fn">mail</span> -s <span class="st">"[LOG SPIKE] $(hostname)"</span> ops@sector.local
+
+    <span class="cm"># Capture the top error sources for the alert</span>
+    <span class="fn">journalctl</span> -p err --since <span class="st">"${WINDOW} minute ago"</span> -o json --no-pager | \
+        <span class="fn">jq</span> -r '.SYSLOG_IDENTIFIER' | \
+        <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -5 | \
+        <span class="fn">mail</span> -s <span class="st">"[LOG SPIKE] Top error sources"</span> ops@sector.local
+<span class="kw">fi</span>
+
+<span class="cm"># Run every minute: */1 * * * * root flock -n /var/lock/log-rate.lock \
+#   /usr/local/bin/log-rate-monitor.sh</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — LOGWATCH ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">logwatch: <span class="accent">Automated Daily Log Digest</span></div>
+        <div class="slide-subtitle">logwatch summarizes yesterday's logs across all services into a readable daily digest email.</div>
+
+        <div class="code-block"><span class="cm"># Install logwatch</span>
+<span class="fn">apt</span> install logwatch
+
+<span class="cm"># Generate a report to stdout (test before scheduling)</span>
+<span class="fn">logwatch</span> --output stdout --format text --detail high
+
+<span class="cm"># Generate report for a specific service</span>
+<span class="fn">logwatch</span> --service sshd --output stdout
+
+<span class="cm"># Generate HTML report</span>
+<span class="fn">logwatch</span> --output mail --format html \
+          --mailto ops@sector.local \
+          --detail high
+
+<span class="cm"># /etc/logwatch/conf/logwatch.conf (key settings)</span>
+<span class="cm"># Output = mail</span>
+<span class="cm"># Format = html</span>
+<span class="cm"># MailTo = ops@sector.local</span>
+<span class="cm"># MailFrom = logwatch@$(hostname)</span>
+<span class="cm"># Range = yesterday</span>
+<span class="cm"># Detail = high</span>
+<span class="cm"># Service = All</span>
+<span class="cm"># Mailer = /usr/sbin/sendmail -t</span>
+
+<span class="cm"># logwatch runs automatically via cron: /etc/cron.daily/00logwatch</span>
+<span class="cm"># Customize what it reports: /etc/logwatch/conf/services/</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — LOG TAMPERING DETECTION ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Log Tampering: <span class="accent">Detecting and Preventing</span></div>
+        <div class="slide-subtitle">An attacker who can delete logs can hide their activity. Detect tampering and make it harder to accomplish silently.</div>
+
+        <div class="code-block"><span class="cm"># Detect log file truncation (mtime newer than expected for size)</span>
+<span class="fn">stat</span> /var/log/auth.log | <span class="fn">grep</span> -E <span class="st">'Size|Modify'</span>
+
+<span class="cm"># Check for gaps in journal (unexpected restarts of journald)</span>
+<span class="fn">journalctl</span> --list-boots
+<span class="cm"># Multiple unexpected short-duration boots = potential tampering or crash</span>
+
+<span class="cm"># auditd: watch auth.log for write/truncate (catches log clearing)</span>
+<span class="cm"># Add to audit rules:</span>
+<span class="cm"># -w /var/log/auth.log   -p wa -k log-tampering</span>
+<span class="cm"># -w /var/log/syslog     -p wa -k log-tampering</span>
+<span class="cm"># -w /var/log/audit/     -p wa -k log-tampering</span>
+
+<span class="cm"># append-only flag: log files can be written but not truncated or deleted</span>
+<span class="fn">chattr</span> +a /var/log/auth.log
+<span class="fn">chattr</span> +a /var/log/syslog
+<span class="cm"># NOTE: logrotate cannot rotate +a files -- remove flag in postrotate, re-add after</span>
+
+<span class="cm"># Forward to remote server immediately (golden rule)</span>
+<span class="cm"># Once an event is on the remote server, local deletion cannot erase it</span>
+<span class="cm"># This is the most effective anti-tampering control</span>
+
+<span class="cm"># Verify log continuity: check last entry timestamp matches expected rate</span>
+<span class="fn">journalctl</span> --since today -o json | \
+    <span class="fn">jq</span> -r '.__REALTIME_TIMESTAMP' | <span class="fn">tail</span> -1</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — MULTI-SERVICE CORRELATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Log Correlation: <span class="accent">Connecting Events Across Services</span></div>
+        <div class="slide-subtitle">Incidents rarely manifest in a single service. Correlating logs across services reveals the causal chain.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# correlate.sh -- combine logs from multiple services around a time window</span>
+<span class="fn">set</span> -euo pipefail
+
+SINCE=<span class="st">"${1:-'30 minutes ago'}"</span>
+UNTIL=<span class="st">"${2:-'now'}"</span>
+
+<span class="fn">echo</span> <span class="st">"=== CORRELATION REPORT: $SINCE to $UNTIL ==="</span>
+
+<span class="cm"># All errors in the window, chronological, all services</span>
+<span class="fn">journalctl</span> -p err --since <span class="st">"$SINCE"</span> --until <span class="st">"$UNTIL"</span> \
+    -o short-iso-precise --no-pager 2<span class="kw">&gt;</span>/dev/null
+
+<span class="fn">echo</span> <span class="st">"=== AUTH EVENTS ==="</span>
+<span class="fn">grep</span> -h <span class="st">''</span> /var/log/auth.log | \
+    <span class="fn">awk</span> <span class="st">"-v since=\"$SINCE\""</span> <span class="st">'...'</span> <span class="nb">2&gt;</span>/dev/null || <span class="kw">true</span>
+
+<span class="fn">echo</span> <span class="st">"=== NGINX ERRORS ==="</span>
+<span class="fn">awk</span> <span class="st">'\$9 >= 500'</span> /var/log/nginx/access.log 2<span class="kw">&gt;</span>/dev/null || <span class="kw">true</span>
+
+<span class="fn">echo</span> <span class="st">"=== NETWORK CONNECTIONS ==="</span>
+<span class="fn">ss</span> -tp state established
+
+<span class="fn">echo</span> <span class="st">"=== DISK ==="</span>
+<span class="fn">df</span> -h | <span class="fn">awk</span> <span class="st">'int($5) > 80'</span>
+
+<span class="fn">echo</span> <span class="st">"=== LOAD ==="</span>
+<span class="fn">uptime</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — LOGROTATE INTEGRATION ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Log Lifecycle: <span class="accent">From Generation to Archive</span></div>
+        <div class="slide-subtitle">A complete log lifecycle design ensures logs are available when needed, do not fill disks, and meet retention requirements.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Hot Tier (0-30 days)</div>
+                <div class="card-desc">Uncompressed on local disk in <span class="ic">/var/log/</span>. journald binary journal. Full-text searchable with <span class="ic">journalctl</span> and <span class="ic">grep</span>. logrotate manages rotation and compression. Maximum query speed for recent incidents.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Warm Tier (30-90 days)</div>
+                <div class="card-desc">Compressed files on a central log server. Queryable but requires decompression (<span class="ic">zcat | grep</span>). rsync from hot tier nightly. Still on spinning disk or fast NAS. Used for post-incident investigations that cross the 30-day local retention window.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cold Tier (90 days - retention limit)</div>
+                <div class="card-desc">Compressed archives on object storage (S3, Backblaze, tape). Retrieval time measured in minutes to hours. Integrity-protected with SHA-256 manifest. Primarily for compliance evidence, not operational use.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Design Principle</div>
+            Design the lifecycle before the incident happens. When an auditor asks for all authentication events from 90 days ago and you discover you only kept 7 days of logs, it is too late. Archive decisions must be made at deployment time, not during an audit.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — TROUBLESHOOTING RSYSLOG ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Troubleshooting rsyslog: <span class="accent">When Logs Stop Arriving</span></div>
+        <div class="slide-subtitle">A systematic diagnostic process for rsyslog forwarding failures.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Check rsyslog is running: <code>systemctl status rsyslog</code>. If stopped, logs are not being processed. Check journalctl for the crash reason.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Syntax check: <code>rsyslogd -N1</code>. A config error will prevent rsyslog from starting. This command validates without running.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Test the network path: <code>nc -zv logs.sector.local 514</code>. If the connection fails, check firewall rules on both ends. Logs will queue in the disk buffer but not forward.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Check the queue files: <code>ls -lh /var/lib/rsyslog/*.qi</code>. A growing queue file means the remote is down or rejecting messages.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Enable debug logging: set <code>$DebugLevel 2</code> in rsyslog.conf temporarily. Verbose output goes to <code>/var/log/rsyslog-debug.log</code>. Remove after diagnosis.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Check disk space: <code>df -h /var/log</code>. rsyslog will stop writing if the filesystem is full. logrotate failure causes this.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PRACTICAL: FULL LOGGING SETUP ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Applied Configuration</div>
+        <div class="slide-title">Applied: <span class="accent">Complete Node Logging Setup</span></div>
+        <div class="slide-subtitle">The full configuration stack for a production node: journald persistent, rsyslog with forwarding, and logrotate.</div>
+
+        <div class="code-block"><span class="cm"># 1. journald: persistent, 30-day retention</span>
+<span class="cm"># /etc/systemd/journald.conf</span>
+[Journal]
+Storage=persistent
+SystemMaxUse=2G
+MaxRetentionSec=30day
+ForwardToSyslog=no      <span class="cm"># rsyslog reads journal directly</span>
+Compress=yes
+
+<span class="cm"># 2. rsyslog: local routing + forwarding</span>
+<span class="cm"># /etc/rsyslog.conf (summary)</span>
+module(load="imjournal" StateFile="/var/lib/rsyslog/imjournal.state")
+auth,authpriv.*    /var/log/auth.log
+kern.*             /var/log/kern.log
+local0.*           /var/log/sector/app.log
+*.warning          /var/log/syslog
+<span class="cm"># Forward everything to central with disk queue</span>
+action(type="omfwd" target="logs.sector.local" port="514" protocol="tcp"
+       queue.type="Disk" queue.filename="fwd-q" queue.saveOnShutdown="on")
+
+<span class="cm"># 3. logrotate: /etc/logrotate.d/sector</span>
+<span class="cm"># /var/log/syslog /var/log/auth.log /var/log/sector/app.log {</span>
+<span class="cm">#   daily; rotate 14; compress; delaycompress; missingok; notifempty</span>
+<span class="cm">#   postrotate</span>
+<span class="cm">#       systemctl restart rsyslog</span>
+<span class="cm">#   endscript</span>
+<span class="cm"># }</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — LOG DRIVEN ALERTING ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Applied Automation</div>
+        <div class="slide-title">Applied: <span class="accent">Log-Driven Alert Pipeline</span></div>
+        <div class="slide-subtitle">A complete alerting pipeline from log event to ops notification without a SIEM -- using only rsyslog and bash.</div>
+
+        <div class="code-block"><span class="cm"># /etc/rsyslog.d/70-alerts.conf
+# Route critical events to an alert script via omprogram</span>
+
+module(load="omprog")
+
+<span class="cm"># Forward critical+ messages to an alerting script</span>
+if prifilt("*.crit") then {
+    action(type="omprog"
+           binary="/usr/local/bin/log-alert.sh"
+           template="JSONFormat"
+           output="/var/log/alert-pipe.log")
+}</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# /usr/local/bin/log-alert.sh -- receive JSON log events from rsyslog omprog
+# stdin receives one JSON object per line</span>
+<span class="fn">set</span> -euo pipefail
+
+<span class="kw">while</span> <span class="fn">IFS=</span> <span class="fn">read</span> -r event; <span class="kw">do</span>
+    SEV=<span class="st">"$(echo "$event" | jq -r '.sev' 2&gt;/dev/null || echo 'unknown')"</span>
+    MSG=<span class="st">"$(echo "$event" | jq -r '.msg' 2&gt;/dev/null || echo 'unknown')"</span>
+    HOST=<span class="st">"$(echo "$event" | jq -r '.host' 2&gt;/dev/null || echo 'unknown')"</span>
+    PROG=<span class="st">"$(echo "$event" | jq -r '.prog' 2&gt;/dev/null || echo 'unknown')"</span>
+
+    <span class="cm"># Webhook alert (Slack/PagerDuty)</span>
+    <span class="fn">curl</span> -sf -X POST <span class="st">"${WEBHOOK_URL}"</span> \
+        -H <span class="st">'Content-Type: application/json'</span> \
+        -d <span class="st">"{\"text\": \"[$SEV] $HOST/$PROG: $MSG\"}"</span> <span class="kw">&gt;</span>/dev/null
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-09 Summary</div>
+        <div class="slide-title">Log Management: <span class="accent">What You Now Know</span></div>
+
+        <div class="scenario-strip">
+            You can now reconstruct any incident on your infrastructure. You know how to query journald for the incident window, forward logs reliably to central servers, parse and correlate events across services, and build alerting pipelines that catch problems before users do.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">journald stores structured binary logs. rsyslog handles routing and forwarding. They are complementary -- use both. journald for local investigation, rsyslog for centralized collection.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><code>journalctl --since "2026-04-09 02:40" --until "2026-04-09 03:00" -p err</code> is the first command to run during any incident investigation.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Enable persistent journald storage: <code>mkdir /var/log/journal</code>. Without this, logs are lost on reboot and you lose your post-incident evidence.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">rsyslog forwarding over TCP with a disk queue is the production standard. Without a disk queue, messages are lost when the remote server is down.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Use facility <code>local0..local7</code> for your applications. Route them to dedicated files. Never write everything to /var/log/syslog -- it becomes unsearchable.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Forward logs off the source node in real time. A local-only log that an attacker can delete is not an audit trail -- it is a suggestion.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Log format matters. JSON output from applications enables automated parsing and SIEM ingestion. Unstructured text logs require regex extraction that is fragile.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Design retention tiers before an incident. Hot (local, 30 days), warm (central, 90 days), cold (archive, compliance period). The decision cannot be made retroactively.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">An unmonitored log is the same as no log. Automated daily review with logwatch plus threshold-based alerting ensures logs are actually used, not just collected.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w4-logs', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

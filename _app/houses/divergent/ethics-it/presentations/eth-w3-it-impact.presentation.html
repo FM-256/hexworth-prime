@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT and Society | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0010 0%, #0d0018 50%, #0f001e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 0, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #cc00cc; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8ff; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e0030; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">IT and Society | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ETH-W3B &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; Chapter 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                IT and<br>
+                <span class="accent">Society</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Productivity &nbsp;&bull;&nbsp; AI Workforce Impact &nbsp;&bull;&nbsp; Digital Divide &nbsp;&bull;&nbsp; Algorithmic Bias &nbsp;&bull;&nbsp; IBM Watson
+            </div>
+        </div>
+        <div class="scenario-strip">
+            In 2013, MD Anderson Cancer Center partnered with IBM to deploy Watson for Oncology -- an AI system that would help oncologists identify cancer treatment options. By 2017, internal documents obtained by STAT News showed Watson was producing "unsafe and incorrect" treatment recommendations. The project was quietly canceled. The question is not whether AI can assist medicine -- it can. The question is what obligations exist when we deploy systems we do not yet fully understand in domains where errors kill people.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ETH-W3B</span>
+            <span>Week 3 of 8</span>
+            <span>Chapter 8</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- IT AND PRODUCTIVITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">IT and <span class="accent">Productivity</span></div>
+        <div class="slide-subtitle">The relationship between information technology investment and economic productivity is more complicated than the popular narrative suggests.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Productivity Paradox</div>
+                <div class="card-desc">Robert Solow observed in 1987: "You can see the computer age everywhere but in the productivity statistics." Despite massive IT investment throughout the 1970s and 1980s, aggregate productivity growth was slow. Later analyses suggested benefits did materialize in the 1990s -- but with a significant lag between investment and measurable economic output.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Measurement Problems</div>
+                <div class="card-desc">GDP and traditional productivity measures may undercount IT's benefits. A word processor eliminated secretarial labor but also enabled individuals to do more. Email eliminated letter-writing time but also created new time demands. The real productivity impact may be in quality improvements and new categories of value that GDP does not capture well.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Uneven Distribution</div>
+                <div class="card-desc">Productivity gains from IT are not distributed uniformly. Organizations with strong complementary investments -- training, process redesign, management practices -- capture more benefit than those that merely install technology. The productivity effect of IT is contingent on organizational capability, not a property of the technology itself.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Ethical Dimension</div>
+            If IT productivity gains accrue primarily to capital owners and high-skill workers while displacing lower-skill workers, the technology is not neutral. The distribution of productivity gains -- not just their aggregate size -- is an ethical question about who bears the cost of technological transition and who captures its benefits.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- AUTOMATION AND WORKFORCE HISTORY ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Automation: <span class="accent">Historical Pattern</span></div>
+        <div class="slide-subtitle">Every major wave of automation created new jobs while destroying old ones. Whether this pattern holds for AI is genuinely contested.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Agricultural Mechanization</div>
+                <div class="card-desc">The mechanical harvester and tractor displaced millions of farm laborers over the 19th and 20th centuries. US farm employment fell from 40% of the workforce in 1900 to under 2% today. Workers displaced from agriculture moved to manufacturing and services. The transition took generations and involved enormous human hardship that is largely absent from the optimistic historical narrative.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Industrial Automation</div>
+                <div class="card-desc">Computer Numerical Control (CNC) machines, assembly line robots, and automated quality inspection eliminated manufacturing jobs that had sustained the postwar middle class. Manufacturing employment as a percentage of US workforce peaked in the 1950s and declined steadily. The geographical concentration of these losses -- in the Rust Belt, in former industrial cities -- produced lasting social and political consequences.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Information Technology</div>
+                <div class="card-desc">ATMs did not eliminate bank tellers -- they actually increased teller employment, because lower branch costs enabled more branches. Word processors displaced typists but created desktop publishing. The internet displaced travel agents but created entire industries in search, e-commerce, and digital media. New categories of work emerged. But they were not the same jobs, in the same places, for the same people.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- AI AND ROBOTICS: THE CURRENT WAVE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">AI and Robotics: <span class="accent">The Current Wave</span></div>
+        <div class="slide-subtitle">What makes the current wave of AI-driven automation potentially different from previous waves of technological displacement.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Cognitive Work Is Now Automatable</div>
+                <div class="card-desc">Previous automation waves displaced physical and routine cognitive tasks. AI systems can now perform non-routine cognitive tasks -- legal research, medical image analysis, financial forecasting, written communication. The category of "safe from automation" has shrunk significantly and continues to shrink. For the first time, highly educated knowledge workers face displacement alongside manual workers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Speed of Transition</div>
+                <div class="card-desc">Agricultural displacement took generations. Industrial displacement took decades. AI capabilities are doubling in capability metrics on a two-to-three year cycle. Social and educational institutions that adapted to previous transitions over generations do not adapt this fast. The transition speed may outpace societies' capacity to respond without significant harm to displaced workers.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Geographic and Demographic Concentration</div>
+                <div class="card-desc">AI benefits accrue primarily to owners of AI systems and workers who use AI effectively. Displacement falls on workers in roles AI replaces. These two groups are not randomly distributed -- they differ systematically by education level, age, geographic location, and industry. The distributional pattern of AI's impact is not an accidental side effect; it is a predictable consequence of where AI capability currently sits.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Augmentation Counter-Argument</div>
+                <div class="card-desc">MIT economist David Autor and others argue that AI is more likely to augment workers than replace them -- raising productivity in existing roles rather than eliminating them. Radiologists using AI can read more scans with higher accuracy. Lawyers using AI can review more documents faster. The question is whether the augmentation benefits are captured by workers or redirected to owners through reduced headcount and wages.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- WORKFORCE ETHICS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Workforce <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">Organizations and technologists who deploy automating AI systems have ethical obligations to the workers whose livelihoods are affected.</div>
+
+        <div class="scenario-strip">
+            A regional bank uses AI to automate loan processing, eliminating 200 back-office positions. The AI is more accurate and faster than the human processors. The bank's profits increase. The 200 displaced workers -- average age 47, with specialized skills not easily transferable -- face unemployment in a labor market that does not have equivalent positions available. Is the decision to deploy ethically neutral because the AI performs better? Does better performance justify the transition cost to workers who did not choose it?
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Efficiency Justification</div>
+                <div class="card-desc">Standard economic argument: automation increases efficiency, reduces costs, lowers prices for consumers, creates new industries. The displaced workers will retrain and find new employment. This argument is true in aggregate and over long time horizons. It is less compelling as an ethical justification for specific organizations choosing to displace specific workers, particularly when the benefits accrue to shareholders and the costs are externalized to workers and the social safety net.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Responsible Transition Practices</div>
+                <div class="card-desc">Organizations making automation decisions can provide: advance notice (not required in the US beyond WARN Act minimums), retraining assistance (AT&T's "Future Ready" program invested $1 billion in reskilling 100,000 employees), severance packages above legal minimums, and internal mobility programs that match displaced workers to new roles before external hiring. These practices are not legally required -- they are ethically driven.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Policy and Collective Responsibility</div>
+                <div class="card-desc">Individual organizations cannot solve structural displacement. Proposals include: expanded unemployment insurance, education and retraining programs funded by automation taxes, portable benefits not tied to specific employment, and updated labor laws that reflect gig and platform work realities. The ethics of automation cannot be fully addressed at the organizational level -- it requires collective policy responses that distribute transition costs more equitably.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- HEALTHCARE IT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Healthcare <span class="accent">IT</span></div>
+        <div class="slide-subtitle">Information technology in healthcare creates extraordinary opportunities to improve patient outcomes -- and equally extraordinary opportunities to cause harm.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Electronic Health Records</div>
+                <div class="card-desc">EHR systems enable care coordination across providers, reduce duplicate testing, provide allergy and medication interaction alerts, and create data infrastructure for population health analytics. The transition from paper to EHR has genuinely improved care in documented ways. It has also created new categories of error: copy-paste errors, alert fatigue, and physician burnout from administrative burden.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Interoperability and Data Silos</div>
+                <div class="card-desc">Despite decades of standards work (HL7, FHIR), healthcare data remains fragmented across incompatible systems. A patient who sees providers at different health systems has fragmented records. Emergency physicians treating unconscious patients often cannot access their medical history. This fragmentation is not a technical problem -- it is a combination of commercial competition, regulatory failure, and insufficient political will to mandate interoperability.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Medical Device Security</div>
+                <div class="card-desc">Connected medical devices -- infusion pumps, ventilators, cardiac monitors -- represent an attack surface in the most vulnerable environments. Cybersecurity vulnerabilities in medical devices have been documented by researchers and acknowledged by the FDA. The intersection of patient safety and cybersecurity creates obligations that are both technical and ethical: healthcare organizations cannot treat medical device security as an optional expenditure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Telemedicine and Access</div>
+                <div class="card-desc">The COVID-19 pandemic accelerated telemedicine adoption dramatically. Telemedicine can extend care to rural areas, reduce barriers for patients with transportation or mobility limitations, and enable more frequent monitoring of chronic conditions. But it requires broadband access, digital literacy, and appropriate devices -- all of which are unevenly distributed. Telemedicine's benefits are most reachable by patients who need them least.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- IBM WATSON CASE INTRODUCTION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Case Study: <span class="accent">IBM Watson for Oncology</span></div>
+        <div class="slide-subtitle">The gap between AI marketing claims and deployed system performance, and its consequences in a life-or-death domain.</div>
+
+        <div class="scenario-strip">
+            IBM Watson won Jeopardy! in 2011 and became the face of AI's potential to transform knowledge work. IBM marketed Watson for Oncology as capable of processing millions of pages of medical literature to assist oncologists. Dozens of major cancer centers deployed it. Internal IBM documents, obtained by investigative reporting in 2017, described Watson as producing treatment recommendations that were "unsafe and incorrect." Watson had been trained primarily on hypothetical patient cases created by a small number of oncologists at Memorial Sloan Kettering -- not on actual patient outcomes data.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Overpromise Problem</div>
+                <div class="card-desc">IBM's marketing for Watson used language -- "cognitive computing," "understanding," "learning" -- that implied capabilities the system did not have. The gap between the marketed capability and the deployed capability was not a minor technical shortfall. It was the difference between "reads medical literature to assist oncologists" and "was trained on hypothetical cases created by a handful of doctors at one hospital." Misleading performance claims in a medical context is an ethical violation with life-or-death consequences.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Training Data Failures</div>
+                <div class="card-desc">The system was trained on synthetic patient cases curated by oncologists at Memorial Sloan Kettering, not on actual patient outcome data. When deployed in healthcare systems with different patient populations, different drug availability, and different clinical guidelines (particularly overseas), the recommendations were systematically misaligned. The training data was not representative. This is not a Watson-specific failure -- it is a systematic AI deployment failure that repeats across domains.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">What Healthcare Providers Should Have Known</div>
+                <div class="card-desc">Healthcare organizations that purchased Watson for Oncology bear partial responsibility. A rigorous procurement process for AI systems in clinical settings should include: independent validation on representative patient populations, review of training data provenance, clinical trial evidence of outcome improvement, and defined escalation protocols when the AI recommendation conflicts with physician judgment. These due diligence steps were not uniformly applied.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- IBM WATSON LESSONS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">IBM Watson: <span class="accent">Broader Lessons</span></div>
+        <div class="slide-subtitle">Watson for Oncology is a template for AI deployment failures that recurs across domains.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">AI systems must be validated on data that is representative of the deployment population. Training on one hospital's cases and deploying globally is an epistemological and ethical failure, not just a technical miscalculation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Impressive performance on benchmarks (Jeopardy!) does not predict clinical utility. The capabilities required for game-show question answering are fundamentally different from those required for oncology treatment planning.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The reputational and commercial incentives to maintain an AI narrative are strong enough to delay honest reporting of failures even when patient safety is at risk. IBM did not proactively disclose the system's limitations.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Healthcare organizations that deploy AI systems have an independent obligation to validate performance before clinical use. "The vendor said it works" is not adequate due diligence in a domain where errors can kill patients.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">The FDA's regulation of AI-based medical devices as software as a medical device (SaMD) is relevant. Pre-market review requirements exist. Whether they are sufficient to catch Watson-type failures is an ongoing policy debate.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">The failure does not mean AI in oncology is impossible -- it means the Watson deployment failed. AI assistance in radiology, pathology image analysis, and drug discovery has produced documented, validated improvements. The lesson is about validation standards, not about AI's potential in medicine.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- DIGITAL DIVIDE DEFINED ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">The <span class="accent">Digital Divide</span></div>
+        <div class="slide-subtitle">Unequal access to information and communication technology, and its consequences for economic opportunity and social participation.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Access Divide</div>
+                <div class="card-desc">Whether someone has access to devices, internet connectivity, and software. In the US, 21 million people lack broadband access -- concentrated in rural areas, low-income urban neighborhoods, and tribal lands. Global disparities are far more pronounced. As more essential services migrate online (benefits applications, job applications, education, healthcare), lack of access is not a minor inconvenience -- it is exclusion from modern civic and economic life.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Skills Divide</div>
+                <div class="card-desc">Having a device and connection does not guarantee the ability to use them effectively. Digital literacy -- searching effectively, evaluating source credibility, using productivity software, protecting personal data, avoiding phishing -- requires skills that are unevenly distributed. The skills divide correlates with age, education, and socioeconomic status. Bridging access without bridging skills does not close the divide.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Quality Divide</div>
+                <div class="card-desc">Even among those with access, the quality of that access varies enormously. A household with a 10 Mbps connection shared among five family members, with older devices and a single smartphone, has fundamentally different capability than a household with gigabit fiber and multiple modern computers. Remote learning during COVID-19 made the quality divide visible in ways that access statistics alone obscured.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DIGITAL DIVIDE DIMENSIONS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Digital Divide: <span class="accent">Dimensions</span></div>
+        <div class="slide-subtitle">The divide is not a single gap -- it has multiple intersecting dimensions that reinforce each other.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Geographic</div>
+                <div class="card-desc">Rural broadband infrastructure has historically been underinvested because low population density makes commercial deployment unprofitable. The FCC's E-Rate program and recent Infrastructure Investment and Jobs Act allocations have begun to address this, but deployment timelines for rural fiber are measured in years. In the interim, rural students, job seekers, and telemedicine patients remain disadvantaged.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Socioeconomic</div>
+                <div class="card-desc">Broadband at $60-80/month is not affordable for households at the federal poverty level. The Affordable Connectivity Program (ACP) was providing subsidies to 23 million households before its funding lapsed in 2024. When the program ended, an estimated 23 million households faced the choice of cutting internet access or cutting other necessities. Policy continuity for digital access programs is not guaranteed.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Age</div>
+                <div class="card-desc">Adults over 65 are significantly less likely to use the internet, use smartphones, or have home broadband than younger adults. The shift of government services, healthcare management, financial services, and social connection to digital platforms creates systematic disadvantage for older adults who have not made that transition. This is not a fixed demographic characteristic -- it will shift as digitally native generations age.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disability</div>
+                <div class="card-desc">Accessibility is an underappreciated dimension of the digital divide. Screen readers, voice control, and captioning technology enable digital participation for people with visual, motor, and hearing impairments -- when implemented. The Web Content Accessibility Guidelines (WCAG) provide standards, but compliance is inconsistent. Digital inaccessibility is not just inconvenience -- for people with certain disabilities, it is the difference between independence and dependence on others for basic tasks.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- ETHICAL OBLIGATIONS: DIGITAL DIVIDE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Digital Divide: <span class="accent">Ethical Obligations</span></div>
+        <div class="slide-subtitle">Who is obligated to address digital inequality -- and what does that obligation require in practice?</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Government Obligations</div>
+                <div class="card-desc">As governments migrate essential services -- benefits, taxes, healthcare, voting -- to digital platforms, they incur obligations to ensure all citizens can access those platforms. A government that requires digital filing but does not ensure digital access has transferred its administrative costs onto citizens who cannot bear them. Universal service obligations that apply to telephone service should arguably extend to broadband.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Technology Company Obligations</div>
+                <div class="card-desc">Companies that profit from digital services profit more as the population of digital users expands. This creates a commercial alignment between access expansion and revenue growth that supports investment in connectivity programs. Google's Project Loon (stratospheric balloon internet), Starlink's low-earth-orbit broadband, and Meta's internet.org initiative all reflect this alignment -- as well as the complications of commercial entities controlling public communication infrastructure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IT Professional Obligations</div>
+                <div class="card-desc">Software and system designers make choices that determine who can effectively use technology. Designing for minimum viable accessibility -- rather than best achievable accessibility -- systematically excludes people who cannot use the dominant interface. ACM's Code of Ethics (Principle 1.4) explicitly requires that computing professionals ensure technology is accessible to all potential users, including those with disabilities and limited resources.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- ALGORITHMIC BIAS DEFINED ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title"><span class="accent">Algorithmic Bias</span></div>
+        <div class="slide-subtitle">When automated systems produce outcomes that systematically disadvantage certain groups, often without explicit discriminatory intent.</div>
+
+        <div class="scenario-strip">
+            Amazon built a machine learning tool to screen resumes for software engineering positions, trained on ten years of hiring data. In 2018, the company discovered the system was systematically downgrading resumes containing the word "women's" (as in "women's chess club") and downgrading graduates of all-women's colleges. The system had learned that successful candidates in the historical data were predominantly male. It then replicated that historical pattern -- labeling it meritocracy. Amazon scrapped the tool.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Historical Bias in Training Data</div>
+                <div class="card-desc">ML systems trained on historical decisions inherit the biases of those decisions. If historical lending data reflects discriminatory lending practices, a model trained to predict creditworthiness will predict "bad credit risk" for demographics that were discriminated against historically -- and it will call this prediction objective, because it is based on "data." The bias is real; only its source and visibility have changed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Proxy Discrimination</div>
+                <div class="card-desc">Laws prohibit using protected characteristics (race, gender, religion) in lending, hiring, and criminal justice. But variables that are not protected characteristics can serve as proxies for protected ones. Zip code correlates with race due to historical housing segregation. Certain hobbies and vocabulary patterns correlate with gender. Using these proxies in automated systems produces discriminatory outcomes without using the protected characteristic directly -- and thus evades existing legal frameworks.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Automation Bias Problem</div>
+                <div class="card-desc">Humans tend to trust algorithmic outputs more than equivalent human judgments, even when the algorithm is demonstrably wrong. A judge who receives an algorithmic risk score is more likely to follow it than to override it. A hiring manager who receives an AI ranking is less likely to question it than a human recruiter's list. Automation bias means algorithmic errors propagate with less challenge than human errors -- increasing, not decreasing, the harm from bias.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- COMPAS AND CRIMINAL JUSTICE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Case: <span class="accent">COMPAS and Criminal Justice</span></div>
+        <div class="slide-subtitle">Algorithmic risk assessment tools in criminal justice and their documented racial disparities.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What COMPAS Is</div>
+                <div class="card-desc">COMPAS (Correctional Offender Management Profiling for Alternative Sanctions) is a proprietary risk assessment tool used by courts in multiple US states to assess the likelihood of a defendant reoffending. The score is used in bail, sentencing, and parole decisions. A 2016 ProPublica analysis of Broward County, Florida data found that the tool incorrectly flagged Black defendants as high-risk at nearly twice the rate it incorrectly flagged White defendants as high-risk.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Accuracy vs. Fairness Tension</div>
+                <div class="card-desc">Northpointe (COMPAS's creator) responded that the algorithm is equally accurate across racial groups as measured by overall accuracy. This is technically true -- but ProPublica's analysis showed the error types were distributed unequally. The algorithm was equally accurate in the aggregate by making more false-positive errors for Black defendants and more false-negative errors for White defendants. Mathematical definitions of fairness can conflict: a system cannot simultaneously satisfy all definitions when base rates differ between groups.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Transparency Problem</div>
+                <div class="card-desc">COMPAS is proprietary. Defendants whose bail or sentencing was influenced by a COMPAS score cannot obtain the algorithm or its weights for independent review. In State v. Loomis (2016), the Wisconsin Supreme Court upheld the use of COMPAS scores in sentencing while acknowledging that the defendant could not challenge the algorithm's calculations directly. The due process implications of secret algorithms making decisions about liberty remain an active area of litigation and policy debate.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Possible Responses</div>
+                <div class="card-desc">Options that have been proposed: mandatory disclosure of algorithm details for systems used in public decision-making, algorithmic impact assessments before government deployment, bias audits conducted by independent third parties, prohibition of high-stakes algorithmic decision-making without human review, and shifting the burden of proof so that algorithms must demonstrate fairness before deployment rather than after harm is documented.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- FACIAL RECOGNITION AND BIAS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Facial Recognition <span class="accent">and Bias</span></div>
+        <div class="slide-subtitle">A domain where algorithmic bias intersects directly with police power and civil liberties.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The MIT Media Lab Findings</div>
+                <div class="card-desc">Joy Buolamwini's Gender Shades study (2018) tested facial recognition systems from IBM, Microsoft, and Face++ on a benchmark dataset. Error rates for dark-skinned women were up to 34 percentage points higher than for light-skinned men. The systems were most accurate for the demographic most represented in training data (white men) and least accurate for the least represented demographic (dark-skinned women). This is not a theoretical risk -- it is a documented, measured disparity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">False Identification Consequences</div>
+                <div class="card-desc">Robert Williams was arrested in Detroit in January 2020 based on a facial recognition match. He was innocent. The technology had identified the wrong person. He spent 30 hours in jail before investigators acknowledged the error. Williams and attorneys noted that the detective was using a blurry still from surveillance video and accepted the automated match without independent corroboration. Facial recognition in law enforcement functions as an investigative lead -- but it is frequently treated as evidence.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Ban vs. Regulate Debate</div>
+                <div class="card-desc">Cities including San Francisco, Boston, and Portland have banned government use of facial recognition. The EU AI Act classifies real-time remote biometric identification in public spaces as a prohibited AI practice with narrow exceptions. Arguments for regulation rather than prohibition: the technology can be validated to a higher standard for specific use cases. Arguments for prohibition: the harms from error in a law enforcement context are severe, irreversible, and disproportionately fall on already-marginalized communities.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- WHAT WOULD YOU DO: BIAS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Algorithmic bias scenarios. Consider both the technical response and the ethical obligations.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are a data scientist at a bank. During model validation, you discover that your credit scoring model has a disparate impact on Latino applicants -- not because the model uses ethnicity, but because it uses zip code, and the zip codes with the lowest scores map almost entirely onto historically Latino neighborhoods. The model's overall accuracy is strong. Do you deploy it? What do you do? What law may be relevant?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            Your company sells a sentiment analysis AI to a large employer for use in employee feedback surveys. Six months after deployment, HR data shows that negative feedback is being flagged at a higher rate for employees who write in non-standard English. The employer is using this data in performance reviews. You suspect the model was not trained on sufficiently diverse language. What is your obligation to the employer? To the employees who are being harmed?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            A city government wants to use your predictive policing software, which flags high-risk neighborhoods for increased patrol deployment. Your internal analysis shows the system perpetuates existing patrol distribution rather than identifying genuinely higher-risk areas. The city's police chief says it will improve public safety. What do you say? Do you accept the contract?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- AI IN HIRING ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">AI in <span class="accent">Hiring</span></div>
+        <div class="slide-subtitle">Automated hiring tools can scale screening dramatically -- and scale bias just as dramatically.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Resume Screening Tools</div>
+                <div class="card-desc">AI resume screening tools are used by the majority of Fortune 500 companies. They filter applicants before any human sees a resume. When these tools are trained on historical hiring data from organizations with documented diversity gaps, they perpetuate and scale those gaps. The Amazon case is the most publicized example, but the underlying dynamic is widespread. Many organizations do not audit their screening tools for disparate impact.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Video Interview Analysis</div>
+                <div class="card-desc">Tools that analyze facial expressions, vocal tone, and word choice during recorded video interviews to score candidates on personality traits and "culture fit" have been marketed to employers. Multiple researchers have found no validated evidence that these analyses predict job performance. When applied at scale, tools that assess body language and accent introduce systematic barriers for neurodivergent candidates, non-native speakers, and people from cultures with different norms for eye contact and emotional expression.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">NYC Local Law 144</div>
+                <div class="card-desc">New York City's Local Law 144 (effective 2023) requires employers using automated employment decision tools to conduct bias audits performed by independent third parties and to disclose to candidates that such tools are being used. This is the first US law directly regulating AI in hiring. It provides a template that other jurisdictions are considering. The law's enforcement teeth are limited -- penalties are modest and compliance is self-reported -- but it establishes a disclosure norm.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Toward Fair Hiring AI</div>
+                <div class="card-desc">Best practices emerging from research and advocacy include: auditing for disparate impact before deployment, using diverse training data, providing explainability for adverse outcomes (why was this candidate rejected?), maintaining human review of automated decisions, and specifically testing tools on populations that differ from the majority training population. These practices exist. They are not universally applied. The gap between available practice and common practice is an ethical failure of the industry.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- CONTENT MODERATION AT SCALE ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Content Moderation <span class="accent">at Scale</span></div>
+        <div class="slide-subtitle">The impossible problem of moderating billions of pieces of content while balancing free expression, user safety, and commercial interests.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Scale Problem</div>
+                <div class="card-desc">Facebook processes over 100 billion pieces of content per day. No human review system can operate at that scale. Automated systems must do the initial filtering. But automated systems make errors -- false positives (removing permitted content) and false negatives (allowing harmful content). Both types of errors have real-world consequences. At Facebook's scale, even a 0.1% error rate represents 100 million incorrect decisions per day.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Human Cost of Moderation</div>
+                <div class="card-desc">Human content reviewers are exposed to the most disturbing content on the internet -- child exploitation, graphic violence, genocide documentation, animal abuse -- at high volume, for low pay, with inadequate psychological support. Facebook's content moderators in Nairobi, Kenya filed a class action lawsuit in 2022 documenting rates of PTSD consistent with combat veterans. The business model of large platforms depends on this labor. Its human cost is largely invisible to users.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Differential Enforcement</div>
+                <div class="card-desc">Content moderation systems consistently perform differently across languages, geographies, and communities. Arabic-language political content is moderated at higher rates than equivalent English-language content. Academic research on systemic violence is moderated more aggressively than the actual content being studied. LGBTQ+ health information is moderated as sexually explicit in some configurations. These differential enforcement patterns have documented consequences for information access by marginalized communities.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- SURVEILLANCE CAPITALISM ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title"><span class="accent">Surveillance Capitalism</span></div>
+        <div class="slide-subtitle">The economic model of collecting behavioral data at scale and converting it into predictive products sold to advertisers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What Surveillance Capitalism Is</div>
+                <div class="card-desc">Shoshana Zuboff's term for the dominant business model of major platforms: collect behavioral data from users (what they click, read, where they go, who they know, when they are awake), build predictive models of future behavior, sell access to those predictions to advertisers and other third parties. The user is not the customer -- they are the raw material from which the product (behavioral prediction) is manufactured.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Consent Fiction</div>
+                <div class="card-desc">Terms of service that users "agree to" by continuing to use a platform are not meaningful consent in any morally relevant sense. Documents that are thousands of words long, written in legal language, and require agreement as a condition of accessing a service that has become socially and economically essential do not meet the informed, voluntary, specific, and unambiguous consent standard that GDPR and ethical theory require. The consent framework is formal without being substantive.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Behavioral Modification</div>
+                <div class="card-desc">Zuboff argues that surveillance capitalism does not merely predict behavior -- it seeks to modify it. If platforms can predict that showing you content X makes you more likely to click an ad for product Y, they have an incentive to show you content X. Recommendation algorithms optimized for engagement time converge on emotionally stimulating content, because emotionally stimulated users spend more time on platform. The modification of behavior is built into the optimization function -- not as a side effect, but as a design goal.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Regulatory Responses</div>
+                <div class="card-desc">GDPR (EU) requires lawful basis for processing personal data, purpose limitation, and data minimization. The California Consumer Privacy Act (CCPA) gives California residents the right to know what data is collected, to opt out of its sale, and to request deletion. These frameworks impose real compliance costs and have produced real changes in practice -- cookie consent banners are the most visible symptom. Whether they address surveillance capitalism's structural incentives or merely regulate its surface is debated.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- AI AND HEALTHCARE: BEYOND WATSON ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">AI in Healthcare: <span class="accent">Beyond Watson</span></div>
+        <div class="slide-subtitle">Where AI assistance in healthcare is delivering validated results -- and where the ethical obligations remain the same.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Medical Imaging</div>
+                <div class="card-desc">Google's DeepMind demonstrated that its AI system could detect over 50 eye diseases from retinal scans with accuracy matching expert ophthalmologists. Multiple studies have validated AI systems in pathology, radiology, and dermatology that match or exceed specialist accuracy on specific defined tasks. The key distinction from Watson: these systems were validated on prospective clinical trials, not on hypothetical training cases. The validation standard is what distinguishes ethical AI deployment from irresponsible hype.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Drug Discovery</div>
+                <div class="card-desc">AI systems have successfully identified drug candidates that traditional screening would have missed. DeepMind's AlphaFold2 solved the protein folding problem with accuracy that has accelerated structural biology and drug target identification across the field. These applications have limited direct patient harm potential (decisions are made with extensive subsequent validation) and represent appropriate uses of AI capabilities in the research pipeline rather than in direct clinical decision-making.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Persistent Ethical Obligations</div>
+                <div class="card-desc">Even for validated AI healthcare applications, ethical obligations persist: training data must be representative of the patient population; performance must be monitored after deployment for distribution shift; clinicians must maintain independent judgment rather than deferring to algorithmic outputs; patients must be informed when AI-assisted tools are used in their care; and failures must be reported and investigated under the same framework as other medical errors. Validation at deployment is not a permanent certification.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- ROBOTS IN THE WORKPLACE ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Robotics in the <span class="accent">Workplace</span></div>
+        <div class="slide-subtitle">Physical automation in warehouses, manufacturing, and logistics -- and the ethical questions it raises about human dignity and labor.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Amazon and Warehouse Automation</div>
+                <div class="card-desc">Amazon's fulfillment centers use Kiva robots (now Amazon Robotics) for inventory movement, reducing the walking workers do. But workers report increased pace-of-work demands, mandatory productivity rates that require near-constant motion, and injury rates that exceed industry averages. The robots did not replace the workers -- they changed the work into something more physically demanding and more algorithmically monitored. Automation in physical labor does not necessarily make work safer or more humane.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Algorithmic Management</div>
+                <div class="card-desc">Algorithmic management systems set productivity targets, monitor performance in real time, issue warnings, and make termination recommendations -- with limited human review. Amazon warehouse workers have reported receiving automated termination notices for missing productivity targets without human supervisors being meaningfully involved in the decision. This is the employment equivalent of algorithmic criminal sentencing: consequential decisions about people's lives made by systems with no accountability structure and no mechanism for individual circumstances to be considered.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Human Dignity in Automated Workplaces</div>
+                <div class="card-desc">Labor ethics has long held that work should respect human dignity -- that people are not instruments to be optimized but persons with autonomy, rest needs, and the right to be treated as ends rather than means. An automated workplace that monitors bathroom break length, requires workers to wear biometric trackers, and issues disciplinary actions based on algorithm output without human judgment raises genuine questions about whether the efficiency gains are purchased at the cost of human dignity that workplaces are obligated to preserve.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Collaborative Robotics</div>
+                <div class="card-desc">Cobots -- collaborative robots designed to work alongside humans rather than replace them -- represent a different design philosophy. Cobot systems are designed to handle physically hazardous, repetitive, or ergonomically stressful tasks while leaving the judgment-intensive, variable, and social dimensions of work to humans. Whether this design philosophy dominates depends on economic incentives that do not automatically favor it. Design choices for automation are ethical choices.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- GENERATIVE AI AND CREATIVE WORK ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Generative AI and <span class="accent">Creative Work</span></div>
+        <div class="slide-subtitle">The emergence of AI systems that generate text, images, music, and code raises ethical questions about authorship, compensation, and cultural value.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Training Data and Consent</div>
+                <div class="card-desc">Large language models and image generation systems are trained on vast datasets scraped from the internet without explicit consent from creators. Authors, artists, photographers, and programmers whose work is in the training data did not agree to have their work used to build systems that compete with them commercially. Multiple class action lawsuits are pending. The legal question of whether training on copyrighted works constitutes infringement is unresolved in most jurisdictions.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Labor Displacement in Creative Industries</div>
+                <div class="card-desc">Stock illustration markets have been significantly disrupted by AI image generation. Entry-level writing, copywriting, and content work is increasingly handled by AI systems. Voice actors have seen work displaced by voice synthesis. These are not hypothetical future risks -- they are current market realities being experienced by workers in the creative economy right now. The affected workers did not consent to having their work used to train the systems displacing them.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Compensation Question</div>
+                <div class="card-desc">Proposals for addressing the training data consent and compensation problem include: opt-in rather than opt-out consent for training data, a levy on AI system revenues distributed to creators whose work was used in training, licensing agreements between AI developers and creator collectives, and technical systems that track attribution at the training level. None of these solutions has been widely adopted. The current default -- train on everything, pay no one -- may not survive legal challenge.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- AI ENVIRONMENTAL IMPACT ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">AI <span class="accent">Environmental Impact</span></div>
+        <div class="slide-subtitle">The energy and resource costs of large-scale AI training and inference, and the ethical obligations they create.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Training Costs</div>
+                <div class="card-desc">Training a large language model consumes energy equivalent to hundreds of transatlantic flights. GPT-3's training run was estimated to require approximately 1,287 MWh of electricity, producing roughly 552 tons of CO2 equivalent. Larger subsequent models have higher costs. These costs are borne by the global environment but are not priced into the commercial value of the resulting models. This is a classic externality problem with an ethical dimension.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Water Consumption</div>
+                <div class="card-desc">Data center cooling requires enormous amounts of water. Microsoft's AI infrastructure consumed 1.7 million gallons of fresh water for cooling purposes in a single month in 2023, in a region experiencing drought conditions. Google's data centers used approximately 5.6 billion gallons of water in 2022. The siting of data centers in regions with water stress is an environmental justice issue: communities that already face water scarcity bear the marginal burden of AI infrastructure without capturing its economic benefits.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">E-Waste</div>
+                <div class="card-desc">The hardware required for AI training (GPUs, TPUs, specialized accelerators) has short useful lifespans at the frontier -- newer architectures are substantially more efficient, creating pressure to retire working hardware. AI-grade hardware contains rare earth elements, lead, cadmium, and mercury. When disposed of improperly -- which the majority of global e-waste is -- these materials leach into soil and water in the communities where informal recycling occurs, primarily in low-income countries.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Efficiency Counter-Trend</div>
+                <div class="card-desc">AI can also reduce environmental impact: optimizing grid energy routing, reducing food waste through supply chain prediction, accelerating materials discovery for batteries and solar cells, and improving building energy management. The net environmental impact of AI is not fixed -- it depends on where and how AI capability is applied. The ethical question is not whether to use AI but how to ensure its environmental costs are counted and its environmental applications are prioritized.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ALGORITHMIC DECISION-MAKING IN GOVERNMENT ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Algorithmic Decisions <span class="accent">in Government</span></div>
+        <div class="slide-subtitle">When public agencies use automated systems to make consequential decisions about citizens, due process and equal protection obligations apply.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Child Welfare Prediction</div>
+                <div class="card-desc">Multiple US counties use predictive risk scoring to inform child abuse investigation and removal decisions. A 2021 analysis of the Allegheny Family Screening Tool found it assigned higher risk scores to Black children controlling for poverty. Removal from a family is one of the most consequential actions government can take. An algorithmic input into that decision that is racially biased -- even as a proxy -- raises serious constitutional and ethical concerns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Public Benefits Administration</div>
+                <div class="card-desc">Indiana deployed an IBM automated benefits eligibility system in 2009 that automatically denied claims for minor documentation issues. Over 1 million people had their food assistance, Medicaid, or cash assistance terminated without meaningful human review. The state eventually canceled the contract. Arkansas deployed an algorithmic Medicaid allocation system that significantly cut home care hours for people with disabilities without explanation. Courts ordered the state to provide explanations -- a due process requirement that algorithmic systems by default fail to satisfy.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Explainability Requirement</div>
+                <div class="card-desc">Due process requires that when government takes adverse action against an individual, the individual receives an explanation and an opportunity to contest it. Algorithmic systems that deny benefits or flag risks without explainable reasoning -- "the algorithm said so" -- fail this requirement. The EU AI Act's prohibition on unexplainable decisions in high-stakes public contexts is a response to this problem. US law addresses it less systematically, but courts have found due process violations in specific algorithmic benefit denial cases.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- RESPONSIBLE AI FRAMEWORKS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Responsible AI <span class="accent">Frameworks</span></div>
+        <div class="slide-subtitle">Emerging frameworks for evaluating and governing AI systems in high-stakes contexts.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">EU AI Act</div>
+                <div class="card-desc">First comprehensive AI regulation enacted by a major jurisdiction (2024). Classifies AI systems by risk level: unacceptable (prohibited -- social scoring by governments, real-time biometric surveillance in public), high-risk (requires conformity assessment, bias auditing, human oversight -- medical devices, hiring, credit, critical infrastructure), limited risk (transparency requirements), and minimal risk (no requirements). Sets a global compliance template for multinationals.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NIST AI Risk Management Framework</div>
+                <div class="card-desc">Voluntary US framework for managing AI risks across the AI lifecycle. Four core functions: Govern (organizational culture and accountability), Map (identify and categorize risks), Measure (analyze and assess risks), Manage (prioritize and respond to risks). Analogous to the NIST Cybersecurity Framework in structure. Increasingly referenced in government AI procurement requirements. Voluntary status limits its impact outside government contracting.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Algorithmic Impact Assessments</div>
+                <div class="card-desc">Modeled on environmental impact assessments. Before deploying an AI system in a high-stakes context, conduct a structured analysis of: who is affected, what harms could occur, how likely and severe those harms are, what groups are disproportionately exposed, what mitigation is in place, and who should have oversight. The Canadian Directive on Automated Decision-Making requires AIAs for federal government systems. Several US cities and states have proposed or enacted similar requirements.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AI Ethics Principles Comparison</div>
+                <div class="card-desc">IEEE, ACM, Google, Microsoft, IBM, and the European Commission have all published AI ethics principles. Despite different sources, they converge on similar themes: fairness and non-discrimination, transparency and explainability, accountability and human oversight, privacy and security, and safety. The challenge is not lack of principles -- it is the gap between published principles and deployed systems. Principles without enforcement mechanisms are aspirational documents, not operational constraints.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- WHAT WOULD YOU DO: DEPLOYMENT ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">AI deployment scenarios. The decisions you make as a practitioner have consequences for real people.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are an ML engineer at a company that sells predictive analytics to insurance companies. Your model predicts health insurance risk with high accuracy. A civil rights organization contacts your company claiming the model has disparate impact on Black applicants. Your legal team says you are not in violation of current law because you do not use race as a variable. What is your ethical obligation beyond legal compliance?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            Your company is considering deploying a generative AI chatbot to handle customer service inquiries for a bank. The chatbot will handle questions about account balances, dispute resolution, and loan applications. It occasionally hallucinates -- confidently states incorrect information. Management says the error rate is below the threshold for human agents in the same role. Do you deploy it? What safeguards are required? What disclosures are owed to customers?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            You are a senior IT manager at a hospital. A vendor is offering an AI sepsis prediction tool that flags patients at risk of sepsis 6 hours before standard clinical indicators appear. Independent studies show it reduces sepsis mortality by 18%. It also generates 40% false positive alerts. Nurses report alert fatigue is affecting their response to all alerts, including correct ones. The harm from alert fatigue may offset the benefit from early detection. How do you decide? What additional information do you need?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- THE FUTURE OF WORK ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">The <span class="accent">Future of Work</span></div>
+        <div class="slide-subtitle">Competing scenarios for AI's impact on employment -- and the ethical obligations that each scenario implies.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Augmentation Scenario</div>
+                <div class="card-desc">AI serves as a productivity multiplier for all workers, raising wages by increasing output per worker, creating new high-value tasks that require human judgment, and enabling workers to focus on more meaningful work while AI handles routine cognitive tasks. McKinsey estimates this scenario requires successful redeployment of displaced workers into new tasks within their existing organizations or new ones. The transition requires active investment in worker adaptation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Displacement Scenario</div>
+                <div class="card-desc">AI replaces workers at sufficient scale to create structural unemployment that the labor market does not absorb through new job creation. The benefits accrue to owners of AI systems, while workers bear costs through unemployment, wage suppression, and precarious employment. This scenario requires policy responses -- expanded social insurance, education investment, possibly universal basic income -- that exceed current political will in most countries.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Polarization Scenario</div>
+                <div class="card-desc">The most commonly documented actual outcome of automation: AI is most likely to automate middle-skill, routine tasks -- both cognitive and physical. High-skill, non-routine cognitive tasks (design, strategy, complex judgment) are less automatable currently. Low-skill, non-routine physical tasks (cleaning, care work, skilled trades) are expensive to automate physically. The middle is hollowed out. This polarization has been documented as a driver of income inequality growth in OECD countries over the past 30 years.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- BROADBAND AND CIVIC PARTICIPATION ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Broadband and <span class="accent">Civic Participation</span></div>
+        <div class="slide-subtitle">When civic life migrates online, the digital divide becomes a participation gap with democratic consequences.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">COVID-19 as a Case Study</div>
+                <div class="card-desc">During the pandemic, remote work, remote education, telehealth, and government service access all migrated primarily or entirely online. Households without reliable broadband were excluded from the dominant channels for employment, education, healthcare, and social connection simultaneously. The pandemic did not create the digital divide -- it made its consequences catastrophic at a moment when everyone's ability to function in society depended on connectivity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Online Government Services</div>
+                <div class="card-desc">The IRS Free File program for tax preparation, state unemployment insurance systems, Medicaid enrollment, Social Security applications, SNAP benefits management -- all have primary or exclusive digital interfaces. These are not optional services for most recipients. When the government migrates services to digital platforms without ensuring universal access, it has effectively used the digital divide as a mechanism to reduce program utilization -- a consequential policy choice that is rarely described as such.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Online Voter Registration and Misinformation</div>
+                <div class="card-desc">Most US states offer or require online voter registration. This is a genuine access improvement for most citizens and a barrier for citizens without consistent internet access. Separately, digital information environments are the primary channel for political misinformation -- and the groups most vulnerable to misinformation (less digital literacy, less exposure to diverse sources) are systematically different from those who created and benefit from the systems. Democratic participation has an information infrastructure that is not equally accessible.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Proposals for Universal Broadband</div>
+                <div class="card-desc">The Infrastructure Investment and Jobs Act (2021) allocated $65 billion for broadband deployment and affordability. Rural broadband cooperatives, municipal broadband networks, and tribal broadband programs provide models for non-commercial deployment. FCC redefinition of "broadband" to require 100/20 Mbps speeds is designed to raise the floor of what counts as adequate access. Whether the current investment level is sufficient to close the access gap -- let alone the skills and quality gaps -- is contested among researchers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- SUMMARY OF KEY CASES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Key Cases: <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">The cases covered in this module and the ethical principles they illustrate.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">IBM Watson for Oncology: AI marketed beyond its validated capabilities, trained on non-representative data, deployed in a high-stakes clinical setting without adequate independent validation. Principle violated: honesty in performance claims and obligation to validate before deployment in safety-critical contexts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Amazon Resume Screening: Historical bias in hiring data reproduced and scaled by ML. Principle violated: algorithmic systems must be audited for disparate impact before deployment in consequential decision contexts.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">COMPAS: Proprietary risk scoring in criminal justice with documented racial error disparities and no transparency for defendants. Principles violated: explainability and due process in consequential automated decisions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Robert Williams: Wrongful arrest based on facial recognition misidentification. Principle violated: human oversight requirements for AI systems in law enforcement applications with severe consequences for error.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Amazon Warehouse: Physical automation that changed working conditions without eliminating workers, with algorithmic management reducing human judgment in employment decisions. Principle violated: human dignity and due process in employment decisions.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- DIGITAL DIVIDE: GLOBAL DIMENSION ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Digital Divide: <span class="accent">Global Dimension</span></div>
+        <div class="slide-subtitle">The domestic digital divide is significant. The global digital divide is an order of magnitude larger and more consequential.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Global Connectivity Gap</div>
+                <div class="card-desc">As of 2023, approximately 2.6 billion people globally lack internet access -- nearly a third of the world's population. Sub-Saharan Africa has internet penetration below 40%. The benefits of digital economic participation -- remote work, e-commerce, access to global knowledge -- are unavailable to these populations. AI systems trained predominantly on data from connected populations will systematically underperform for populations not represented in that data.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AI and Language Representation</div>
+                <div class="card-desc">Large language models are trained primarily on English text, with significant representation of other European languages and Mandarin. Languages spoken primarily by populations with low internet penetration are dramatically underrepresented. AI systems deployed for translation, information access, or decision-making in these languages perform substantially worse -- creating and reinforcing a two-tier information environment where AI benefits are accessible to high-resource language speakers and not to others.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">AI Governance as a Power Dynamic</div>
+                <div class="card-desc">The organizations that set AI standards, train frontier models, and define AI ethics frameworks are concentrated in the US, EU, and China. Countries in the Global South -- which will bear significant effects of AI deployment -- have minimal voice in governance frameworks. This is not a unique problem to AI: it replicates patterns from internet governance, financial regulation, and trade policy. It is worth naming as an ethical problem even when its solutions are not obvious.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- WHAT GOOD AI GOVERNANCE LOOKS LIKE ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">What Good AI Governance <span class="accent">Looks Like</span></div>
+        <div class="slide-subtitle">The principles that distinguish responsible AI deployment from irresponsible deployment are identifiable and actionable.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Validate before you deploy. Performance claims must be supported by evidence from populations representative of the deployment context. "It worked in our testing environment" is not sufficient for high-stakes deployment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Audit for disparate impact. Before deployment in any context affecting people's access to employment, credit, healthcare, housing, or legal status, conduct a bias audit that specifically tests for differential performance across protected and vulnerable groups.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Maintain human oversight for consequential decisions. Algorithmic recommendations should inform human judgment, not replace it, in contexts where errors have severe consequences and where the affected person has a right to individualized consideration.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Disclose when AI is being used. People affected by AI-assisted decisions have an interest in knowing that an automated system was involved. This enables meaningful challenge and builds warranted (or undermines unwarranted) trust.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Monitor after deployment. Distribution shift, emerging bias patterns, and unintended consequences appear over time. Post-deployment monitoring is not optional -- it is part of the obligation that comes with deploying systems that affect people's lives.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Create accountability structures. Someone must be identifiably responsible for the performance and impact of deployed AI systems. "The algorithm decided" is not an accountable answer. Name the person responsible for the system and the decision to deploy it.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- TECHNOLOGY ETHICS VS TECHNOLOGY DETERMINISM ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Ethics vs. <span class="accent">Determinism</span></div>
+        <div class="slide-subtitle">The framing of technological change as inevitable is itself an ethical and political choice -- not a description of reality.</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Inevitability Narrative</div>
+            Technological change is often described as inevitable: "AI will automate X" and "the digital divide will close as technology spreads" as if these are natural phenomena rather than outcomes of choices made by people with power and interests. This framing is ethically important because it removes agency -- and with it, responsibility. If displacement is inevitable, no one is responsible for the harm to displaced workers. If the divide will close on its own, no one is obligated to accelerate it.
+        </div>
+
+        <div class="card-grid" style="margin-top: 8px;">
+            <div class="card c-red">
+                <div class="card-label">What Is Actually Chosen</div>
+                <div class="card-desc">Which tasks AI replaces vs. augments is a design choice. Which workers receive transition support is a policy choice. Whether training data is representative is a procurement choice. Whether hiring algorithms are audited for bias is a management choice. None of these outcomes is technologically determined. All are chosen. Calling them inevitable is a way of declining responsibility for the choice.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Role of Political Will</div>
+                <div class="card-desc">Most technology policy gaps are not knowledge gaps -- researchers and practitioners understand what good practice looks like. They are political will gaps. Algorithmic impact assessments, bias auditing requirements, worker transition programs, and AI liability frameworks all exist as proposals. Their absence from law is not a knowledge problem. It is a reflection of which interests are successfully represented in policy-making processes.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Practitioner's Agency</div>
+                <div class="card-desc">Individual IT professionals have more agency than technological determinism implies. Design choices, data choices, validation choices, and deployment recommendations are all made by real people. A practitioner who says "this is how the technology works" when the technology is a system they designed has obscured their own agency. Reclaiming that agency is the precondition for exercising ethical responsibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- THE INTERSECTION ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Chapter 8: <span class="accent">The Intersection</span></div>
+        <div class="slide-subtitle">IT impact, the digital divide, algorithmic bias, and workforce displacement are not separate issues -- they intersect and reinforce each other.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Displacement and the Divide</div>
+                <div class="card-desc">Workers displaced by automation who lack digital skills face a double barrier: their jobs were automated, and they cannot easily access the digital resources -- online job boards, online training, digital benefits applications -- that should assist their transition. The digital divide is not just a separate problem from automation displacement. It is a mechanism that makes displacement more harmful for workers who are already disadvantaged.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Bias and the Divide</div>
+                <div class="card-desc">Algorithmic bias disproportionately affects populations that are also more likely to be on the wrong side of the digital divide -- lower income, older, less educated, more geographically isolated. These populations are less likely to have the technical knowledge to challenge algorithmic decisions, less likely to have lawyers who can litigate, and more dependent on the services (benefits, public housing, healthcare) where algorithmic decision-making is most prevalent. Bias and access disadvantage compound each other.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Healthcare IT and Equity</div>
+                <div class="card-desc">AI diagnostic tools trained primarily on data from well-resourced health systems perform less well on patients from underserved communities -- who have different disease presentations, different comorbidities, and different access to prior care documentation. Deploying these tools in underserved contexts without validation on representative data worsens health equity. The Watson Oncology failure is not an outlier -- it is representative of a systematic pattern.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Policy Coherence Challenge</div>
+                <div class="card-desc">Addressing these intersecting challenges requires policy coherence across domains that are institutionally separated: labor policy, technology regulation, education policy, healthcare policy, and civil rights enforcement are all relevant but housed in different agencies with different mandates. Building policy responses that address the intersection rather than the individual problems in isolation is politically and institutionally difficult -- which partly explains why comprehensive responses have not emerged despite clear problem identification.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Discussion Questions</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Prepare written or oral responses. These themes appear in the final exam.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The Watson for Oncology case involved misleading marketing, inadequate validation, and deployment without sufficient evidence of efficacy. Using two ethical frameworks, analyze IBM's obligations to the healthcare organizations that deployed Watson and to the patients who received its recommendations.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Explain the difference between the access divide, the skills divide, and the quality divide. Why is each dimension necessary to close for digital equity to be achieved? Which dimension is hardest to address through policy? Why?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">COMPAS uses historical data to predict recidivism. The creators argue it is mathematically fair. Critics argue it is racially biased. Who is correct? Is it possible for both claims to be true? What does this case reveal about the limits of mathematical definitions of fairness?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Evaluate the claim that automation-driven job displacement is ethically neutral because new jobs always emerge. What historical evidence supports this claim? What evidence challenges it? Under what conditions is the claim most and least persuasive?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Describe a specific scenario in which a healthcare organization ethically deploys an AI diagnostic tool. What validation steps are required? What disclosure is owed to patients? What human oversight processes must be in place?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Chapter 8 <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next class session. Written responses required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Research one algorithmic bias case not covered in this module (examples: Twitter image cropping, Apple Card credit limits, healthcare resource allocation algorithms). Identify the source of bias, the populations affected, what the organization did in response, and what you believe should have been required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Find your state or county's digital inclusion plan (or note the absence of one). Assess it against the three dimensions of the digital divide (access, skills, quality). What populations are addressed? What are the largest gaps? What policy recommendations would you add?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a one-page algorithmic impact assessment template for a hypothetical AI system that ranks job applicants for a government agency. Your template should specify what information must be gathered, what analyses are required, who must review the findings, and what thresholds trigger additional action before deployment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Construct an argument for and an argument against the following position: "Companies that deploy AI systems that cause documented harm to protected groups should face the same liability as companies that knowingly employ discriminatory human processes." What existing legal frameworks support each argument?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Identify one sector where you believe AI augmentation is most likely (meaning AI raises worker productivity without displacing workers) and one where displacement is most likely. Justify your assessment with reference to specific task characteristics, wage levels, and existing AI capability.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">IT does not operate neutrally on society. Its effects on productivity, employment, equity, and decision-making are shaped by choices made by people -- and those choices carry ethical weight.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            The Watson case, the COMPAS case, the Amazon bias case, and the digital divide are not separate ethical failures by different organizations. They are instances of a common pattern: systems built without adequate attention to who is harmed, deployed without adequate validation, maintained without adequate transparency, and governed without adequate accountability. The pattern can be broken -- by practitioners who choose to break it.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The productivity paradox: IT investment does not automatically produce proportional productivity gains. Benefits are contingent on complementary organizational investments in training and process redesign.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">AI automation is distinct from previous waves because it can displace cognitive as well as physical tasks. The "safe from automation" category of knowledge work has shrunk significantly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">IBM Watson for Oncology: trained on hypothetical cases at one hospital, deployed globally in cancer treatment, produced "unsafe and incorrect" recommendations. The core failure was inadequate training data and overstated performance claims in a life-critical domain.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">The digital divide has three dimensions: access (connectivity), skills (digital literacy), and quality (bandwidth and device capability). Closing all three is necessary for genuine digital equity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Algorithmic bias arises from historical bias in training data, proxy discrimination through correlated variables, and automation bias (human over-deference to algorithmic outputs). All three are present in production systems today.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">COMPAS: proprietary criminal risk scoring with documented racial disparities in false positive rates. Defendants cannot challenge the algorithm. Courts have allowed its use despite due process concerns.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Surveillance capitalism: the business model of collecting behavioral data, building predictive models, and selling predictions to advertisers. User "consent" via terms of service does not meet meaningful informed-consent standards.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Responsible AI governance requires: validation on representative populations, bias auditing before deployment, human oversight for consequential decisions, disclosure to affected individuals, and ongoing post-deployment monitoring.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Technological change is not inevitable -- it is chosen. Which tasks are automated, who receives transition support, and whether systems are audited for bias are all decisions made by people. The framing of technology as inevitable is itself an ethical choice about who bears responsibility for outcomes.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w3-impact', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

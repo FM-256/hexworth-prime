@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bash Scripting Fundamentals | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Bash Scripting Fundamentals | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-05 &nbsp;|&nbsp; Week 3 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Bash Scripting<br>
+                <span class="accent">Fundamentals</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Variables &nbsp;&bull;&nbsp; Conditionals &nbsp;&bull;&nbsp; Loops &nbsp;&bull;&nbsp; Functions &nbsp;&bull;&nbsp; Arrays &nbsp;&bull;&nbsp; getopts
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Cell operations do not run by hand. Every repeatable action in the Matrix gets scripted, tested, and deployed. This lecture takes you from knowing bash syntax to building scripts that are safe under failure, readable by anyone, and production-worthy from the first line.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-05</span>
+            <span>Week 3 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — SHEBANG AND SCRIPT STRUCTURE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">Script Structure: <span class="accent">Shebang to Execution</span></div>
+        <div class="slide-subtitle">Every production script has a consistent anatomy. Learn it once, apply it everywhere.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# script-name.sh — one-line description of what this script does
+# Usage: ./script-name.sh [OPTIONS] &lt;argument&gt;
+# Author: sector-admin | Updated: 2026-04-09</span>
+
+<span class="fn">set</span> -euo pipefail           <span class="cm"># exit on error, unset vars, pipe failures</span>
+<span class="kw">IFS</span>=<span class="st">$'\n\t'</span>               <span class="cm"># safe word splitting: newlines and tabs only</span>
+
+<span class="cm"># --- Constants (UPPER_CASE by convention) ---</span>
+<span class="kw">readonly</span> SCRIPT_DIR=<span class="st">"$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"</span>
+<span class="kw">readonly</span> LOG_FILE=<span class="st">"/var/log/sector/$(basename "$0" .sh).log"</span>
+
+<span class="cm"># --- Functions go before main logic ---</span>
+log() { <span class="fn">echo</span> <span class="st">"[$(date +%T)] $*"</span> <span class="kw">|</span> <span class="fn">tee</span> -a <span class="st">"$LOG_FILE"</span>; }
+
+<span class="cm"># --- Main logic at the bottom ---</span>
+<span class="fn">log</span> <span class="st">"Script started."</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">#!/usr/bin/env bash</div>
+                <div class="card-desc">Use <span class="ic">env bash</span> over <span class="ic">/bin/bash</span>. It finds bash in PATH, making the script portable across systems where bash lives in non-standard locations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">set -euo pipefail</div>
+                <div class="card-desc">Non-negotiable safety net. Exit on error, treat unset variables as errors, fail pipelines if any stage fails. Every production script starts with this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IFS=$'\n\t'</div>
+                <div class="card-desc">The default IFS includes spaces, which causes word splitting bugs with filenames containing spaces. Narrowing IFS prevents a class of silent, destructive bugs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — VARIABLES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Variables: <span class="accent">Declaration and Scope</span></div>
+        <div class="slide-subtitle">Bash variables have no types by default. Every value is a string unless you declare otherwise.</div>
+
+        <div class="code-block"><span class="cm"># Assignment: no spaces around the = sign</span>
+NAME=<span class="st">"sector-node-42"</span>        <span class="cm"># local to current shell</span>
+<span class="kw">export</span> REGION=<span class="st">"grid-north"</span>    <span class="cm"># available to child processes</span>
+<span class="kw">readonly</span> MAX_RETRIES=<span class="nb">3</span>        <span class="cm"># cannot be reassigned or unset</span>
+<span class="kw">declare</span> -i COUNT=<span class="nb">0</span>           <span class="cm"># integer type: arithmetic operations enforced</span>
+<span class="kw">declare</span> -l username=<span class="st">"ADMIN"</span>  <span class="cm"># auto-lowercases on assignment: admin</span>
+<span class="kw">declare</span> -u STATUS=<span class="st">"active"</span>   <span class="cm"># auto-uppercases on assignment: ACTIVE</span>
+
+<span class="cm"># Safe expansion with defaults</span>
+HOST=<span class="st">"${TARGET_HOST:-localhost}"</span>   <span class="cm"># use localhost if TARGET_HOST is unset or empty</span>
+PORT=<span class="st">"${TARGET_PORT:=9000}"</span>       <span class="cm"># assign 9000 if unset, then use it</span>
+<span class="fn">echo</span> <span class="st">"${REQUIRED_VAR:?'REQUIRED_VAR must be set'}"</span>  <span class="cm"># abort if unset</span>
+
+<span class="cm"># Integer arithmetic</span>
+COUNT=<span class="st">$((COUNT + 1))</span>
+<span class="fn">echo</span> <span class="st">$((2 ** 10))</span>            <span class="cm"># 1024</span>
+(( COUNT++ ))                 <span class="cm"># increment in-place</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">Quoting Rule</div>
+            Always double-quote variable expansions: <span class="ic">"$VAR"</span> not <span class="ic">$VAR</span>. Unquoted expansions undergo word splitting and globbing. A variable containing a space or <span class="ic">*</span> will silently break your command. Quote everything unless you have a deliberate reason not to.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SPECIAL VARIABLES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Special Variables: <span class="accent">$?, $$, $!, $@, $#</span></div>
+        <div class="slide-subtitle">Bash provides a set of built-in variables that expose runtime information about the script and its arguments.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Exit and Process</div>
+                <div class="card-desc"><span class="ic">$?</span> exit code of the last command (0 = success). <span class="ic">$$</span> PID of the current shell -- used to create unique temp files. <span class="ic">$!</span> PID of the last background process -- used with wait. <span class="ic">$0</span> name of the script itself.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Positional Arguments</div>
+                <div class="card-desc"><span class="ic">$1</span>...<span class="ic">$9</span> positional parameters. <span class="ic">${10}</span> for tenth and beyond. <span class="ic">$#</span> count of arguments. <span class="ic">$@</span> all arguments as separate words (safe). <span class="ic">$*</span> all arguments as a single word (usually wrong).</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+<span class="cm"># $# — argument count check</span>
+<span class="kw">if</span> [[ <span class="st">$#</span> -lt <span class="nb">1</span> ]]; <span class="kw">then</span>
+    <span class="fn">echo</span> <span class="er">"Usage: $0 &lt;node-name&gt;"</span> <span class="kw">&gt;&amp;2</span>
+    <span class="kw">exit</span> <span class="nb">1</span>
+<span class="kw">fi</span>
+
+NODE=<span class="st">"$1"</span>
+
+<span class="cm"># Safe temp file using $$</span>
+TMPFILE=<span class="st">"/tmp/scan-$$-${NODE}.txt"</span>
+<span class="kw">trap</span> <span class="st">'rm -f "$TMPFILE"'</span> EXIT    <span class="cm"># cleanup on exit, even on error</span>
+
+<span class="cm"># $@ — iterate over all arguments safely</span>
+<span class="kw">for</span> arg <span class="kw">in</span> <span class="st">"$@"</span>; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Processing: $arg"</span>
+<span class="kw">done</span>
+
+<span class="cm"># $? — capture exit code explicitly</span>
+<span class="fn">ping</span> -c1 <span class="st">"$NODE"</span> <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span>
+STATUS=<span class="st">$?</span>
+[[ <span class="st">$STATUS</span> -eq <span class="nb">0</span> ]] <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"$NODE is reachable"</span> <span class="kw">||</span> <span class="fn">echo</span> <span class="st">"$NODE is DOWN"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — CONDITIONALS: TEST AND [[ ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Conditionals: <span class="accent">[[ ]] vs [ ]</span></div>
+        <div class="slide-subtitle">Use <span class="ic">[[ ]]</span> in bash scripts. It is safer, more powerful, and avoids the word-splitting traps of the POSIX <span class="ic">[ ]</span> test command.</div>
+
+        <div class="code-block"><span class="cm"># String tests</span>
+<span class="kw">if</span> [[ <span class="st">"$USER"</span> == <span class="st">"root"</span> ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"Running as root"</span>; <span class="kw">fi</span>
+<span class="kw">if</span> [[ <span class="st">"$HOST"</span> != <span class="st">"localhost"</span> ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"Remote host"</span>; <span class="kw">fi</span>
+<span class="kw">if</span> [[ -z <span class="st">"$VAR"</span> ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"VAR is empty"</span>; <span class="kw">fi</span>
+<span class="kw">if</span> [[ -n <span class="st">"$VAR"</span> ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"VAR has a value"</span>; <span class="kw">fi</span>
+
+<span class="cm"># Glob patterns inside [[ ]] (no quoting around pattern)</span>
+<span class="kw">if</span> [[ <span class="st">"$FILENAME"</span> == *.log ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"Is a log file"</span>; <span class="kw">fi</span>
+
+<span class="cm"># Regex matching with =~</span>
+<span class="kw">if</span> [[ <span class="st">"$IP"</span> =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; <span class="kw">then</span>
+    <span class="fn">echo</span> <span class="st">"Valid IPv4: $IP"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Numeric tests: use -eq -ne -lt -le -gt -ge</span>
+<span class="kw">if</span> [[ <span class="st">$LOAD</span> -gt <span class="nb">4</span> ]]; <span class="kw">then</span> <span class="fn">echo</span> <span class="st">"High load detected"</span>; <span class="kw">fi</span>
+
+<span class="cm"># File tests</span>
+[[ -f <span class="st">"$FILE"</span> ]]   <span class="cm"># exists and is a regular file</span>
+[[ -d <span class="st">"$DIR"</span> ]]    <span class="cm"># exists and is a directory</span>
+[[ -r <span class="st">"$FILE"</span> ]]   <span class="cm"># readable</span>
+[[ -x <span class="st">"$FILE"</span> ]]   <span class="cm"># executable</span>
+[[ -s <span class="st">"$FILE"</span> ]]   <span class="cm"># exists and is non-empty</span>
+[[ -L <span class="st">"$FILE"</span> ]]   <span class="cm"># is a symlink</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — IF/ELIF/ELSE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">if / elif / else: <span class="accent">Decision Branches</span></div>
+        <div class="slide-subtitle">Structured conditional logic for scripts that adapt to environment state.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+check_service() {
+    <span class="kw">local</span> svc=<span class="st">"$1"</span>
+    <span class="kw">if</span> <span class="fn">systemctl</span> is-active --quiet <span class="st">"$svc"</span>; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="st">"[OK]  $svc is running"</span>
+    <span class="kw">elif</span> <span class="fn">systemctl</span> is-enabled --quiet <span class="st">"$svc"</span>; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="st">"[WARN] $svc is enabled but stopped"</span>
+        <span class="kw">return</span> <span class="nb">1</span>
+    <span class="kw">else</span>
+        <span class="fn">echo</span> <span class="er">"[FAIL] $svc is not installed or enabled"</span>
+        <span class="kw">return</span> <span class="nb">2</span>
+    <span class="kw">fi</span>
+}
+
+<span class="cm"># case statement: cleaner than long if/elif chains for discrete values</span>
+apply_action() {
+    <span class="kw">local</span> action=<span class="st">"$1"</span>
+    <span class="kw">case</span> <span class="st">"$action"</span> <span class="kw">in</span>
+        start)   <span class="fn">systemctl</span> start nginx ;;
+        stop)    <span class="fn">systemctl</span> stop nginx ;;
+        restart) <span class="fn">systemctl</span> restart nginx ;;
+        status)  <span class="fn">systemctl</span> status nginx ;;
+        <span class="st">*</span>)       <span class="fn">echo</span> <span class="er">"Unknown action: $action"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">return</span> <span class="nb">1</span> ;;
+    <span class="kw">esac</span>
+}
+
+check_service nginx
+apply_action <span class="st">"${1:-status}"</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">case vs if/elif</div>
+            Use <span class="ic">case</span> when testing a single variable against multiple discrete values. Use <span class="ic">if/elif</span> when conditions involve different variables or complex expressions. The wildcard <span class="ic">*)</span> as the last branch catches anything unrecognized.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — LOOPS: FOR ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Loops: <span class="accent">for</span></div>
+        <div class="slide-subtitle">Three forms of for loop. Know when to use each.</div>
+
+        <div class="code-block"><span class="cm"># Form 1: iterate over a list of words</span>
+<span class="kw">for</span> host <span class="kw">in</span> web-01 web-02 db-01 cache-01; <span class="kw">do</span>
+    <span class="fn">ping</span> -c1 -W1 <span class="st">"$host"</span> <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span> <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"$host UP"</span> <span class="kw">||</span> <span class="fn">echo</span> <span class="st">"$host DOWN"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Form 2: iterate over command output (use mapfile instead for large sets)</span>
+<span class="kw">for</span> logfile <span class="kw">in</span> <span class="st">/var/log/*.log</span>; <span class="kw">do</span>
+    SIZE=<span class="st">"$(du -sh "$logfile" | cut -f1)"</span>
+    <span class="fn">echo</span> <span class="st">"$SIZE  $logfile"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Form 3: C-style arithmetic loop</span>
+<span class="kw">for</span> (( i=1; i&lt;=5; i++ )); <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Attempt $i of 5"</span>
+    <span class="fn">curl</span> -sf <span class="st">"http://api.sector.local/health"</span> <span class="kw">&amp;&amp;</span> <span class="kw">break</span>
+    <span class="fn">sleep</span> <span class="nb">2</span>
+<span class="kw">done</span>
+
+<span class="cm"># Iterating over file contents safely (read line by line)</span>
+<span class="kw">while</span> <span class="fn">IFS=</span> <span class="fn">read</span> -r line; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Host: $line"</span>
+<span class="kw">done</span> <span class="kw">&lt;</span> /etc/sector/hosts.txt</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Safe File Reading Pattern</div>
+            Never use <span class="ic">for line in $(cat file)</span> -- it splits on whitespace and gobbles special characters. Use <span class="ic">while IFS= read -r line; do ... done &lt; file</span>. The <span class="ic">IFS=</span> clears field splitting. The <span class="ic">-r</span> prevents backslash interpretation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — LOOPS: WHILE AND UNTIL ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Loops: <span class="accent">while and until</span></div>
+        <div class="slide-subtitle">Event-driven iteration for polling, retry logic, and daemon-style scripts.</div>
+
+        <div class="code-block"><span class="cm"># while: loop while condition is true</span>
+RETRIES=<span class="nb">0</span>
+MAX=<span class="nb">5</span>
+<span class="kw">while</span> ! <span class="fn">pg_isready</span> -h db-01 <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span>; <span class="kw">do</span>
+    (( RETRIES++ ))
+    <span class="kw">if</span> [[ <span class="st">$RETRIES</span> -ge <span class="st">$MAX</span> ]]; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="er">"Database unreachable after $MAX attempts"</span> <span class="kw">&gt;&amp;2</span>
+        <span class="kw">exit</span> <span class="nb">1</span>
+    <span class="kw">fi</span>
+    <span class="fn">echo</span> <span class="st">"Waiting for DB... attempt $RETRIES"</span>
+    <span class="fn">sleep</span> <span class="nb">3</span>
+<span class="kw">done</span>
+
+<span class="cm"># until: loop until condition becomes true (opposite of while)</span>
+until <span class="fn">systemctl</span> is-active --quiet nginx; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"Waiting for nginx to start..."</span>
+    <span class="fn">sleep</span> <span class="nb">1</span>
+<span class="kw">done</span>
+<span class="fn">echo</span> <span class="st">"nginx is up"</span>
+
+<span class="cm"># Infinite loop with break condition (monitoring pattern)</span>
+<span class="kw">while</span> <span class="kw">true</span>; <span class="kw">do</span>
+    LOAD=<span class="st">"$(cut -d' ' -f1 /proc/loadavg)"</span>
+    <span class="kw">if</span> (( $(echo "$LOAD > 8.0" | bc -l) )); <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="st">"[ALERT] Load spike: $LOAD"</span> <span class="kw">|</span> <span class="fn">mail</span> -s <span class="st">"Load Alert"</span> ops@sector.local
+    <span class="kw">fi</span>
+    <span class="fn">sleep</span> <span class="nb">30</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — FUNCTIONS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Functions: <span class="accent">Reusable Logic Blocks</span></div>
+        <div class="slide-subtitle">Functions in bash eliminate repetition and make scripts testable and maintainable.</div>
+
+        <div class="code-block"><span class="cm"># Declaration syntax (prefer this form over function keyword)</span>
+log_info()  { <span class="fn">echo</span> <span class="st">"[INFO]  $(date +%T) $*"</span>; }
+log_warn()  { <span class="fn">echo</span> <span class="st">"[WARN]  $(date +%T) $*"</span> <span class="kw">&gt;&amp;2</span>; }
+log_error() { <span class="fn">echo</span> <span class="st">"[ERROR] $(date +%T) $*"</span> <span class="kw">&gt;&amp;2</span>; }
+
+<span class="cm"># local variables prevent scope leakage</span>
+deploy_config() {
+    <span class="kw">local</span> src=<span class="st">"$1"</span>
+    <span class="kw">local</span> dest=<span class="st">"$2"</span>
+    <span class="kw">local</span> backup=<span class="st">"${dest}.bak.$(date +%s)"</span>
+
+    [[ -f <span class="st">"$dest"</span> ]] <span class="kw">&amp;&amp;</span> <span class="fn">cp</span> <span class="st">"$dest"</span> <span class="st">"$backup"</span>
+    <span class="fn">cp</span> <span class="st">"$src"</span> <span class="st">"$dest"</span>
+    <span class="fn">log_info</span> <span class="st">"Deployed $src -&gt; $dest (backup: $backup)"</span>
+}
+
+<span class="cm"># Return values: functions return exit codes (0-255)</span>
+<span class="cm"># To return data, use echo + command substitution</span>
+get_primary_ip() {
+    <span class="kw">local</span> iface=<span class="st">"${1:-eth0}"</span>
+    <span class="fn">ip</span> -4 addr show <span class="st">"$iface"</span> <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'/inet /{gsub(/\/.*/, "", $2); print $2}'</span>
+}
+
+PRIMARY_IP=<span class="st">"$(get_primary_ip eth0)"</span>
+<span class="fn">log_info</span> <span class="st">"Primary IP: $PRIMARY_IP"</span>
+
+deploy_config /etc/sector/nginx.conf.new /etc/nginx/nginx.conf</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Scope Rule</div>
+            All variables in bash are global unless declared with <span class="ic">local</span>. A variable set inside a function without <span class="ic">local</span> will overwrite any same-named variable in the caller. Always use <span class="ic">local</span> for function-internal variables.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — ARRAYS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Arrays: <span class="accent">Indexed and Associative</span></div>
+        <div class="slide-subtitle">Bash supports two array types. Indexed arrays for ordered lists, associative arrays for key-value lookup.</div>
+
+        <div class="code-block"><span class="cm"># Indexed array</span>
+NODES=(<span class="st">"web-01"</span> <span class="st">"web-02"</span> <span class="st">"db-01"</span> <span class="st">"cache-01"</span>)
+
+<span class="fn">echo</span> <span class="st">"${NODES[0]}"</span>        <span class="cm"># web-01 (zero-indexed)</span>
+<span class="fn">echo</span> <span class="st">"${NODES[-1]}"</span>       <span class="cm"># cache-01 (last element, bash 4.3+)</span>
+<span class="fn">echo</span> <span class="st">"${#NODES[@]}"</span>       <span class="cm"># 4 (array length)</span>
+<span class="fn">echo</span> <span class="st">"${NODES[@]}"</span>        <span class="cm"># all elements</span>
+NODES+=(<span class="st">"mon-01"</span>)         <span class="cm"># append element</span>
+<span class="kw">unset</span> <span class="st">'NODES[2]'</span>         <span class="cm"># remove element (leaves gap -- use mapfile for dense arrays)</span>
+
+<span class="cm"># Safe iteration (always use "${array[@]}" not "${array[*]}")</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${NODES[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">ssh</span> <span class="st">"$node"</span> <span class="st">'hostname -f'</span> <span class="nb">2&gt;&amp;1</span>
+<span class="kw">done</span>
+
+<span class="cm"># Associative array (requires declare -A)</span>
+<span class="kw">declare</span> -A SERVICES
+SERVICES[<span class="st">"web"</span>]=<span class="st">"nginx"</span>
+SERVICES[<span class="st">"db"</span>]=<span class="st">"postgresql"</span>
+SERVICES[<span class="st">"cache"</span>]=<span class="st">"redis"</span>
+
+<span class="kw">for</span> role <span class="kw">in</span> <span class="st">"${!SERVICES[@]}"</span>; <span class="kw">do</span>   <span class="cm"># ${!array[@]} = keys</span>
+    <span class="fn">systemctl</span> is-active --quiet <span class="st">"${SERVICES[$role]}"</span> <span class="kw">&amp;&amp;</span> \
+        <span class="fn">echo</span> <span class="st">"[$role] ${SERVICES[$role]}: OK"</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — STRING MANIPULATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">String Manipulation: <span class="accent">Parameter Expansion</span></div>
+        <div class="slide-subtitle">Bash has a powerful built-in string processing engine. Use it before reaching for awk or sed.</div>
+
+        <div class="code-block"><span class="cm"># Length, substring, and slicing</span>
+PATH_VAL=<span class="st">"/var/log/sector/audit-2026-04-09.log"</span>
+<span class="fn">echo</span> <span class="st">${#PATH_VAL}</span>             <span class="cm"># length: 41</span>
+<span class="fn">echo</span> <span class="st">${PATH_VAL:10:6}</span>         <span class="cm"># substring: sector</span>
+
+<span class="cm"># Remove prefix / suffix (greedy and non-greedy)</span>
+FILE=<span class="st">"audit-2026-04-09.log"</span>
+<span class="fn">echo</span> <span class="st">${FILE%.log}</span>            <span class="cm"># remove shortest .log suffix: audit-2026-04-09</span>
+<span class="fn">echo</span> <span class="st">${FILE%%-*}</span>            <span class="cm"># remove longest -*  suffix:  audit</span>
+<span class="fn">echo</span> <span class="st">${FILE#audit-}</span>         <span class="cm"># remove prefix:  2026-04-09.log</span>
+
+<span class="cm"># Search and replace</span>
+MSG=<span class="st">"node_down node_unreachable node_rebooting"</span>
+<span class="fn">echo</span> <span class="st">${MSG/node_/NODE_}</span>      <span class="cm"># replace first: NODE_down node_unreachable...</span>
+<span class="fn">echo</span> <span class="st">${MSG//node_/NODE_}</span>     <span class="cm"># replace all:   NODE_down NODE_unreachable...</span>
+
+<span class="cm"># Case conversion (bash 4+)</span>
+STATUS=<span class="st">"critical"</span>
+<span class="fn">echo</span> <span class="st">${STATUS^}</span>              <span class="cm"># capitalize first: Critical</span>
+<span class="fn">echo</span> <span class="st">${STATUS^^}</span>             <span class="cm"># all caps: CRITICAL</span>
+<span class="fn">echo</span> <span class="st">${STATUS,,}</span>             <span class="cm"># all lower: critical</span>
+
+<span class="cm"># Split string into array on delimiter</span>
+CSV=<span class="st">"web-01,web-02,db-01"</span>
+IFS=<span class="st">','</span> <span class="fn">read</span> -ra PARTS <span class="kw">&lt;&lt;&lt;</span> <span class="st">"$CSV"</span>
+<span class="fn">echo</span> <span class="st">"${PARTS[1]}"</span>           <span class="cm"># web-02</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — EXIT CODES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Exit Codes: <span class="accent">The Language of Script Results</span></div>
+        <div class="slide-subtitle">Exit codes are how scripts communicate success or failure to callers, cron, and orchestration systems.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">0 = Success</div>
+                <div class="card-desc">Exit code 0 means the script completed successfully. This is what <span class="ic">&amp;&amp;</span> tests for. If your script reaches the end without calling <span class="ic">exit</span>, it exits with the exit code of the last command run.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">1 = General Error</div>
+                <div class="card-desc">Exit code 1 is the conventional general-purpose failure code. Use it when no more specific code applies. For scripts, define your own codes (2-125) to distinguish different failure modes and help callers take targeted action.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">126, 127, 128+</div>
+                <div class="card-desc">Reserved: 126 = command found but not executable, 127 = command not found. Codes 128+ are used for fatal signal exits: 130 = SIGINT (Ctrl+C), 137 = SIGKILL, 143 = SIGTERM.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Define meaningful exit codes as named constants</span>
+<span class="kw">readonly</span> E_OK=<span class="nb">0</span>
+<span class="kw">readonly</span> E_USAGE=<span class="nb">1</span>
+<span class="kw">readonly</span> E_DEPENDENCY=<span class="nb">2</span>
+<span class="kw">readonly</span> E_NETWORK=<span class="nb">3</span>
+<span class="kw">readonly</span> E_PERMISSION=<span class="nb">4</span>
+
+check_deps() {
+    <span class="kw">for</span> cmd <span class="kw">in</span> curl jq awk rsync; <span class="kw">do</span>
+        <span class="kw">if</span> ! <span class="fn">command</span> -v <span class="st">"$cmd"</span> <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span>; <span class="kw">then</span>
+            <span class="fn">log_error</span> <span class="st">"Required command not found: $cmd"</span>
+            <span class="kw">exit</span> <span class="st">$E_DEPENDENCY</span>
+        <span class="kw">fi</span>
+    <span class="kw">done</span>
+}
+
+<span class="cm"># Caller can then act on specific exit codes</span>
+<span class="cm"># ./deploy.sh || { echo "Deploy failed with code $?"; pagerduty_alert; }</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — GETOPTS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Argument Parsing: <span class="accent">getopts</span></div>
+        <div class="slide-subtitle">The POSIX-standard built-in for parsing short options. Handles flags, arguments, and error reporting.</div>
+
+        <div class="scenario-strip">
+            A script with hardcoded behavior is brittle. A script that accepts flags like <span class="ic">-v</span> for verbose, <span class="ic">-n hostname</span> for a target, and <span class="ic">-d</span> for dry-run is reusable across every context your team encounters.
+        </div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+VERBOSE=<span class="nb">0</span>; DRY_RUN=<span class="nb">0</span>; TARGET=<span class="st">""</span>; PORT=<span class="nb">22</span>
+
+usage() {
+    <span class="fn">echo</span> <span class="st">"Usage: $0 [-v] [-d] [-n hostname] [-p port]"</span>
+    <span class="fn">echo</span> <span class="st">"  -v  verbose output"</span>
+    <span class="fn">echo</span> <span class="st">"  -d  dry run (show what would happen)"</span>
+    <span class="fn">echo</span> <span class="st">"  -n  target hostname (required)"</span>
+    <span class="fn">echo</span> <span class="st">"  -p  SSH port (default: 22)"</span>
+    <span class="kw">exit</span> <span class="nb">1</span>
+}
+
+<span class="kw">while</span> <span class="fn">getopts</span> <span class="st">":vdn:p:"</span> opt; <span class="kw">do</span>    <span class="cm"># leading : = silent error mode</span>
+    <span class="kw">case</span> <span class="st">"$opt"</span> <span class="kw">in</span>
+        v) VERBOSE=<span class="nb">1</span> ;;
+        d) DRY_RUN=<span class="nb">1</span> ;;
+        n) TARGET=<span class="st">"$OPTARG"</span> ;;        <span class="cm"># OPTARG holds the option's argument</span>
+        p) PORT=<span class="st">"$OPTARG"</span> ;;
+        :) <span class="fn">echo</span> <span class="er">"Option -$OPTARG requires an argument"</span> <span class="kw">&gt;&amp;2</span>; usage ;;
+        <span class="st">?</span>) <span class="fn">echo</span> <span class="er">"Unknown option: -$OPTARG"</span> <span class="kw">&gt;&amp;2</span>; usage ;;
+    <span class="kw">esac</span>
+<span class="kw">done</span>
+
+<span class="fn">shift</span> <span class="st">$((OPTIND - 1))</span>   <span class="cm"># remove parsed options; $@ now holds positional args</span>
+[[ -z <span class="st">"$TARGET"</span> ]] <span class="kw">&amp;&amp;</span> { <span class="fn">echo</span> <span class="er">"-n is required"</span> <span class="kw">&gt;&amp;2</span>; usage; }
+[[ <span class="st">$VERBOSE</span> -eq <span class="nb">1</span> ]] <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"Connecting to $TARGET:$PORT (dry=$DRY_RUN)"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — TRAP AND CLEANUP ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">trap: <span class="accent">Guaranteed Cleanup</span></div>
+        <div class="slide-subtitle">trap registers code to run when the script exits, regardless of how it exits -- success, error, or signal.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+<span class="cm"># Create temp directory; trap ensures it is always removed</span>
+WORKDIR=<span class="st">"$(mktemp -d /tmp/sector-deploy-XXXXXX)"</span>
+cleanup() {
+    <span class="fn">rm</span> -rf <span class="st">"$WORKDIR"</span>
+    <span class="fn">log_info</span> <span class="st">"Cleaned up $WORKDIR"</span>
+}
+<span class="kw">trap</span> cleanup EXIT          <span class="cm"># runs on normal exit AND errors</span>
+
+<span class="cm"># Multiple signals: exit on Ctrl+C or SIGTERM with cleanup</span>
+<span class="kw">trap</span> <span class="st">'log_warn "Interrupted"; exit 130'</span> INT TERM
+
+<span class="cm"># ERR trap: called whenever a command exits non-zero</span>
+on_error() {
+    <span class="fn">log_error</span> <span class="st">"Script failed at line $1: $2"</span>
+    <span class="cm"># send alert, write status, etc.</span>
+}
+<span class="kw">trap</span> <span class="st">'on_error $LINENO "$BASH_COMMAND"'</span> ERR
+
+<span class="cm"># DEBUG trap: inspect every command before it runs (verbose tracing)</span>
+<span class="cm"># trap 'echo "CMD: $BASH_COMMAND"' DEBUG</span>
+
+<span class="fn">log_info</span> <span class="st">"Work directory: $WORKDIR"</span>
+<span class="cm"># ... rest of script; cleanup runs no matter what happens next</span></div>
+
+        <div class="box box-red">
+            <div class="box-label">Critical Pattern</div>
+            The combination of <span class="ic">set -euo pipefail</span> plus <span class="ic">trap cleanup EXIT</span> is the gold standard for safe automation. The script fails loudly on any error and leaves the system clean. Without these, partial failures leave temp files, incomplete configs, and silent corruption.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — INPUT VALIDATION ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Input Validation: <span class="accent">Reject Bad Data Early</span></div>
+        <div class="slide-subtitle">Scripts that run with untrusted input or unexpected values cause outages. Validate everything at the entry point.</div>
+
+        <div class="code-block"><span class="cm"># IP address format validation using regex</span>
+validate_ip() {
+    <span class="kw">local</span> ip=<span class="st">"$1"</span>
+    <span class="kw">if</span> [[ ! <span class="st">"$ip"</span> =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="er">"Invalid IP address: $ip"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">return</span> <span class="nb">1</span>
+    <span class="kw">fi</span>
+}
+
+<span class="cm"># Integer range validation</span>
+validate_port() {
+    <span class="kw">local</span> port=<span class="st">"$1"</span>
+    <span class="kw">if</span> [[ ! <span class="st">"$port"</span> =~ ^[0-9]+$ ]] <span class="kw">||</span> [[ <span class="st">$port</span> -lt <span class="nb">1</span> <span class="kw">||</span> <span class="st">$port</span> -gt <span class="nb">65535</span> ]]; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="er">"Invalid port (1-65535): $port"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">return</span> <span class="nb">1</span>
+    <span class="kw">fi</span>
+}
+
+<span class="cm"># Sanitize hostname: allow only alphanumeric, hyphens, dots</span>
+sanitize_host() {
+    <span class="kw">local</span> host=<span class="st">"$1"</span>
+    <span class="kw">if</span> [[ ! <span class="st">"$host"</span> =~ ^[a-zA-Z0-9._-]+$ ]]; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="er">"Invalid hostname characters: $host"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">return</span> <span class="nb">1</span>
+    <span class="kw">fi</span>
+    <span class="fn">echo</span> <span class="st">"$host"</span>
+}
+
+<span class="cm"># Privilege check: abort if not root</span>
+[[ <span class="st">$(id -u)</span> -ne <span class="nb">0</span> ]] <span class="kw">&amp;&amp;</span> { <span class="fn">echo</span> <span class="er">"Must run as root"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">1</span>; }</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — HEREDOCS AND HERESTRINGS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Here-Documents and <span class="accent">Here-Strings</span></div>
+        <div class="slide-subtitle">Feed multiline or string data to commands inline without creating temp files.</div>
+
+        <div class="code-block"><span class="cm"># Heredoc: multi-line input to a command</span>
+<span class="fn">cat</span> <span class="kw">&gt;</span> /etc/sector/worker.conf <span class="kw">&lt;&lt;EOF</span>
+<span class="st">listen_port = 9000
+log_level = INFO
+node_id = $(hostname -s)
+deployed_at = $(date +%F)</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Quoted delimiter: no variable expansion (write literal bash code)</span>
+<span class="fn">cat</span> <span class="kw">&lt;&lt;'EOF'</span>
+<span class="st">for node in "${NODES[@]}"; do
+    echo "Processing $node"
+done</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Indented heredoc (bash 4.3+): leading tabs stripped</span>
+<span class="fn">cat</span> <span class="kw">&lt;&lt;-EOF</span>
+<span class="st">    This line has its leading tab stripped.
+    So does this one.
+    Node: $(hostname)</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Here-string: feed a single string to a command's stdin</span>
+<span class="fn">read</span> -r year month day <span class="kw">&lt;&lt;&lt;</span> <span class="st">"$(date +%Y-%m-%d | tr '-' ' ')"</span>
+<span class="fn">echo</span> <span class="st">"Year=$year  Month=$month  Day=$day"</span>
+
+<span class="cm"># grep a string without a file</span>
+<span class="fn">grep</span> -o <span class="st">'[0-9]\+'</span> <span class="kw">&lt;&lt;&lt;</span> <span class="st">"Load: 3.42 4.11 4.55"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — PROCESS SUBSTITUTION IN SCRIPTS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Process Substitution <span class="accent">in Scripts</span></div>
+        <div class="slide-subtitle">Eliminate temporary files from comparison, merge, and multi-source pipeline patterns.</div>
+
+        <div class="code-block"><span class="cm"># Compare current running services against expected list</span>
+diff <span class="kw">&lt;(</span><span class="fn">systemctl</span> list-units --state=active --type=service --no-legend <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $1}'</span> <span class="kw">|</span> <span class="fn">sort</span><span class="kw">)</span> \
+     <span class="kw">&lt;(</span><span class="fn">sort</span> /etc/sector/required-services.txt<span class="kw">)</span>
+
+<span class="cm"># Verify two remote nodes have identical /etc/passwd</span>
+diff <span class="kw">&lt;(</span><span class="fn">ssh</span> node-a <span class="st">'sort /etc/passwd'</span><span class="kw">)</span> \
+     <span class="kw">&lt;(</span><span class="fn">ssh</span> node-b <span class="st">'sort /etc/passwd'</span><span class="kw">)</span>
+
+<span class="cm"># Feed two sorted streams into comm to find differences</span>
+<span class="cm"># Lines in node-a packages but not in node-b</span>
+comm -23 <span class="kw">&lt;(</span><span class="fn">ssh</span> node-a <span class="st">'dpkg -l | awk '"'"'NR>5{print $2}'"'"' | sort'</span><span class="kw">)</span> \
+          <span class="kw">&lt;(</span><span class="fn">ssh</span> node-b <span class="st">'dpkg -l | awk '"'"'NR>5{print $2}'"'"' | sort'</span><span class="kw">)</span>
+
+<span class="cm"># Join log entries from two services by timestamp</span>
+<span class="fn">paste</span> <span class="kw">&lt;(</span><span class="fn">grep</span> <span class="st">'ERROR'</span> /var/log/app.log<span class="kw">)</span> \
+      <span class="kw">&lt;(</span><span class="fn">grep</span> <span class="st">'ERROR'</span> /var/log/worker.log<span class="kw">)</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">When Not to Use It</div>
+            Process substitution requires bash. POSIX sh does not support it. If the script must run under <span class="ic">#!/bin/sh</span> (e.g., in <span class="ic">/etc/init.d/</span> or BusyBox environments), write to an actual temp file with <span class="ic">mktemp</span> and clean up with <span class="ic">trap</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — ARITHMETIC AND MATH ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Arithmetic: <span class="accent">$(( )) and declare -i</span></div>
+        <div class="slide-subtitle">Integer arithmetic is built in. Floating-point requires awk or bc.</div>
+
+        <div class="code-block"><span class="cm"># Integer arithmetic context: $(( expression ))</span>
+CORES=<span class="st">$(nproc)</span>
+WORKERS=<span class="st">$((CORES * 2))</span>
+TIMEOUT=<span class="st">$((WORKERS * 5 + 10))</span>
+
+<span class="cm"># Modulo, power, bitwise</span>
+<span class="fn">echo</span> <span class="st">$(( 100 % 7 ))</span>         <span class="cm"># 2</span>
+<span class="fn">echo</span> <span class="st">$(( 2 ** 8 ))</span>          <span class="cm"># 256</span>
+<span class="fn">echo</span> <span class="st">$(( 0xFF &amp; 0x0F ))</span>     <span class="cm"># 15 (bitwise AND)</span>
+
+<span class="cm"># (( )) in conditionals (no $ needed inside)</span>
+(( WORKERS &gt; 0 )) <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"workers configured"</span>
+<span class="kw">if</span> (( CORES &gt;= 4 )); <span class="kw">then</span>
+    <span class="fn">echo</span> <span class="st">"Enabling parallel compile mode"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Floating point with awk (awk is always available)</span>
+LOAD=<span class="st">"$(awk '{print $1}' /proc/loadavg)"</span>
+<span class="fn">awk</span> -v load=<span class="st">"$LOAD"</span> -v thresh=<span class="st">"4.0"</span> <span class="st">'BEGIN{if(load+0 > thresh+0) exit 0; exit 1}'</span> \
+    <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"Load critical: $LOAD"</span>
+
+<span class="cm"># bc for interactive-style floating point</span>
+DISK_PCT=<span class="st">"$(df / | awk 'NR==2{gsub(/%/,""); print $5}')"</span>
+WARN_THRESH=<span class="nb">80</span>
+(( DISK_PCT &gt; WARN_THRESH )) <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"Disk at ${DISK_PCT}% -- approaching limit"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — DEBUGGING SCRIPTS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Debugging: <span class="accent">set -x and bash -n</span></div>
+        <div class="slide-subtitle">Bash provides first-class debugging tools. Use them before any script goes near production.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">bash -n script.sh</div>
+                <div class="card-desc">Syntax check without execution. Catches parse errors, unclosed brackets, mismatched quotes. Run this on every new script before the first execution.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">set -x (xtrace)</div>
+                <div class="card-desc">Prints each command to stderr before executing it, with all expansions resolved. The most powerful debugging tool in bash. Prefix output with <span class="ic">PS4</span> for file/line numbers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">set -v</div>
+                <div class="card-desc">Prints each line before expansion (raw source). Combined with <span class="ic">set -x</span>, you see both the raw syntax and the expanded command. Useful for debugging complex parameter expansions.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Enhanced xtrace: show file, line number, and function name</span>
+<span class="kw">export</span> PS4=<span class="st">'+(${BASH_SOURCE##*/}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'</span>
+<span class="fn">set</span> -x
+
+<span class="cm"># Scope xtrace to just one function</span>
+deploy() {
+    <span class="fn">set</span> -x                <span class="cm"># enable tracing for this function only</span>
+    <span class="fn">rsync</span> -av /src/ /dst/
+    <span class="fn">set</span> +x                <span class="cm"># disable tracing after function</span>
+}
+
+<span class="cm"># Syntax check only (no execution)</span>
+<span class="cm"># bash -n deploy.sh &amp;&amp; echo "Syntax OK" || echo "Syntax errors found"</span>
+
+<span class="cm"># shellcheck: install with: apt install shellcheck</span>
+<span class="cm"># shellcheck deploy.sh   # catches style issues, common bugs, and SC advisories</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — SIGNAL HANDLING IN SCRIPTS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Signal Handling: <span class="accent">Graceful Shutdown in Scripts</span></div>
+        <div class="slide-subtitle">Scripts run by systemd, cron, and orchestrators receive signals. Handle them or lose work.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+<span class="cm"># State flag for graceful loop termination</span>
+RUNNING=<span class="nb">1</span>
+
+<span class="cm"># Signal handler: set flag, do not exit immediately</span>
+handle_stop() {
+    <span class="fn">echo</span> <span class="st">"[INFO] Shutdown signal received -- finishing current task"</span>
+    RUNNING=<span class="nb">0</span>
+}
+
+<span class="kw">trap</span> handle_stop SIGTERM SIGINT SIGHUP
+
+<span class="cm"># Worker loop: checks RUNNING flag after each iteration</span>
+process_queue() {
+    <span class="kw">while</span> [[ <span class="st">$RUNNING</span> -eq <span class="nb">1</span> ]]; <span class="kw">do</span>
+        <span class="cm"># Simulate processing one item</span>
+        ITEM=<span class="st">"$(dequeue_item 2&gt;/dev/null || echo '')"</span>
+        [[ -z <span class="st">"$ITEM"</span> ]] <span class="kw">&amp;&amp;</span> { <span class="fn">sleep</span> <span class="nb">1</span>; <span class="kw">continue</span>; }
+        <span class="fn">process_item</span> <span class="st">"$ITEM"</span>
+    <span class="kw">done</span>
+    <span class="fn">echo</span> <span class="st">"[INFO] Worker exited cleanly"</span>
+}
+
+process_queue
+<span class="kw">exit</span> <span class="nb">0</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">systemd and SIGTERM</div>
+            When systemd stops a service, it sends SIGTERM followed (after TimeoutStopSec) by SIGKILL. A script that handles SIGTERM can finish its current unit of work and write state before systemd forces termination. Scripts that ignore SIGTERM get killed mid-operation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — LOGGING PATTERNS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Logging Patterns: <span class="accent">Structured Output</span></div>
+        <div class="slide-subtitle">Scripts need consistent, machine-parseable log output from the start, not added as an afterthought.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# Logging framework: levels, timestamps, stderr routing</span>
+
+<span class="kw">readonly</span> LOG_LEVEL_INFO=<span class="nb">1</span>
+<span class="kw">readonly</span> LOG_LEVEL_WARN=<span class="nb">2</span>
+<span class="kw">readonly</span> LOG_LEVEL_ERROR=<span class="nb">3</span>
+CURRENT_LOG_LEVEL=<span class="nb">1</span>
+
+_log() {
+    <span class="kw">local</span> level=<span class="st">"$1"</span> label=<span class="st">"$2"</span>; shift <span class="nb">2</span>
+    [[ <span class="st">$level</span> -lt <span class="st">$CURRENT_LOG_LEVEL</span> ]] <span class="kw">&amp;&amp;</span> <span class="kw">return</span>
+    <span class="kw">local</span> ts=<span class="st">"$(date '+%Y-%m-%dT%H:%M:%S')"</span>
+    <span class="fn">printf</span> <span class="st">'%s [%s] %s\n'</span> <span class="st">"$ts"</span> <span class="st">"$label"</span> <span class="st">"$*"</span>
+}
+
+log_info()  { _log <span class="st">$LOG_LEVEL_INFO</span>  <span class="st">"INFO "</span> <span class="st">"$@"</span>; }
+log_warn()  { _log <span class="st">$LOG_LEVEL_WARN</span>  <span class="st">"WARN "</span> <span class="st">"$@"</span> <span class="kw">&gt;&amp;2</span>; }
+log_error() { _log <span class="st">$LOG_LEVEL_ERROR</span> <span class="st">"ERROR"</span> <span class="st">"$@"</span> <span class="kw">&gt;&amp;2</span>; }
+
+<span class="cm"># Route all output to log file and keep stderr on terminal</span>
+<span class="kw">readonly</span> LOGFILE=<span class="st">"/var/log/sector/$(basename "$0" .sh)-$(date +%F).log"</span>
+<span class="fn">mkdir</span> -p <span class="st">"$(dirname "$LOGFILE")"</span>
+<span class="kw">exec</span> <span class="nb">1&gt;&gt;</span><span class="st">"$LOGFILE"</span>    <span class="cm"># stdout appends to log file</span>
+<span class="kw">exec</span> <span class="nb">2&gt;&amp;1</span>            <span class="cm"># stderr goes to same log file</span>
+
+log_info  <span class="st">"Script started: $0 $*"</span>
+log_warn  <span class="st">"Low disk space on /var/log: $(df -h /var/log | awk 'NR==2{print $5}')"</span>
+log_error <span class="st">"Deployment failed -- see above"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — PARALLEL EXECUTION WITH WAIT ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Parallel Execution: <span class="accent">Background Jobs and wait</span></div>
+        <div class="slide-subtitle">Fan out work across multiple hosts or tasks, then collect results -- without leaving zombie jobs behind.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+
+NODES=(<span class="st">"web-01"</span> <span class="st">"web-02"</span> <span class="st">"db-01"</span> <span class="st">"mon-01"</span>)
+declare -A PIDS
+RESULTS_DIR=<span class="st">"$(mktemp -d)"</span>
+<span class="kw">trap</span> <span class="st">'rm -rf "$RESULTS_DIR"'</span> EXIT
+
+<span class="cm"># Launch one background job per node</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${NODES[@]}"</span>; <span class="kw">do</span>
+    {
+        <span class="fn">ssh</span> -o ConnectTimeout=5 <span class="st">"$node"</span> \
+            <span class="st">'df -h / | awk "NR==2{print $5}"'</span> \
+            <span class="kw">&gt;</span> <span class="st">"${RESULTS_DIR}/${node}.txt"</span> <span class="nb">2&gt;&amp;1</span>
+    } <span class="kw">&amp;</span>
+    PIDS[<span class="st">"$node"</span>]=<span class="st">"$!"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Collect results: wait for each PID and check its exit code</span>
+FAILURES=<span class="nb">0</span>
+<span class="kw">for</span> node <span class="kw">in</span> <span class="st">"${!PIDS[@]}"</span>; <span class="kw">do</span>
+    <span class="kw">if</span> ! <span class="fn">wait</span> <span class="st">"${PIDS[$node]}"</span>; <span class="kw">then</span>
+        <span class="fn">echo</span> <span class="er">"FAILED: $node"</span>; (( FAILURES++ ))
+    <span class="kw">else</span>
+        USAGE=<span class="st">"$(cat "${RESULTS_DIR}/${node}.txt")"</span>
+        <span class="fn">echo</span> <span class="st">"$node: disk usage $USAGE"</span>
+    <span class="kw">fi</span>
+<span class="kw">done</span>
+
+(( FAILURES &gt; 0 )) <span class="kw">&amp;&amp;</span> <span class="kw">exit</span> <span class="nb">1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — LIBRARY PATTERN ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Library Pattern: <span class="accent">Sourcing Shared Functions</span></div>
+        <div class="slide-subtitle">Avoid duplicating logging, validation, and utility functions across scripts. Build a shared library.</div>
+
+        <div class="code-block"><span class="cm"># /etc/sector/lib/common.sh -- shared functions</span>
+<span class="cm"># Source this in every script: source /etc/sector/lib/common.sh</span>
+
+<span class="cm"># Guard against double-sourcing</span>
+[[ -n <span class="st">"${_SECTOR_COMMON_LOADED:-}"</span> ]] <span class="kw">&amp;&amp;</span> <span class="kw">return</span> <span class="nb">0</span>
+<span class="kw">readonly</span> _SECTOR_COMMON_LOADED=<span class="nb">1</span>
+
+<span class="cm"># Require a command to exist before proceeding</span>
+require_cmd() {
+    <span class="kw">local</span> cmd=<span class="st">"$1"</span>
+    <span class="fn">command</span> -v <span class="st">"$cmd"</span> <span class="kw">&gt;</span>/dev/null <span class="nb">2&gt;&amp;1</span> <span class="kw">||</span> {
+        <span class="fn">echo</span> <span class="er">"[ERROR] Required command not found: $cmd"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">2</span>
+    }
+}
+
+<span class="cm"># Retry a command up to N times with delay</span>
+retry() {
+    <span class="kw">local</span> max=<span class="st">"$1"</span> delay=<span class="st">"$2"</span>; shift <span class="nb">2</span>
+    <span class="kw">local</span> attempt=<span class="nb">1</span>
+    <span class="kw">until</span> <span class="st">"$@"</span>; <span class="kw">do</span>
+        (( attempt++ ))
+        [[ <span class="st">$attempt</span> -gt <span class="st">$max</span> ]] <span class="kw">&amp;&amp;</span> <span class="kw">return</span> <span class="nb">1</span>
+        <span class="fn">sleep</span> <span class="st">"$delay"</span>
+    <span class="kw">done</span>
+}
+
+<span class="cm"># In your script:</span>
+<span class="kw">source</span> /etc/sector/lib/common.sh
+require_cmd rsync
+<span class="fn">retry</span> <span class="nb">3</span> <span class="nb">5</span> <span class="fn">rsync</span> -av /data/ backup-node:/data/</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — READING CONFIGURATION FILES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Config Files: <span class="accent">Sourcing vs Parsing</span></div>
+        <div class="slide-subtitle">Scripts need external configuration. Two safe patterns: source a bash config file, or parse a structured format.</div>
+
+        <div class="code-block"><span class="cm"># Pattern 1: source a KEY=VALUE config file (trusted source only)</span>
+<span class="cm"># /etc/sector/deploy.conf:</span>
+<span class="cm"># TARGET_HOST="web-01"</span>
+<span class="cm"># DEPLOY_USER="deploy"</span>
+<span class="cm"># BACKUP_RETAIN_DAYS=7</span>
+
+<span class="kw">readonly</span> CONFIG=<span class="st">"/etc/sector/deploy.conf"</span>
+[[ -f <span class="st">"$CONFIG"</span> ]] <span class="kw">||</span> { <span class="fn">echo</span> <span class="er">"Config not found: $CONFIG"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">1</span>; }
+[[ -r <span class="st">"$CONFIG"</span> ]] <span class="kw">||</span> { <span class="fn">echo</span> <span class="er">"Config not readable: $CONFIG"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">1</span>; }
+<span class="kw">source</span> <span class="st">"$CONFIG"</span>
+
+<span class="cm"># Pattern 2: parse a structured config safely with awk (no code execution)</span>
+get_config_value() {
+    <span class="kw">local</span> key=<span class="st">"$1"</span>
+    <span class="fn">awk</span> -F<span class="st">'='</span> -v key=<span class="st">"$key"</span> <span class="st">'$1==key{gsub(/^["'"'"']+|["'"'"']+$/, "", $2); print $2; exit}'</span> \
+        /etc/sector/deploy.conf
+}
+
+RETAIN=<span class="st">"$(get_config_value BACKUP_RETAIN_DAYS)"</span>
+<span class="fn">echo</span> <span class="st">"Retaining backups for $RETAIN days"</span>
+
+<span class="cm"># Always validate required keys after sourcing</span>
+: <span class="st">"${TARGET_HOST:?'TARGET_HOST must be set in $CONFIG'}"</span>
+: <span class="st">"${DEPLOY_USER:?'DEPLOY_USER must be set in $CONFIG'}"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — MAPFILE AND READARRAY ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">mapfile: <span class="accent">File Lines to Arrays</span></div>
+        <div class="slide-subtitle">Read file contents into an array safely, preserving whitespace and handling all edge cases.</div>
+
+        <div class="code-block"><span class="cm"># mapfile (alias: readarray) reads lines from stdin into an indexed array</span>
+<span class="fn">mapfile</span> -t HOSTS <span class="kw">&lt;</span> /etc/sector/hosts.txt
+<span class="cm"># -t strips trailing newlines from each element</span>
+<span class="fn">echo</span> <span class="st">"Loaded ${#HOSTS[@]} hosts"</span>
+
+<span class="cm"># Process a subset: start at index 2, read 5 lines</span>
+<span class="fn">mapfile</span> -t -s<span class="nb">2</span> -n<span class="nb">5</span> SUBSET <span class="kw">&lt;</span> /etc/sector/hosts.txt
+
+<span class="cm"># Read from command output into array</span>
+<span class="fn">mapfile</span> -t FAILED_SVCS <span class="kw">&lt;</span> <span class="kw">&lt;(</span>
+    <span class="fn">systemctl</span> list-units --state=failed --type=service --no-legend <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'{print $1}'</span>
+<span class="kw">)</span>
+
+<span class="kw">if</span> [[ <span class="st">${#FAILED_SVCS[@]}</span> -gt <span class="nb">0</span> ]]; <span class="kw">then</span>
+    <span class="fn">echo</span> <span class="er">"ALERT: ${#FAILED_SVCS[@]} failed services detected"</span>
+    <span class="kw">for</span> svc <span class="kw">in</span> <span class="st">"${FAILED_SVCS[@]}"</span>; <span class="kw">do</span>
+        <span class="fn">echo</span> <span class="st">"  - $svc"</span>
+        <span class="fn">systemctl</span> status <span class="st">"$svc"</span> --no-pager -l <span class="nb">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fn">tail</span> -5
+    <span class="kw">done</span>
+<span class="kw">fi</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">mapfile vs for line in $(cat)</div>
+            <span class="ic">mapfile</span> is safe with filenames containing spaces, special characters, and empty lines. It does not trigger globbing. It does not split on whitespace. For any file with more than trivial content, <span class="ic">mapfile</span> is the correct tool.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — SCRIPT TESTING WITH BATS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Testing: <span class="accent">Bash Automated Testing System (bats)</span></div>
+        <div class="slide-subtitle">Scripts at production scale require automated tests. BATS provides a TAP-compliant test framework for bash.</div>
+
+        <div class="code-block"><span class="cm"># Install bats: apt install bats  OR  git clone https://github.com/bats-core/bats-core</span>
+
+<span class="cm"># tests/validate_ip.bats</span>
+<span class="fn">load</span> <span class="st">'../src/common.sh'</span>    <span class="cm"># source the library to test</span>
+
+@test <span class="st">"validate_ip accepts a valid IPv4 address"</span> {
+    run validate_ip <span class="st">"192.168.1.100"</span>
+    [ <span class="st">"$status"</span> -eq <span class="nb">0</span> ]
+}
+
+@test <span class="st">"validate_ip rejects an address with letters"</span> {
+    run validate_ip <span class="st">"192.168.x.100"</span>
+    [ <span class="st">"$status"</span> -eq <span class="nb">1</span> ]
+}
+
+@test <span class="st">"validate_ip rejects empty string"</span> {
+    run validate_ip <span class="st">""</span>
+    [ <span class="st">"$status"</span> -eq <span class="nb">1</span> ]
+}
+
+@test <span class="st">"deploy_config backs up existing file"</span> {
+    DEST=<span class="st">"$(mktemp)"</span>
+    <span class="fn">echo</span> <span class="st">"old config"</span> <span class="kw">&gt;</span> <span class="st">"$DEST"</span>
+    run deploy_config /dev/null <span class="st">"$DEST"</span>
+    [ <span class="st">"$status"</span> -eq <span class="nb">0</span> ]
+    <span class="cm"># verify backup was created</span>
+    BACKUP=<span class="st">"$(ls "${DEST}.bak."* 2&gt;/dev/null | head -1)"</span>
+    [ -f <span class="st">"$BACKUP"</span> ]
+}
+
+<span class="cm"># Run tests: bats tests/</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — PRACTICAL SCRIPT: NODE HEALTH CHECK ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35 &nbsp;|&nbsp; Applied Script</div>
+        <div class="slide-title">Applied Script: <span class="accent">Node Health Check</span></div>
+        <div class="slide-subtitle">A complete, production-grade health check script using everything from this lecture.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# node-health.sh — check system health, exit non-zero if unhealthy</span>
+<span class="fn">set</span> -euo pipefail
+<span class="kw">source</span> /etc/sector/lib/common.sh
+
+THRESHOLDS=([cpu]=<span class="st">"80"</span> [mem]=<span class="st">"90"</span> [disk]=<span class="st">"85"</span> [load]=<span class="st">"8"</span>)
+FAIL=<span class="nb">0</span>
+
+check_disk() {
+    <span class="kw">local</span> pct
+    pct=<span class="st">"$(df / | awk 'NR==2{gsub(/%/,""); print $5}')"</span>
+    (( pct &gt; THRESHOLDS[disk] )) <span class="kw">&amp;&amp;</span> { log_warn <span class="st">"Disk ${pct}% -- threshold ${THRESHOLDS[disk]}%"</span>; FAIL=1; } \
+        <span class="kw">||</span> log_info <span class="st">"Disk OK: ${pct}%"</span>
+}
+
+check_load() {
+    <span class="kw">local</span> load
+    load=<span class="st">"$(awk '{print int($1)}' /proc/loadavg)"</span>
+    (( load &gt; THRESHOLDS[load] )) <span class="kw">&amp;&amp;</span> { log_warn <span class="st">"Load ${load} -- threshold ${THRESHOLDS[load]}"</span>; FAIL=1; } \
+        <span class="kw">||</span> log_info <span class="st">"Load OK: ${load}"</span>
+}
+
+check_services() {
+    <span class="kw">local</span> -a required=(<span class="st">"ssh"</span> <span class="st">"cron"</span> <span class="st">"rsyslog"</span>)
+    <span class="kw">for</span> svc <span class="kw">in</span> <span class="st">"${required[@]}"</span>; <span class="kw">do</span>
+        <span class="fn">systemctl</span> is-active --quiet <span class="st">"$svc"</span> <span class="kw">||</span> { log_error <span class="st">"$svc is not running"</span>; FAIL=1; }
+    <span class="kw">done</span>
+}
+
+check_disk; check_load; check_services
+<span class="kw">exit</span> <span class="st">$FAIL</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — PRACTICAL SCRIPT: BULK DEPLOY ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35 &nbsp;|&nbsp; Applied Script</div>
+        <div class="slide-title">Applied Script: <span class="accent">Bulk Config Deployer</span></div>
+        <div class="slide-subtitle">Deploy a config file to multiple hosts in parallel with rollback on failure.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# bulk-deploy.sh -f config.conf -t /etc/app/app.conf [-d] [-v]</span>
+<span class="fn">set</span> -euo pipefail; <span class="kw">source</span> /etc/sector/lib/common.sh
+
+SRC=<span class="st">""</span>; DEST=<span class="st">""</span>; DRY=<span class="nb">0</span>; VERBOSE=<span class="nb">0</span>
+<span class="kw">while</span> <span class="fn">getopts</span> <span class="st">":f:t:dv"</span> o; <span class="kw">do</span>
+  <span class="kw">case</span> <span class="st">$o</span> <span class="kw">in</span>
+    f) SRC=<span class="st">"$OPTARG"</span> ;; t) DEST=<span class="st">"$OPTARG"</span> ;;
+    d) DRY=<span class="nb">1</span> ;; v) VERBOSE=<span class="nb">1</span> ;;
+    :) <span class="fn">echo</span> <span class="er">"-$OPTARG needs arg"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">1</span> ;; <span class="st">?</span>) <span class="fn">echo</span> <span class="er">"bad flag"</span> <span class="kw">&gt;&amp;2</span>; <span class="kw">exit</span> <span class="nb">1</span> ;;
+  <span class="kw">esac</span>
+<span class="kw">done</span>
+: <span class="st">"${SRC:?'-f required'}"</span> <span class="st">"${DEST:?'-t required'}"</span>
+
+<span class="fn">mapfile</span> -t HOSTS <span class="kw">&lt;</span> /etc/sector/hosts.txt
+declare -A PIDS; TMPDIR=<span class="st">"$(mktemp -d)"</span>
+<span class="kw">trap</span> <span class="st">'rm -rf "$TMPDIR"'</span> EXIT
+
+deploy_one() {
+    <span class="kw">local</span> h=<span class="st">"$1"</span>
+    [[ <span class="st">$DRY</span> -eq <span class="nb">1</span> ]] <span class="kw">&amp;&amp;</span> { log_info <span class="st">"DRY: $h &lt;- $SRC"</span>; <span class="kw">return</span>; }
+    <span class="fn">scp</span> -q <span class="st">"$SRC"</span> <span class="st">"${h}:${DEST}"</span> <span class="kw">&amp;&amp;</span> log_info <span class="st">"OK: $h"</span> <span class="kw">||</span> { log_error <span class="st">"FAIL: $h"</span>; <span class="kw">return</span> <span class="nb">1</span>; }
+}
+
+<span class="kw">for</span> h <span class="kw">in</span> <span class="st">"${HOSTS[@]}"</span>; <span class="kw">do</span>
+    deploy_one <span class="st">"$h"</span> <span class="kw">&gt;</span><span class="st">"${TMPDIR}/${h}.log"</span> <span class="nb">2&gt;&amp;1</span> <span class="kw">&amp;</span>; PIDS[<span class="st">"$h"</span>]=<span class="st">"$!"</span>
+<span class="kw">done</span>
+FAIL=<span class="nb">0</span>
+<span class="kw">for</span> h <span class="kw">in</span> <span class="st">"${!PIDS[@]}"</span>; <span class="kw">do</span>
+    <span class="fn">wait</span> <span class="st">"${PIDS[$h]}"</span> <span class="kw">||</span> (( FAIL++ )); [[ <span class="st">$VERBOSE</span> -eq <span class="nb">1</span> ]] <span class="kw">&amp;&amp;</span> <span class="fn">cat</span> <span class="st">"${TMPDIR}/${h}.log"</span>
+<span class="kw">done</span>; <span class="kw">exit</span> <span class="st">$FAIL</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — COMMON PITFALLS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Common Pitfalls: <span class="accent">Mistakes That Cost Production Hours</span></div>
+        <div class="slide-subtitle">These are not theory. Every one of these has caused a real outage.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Unquoted Variables</div>
+                <div class="card-desc"><span class="ic">rm -rf $DIR/*</span> -- if DIR is empty or unset, this becomes <span class="ic">rm -rf /*</span>. Always quote: <span class="ic">rm -rf "${DIR:?}/"</span>. Use <span class="ic">set -u</span> to catch unset variables early.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Forgetting set -e</span></div>
+                <div class="card-desc">Without <span class="ic">set -e</span>, a failed command is silently ignored and the script continues. A failed <span class="ic">mkdir</span> followed by a <span class="ic">chmod</span> will chmod the wrong directory. Always add <span class="ic">set -euo pipefail</span>.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Parsing ls Output</div>
+                <div class="card-desc">Never parse <span class="ic">ls</span> output in scripts. Filenames with spaces, newlines, and special characters break word splitting. Use glob expansion (<span class="ic">for f in /dir/*</span>) or <span class="ic">find -print0 | xargs -0</span> instead.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:0;">
+            <div class="card c-gold">
+                <div class="card-label">cd without error check</div>
+                <div class="card-desc"><span class="ic">cd /somewhere; rm -rf *</span> -- if cd fails (dir doesn't exist), rm runs in the current directory. Use <span class="ic">cd /somewhere || exit 1</span> or <span class="ic">cd /somewhere &amp;&amp; rm -rf *</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Backtick syntax</div>
+                <div class="card-desc">Backtick command substitution <span class="ic">`cmd`</span> cannot be nested, is hard to read, and escaping is inconsistent. Always use <span class="ic">$(cmd)</span>. It nests cleanly and reads clearly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — SHELLCHECK ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">ShellCheck: <span class="accent">Static Analysis for Bash</span></div>
+        <div class="slide-subtitle">ShellCheck catches bugs that would otherwise only appear at runtime. Run it before every commit.</div>
+
+        <div class="code-block"><span class="cm"># Install</span>
+<span class="fn">apt</span> install shellcheck         <span class="cm"># Ubuntu/Debian</span>
+<span class="fn">brew</span> install shellcheck        <span class="cm"># macOS</span>
+
+<span class="cm"># Basic usage</span>
+<span class="fn">shellcheck</span> myscript.sh
+
+<span class="cm"># Example findings ShellCheck catches:</span>
+
+<span class="cm"># SC2086 — unquoted variable (word splitting risk)</span>
+<span class="er">echo $var</span>                   <span class="cm"># ShellCheck warns: use "$var"</span>
+
+<span class="cm"># SC2164 — cd without error handling</span>
+<span class="er">cd /tmp; rm -rf *</span>           <span class="cm"># warn: use cd /tmp || exit 1</span>
+
+<span class="cm"># SC2006 — backtick usage</span>
+<span class="er">version=`python3 --version`</span> <span class="cm"># warn: use $()</span>
+
+<span class="cm"># SC2148 — missing shebang</span>
+
+<span class="cm"># Suppress a warning when you know what you're doing (use sparingly)</span>
+<span class="cm"># shellcheck disable=SC2034</span>
+UNUSED_VAR=<span class="st">"intentional"</span>
+
+<span class="cm"># Integrate with CI: exit non-zero on any finding</span>
+<span class="fn">shellcheck</span> -S error myscript.sh    <span class="cm"># fail only on errors, not warnings</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — SCRIPT PORTABILITY ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Portability: <span class="accent">Bash vs sh vs dash</span></div>
+        <div class="slide-subtitle">Ubuntu's /bin/sh is dash, not bash. Scripts run as /bin/sh will fail if they use bash-specific features.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Bash-Only Features (require #!/usr/bin/env bash)</div>
+                <div class="card-desc"><span class="ic">[[ ]]</span> extended test. <span class="ic">arrays</span> and <span class="ic">declare -A</span>. <span class="ic">$(( ))</span> arithmetic. <span class="ic">getopts</span> behavior (POSIX getopts is limited). Process substitution <span class="ic">&lt;()</span>. <span class="ic">mapfile</span>/<span class="ic">readarray</span>. String case operators <span class="ic">^^</span> <span class="ic">,,</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">POSIX sh Features (safe in /bin/sh)</div>
+                <div class="card-desc"><span class="ic">[ ]</span> test. <span class="ic">$()</span> command substitution. <span class="ic">case</span>/<span class="ic">esac</span>. <span class="ic">for/while/until</span>. <span class="ic">trap</span>. <span class="ic">${var:-default}</span> parameter expansion. No arrays. No <span class="ic">[[ ]]</span>. No <span class="ic">declare</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check what /bin/sh actually is on this system</span>
+<span class="fn">ls</span> -la /bin/sh
+<span class="cm"># On Ubuntu: /bin/sh -> dash</span>
+<span class="cm"># On RHEL/CentOS: /bin/sh -> bash (historically)</span>
+
+<span class="cm"># Tell bash to complain about POSIX violations (development aid)</span>
+bash --posix myscript.sh
+
+<span class="cm"># When you NEED portability (Docker entrypoints, /etc/init.d/,</span>
+<span class="cm"># BusyBox environments): use #!/bin/sh and POSIX-only syntax</span>
+<span class="cm"># When you are writing admin automation: use #!/usr/bin/env bash</span>
+<span class="cm"># and use all bash features freely -- they are available everywhere</span>
+<span class="cm"># you will realistically deploy to in a managed Linux environment</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — SCRIPT ORGANIZATION AT SCALE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Organization at Scale: <span class="accent">Script as a Project</span></div>
+        <div class="slide-subtitle">When your script grows beyond 100 lines, treat it like software. Structure matters.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Recommended Directory Layout</div>
+                <div class="card-desc"><span class="ic">bin/</span> -- executable scripts. <span class="ic">lib/</span> -- shared function libraries. <span class="ic">tests/</span> -- bats test files. <span class="ic">conf/</span> -- default config files. <span class="ic">docs/</span> -- usage and architecture notes. <span class="ic">Makefile</span> -- run tests, lint, install targets.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Version Control Practices</div>
+                <div class="card-desc">Every script gets committed to git. Tag releases. Use branches for breaking changes. Scripts that run on production servers should be deployed from a known git tag, not copied from a developer workstation by hand.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Makefile for a bash project</span>
+SCRIPTS := <span class="st">$(wildcard bin/*.sh lib/*.sh)</span>
+
+.PHONY: lint test install
+
+lint:
+    @shellcheck <span class="st">$(SCRIPTS)</span>
+    @echo <span class="st">"Lint passed"</span>
+
+test:
+    @bats tests/
+    @echo <span class="st">"Tests passed"</span>
+
+install:
+    @install -m 0755 bin/node-health.sh /usr/local/bin/node-health
+    @install -m 0644 lib/common.sh /etc/sector/lib/common.sh
+    @echo <span class="st">"Installed"</span>
+
+check: lint test</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PERFORMANCE TIPS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Performance: <span class="accent">Avoid Unnecessary Subshells</span></div>
+        <div class="slide-subtitle">Each <span class="ic">$()</span> forks a subshell. In tight loops or large data sets, this cost accumulates.</div>
+
+        <div class="code-block"><span class="cm"># SLOW: fork per iteration</span>
+<span class="kw">for</span> f <span class="kw">in</span> /var/log/*.log; <span class="kw">do</span>
+    SIZE=<span class="st">$(du -sk "$f" | cut -f1)</span>     <span class="cm"># two forks: du + cut</span>
+    (( SIZE &gt; 100000 )) <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="st">"$f"</span>
+<span class="kw">done</span>
+
+<span class="cm"># FAST: single external call, awk replaces cut, no loop subshells</span>
+<span class="fn">du</span> -sk /var/log/*.log <span class="kw">|</span> <span class="fn">awk</span> <span class="st">'$1 > 100000 {print $2}'</span>
+
+<span class="cm"># Use parameter expansion instead of awk/sed for simple substitutions</span>
+FILE=<span class="st">"audit-2026.log"</span>
+<span class="cm"># SLOW: fork</span>
+BASE=<span class="st">$(basename "$FILE" .log)</span>         <span class="cm"># forks basename</span>
+<span class="cm"># FAST: built-in expansion</span>
+BASE=<span class="st">"${FILE%.log}"</span>                    <span class="cm"># no fork, faster</span>
+
+<span class="cm"># Read file content without fork</span>
+<span class="cm"># SLOW: $(cat file)</span>
+CONTENT=<span class="st">"$(cat /etc/hostname)"</span>        <span class="cm"># forks cat</span>
+<span class="cm"># FAST: built-in read</span>
+<span class="fn">read</span> -r HOSTNAME <span class="kw">&lt;</span> /etc/hostname      <span class="cm"># no fork</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — REAL WORLD SCRIPT: CERTIFICATE EXPIRY CHECK ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Applied Script</div>
+        <div class="slide-title">Applied Script: <span class="accent">TLS Certificate Expiry Monitor</span></div>
+        <div class="slide-subtitle">Check TLS certificates on multiple domains and alert when expiry is within threshold days.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail</span>
+WARN_DAYS=<span class="nb">30</span>; CRITICAL_DAYS=<span class="nb">7</span>
+<span class="fn">mapfile</span> -t DOMAINS <span class="kw">&lt;</span> /etc/sector/monitored-domains.txt
+
+check_cert() {
+    <span class="kw">local</span> domain=<span class="st">"$1"</span>
+    <span class="kw">local</span> expiry_raw days_left
+
+    expiry_raw=<span class="st">"$(echo | openssl s_client -connect "${domain}:443" \
+        -servername "$domain" 2&gt;/dev/null \
+        | openssl x509 -noout -enddate 2&gt;/dev/null \
+        | cut -d= -f2)"</span>
+
+    [[ -z <span class="st">"$expiry_raw"</span> ]] <span class="kw">&amp;&amp;</span> { log_error <span class="st">"Could not read cert: $domain"</span>; <span class="kw">return</span> <span class="nb">1</span>; }
+
+    <span class="kw">local</span> expiry_epoch now_epoch
+    expiry_epoch=<span class="st">"$(date -d "$expiry_raw" +%s)"</span>
+    now_epoch=<span class="st">"$(date +%s)"</span>
+    days_left=<span class="st">$(( (expiry_epoch - now_epoch) / 86400 ))</span>
+
+    <span class="kw">if</span> (( days_left &lt;= CRITICAL_DAYS )); <span class="kw">then</span>
+        log_error <span class="st">"CRITICAL: $domain expires in ${days_left} days"</span>
+    <span class="kw">elif</span> (( days_left &lt;= WARN_DAYS )); <span class="kw">then</span>
+        log_warn  <span class="st">"WARNING: $domain expires in ${days_left} days"</span>
+    <span class="kw">else</span>
+        log_info  <span class="st">"OK: $domain valid for ${days_left} days"</span>
+    <span class="kw">fi</span>
+}
+
+<span class="kw">for</span> domain <span class="kw">in</span> <span class="st">"${DOMAINS[@]}"</span>; <span class="kw">do</span> check_cert <span class="st">"$domain"</span>; <span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-05 Summary</div>
+        <div class="slide-title">Bash Scripting: <span class="accent">What You Now Know</span></div>
+
+        <div class="scenario-strip">
+            A script is not a trick. It is a system. Every operator in this cell is now capable of building automation that fails loudly, cleans up after itself, accepts arguments cleanly, and can be tested, reviewed, and trusted under pressure.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Every production script starts with <code>set -euo pipefail</code> and a trap on EXIT for cleanup. No exceptions.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Always double-quote variable expansions: <code>"$VAR"</code>. Unquoted variables undergo word splitting and globbing.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Use <code>[[ ]]</code> not <code>[ ]</code> in bash scripts. Supports regex via <code>=~</code>, glob patterns, and avoids word-splitting traps.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Use <code>local</code> for all variables inside functions. Without it, every variable is global and will stomp on callers.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Read files with <code>while IFS= read -r line; do ... done &lt; file</code> -- never with <code>for line in $(cat file)</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Use <code>getopts</code> to parse flags. Define usage() as a function. Check required args after parsing with <code>shift $((OPTIND-1))</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Return data from functions via <code>echo</code> and capture with <code>$()</code>. Return codes (0-255) signal success or failure type.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Run <code>shellcheck</code> on every script before deployment. Run <code>bash -n</code> for syntax checks. Use <code>bats</code> for automated tests.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Avoid subshells in tight loops. Use built-in parameter expansion instead of forking <code>basename</code>, <code>cat</code>, or <code>cut</code>.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w3-bash', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

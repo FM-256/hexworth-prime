@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Lock Protocol // ALA-07</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── CSS Custom Properties: NE pattern adapted to Matrix house palette ── */
+        :root {
+            --bg-dark:       #060d08;
+            --bg-card:       #0a130c;
+            --accent:        #00ff41;
+            --accent-dim:    rgba(0, 255, 65, 0.12);
+            --text-primary:  #e0e0e0;
+            --text-secondary:#8b9e8f;
+            --border:        rgba(0, 255, 65, 0.12);
+            --border-hover:  rgba(0, 255, 65, 0.30);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .ne-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 13, 8, 0.96);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(8px);
+            padding: 10px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .ne-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        /* Badge: filled for regular modules */
+        .ne-badge {
+            background: var(--accent);
+            color: #000;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .ne-breadcrumb {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ne-breadcrumb span {
+            color: var(--accent);
+            opacity: 0.7;
+            margin: 0 5px;
+        }
+
+        .ne-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.78rem;
+            padding: 5px 12px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--accent-dim);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .ne-back-btn:hover {
+            color: var(--accent);
+            border-color: var(--border-hover);
+        }
+
+        .ne-back-btn img {
+            width: 13px;
+            height: 13px;
+            opacity: 0.7;
+            filter: hue-rotate(90deg) saturate(2);
+        }
+
+        /* ── Content wrapper ── */
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        /* ── Module title block ── */
+        .ne-title-block {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ne-title-block h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .ne-title-block .ne-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .ne-title-block .ne-meta strong {
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* ── Sections ── */
+        .ne-section {
+            margin-bottom: 36px;
+        }
+
+        .ne-section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            opacity: 0.7;
+        }
+
+        .ne-section h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 12px;
+            letter-spacing: 0.2px;
+        }
+
+        .ne-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.75;
+            margin-bottom: 14px;
+        }
+
+        /* ── Inline code ── */
+        .ne-inline-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82em;
+            background: var(--accent-dim);
+            border: 1px solid rgba(0, 255, 65, 0.18);
+            border-radius: 3px;
+            padding: 1px 5px;
+            color: #7dffaa;
+        }
+
+        /* ── Code blocks ── */
+        .ne-code {
+            background: #0a130c;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px 18px;
+            overflow-x: auto;
+            margin: 12px 0 14px;
+        }
+
+        .ne-code code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: #7dffaa;
+            line-height: 1.65;
+            white-space: pre;
+        }
+
+        .ne-code code .cmt {
+            color: #4a6650;
+        }
+
+        /* ── Callout boxes (lore context + objectives) ── */
+        .ne-callout {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 6px 6px 0;
+            padding: 14px 18px;
+            margin-bottom: 28px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        .ne-callout strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ── Takeaways ── */
+        .ne-takeaways {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 18px 20px;
+            margin-top: 8px;
+        }
+
+        .ne-takeaways h3 {
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .ne-takeaways ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ne-takeaways ul li {
+            font-size: 0.845rem;
+            color: var(--text-secondary);
+            padding: 4px 0;
+            padding-left: 16px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .ne-takeaways ul li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            opacity: 0.5;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Lore lines at section footers ── */
+        .ne-lore-line {
+            font-size: 0.80rem;
+            color: rgba(0, 255, 65, 0.50);
+            font-style: italic;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 14px;
+        }
+
+        /* ── Quiz section ── */
+        .ne-quiz-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 255, 65, 0.20);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 28px;
+        }
+
+        .ne-quiz-section h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .ne-quiz-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .ne-quiz-question {
+            margin-bottom: 22px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ne-quiz-question:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .ne-quiz-question p {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .ne-quiz-question .q-num {
+            color: var(--accent);
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-quiz-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 3px;
+        }
+
+        .ne-quiz-option:hover {
+            background: var(--accent-dim);
+            color: var(--text-primary);
+        }
+
+        .ne-quiz-option input[type="radio"] {
+            margin-top: 3px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .ne-quiz-submit {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 10px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 20px;
+        }
+
+        .ne-quiz-submit:hover:not(:disabled) {
+            background: var(--accent-dim);
+            box-shadow: 0 0 14px rgba(0, 255, 65, 0.20);
+        }
+
+        .ne-quiz-submit:disabled {
+            opacity: 0.40;
+            cursor: default;
+        }
+
+        .ne-quiz-result {
+            margin-top: 14px;
+            padding: 13px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .ne-quiz-result.pass {
+            background: rgba(0, 255, 65, 0.07);
+            border: 1px solid rgba(0, 255, 65, 0.30);
+            color: #7dffaa;
+            display: block;
+        }
+
+        .ne-quiz-result.fail {
+            background: rgba(255, 100, 0, 0.06);
+            border: 1px solid rgba(255, 100, 0, 0.28);
+            color: #ff9955;
+            display: block;
+        }
+
+        .ne-quiz-result .score-line {
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Navigation row ── */
+        .ne-nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .ne-nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            transition: all 0.2s ease;
+        }
+
+        .ne-nav-btn:hover {
+            color: var(--accent);
+            border-color: var(--border-hover);
+        }
+
+        .ne-nav-btn img {
+            width: 13px;
+            height: 13px;
+            opacity: 0.6;
+            filter: hue-rotate(90deg) saturate(2);
+        }
+
+        .ne-nav-btn.disabled {
+            opacity: 0.30;
+            pointer-events: none;
+        }
+
+        /* ── Complete button ── */
+        .ne-complete-area {
+            text-align: center;
+            padding: 24px 0 0;
+        }
+
+        #completeBtn {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 11px 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #completeBtn:hover:not(:disabled) {
+            background: var(--accent-dim);
+            box-shadow: 0 0 14px rgba(0, 255, 65, 0.20);
+        }
+
+        #completeBtn:disabled {
+            cursor: default;
+            opacity: 0.85;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky header with badge, breadcrumb, and back button -->
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">ALA-07 | Week 2 | Module</span>
+            <span class="ne-breadcrumb">Matrix<span>/</span>Advanced Linux Administration<span>/</span>Dual-Lock Protocol</span>
+        </div>
+        <a href="index.html" class="ne-back-btn">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <main class="ne-content">
+
+        <!-- Module title -->
+        <div class="ne-title-block">
+            <h1>Dual-Lock Protocol</h1>
+            <div class="ne-meta">
+                <div><strong>Duration:</strong> 35 min</div>
+                <div><strong>Objective:</strong> 3</div>
+                <div><strong>Prerequisites:</strong> ALA-R2, ALA-06</div>
+                <div><strong>Sandbox:</strong> Required</div>
+            </div>
+        </div>
+
+        <!-- Objective callout -->
+        <div class="ne-callout">
+            <strong>Course Objective 3:</strong> Harden the Linux OS using firewalls, multi-factor authentication, and server-side antivirus.
+        </div>
+
+        <!-- Lore context callout -->
+        <div class="ne-callout">
+            <strong>Operational Context:</strong> The perimeter shield handles what reaches your cell's surface. The dual-lock protocol controls who gets through the door. A key alone is not enough -- every secure link requires both a key and a rotating token. An attacker who steals a key without the token gets nothing. Implement the dual-lock protocol on all secure links before the next grid sync.
+        </div>
+
+        <!-- Section 1: PAM Architecture -->
+        <section class="ne-section">
+            <div class="ne-section-label">01 / 06</div>
+            <h2>PAM Architecture</h2>
+            <p class="ne-text">
+                Pluggable Authentication Modules (PAM) is the framework that handles authentication for
+                every login attempt on your cell. When a user authenticates via SSH, sudo, or the console,
+                PAM processes the request through a configured stack of modules. The stack is defined
+                per-service in <span class="ne-inline-code">/etc/pam.d/</span>.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># View the PAM stack for SSH</span>
+cat /etc/pam.d/sshd
+
+<span class="cmt"># View the common-auth stack (shared by multiple services)</span>
+cat /etc/pam.d/common-auth
+
+<span class="cmt"># View the common-account stack</span>
+cat /etc/pam.d/common-account
+
+<span class="cmt"># Update PAM module configuration interactively</span>
+pam-auth-update</code></div>
+            <p class="ne-text">
+                PAM module types: <span class="ne-inline-code">auth</span> (verify identity),
+                <span class="ne-inline-code">account</span> (check account validity and access restrictions),
+                <span class="ne-inline-code">password</span> (update credentials),
+                <span class="ne-inline-code">session</span> (set up and tear down session environment).
+                Control flags determine what happens when a module fails: <span class="ne-inline-code">required</span>
+                (failure is noted, stack continues, overall result fails), <span class="ne-inline-code">requisite</span>
+                (failure stops the stack immediately), <span class="ne-inline-code">sufficient</span>
+                (success here is enough if nothing before it failed), <span class="ne-inline-code">optional</span>
+                (result is only relevant if it is the only module for this type).
+            </p>
+            <div class="ne-lore-line">Every login on your cell goes through the PAM stack. Understanding the stack means understanding exactly what an operator must prove before the cell grants access.</div>
+        </section>
+
+        <!-- Section 2: SSH Key Authentication Hardening -->
+        <section class="ne-section">
+            <div class="ne-section-label">02 / 06</div>
+            <h2>SSH Key Authentication Hardening</h2>
+            <p class="ne-text">
+                Password authentication exposes the cell to brute force attacks. Key-based authentication
+                eliminates that vector entirely -- the server only accepts cryptographic proof of private
+                key possession. Ed25519 keys are preferred over RSA on modern systems: shorter, faster,
+                and more secure.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># Generate an Ed25519 key pair with a cell-specific comment</span>
+ssh-keygen -t ed25519 -C "operator-cell071-2026"
+
+<span class="cmt"># Copy the public key to a remote cell</span>
+ssh-copy-id -i ~/.ssh/cell_key.pub operator@10.0.1.50
+
+<span class="cmt"># Key directives in /etc/ssh/sshd_config</span>
+PasswordAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+PermitRootLogin no
+AllowUsers operator svc-monitor
+
+<span class="cmt"># Test the config for syntax errors before reloading</span>
+sshd -t
+
+<span class="cmt"># Reload sshd to apply config changes (does not drop active sessions)</span>
+systemctl reload sshd</code></div>
+            <p class="ne-text">
+                The <span class="ne-inline-code">AllowUsers</span> directive is an explicit allowlist.
+                Any user not listed is denied SSH access regardless of their key or password. This is
+                the correct approach for a production cell -- denying by default and allowing only named
+                accounts. Always test the config with <span class="ne-inline-code">sshd -t</span> before
+                reloading to prevent a syntax error from locking you out.
+            </p>
+            <div class="ne-lore-line">Key-only authentication removes the password brute force vector entirely. The dual-lock protocol requires both a key AND a time-based token -- this section covers the first lock.</div>
+        </section>
+
+        <!-- Section 3: TOTP Integration -->
+        <section class="ne-section">
+            <div class="ne-section-label">03 / 06</div>
+            <h2>Google Authenticator / TOTP Integration</h2>
+            <p class="ne-text">
+                Time-based One-Time Passwords (TOTP) are the second lock. After SSH key verification,
+                PAM prompts for a 6-digit code generated by an authenticator app. The code rotates
+                every 30 seconds using a shared secret stored on both the server and the user's device.
+                An attacker with a stolen key still cannot log in without the current token.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># Install the PAM module</span>
+apt install libpam-google-authenticator
+
+<span class="cmt"># Set up Google Authenticator for the operator user (non-interactive)</span>
+google-authenticator -t -d -f -r 3 -R 30 -W
+
+<span class="cmt"># Flags: -t (time-based), -d (disallow reuse), -f (force overwrite),</span>
+<span class="cmt">#        -r 3 (max 3 login attempts), -R 30 (rate limit window), -W (allow 8-digit)</span>
+
+<span class="cmt"># View the generated secret and scratch codes</span>
+cat ~/.google_authenticator
+
+<span class="cmt"># Add to /etc/pam.d/sshd (insert before @include common-auth):</span>
+<span class="cmt"># auth required pam_google_authenticator.so</span>
+
+<span class="cmt"># Required sshd_config directive for PAM challenge prompts</span>
+<span class="cmt"># (enables the interactive challenge that asks for the TOTP code)</span>
+<span class="cmt"># KbdInteractiveAuthentication yes</span>
+<span class="cmt"># UsePAM yes</span>
+
+<span class="cmt"># Reload after both changes are in place</span>
+sshd -t &amp;&amp; systemctl reload sshd</code></div>
+            <p class="ne-text">
+                The PAM entry <span class="ne-inline-code">auth required pam_google_authenticator.so</span>
+                instructs PAM to require the Google Authenticator check as part of the auth stack. Because
+                the control flag is <span class="ne-inline-code">required</span>, failure here causes overall
+                auth failure even if a valid key was presented. On newer OpenSSH versions, use
+                <span class="ne-inline-code">KbdInteractiveAuthentication yes</span> instead of the older
+                <span class="ne-inline-code">ChallengeResponseAuthentication yes</span>.
+            </p>
+            <div class="ne-lore-line">The dual-lock protocol means an attacker who steals an operator's SSH key still cannot log in without the rotating 6-digit token. This is the second lock.</div>
+        </section>
+
+        <!-- Section 4: fail2ban -->
+        <section class="ne-section">
+            <div class="ne-section-label">04 / 06</div>
+            <h2>fail2ban -- Automated Brute Force Defense</h2>
+            <p class="ne-text">
+                fail2ban monitors log files for repeated authentication failures and automatically bans
+                offending IP addresses via firewall rules. It is a behavioral defense layer on top of
+                the key-based and TOTP authentication -- it limits how many attempts an attacker can
+                make before being blocked.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># Install fail2ban</span>
+apt install fail2ban
+
+<span class="cmt"># Create a local override (never edit jail.conf directly)</span>
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+<span class="cmt"># Key settings in /etc/fail2ban/jail.local under [sshd]:</span>
+<span class="cmt"># [sshd]</span>
+<span class="cmt"># enabled  = true</span>
+<span class="cmt"># maxretry = 3</span>
+<span class="cmt"># bantime  = 600</span>
+<span class="cmt"># findtime = 300</span>
+<span class="cmt"># logpath  = /var/log/auth.log</span>
+
+<span class="cmt"># Start and enable fail2ban</span>
+systemctl enable --now fail2ban
+
+<span class="cmt"># Check overall status</span>
+fail2ban-client status
+
+<span class="cmt"># Check the sshd jail specifically</span>
+fail2ban-client status sshd
+
+<span class="cmt"># Manually unban an IP (useful when you accidentally lock yourself out)</span>
+fail2ban-client unban 10.0.1.99</code></div>
+            <p class="ne-text">
+                For a custom service, create a filter file at
+                <span class="ne-inline-code">/etc/fail2ban/filter.d/service-name.conf</span>
+                defining the regex to match failed attempts in that service's log, and a jail file at
+                <span class="ne-inline-code">/etc/fail2ban/jail.d/service-name.conf</span> referencing
+                that filter and specifying the log path, maxretry, bantime, and findtime. Never edit
+                <span class="ne-inline-code">jail.conf</span> directly -- it is overwritten during package
+                upgrades. All overrides belong in <span class="ne-inline-code">jail.local</span>
+                or <span class="ne-inline-code">jail.d/</span>.
+            </p>
+            <div class="ne-lore-line">fail2ban limits the attack window. An attacker gets 3 attempts, then the IP is blocked for 10 minutes. Brute force becomes operationally infeasible.</div>
+        </section>
+
+        <!-- Section 5: Login Policies -->
+        <section class="ne-section">
+            <div class="ne-section-label">05 / 06</div>
+            <h2>Login Policies -- /etc/security/ and PAM Limits</h2>
+            <p class="ne-text">
+                System-level login policies enforce access rules independently of application configuration.
+                The <span class="ne-inline-code">/etc/security/</span> directory contains configuration
+                files for PAM modules that enforce resource limits, access restrictions, and password
+                aging policies.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># /etc/security/limits.conf -- resource limits per user or group</span>
+<span class="cmt"># Restrict operator to max 3 simultaneous sessions</span>
+<span class="cmt"># operator hard maxlogins 3</span>
+
+<span class="cmt"># /etc/security/access.conf -- restrict login to specific sources</span>
+<span class="cmt"># Allow operator only from management subnet, deny all others</span>
+<span class="cmt"># + : operator : 10.0.1.0/24</span>
+<span class="cmt"># - : ALL : ALL</span>
+
+<span class="cmt"># /etc/login.defs -- password aging and UID/GID defaults</span>
+<span class="cmt"># PASS_MAX_DAYS  90</span>
+<span class="cmt"># PASS_MIN_LEN   12</span>
+<span class="cmt"># PASS_MIN_DAYS  1</span>
+<span class="cmt"># PASS_WARN_AGE  14</span>
+
+<span class="cmt"># Apply login.defs changes to existing users with chage</span>
+chage -M 90 -m 1 -W 14 operator
+
+<span class="cmt"># View current password aging settings for a user</span>
+chage -l operator</code></div>
+            <p class="ne-text">
+                The <span class="ne-inline-code">access.conf</span> file requires
+                <span class="ne-inline-code">pam_access.so</span> to be active in the PAM stack -- verify
+                it is present in <span class="ne-inline-code">/etc/pam.d/common-account</span>. Limits in
+                <span class="ne-inline-code">limits.conf</span> require
+                <span class="ne-inline-code">pam_limits.so</span> in the session stack.
+                Changes to <span class="ne-inline-code">login.defs</span> apply only to newly created
+                accounts -- use <span class="ne-inline-code">chage</span> to update existing accounts.
+            </p>
+            <div class="ne-lore-line">Access policies enforce operational security at the system level, independent of application-level controls. Even if an application misconfigures its own access rules, the system policy holds.</div>
+        </section>
+
+        <!-- Section 6: Audit Logging -->
+        <section class="ne-section">
+            <div class="ne-section-label">06 / 06</div>
+            <h2>Audit Logging for Access Events</h2>
+            <p class="ne-text">
+                After a security event, the access logs are the first evidence you read. Linux maintains
+                several overlapping sources of authentication and session data. Knowing which file to read
+                and what to filter for determines how quickly you can establish a timeline.
+            </p>
+            <div class="ne-code"><code><span class="cmt"># Show recent successful logins (reads /var/log/wtmp)</span>
+last
+
+<span class="cmt"># Show failed login attempts (reads /var/log/btmp)</span>
+lastb
+
+<span class="cmt"># Show last login time for each user</span>
+lastlog
+
+<span class="cmt"># Who is currently logged in</span>
+who
+w
+
+<span class="cmt"># Dump raw binary wtmp data for forensic review</span>
+utmpdump /var/log/wtmp
+
+<span class="cmt"># Extract source IPs with the most failed SSH attempts</span>
+grep 'Failed password' /var/log/auth.log \
+  | awk '{print $(NF-3)}' \
+  | sort | uniq -c | sort -rn | head</code></div>
+            <p class="ne-text">
+                The <span class="ne-inline-code">auth.log</span> file is the primary log for authentication
+                events on Ubuntu 22.04. It captures PAM events, sshd authentication attempts, sudo usage,
+                and su attempts. The <span class="ne-inline-code">btmp</span> file records all failed login
+                attempts in binary format -- it is read with <span class="ne-inline-code">lastb</span>,
+                not <span class="ne-inline-code">cat</span>. Always preserve these files before remediation:
+                they are evidence.
+            </p>
+            <div class="ne-lore-line">When investigating an incident, the first step is reading auth.log. Operators who know how to extract signal from auth logs establish breach timing and vectors in minutes, not hours.</div>
+        </section>
+
+        <!-- Key Takeaways -->
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>PAM stacks are per-service in /etc/pam.d/ -- control flags (required vs. requisite) determine failure behavior</li>
+                <li>Disable PasswordAuthentication and use Ed25519 keys with an explicit AllowUsers list</li>
+                <li>TOTP via pam_google_authenticator.so adds the second factor; KbdInteractiveAuthentication yes enables the PAM challenge prompt</li>
+                <li>fail2ban overrides belong in jail.local or jail.d/ -- never edit jail.conf directly</li>
+                <li>access.conf restricts login by source; limits.conf restricts resource usage; login.defs sets password aging policy</li>
+                <li>auth.log is the primary evidence source after an authentication incident -- preserve it before remediation</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <section class="ne-quiz-section">
+            <h2>Knowledge Check</h2>
+            <h3>Module Quiz</h3>
+            <div id="quizContainer"></div>
+            <button class="ne-quiz-submit" id="quizSubmit" disabled>Submit Answers</button>
+            <div class="ne-quiz-result" id="quizResult"></div>
+        </section>
+
+        <!-- Complete button -->
+        <div class="ne-complete-area">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="ne-nav-row">
+            <a href="ala-06.html" class="ne-nav-btn">
+                <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+                ALA-06: Perimeter Shield
+            </a>
+            <a href="ala-08.html" class="ne-nav-btn">
+                ALA-08: Threat Sentinel
+                <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="" style="transform:rotate(180deg)">
+            </a>
+        </nav>
+
+    </main>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Quiz configuration ── */
+        /* Correct answers are NOT stored here. Server-graded via gradeQuiz Cloud Function. */
+        const QUIZ_ID = 'ala-07';
+        const QUESTIONS = [
+            {
+                q: 'In PAM, what is the difference between `required` and `requisite` control flags?',
+                options: [
+                    'A) They are functionally identical',
+                    'B) `required`: failure is noted but PAM continues evaluating; `requisite`: failure stops evaluation immediately',
+                    'C) `requisite`: failure is noted but PAM continues; `required`: failure stops evaluation immediately',
+                    'D) `required` applies only to the `auth` type; `requisite` applies to all types'
+                ]
+            },
+            {
+                q: 'An operator sets `PasswordAuthentication no` in `/etc/ssh/sshd_config` but users can still log in with passwords. What is the most likely explanation?',
+                options: [
+                    'A) The sshd service was not reloaded after the config change',
+                    'B) The setting is overridden by an `Include` directive that loads a file still allowing passwords',
+                    'C) `PasswordAuthentication no` only applies to root accounts',
+                    'D) A and B are both possible'
+                ]
+            },
+            {
+                q: 'The Google Authenticator PAM module generates TOTP codes. What does TOTP stand for and what is the standard code validity window?',
+                options: [
+                    'A) Temporary One-Time Password; valid for 24 hours',
+                    'B) Time-based One-Time Password; valid for 30 seconds',
+                    'C) Token-based One-Time Password; valid for 60 seconds',
+                    'D) Timed Operator Token Protocol; valid for 90 seconds'
+                ]
+            },
+            {
+                q: 'An operator needs fail2ban to protect a custom application that logs failed attempts to `/var/log/cell-api/access.log`. Which configuration files should they create?',
+                options: [
+                    'A) `/etc/fail2ban/jail.conf` -- add a new `[cell-api]` section',
+                    'B) `/etc/fail2ban/filter.d/cell-api.conf` (filter) and `/etc/fail2ban/jail.d/cell-api.conf` (jail)',
+                    'C) `/etc/fail2ban/jail.local` -- add both filter and jail configuration',
+                    'D) `/etc/fail2ban/action.d/cell-api.conf`'
+                ]
+            },
+            {
+                q: 'Why must `KbdInteractiveAuthentication yes` be set in `sshd_config` when using PAM-based 2FA?',
+                options: [
+                    'A) It enables the PAM stack to run at all',
+                    'B) It enables the interactive challenge prompt that asks for the TOTP code after key authentication',
+                    'C) It allows keyboard input during the authentication process',
+                    'D) B and C are both correct'
+                ]
+            }
+        ];
+
+        /* ── Build quiz DOM ── */
+        (function buildQuiz() {
+            const container = document.getElementById('quizContainer');
+            QUESTIONS.forEach(function(question, qIndex) {
+                const block = document.createElement('div');
+                block.className = 'ne-quiz-question';
+
+                const qText = document.createElement('p');
+                qText.innerHTML = '<span class="q-num">Q' + (qIndex + 1) + '.</span> ' +
+                    question.q.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+                block.appendChild(qText);
+
+                question.options.forEach(function(option, oIndex) {
+                    const label = document.createElement('label');
+                    label.className = 'ne-quiz-option';
+
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'q' + qIndex;
+                    radio.value = oIndex;
+                    radio.addEventListener('change', checkAllAnswered);
+
+                    const text = document.createElement('span');
+                    text.innerHTML = option.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+
+                    label.appendChild(radio);
+                    label.appendChild(text);
+                    block.appendChild(label);
+                });
+
+                container.appendChild(block);
+            });
+        })();
+
+        /* Enable submit only when all questions are answered */
+        function checkAllAnswered() {
+            const answered = QUESTIONS.every(function(_, i) {
+                return document.querySelector('input[name="q' + i + '"]:checked');
+            });
+            document.getElementById('quizSubmit').disabled = !answered;
+        }
+
+        /* Submit to server for grading */
+        document.getElementById('quizSubmit').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Grading...';
+
+            const selectedAnswers = QUESTIONS.map(function(_, i) {
+                const checked = document.querySelector('input[name="q' + i + '"]:checked');
+                return checked ? parseInt(checked.value, 10) : -1;
+            });
+
+            try {
+                const result = await FirebaseAuth.callFunction('gradeQuiz', {
+                    quizId: QUIZ_ID,
+                    answers: selectedAnswers
+                });
+
+                const data = result.data;
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'ne-quiz-result ' + (data.passed ? 'pass' : 'fail');
+                resultEl.innerHTML =
+                    '<div class="score-line">' +
+                        (data.passed ? 'PASSED' : 'NOT PASSED') + ' -- ' +
+                        data.score + '% (' + data.correct + '/' + data.total + ' correct)' +
+                    '</div>' +
+                    (data.passed
+                        ? '<div>Dual-lock protocol verified. Module marked complete.</div>'
+                        : '<div>Review the sections above and retry. Focus on the questions you missed.</div>');
+
+                if (data.passed) {
+                    lastQuizScore = data.score;
+                    markComplete();
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Retry Quiz';
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Submit Answers';
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'ne-quiz-result fail';
+                resultEl.innerHTML = '<div>Submission error. Check your connection and try again.</div>';
+            }
+        });
+
+        /* ── Module completion tracking ── */
+        const MODULE_HOUSE = 'matrix';
+        let lastQuizScore = null;
+        const MODULE_ID = 'ala-07';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                if (lastQuizScore !== null) {
+                    ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, lastQuizScore);
+                } else {
+                    ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+                }
+            }
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#00ff41';
+            btn.style.color = '#000';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        /* Restore completed state on page load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#00ff41';
+                btn.style.color = '#000';
+            }
+        })();
+    </script>
+</body>
+</html>

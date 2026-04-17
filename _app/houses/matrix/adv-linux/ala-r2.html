@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA-R2: Access Control | Advanced Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060d08;
+            --bg-card:    #0a130c;
+            --accent:     #00ff41;
+            --accent-dim: rgba(0, 255, 65, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b9e8e;
+            --border: rgba(0, 255, 65, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge {
+            background: var(--accent);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .ne-code {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 14px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+        .ne-code .prompt    { color: var(--green); }
+        .ne-code .comment   { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value     { color: #f0883e; }
+
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .ne-table tr:hover td { background: rgba(0, 255, 65, 0.04); }
+
+        .ne-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .ne-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 255, 65, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ol {
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.9;
+        }
+        .ne-takeaways .proceed-note {
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .ne-complete { text-align: center; padding: 30px 20px 40px; }
+        #completeBtn {
+            background: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+            transition: all 0.2s;
+        }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 700px) {
+            .ne-card-grid { grid-template-columns: 1fr; }
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">ALA-R2: Access Control</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">ALA-R2</span>
+            <h1>Access Control</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Adv Linux</a> / ALA-R2
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Operational Briefing</h2>
+            <ul>
+                <li>Read and set Unix permission bits in both octal and symbolic notation</li>
+                <li>Understand user, group, and other triplets and when each applies</li>
+                <li>Use chown and chgrp correctly on live service directories</li>
+                <li>Apply ACLs when classic permissions cannot express the required policy</li>
+                <li>Configure sudoers with least privilege using visudo and drop-in files</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Mission Context:</strong>
+            <p>"Every process on your cell runs as a user. Every file belongs to a user and a group. The permission model is not complicated, but operators who cannot read it cold under pressure make mistakes that compromise the grid. This module is non-negotiable before Week 2."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">User and Group Architecture</h2>
+            <p class="ne-text">Every process runs as a user. Every file has an owner and a group. The identity of the calling process determines what files it can open, what commands it can run, and what damage it can do.</p>
+            <div class="ne-code"><span class="comment"># Show current user's UID, GID, and all group memberships</span>
+id
+
+<span class="comment"># Print only the current username</span>
+whoami
+
+<span class="comment"># List all groups the current user belongs to</span>
+groups
+
+<span class="comment"># Look up a specific user's entry in /etc/passwd</span>
+getent passwd operator
+
+<span class="comment"># Look up who is in the sudo group</span>
+getent group sudo</div>
+            <p class="ne-text"><span class="ne-inline-code">/etc/passwd</span> format: <span class="ne-inline-code">username:x:UID:GID:comment:home:shell</span>. The <span class="ne-inline-code">x</span> means the hashed password lives in <span class="ne-inline-code">/etc/shadow</span>. Service accounts typically have a shell of <span class="ne-inline-code">/usr/sbin/nologin</span> or <span class="ne-inline-code">/bin/false</span> to prevent interactive login.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Every process on your cell runs as a user. Knowing who owns what is the foundation of every access decision you will make as an operator.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Permission Bits</h2>
+            <p class="ne-text">The classic Unix permission model assigns read, write, and execute bits to three categories: owner, group, and others. Read the nine-character string in <span class="ne-inline-code">ls -la</span> output as three triplets.</p>
+            <div class="ne-code"><span class="comment"># Check permissions on a sensitive file</span>
+ls -la /etc/shadow
+
+<span class="comment"># Set permissions using octal notation</span>
+chmod 640 /etc/myfile
+
+<span class="comment"># Set permissions using symbolic notation</span>
+chmod u+x,g-w script.sh</div>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Octal</th><th>Symbolic</th><th>Meaning</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>755</td><td>rwxr-xr-x</td><td>Owner full; group + others read/execute</td></tr>
+                    <tr><td>644</td><td>rw-r--r--</td><td>Owner read/write; others read-only</td></tr>
+                    <tr><td>600</td><td>rw-------</td><td>Owner read/write; no access for anyone else</td></tr>
+                    <tr><td>700</td><td>rwx------</td><td>Owner full; no access for anyone else</td></tr>
+                    <tr><td>4755</td><td>rwsr-xr-x</td><td>SUID set: runs as file owner, not caller</td></tr>
+                </tbody>
+            </table>
+            <p class="ne-text">Special bits: SUID (4) causes execution under the file owner's identity; SGID (2) on a directory causes new files to inherit the directory's group; Sticky (1) on a directory prevents users from deleting files they do not own (the classic use is <span class="ne-inline-code">/tmp</span>).</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>A misconfigured permission on a critical file is a vulnerability. Operators who cannot read rwxr-xr-- at a glance are not ready for Weeks 2-4.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Ownership: chown and chgrp</h2>
+            <p class="ne-text">Ownership determines which permission triplet applies to a process accessing a file. Changing ownership correctly when deploying a new service is part of every cell hardening checklist.</p>
+            <div class="ne-code"><span class="comment"># Change owner and group simultaneously</span>
+sudo chown operator:ops /opt/cell-services/monitor.sh
+
+<span class="comment"># Recursive ownership change for a web root</span>
+sudo chown -R www-data:www-data /var/www/
+
+<span class="comment"># Change only the group</span>
+sudo chgrp sudo /usr/local/bin/privileged-tool</div>
+            <p class="ne-text">Use <span class="ne-inline-code">-R</span> (recursive) with caution on live service directories. Changing ownership recursively on <span class="ne-inline-code">/var/www/</span> while nginx is serving requests is safe. Doing it on <span class="ne-inline-code">/etc/</span> is not. Think before you run any recursive chown as root.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>When a new service is deployed into your cell, its files must be owned by the right service account, never by root unless unavoidable.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Access Control Lists (ACLs)</h2>
+            <p class="ne-text">When classic permissions cannot express the access policy you need (a file readable by two users from different groups), ACLs extend the model without touching group membership.</p>
+            <div class="ne-code"><span class="comment"># View the ACL on a file</span>
+getfacl /etc/grid-config
+
+<span class="comment"># Grant read access to a specific service account</span>
+setfacl -m u:svc-monitor:r /var/log/cell-ops/ops.log
+
+<span class="comment"># Set a default ACL on a directory (inherited by new files)</span>
+setfacl -m d:u:operator:rwx /home/shared/
+
+<span class="comment"># Remove a specific ACL entry</span>
+setfacl -x u:svc-monitor /path/to/file</div>
+            <p class="ne-text">A <span class="ne-inline-code">+</span> at the end of <span class="ne-inline-code">ls -la</span> output signals that an ACL is present beyond the standard bits. Use <span class="ne-inline-code">getfacl</span> to see the full picture. The <span class="ne-inline-code">d:</span> prefix in <span class="ne-inline-code">setfacl</span> sets a default ACL on a directory, meaning every file created inside inherits that entry automatically.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>ACLs let you grant surgical read access to service accounts without changing group membership across the cell.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The sudoers File</h2>
+            <p class="ne-text"><span class="ne-inline-code">sudo</span> is the privilege escalation mechanism. The sudoers file defines exactly which commands each user or group may run as root or as another user. Every entry is a potential privilege escalation vector and must follow least privilege.</p>
+            <div class="ne-code"><span class="comment"># Edit sudoers safely (validates syntax before saving)</span>
+sudo visudo
+
+<span class="comment"># Show what the current user is allowed to run via sudo</span>
+sudo -l
+
+<span class="comment"># Run a specific command as a service account</span>
+sudo -u svc-monitor /opt/cell-services/run-check.sh</div>
+            <p class="ne-text">Drop-in files in <span class="ne-inline-code">/etc/sudoers.d/</span> are included automatically and are safer than editing <span class="ne-inline-code">/etc/sudoers</span> directly. A <span class="ne-inline-code">NOPASSWD</span> entry removes the password prompt and is appropriate only for automation accounts with tightly scoped commands. Granting <span class="ne-inline-code">ALL=(ALL:ALL) NOPASSWD: ALL</span> to any account is a complete bypass of the access control model.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Every sudo entry is a potential privilege escalation vector. Give only the command, not ALL.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">PAM Basics (Preview for ALA-07)</h2>
+            <p class="ne-text">Pluggable Authentication Modules (PAM) is the authentication middleware that sits between applications and the system. When you run <span class="ne-inline-code">sudo</span> or log in via SSH, PAM decides whether to grant access by evaluating a stack of modules in order.</p>
+            <div class="ne-code"><span class="comment"># The common authentication stack (Ubuntu 22.04)</span>
+cat /etc/pam.d/common-auth
+
+<span class="comment"># The sudo-specific PAM configuration</span>
+cat /etc/pam.d/sudo
+
+<span class="comment"># Per-user resource limits (sessions, processes, file sizes)</span>
+cat /etc/security/limits.conf</div>
+            <p class="ne-text">PAM module control flags: <span class="ne-inline-code">required</span> (must pass; failure continues the stack), <span class="ne-inline-code">requisite</span> (must pass; failure stops immediately), <span class="ne-inline-code">sufficient</span> (if it passes, skip remaining required modules), <span class="ne-inline-code">optional</span> (result ignored unless it is the only module). Week 2 adds a TOTP module to this stack to implement 2FA.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Week 2 implements 2FA via PAM. The PAM stack concept must not be new when it matters.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Self-Check</h3>
+            <ol>
+                <li>What does the octal value <span class="ne-inline-code">4755</span> mean? When is SUID appropriate and when is it dangerous?</li>
+                <li>What is the difference between <span class="ne-inline-code">chmod</span> and <span class="ne-inline-code">chown</span>? Give a scenario where you need both.</li>
+                <li>When would you use an ACL instead of changing a file's group? Give a concrete example.</li>
+                <li>What is wrong with a sudoers entry that grants <span class="ne-inline-code">NOPASSWD: ALL</span>? How would you fix it?</li>
+            </ol>
+            <p class="proceed-note">If you are comfortable with all of these, proceed to ALA-R3: Process Authority.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn">Mark Complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID    = 'ala-r2';
+
+        document.getElementById('completeBtn').addEventListener('click', function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            this.textContent = 'Completed';
+            this.disabled = true;
+        });
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+            }
+        })();
+    </script>
+</body>
+</html>

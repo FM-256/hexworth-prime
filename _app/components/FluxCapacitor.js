@@ -90,7 +90,8 @@
         { id: 'eye', name: 'Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#c084fc', path: 'houses/eye/index.html' },
         { id: 'ai', name: 'Machine', icon: '<img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a855f7', path: 'houses/ai/index.html' },
         { id: 'dark-arts', name: 'Dark Arts', icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#9b59d0', path: 'houses/dark-arts/index.html' },
-        { id: 'matrix', name: 'The Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', path: 'houses/matrix/index.html' }
+        { id: 'matrix', name: 'The Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', path: 'houses/matrix/index.html' },
+        { id: 'divergent', name: 'The Warehouse', icon: '<img src="/assets/images/icons/icon-wildcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#ff00ff', path: 'houses/divergent/index.html', rough: true }
     ];
 
     const EMBLEM_PATH = 'assets/images/emblems/';
@@ -317,6 +318,42 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+
+        /* The Warehouse — rough, taped-on, improvised */
+        .flux-house.rough {
+            border: 2px dashed rgba(255, 0, 255, 0.35);
+            border-radius: 8px;
+            transform: rotate(-1.5deg);
+            background: rgba(30, 20, 30, 0.7);
+        }
+
+        .flux-house.rough:hover {
+            transform: rotate(0deg) translateY(-5px);
+            border-color: #ff00ff;
+            animation: flicker 0.15s ease 2;
+        }
+
+        .flux-house.rough .flux-house-icon img {
+            border: 2px dashed rgba(255, 0, 255, 0.5);
+            border-radius: 6px;
+            box-shadow: none;
+        }
+
+        .flux-house.rough:hover .flux-house-icon img {
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+            border-style: solid;
+        }
+
+        .flux-house.rough .flux-house-name {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.05em;
+            font-size: 0.8rem;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .flux-house-icon {
@@ -660,6 +697,7 @@
             if (isCurrent) card.classList.add('current');
             if (isHome && !isCurrent) card.classList.add('home');
             if (isLocked) card.classList.add('locked');
+            if (house.rough) card.classList.add('rough');
 
             // Icon (emblem image with emoji fallback)
             const icon = document.createElement('span');

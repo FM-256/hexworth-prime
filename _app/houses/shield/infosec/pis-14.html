@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIS-14: PKI and Certificate Management | Principles of Information Security</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060810;
+            --bg-card:    #0a1018;
+            --accent:     #3b82f6;
+            --accent-dim: rgba(59, 130, 246, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge {
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        .obj-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .ne-table tr:hover td { background: rgba(59, 130, 246, 0.04); }
+
+        /* Code block for CA hierarchy diagram */
+        .ne-code {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: #34d399;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.6;
+        }
+
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .ne-breach {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 16px 0;
+        }
+        .ne-breach strong { color: #f87171; display: block; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+        .ne-breach p { color: #fca5a5; font-size: 0.875rem; }
+
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .ne-quiz {
+            background: var(--accent-dim);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 12px;
+            padding: 28px 24px;
+            margin-top: 32px;
+            margin-bottom: 20px;
+        }
+        .ne-quiz-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .ne-quiz-header h3 { font-size: 1rem; color: var(--accent); letter-spacing: 0.5px; margin-bottom: 3px; }
+        .ne-quiz-header p { font-size: 0.78rem; color: var(--text-secondary); }
+
+        .question-block { margin-bottom: 24px; }
+        .question-num { color: var(--accent); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; display: block; margin-bottom: 5px; }
+        .question-text { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 12px; line-height: 1.65; }
+        .options-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .option-item { display: flex; align-items: flex-start; gap: 10px; }
+        .option-item input[type="radio"] { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+        .option-item label { font-size: 0.875rem; color: var(--text-secondary); cursor: pointer; line-height: 1.55; }
+        .option-item label:hover { color: var(--text-primary); }
+
+        .quiz-submit-area { margin-top: 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        #quizSubmitBtn { background: var(--accent); border: none; color: #fff; font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600; padding: 11px 32px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #quizSubmitBtn:hover:not(:disabled) { background: #2563eb; }
+        #quizSubmitBtn:disabled { opacity: 0.45; cursor: default; }
+        .quiz-status-msg { font-size: 0.78rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+
+        .quiz-result { display: none; text-align: center; padding: 24px; border-radius: 10px; margin-top: 20px; }
+        .quiz-result.pass { display: block; background: rgba(16, 185, 129, 0.07); border: 1px solid rgba(16, 185, 129, 0.30); }
+        .quiz-result.fail { display: block; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); }
+        .result-score { font-size: 2.2rem; font-weight: 700; margin-bottom: 6px; }
+        .quiz-result.pass .result-score { color: #34d399; }
+        .quiz-result.fail .result-score { color: #f87171; }
+        .result-label { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+        .quiz-result.pass .result-label { color: #6ee7b7; }
+        .quiz-result.fail .result-label { color: #fca5a5; }
+        .result-msg { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; }
+        .retry-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.40); color: #f87171; font-family: 'Inter', sans-serif; font-size: 0.82rem; padding: 8px 22px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        .ne-complete { text-align: center; padding: 30px 20px 40px; }
+        #completeBtn { background: #22c55e; color: #fff; border: none; padding: 14px 36px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+        #completeBtn.is-done { background: #16a34a; }
+
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        @media (max-width: 700px) { .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-14: PKI and Certificate Management</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">PIS-14</span>
+            <h1>PKI and Certificate Management</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Infosec</a> / PIS-14
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives <span class="obj-badge">SY0-701: 5.1, 5.2</span></h2>
+            <ul>
+                <li>Explain the CA hierarchy: Root CA (offline), Intermediate CA, and leaf certificate roles</li>
+                <li>Describe the certificate lifecycle from CSR generation through revocation</li>
+                <li>Distinguish CRL, OCSP, and OCSP Stapling by revocation mechanism and performance characteristics</li>
+                <li>Match certificate types (DV, OV, EV, Wildcard, SAN) to their validation level and use case</li>
+                <li>Explain digital signature creation and verification direction for the exam</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            <p>"The clearance credential infrastructure. Every person, device, and system that touches specimen data carries a credential -- a cryptographically signed certificate that proves who they are and what they are authorized to do. Forging a clearance credential is theoretically possible only if the root signing authority is compromised. The root authority is offline, air-gapped, and accessed twice a year. This is not paranoia. This is the standard."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">CA Hierarchy -- Root, Intermediate, and Leaf Certificates</h2>
+            <p class="ne-text">Public Key Infrastructure (PKI) is the framework of policies, procedures, and technology that enables the issuance and management of digital certificates. At its core is the Certificate Authority (CA) hierarchy. SY0-701 Objectives 5.1 and 5.2 require you to understand how the hierarchy works and why it is structured this way.</p>
+            <p class="ne-text">A PKI hierarchy has three levels: the <strong style="color:var(--accent)">Root CA</strong> at the top, one or more <strong style="color:var(--accent)">Intermediate CAs</strong> in the middle, and <strong style="color:var(--accent)">leaf (end-entity) certificates</strong> at the bottom. The Root CA is the ultimate trust anchor -- it signs its own certificate (self-signed) and signs the certificates of Intermediate CAs. The Root CA is kept offline and air-gapped to protect it from compromise.</p>
+            <p class="ne-text">Intermediate CAs are online and issue leaf certificates to servers, users, and devices. If an Intermediate CA is compromised, only the certificates it issued need to be revoked -- the Root CA and other Intermediate CAs are unaffected. This is why the two-tier hierarchy exists: to limit blast radius.</p>
+            <div class="ne-code">Root CA (self-signed, offline, air-gapped)
+  |
+  +-- Intermediate CA 1 (online, issues server certificates)
+  |     |
+  |     +-- server.example.com  (leaf / end-entity certificate)
+  |     +-- mail.example.com    (leaf / end-entity certificate)
+  |
+  +-- Intermediate CA 2 (online, issues user/device certificates)
+        |
+        +-- user@example.com    (S/MIME user certificate)
+        +-- device-laptop-001   (device authentication certificate)</div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility's Root CA certificate is stored on an HSM (Hardware Security Module) in a physically locked vault with two-person integrity requirement for access. It is brought online twice per year to re-sign the Intermediate CA certificates. Every certificate issued to a lab workstation, server, or analyst traces back to this root. Compromise of the root would invalidate the entire clearance credential system -- which is why it never goes online.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Certificate Lifecycle -- CSR, Issuance, Renewal, and Revocation</h2>
+            <p class="ne-text">A certificate's lifecycle begins with a Certificate Signing Request (CSR) and ends with expiration or revocation. SY0-701 tests each stage of this lifecycle and the mechanisms used to manage it.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>Process</th>
+                        <th>Exam Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>CSR Generation</td>
+                        <td>The certificate requester generates a key pair. The private key never leaves the requester. The public key and identity information are packaged into a CSR and submitted to the CA.</td>
+                        <td>The private key is generated locally and kept secret. The CA never sees the private key. If a CA has the private key, something is wrong.</td>
+                    </tr>
+                    <tr>
+                        <td>Validation and Issuance</td>
+                        <td>The CA verifies the requester's identity (DV/OV/EV depending on certificate type), signs the certificate with its private key, and delivers the signed certificate.</td>
+                        <td>CA signature proves identity. Anyone with the CA's public key (in the trust store) can verify the signature without contacting the CA.</td>
+                    </tr>
+                    <tr>
+                        <td>Renewal</td>
+                        <td>Certificates have a validity period (typically 1-2 years). Renewal generates a new CSR and issues a new certificate before the old one expires.</td>
+                        <td>Expired certificates cause the same browser warning as untrusted certificates. Monitor expiration dates. Automated certificate management (ACME protocol) prevents expiration failures.</td>
+                    </tr>
+                    <tr>
+                        <td>Revocation</td>
+                        <td>A certificate is revoked before its expiration when the private key is compromised, the subject changes, or the certificate was issued in error.</td>
+                        <td>Two revocation mechanisms: CRL (Certificate Revocation List) and OCSP (Online Certificate Status Protocol). Know the difference for the exam.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="ne-text"><strong style="color:var(--accent)">CRL vs OCSP:</strong> A CRL is a periodically published list of revoked certificate serial numbers, signed by the CA. Clients download the full CRL and check if the certificate serial appears. CRLs can be large and are updated on a schedule, creating a revocation window. OCSP allows clients to query the CA in real time for the status of a specific certificate. OCSP Stapling has the server periodically fetch its own OCSP response and include it in the TLS handshake, eliminating the client-to-CA lookup.</p>
+            <div class="ne-breach">
+                <strong>Real-World: DigiNotar Compromise (2011)</strong>
+                <p>A rogue DigiNotar intermediate CA issued fraudulent certificates for Google.com, enabling man-in-the-middle attacks against Iranian users. The entire DigiNotar CA was removed from browser trust stores, immediately invalidating hundreds of legitimate certificates. Root CA compromise is existential -- there is no partial recovery. Every certificate in the chain is untrusted until re-issued under a new root.</p>
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>When a lab analyst's laptop is reported stolen, the first action is certificate revocation. The analyst's device certificate is added to the CRL and an OCSP responder is updated immediately. Within minutes, every system that checks certificate status will refuse connections from that certificate. The stolen laptop cannot authenticate to any facility system, regardless of whether the attacker knows the analyst's credentials.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Certificate Types, Pinning, and Key Escrow</h2>
+            <p class="ne-text">Not all certificates are the same. SY0-701 tests certificate types by validation level and by use case. You must match the correct certificate type to the scenario.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Certificate Type</th>
+                        <th>Validation Level</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>DV (Domain Validation)</td>
+                        <td>CA verifies only control of the domain -- no identity verification</td>
+                        <td>Basic HTTPS for websites. Fast, cheap, automated (Let's Encrypt). No assurance of who owns the domain beyond DNS control.</td>
+                    </tr>
+                    <tr>
+                        <td>OV (Organization Validation)</td>
+                        <td>CA verifies domain control plus organization identity</td>
+                        <td>Business websites. Organization name appears in certificate details. More assurance than DV.</td>
+                    </tr>
+                    <tr>
+                        <td>EV (Extended Validation)</td>
+                        <td>Strictest identity verification: legal entity, physical address, operational existence</td>
+                        <td>High-trust sites (banks, e-commerce). Reduced phishing risk because identity is verified by the CA.</td>
+                    </tr>
+                    <tr>
+                        <td>Wildcard Certificate</td>
+                        <td>Same as DV or OV but covers all subdomains</td>
+                        <td>*.example.com covers mail.example.com, www.example.com, etc. If the wildcard private key is compromised, all subdomains are affected.</td>
+                    </tr>
+                    <tr>
+                        <td>SAN (Subject Alternative Name)</td>
+                        <td>Multiple specific domains in one certificate</td>
+                        <td>Covers a defined list of domains. More secure than wildcard (compromise affects only listed names). Common for Microsoft Exchange.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="ne-text"><strong style="color:var(--accent)">Certificate pinning</strong> is a technique where a client application hard-codes or pins the expected certificate (or public key hash) for a specific server. If the server presents a different certificate -- even one signed by a trusted CA -- the connection is rejected. Pinning prevents CA compromise attacks but makes certificate rotation more complex.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Key escrow</strong> is the process of depositing cryptographic keys with a trusted third party. It enables recovery of encrypted data if the key holder is unavailable. Key escrow is required in some government and enterprise contexts but creates a high-value target: whoever holds the escrow holds the keys to all encrypted data.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>The facility uses certificate pinning for all internal applications that connect to the specimen database. If an attacker compromises an intermediate CA and issues a fraudulent certificate for the database server, the pinned application will reject it. The application knows exactly which certificate to expect -- any deviation is treated as a potential MITM attack and the connection is terminated with an alert.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Digital Signatures and PKI Exam Scenarios</h2>
+            <p class="ne-text"><strong style="color:var(--accent)">Digital signatures</strong> provide authentication, integrity, and non-repudiation. The process: the sender hashes the message and encrypts the hash with their private key -- this is the signature. The recipient decrypts the signature with the sender's public key to recover the hash, then independently hashes the received message. If the hashes match: the message has not been altered (integrity) and only the private key holder could have created the signature (authentication and non-repudiation).</p>
+            <p class="ne-text">Critical distinction: digital signatures use the <strong style="color:var(--accent)">sender's private key</strong> to sign and the <strong style="color:var(--accent)">sender's public key</strong> to verify. This is the opposite of encryption (which uses the recipient's public key to encrypt and the recipient's private key to decrypt). Getting this backwards is one of the most common exam errors.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Correct Answer</th>
+                        <th>Why</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>A server certificate shows an untrusted CA in a browser</td>
+                        <td>The CA that signed the certificate is not in the browser's trust store -- likely a private or self-signed CA</td>
+                        <td>Trust chains from the leaf cert through intermediates to the root; the root must be in the OS/browser trust store</td>
+                    </tr>
+                    <tr>
+                        <td>An application must verify the identity of a server without querying the CA each time</td>
+                        <td>Certificate pinning or pre-installed certificate trust with OCSP stapling</td>
+                        <td>Pinning embeds expected cert/key hash; OCSP stapling pre-fetches revocation status so the client does not need to query the CA live</td>
+                    </tr>
+                    <tr>
+                        <td>A private key is compromised before the certificate expires</td>
+                        <td>Revoke the certificate immediately via CRL/OCSP; generate a new key pair and new CSR; re-issue a new certificate</td>
+                        <td>Revocation invalidates the old certificate; the new CSR generates a new key pair (the old private key is discarded)</td>
+                    </tr>
+                    <tr>
+                        <td>Organization needs to recover encrypted data from a terminated employee</td>
+                        <td>Key escrow -- copy of the encryption key was deposited with a recovery agent at issuance</td>
+                        <td>Without key escrow, encrypted data is unrecoverable if the only holder of the private key is gone</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                <p>Every specimen transfer record is digitally signed by the analyst who handled it. Non-repudiation is enforced: a signed record cannot later be denied. The signature is created with the analyst's private key, which lives only on their hardware token. If the analyst claims they did not sign a record, the signature can be verified against their public key in the clearance certificate -- and the claim is refuted by cryptographic proof.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Root CA is offline and air-gapped -- it signs Intermediate CA certificates only; compromise of the root invalidates the entire PKI</li>
+                <li>The CA never receives the private key -- CSR contains only the public key and identity information</li>
+                <li>CRL is a periodic downloaded list; OCSP is real-time per-certificate query; OCSP Stapling has the server pre-fetch and bundle its OCSP response</li>
+                <li>EV certificates provide the strongest identity assurance (legal entity verified by CA); DV certificates only verify domain control</li>
+                <li>Digital signatures: sender signs with private key, recipient verifies with sender's public key -- the opposite direction from encryption</li>
+                <li>Certificate pinning defeats fraudulent CA-signed certificates but requires application updates when the legitimate certificate rotates</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <div class="question-block">
+                    <span class="question-num">Question 1 of 5</span>
+                    <p class="question-text">A company's Root CA private key is compromised. The attacker uses it to issue fraudulent certificates for financial institutions. What is the MOST complete remediation action required?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">Revoke only the fraudulent certificates using CRL</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">Remove the Root CA from all browser trust stores and re-issue all certificates under a new Root CA</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">Update OCSP to mark the fraudulent certificates as revoked</label></li>
+                        <li class="option-item"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Rotate only the Intermediate CA certificates</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 2 of 5</span>
+                    <p class="question-text">An administrator generates a certificate signing request (CSR) for a web server. Which element of the CSR must NEVER be transmitted to the CA?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">The server's public key</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">The server's private key</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">The server's common name (hostname)</label></li>
+                        <li class="option-item"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">The organization name</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 3 of 5</span>
+                    <p class="question-text">A bank wants to display strong identity assurance to website visitors, ensuring that its legal organization name is verified by the CA and displayed in the certificate details. Which certificate type meets this requirement?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">Domain Validation (DV) certificate</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">Extended Validation (EV) certificate</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">Wildcard certificate</label></li>
+                        <li class="option-item"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">Self-signed certificate</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 4 of 5</span>
+                    <p class="question-text">A client application needs to verify a server's certificate revocation status without making a live query to the OCSP responder during each TLS handshake (to reduce latency). Which mechanism allows the server to provide pre-fetched revocation proof to the client during the handshake?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">Certificate Revocation List (CRL)</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">OCSP Stapling</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">Certificate pinning</label></li>
+                        <li class="option-item"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">Key escrow verification</label></li>
+                    </ul>
+                </div>
+
+                <div class="question-block">
+                    <span class="question-num">Question 5 of 5</span>
+                    <p class="question-text">A user signs an email with their digital signature. Which cryptographic operation creates the signature, and which operation does the recipient use to verify it?</p>
+                    <ul class="options-list">
+                        <li class="option-item"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">Sender encrypts with recipient's public key; recipient decrypts with their private key</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">Sender hashes and encrypts hash with sender's private key; recipient decrypts hash with sender's public key and compares</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">Sender encrypts with sender's public key; recipient decrypts with sender's private key</label></li>
+                        <li class="option-item"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">Sender hashes and encrypts hash with recipient's public key; recipient decrypts hash with their private key</label></li>
+                    </ul>
+                </div>
+
+                <div class="quiz-submit-area">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span class="quiz-status-msg" id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <div class="quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn" disabled>Pass the quiz to complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-14';
+        const QUIZ_ID      = 'pis-14-quiz';
+        const PASS_SCORE   = 4;
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            selections[parseInt(e.target.name.replace('q',''),10)] = parseInt(e.target.value,10);
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+            if (answered >= TOTAL_Q) { submitBtn.disabled = false; statusMsg.textContent = 'All questions answered. Ready to submit.'; }
+            else { statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.'; }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true; this.textContent = 'Grading...';
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) { if (selections[i] !== undefined) { answerMap[String(i)] = selections[i]; } }
+            var score = 0, percentage = 0, passed = false;
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: answerMap });
+                    score = response.data.score; percentage = response.data.percentage; passed = response.data.passed;
+                }
+            } catch (e) { console.warn('[PIS-14] Server grading failed:', e.message); }
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.disabled = true; });
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Clearance credential infrastructure verified. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+            if (passed) { markComplete(score); } else { document.getElementById('retryBtn').style.display = 'inline-block'; }
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) { r.checked = false; r.disabled = false; });
+            document.getElementById('quizResult').className = 'quiz-result';
+            var submitBtn = document.getElementById('quizSubmitBtn'); submitBtn.style.display = ''; submitBtn.disabled = true; submitBtn.textContent = 'Submit Quiz';
+            var statusMsg = document.getElementById('quizStatusMsg'); statusMsg.style.display = ''; statusMsg.textContent = 'Answer all 5 questions to submit.';
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') { ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score); }
+            var btn = document.getElementById('completeBtn'); btn.textContent = 'Module Complete'; btn.disabled = true; btn.classList.add('is-done');
+        }
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn'); btn.textContent = 'Module Complete'; btn.disabled = true; btn.classList.add('is-done');
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA-R5: Signal Processing | Advanced Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060d08;
+            --bg-card:    #0a130c;
+            --accent:     #00ff41;
+            --accent-dim: rgba(0, 255, 65, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b9e8e;
+            --border: rgba(0, 255, 65, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge {
+            background: var(--accent);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .ne-code {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 14px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+        .ne-code .prompt    { color: var(--green); }
+        .ne-code .comment   { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value     { color: #f0883e; }
+
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        /* Operator column in redirection table gets accent color treatment */
+        .ne-table td.op-cell {
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+        .ne-table tr:hover td { background: rgba(0, 255, 65, 0.04); }
+
+        .ne-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .ne-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 255, 65, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ol {
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.9;
+        }
+        .ne-takeaways .proceed-note {
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .ne-complete { text-align: center; padding: 30px 20px 40px; }
+        #completeBtn {
+            background: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+            transition: all 0.2s;
+        }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 700px) {
+            .ne-card-grid { grid-template-columns: 1fr; }
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">ALA-R5: Signal Processing</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">ALA-R5</span>
+            <h1>Signal Processing</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Adv Linux</a> / ALA-R5
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Operational Briefing</h2>
+            <ul>
+                <li>Build multi-stage pipelines and understand how exit codes propagate</li>
+                <li>Use grep as a forensic instrument for log analysis and config auditing</li>
+                <li>Edit config files programmatically and safely with sed</li>
+                <li>Process structured text as rows and columns with awk</li>
+                <li>Understand and apply every shell redirection operator correctly</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Mission Context:</strong>
+            <p>"Raw output from system commands is almost never what you want. It is the raw signal. Pipelines transform that signal into actionable intelligence. The five tools in this module are the core of every log analysis, config audit, and forensic extraction you will perform in this course."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The Pipeline Architecture</h2>
+            <p class="ne-text">A pipeline connects the stdout of one command to the stdin of the next. Each command in the pipeline runs as a separate subprocess. The shell wires them together with kernel pipes, not temporary files.</p>
+            <div class="ne-code"><span class="comment"># Filter process list to find sshd without showing grep itself</span>
+ps aux | grep sshd | grep -v grep
+
+<span class="comment"># Count error-level entries in syslog</span>
+cat /var/log/syslog | grep 'error' | wc -l
+
+<span class="comment"># Pipe both stdout and stderr together (bash syntax)</span>
+command |&amp; grep 'WARN'
+
+<span class="comment"># Fail the pipeline if any command in it fails</span>
+set -o pipefail</div>
+            <p class="ne-text">By default, a pipeline's exit code is the exit code of the last command only. With <span class="ne-inline-code">set -o pipefail</span> active, the pipeline returns the exit code of the first failing command. Always set this in scripts that use pipelines for critical operations. Without it, a failure mid-pipeline is silently swallowed.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Pipelines transform raw output from system commands into actionable intelligence. This is the fundamental pattern of all log analysis work.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">grep: Pattern Extraction</h2>
+            <p class="ne-text"><span class="ne-inline-code">grep</span> is a forensic instrument as much as a search tool. In log analysis, incident response, and config auditing, it is almost always the first step in a pipeline.</p>
+            <div class="ne-code"><span class="comment"># Case-insensitive search in auth log</span>
+grep -i 'failed' /var/log/auth.log
+
+<span class="comment"># Recursive search with permission error suppression</span>
+grep -r 'password' /etc/ 2&gt;/dev/null
+
+<span class="comment"># Exclude comment lines (lines starting with #)</span>
+grep -v '^#' /etc/ssh/sshd_config
+
+<span class="comment"># Extended regex: match IPv4 addresses in a log file</span>
+grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}' access.log
+
+<span class="comment"># Count matching lines</span>
+grep -c 'FAILED' /var/log/auth.log
+
+<span class="comment"># Show only filenames that contain a match</span>
+grep -rl 'PasswordAuthentication yes' /etc/</div>
+            <p class="ne-text">Key flags: <span class="ne-inline-code">-i</span> (case-insensitive), <span class="ne-inline-code">-r</span> (recursive), <span class="ne-inline-code">-v</span> (invert match), <span class="ne-inline-code">-n</span> (line numbers), <span class="ne-inline-code">-c</span> (count), <span class="ne-inline-code">-E</span> (extended regex), <span class="ne-inline-code">-o</span> (print only matching text, not full line), <span class="ne-inline-code">-l</span> (filenames only). <span class="ne-inline-code">-E</span> eliminates the need to escape special regex characters.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Searching auth logs for failed login patterns, scanning configs for insecure settings: grep is a forensic instrument.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">sed: Stream Editing</h2>
+            <p class="ne-text"><span class="ne-inline-code">sed</span> processes text line by line and applies transformations: substitute, print a range, delete, extract time windows. It is the standard tool for programmatic config file edits and log slicing.</p>
+            <div class="ne-code"><span class="comment"># Print only lines 100-200 of a log file</span>
+sed -n '100,200p' /var/log/syslog
+
+<span class="comment"># Substitute a config value (dry run to stdout)</span>
+sed 's/PasswordAuthentication yes/PasswordAuthentication no/' sshd_config
+
+<span class="comment"># In-place edit with a backup (the .bak file is your safety net)</span>
+sed -i.bak '/^#/d' config.conf
+
+<span class="comment"># Print lines between two timestamp patterns</span>
+sed -n '/2026-04-11 03:47/,/2026-04-11 03:58/p' auth.log</div>
+            <p class="ne-text">Always use <span class="ne-inline-code">-i.bak</span> (not bare <span class="ne-inline-code">-i</span>) when editing files in place. The <span class="ne-inline-code">.bak</span> suffix creates a backup before the edit, giving you a one-command recovery path: <span class="ne-inline-code">mv file.conf.bak file.conf</span>. The <span class="ne-inline-code">s/old/new/g</span> syntax substitutes every occurrence on each line; without the trailing <span class="ne-inline-code">g</span> it only replaces the first match per line.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>When hardening a cell, you will edit config files programmatically. sed -i with a backup extension is the safe way to do it.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">awk: Structured Data Processing</h2>
+            <p class="ne-text"><span class="ne-inline-code">awk</span> treats text as rows and columns. System logs, <span class="ne-inline-code">/etc/passwd</span>, and command output all have consistent field structures that <span class="ne-inline-code">awk</span> can process directly without intermediate parsing.</p>
+            <div class="ne-code"><span class="comment"># Print first field and last field of each line</span>
+awk '{print $1, $NF}' /var/log/access.log
+
+<span class="comment"># Use : as field separator; print usernames with UID &gt;= 1000</span>
+awk -F: '$3 &gt;= 1000 {print $1}' /etc/passwd
+
+<span class="comment"># Count FAILED lines, print total at the end</span>
+awk '/FAILED/ {count++} END {print count}' auth.log
+
+<span class="comment"># Print header, then process lines, then print footer</span>
+awk 'BEGIN {print "=== Report ==="} /Accepted/ {print $1, $9} END {print "=== Done ==="}' auth.log</div>
+            <p class="ne-text">Built-in variables: <span class="ne-inline-code">$0</span> (entire line), <span class="ne-inline-code">$1..$N</span> (fields), <span class="ne-inline-code">NF</span> (number of fields), <span class="ne-inline-code">NR</span> (current row number), <span class="ne-inline-code">FS</span> (field separator, set with <span class="ne-inline-code">-F</span>). The <span class="ne-inline-code">BEGIN</span> block runs before any input; <span class="ne-inline-code">END</span> runs after all input. Conditionals inside the action block filter which lines trigger the action.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>System logs have consistent field structures. awk processes them as rows and columns, enabling extraction from even enormous log files.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">tee, xargs, and Process Substitution</h2>
+            <p class="ne-text">These three tools cover the cases where simple pipelines fall short: when you need to split output, pass filenames instead of content, or compare two command outputs side by side.</p>
+            <div class="ne-code"><span class="comment"># Write to file and stdout simultaneously (for live view + saved record)</span>
+command 2&gt;&amp;1 | tee /tmp/diagnostic.log
+
+<span class="comment"># Find log files containing 'error' - xargs passes filenames, not content</span>
+find /var/log -name "*.log" | xargs grep -l 'error'
+
+<span class="comment"># Back up every .conf file in the current directory</span>
+ls *.conf | xargs -I{} cp {} {}.bak
+
+<span class="comment"># Process substitution: compare sorted versions of two files</span>
+diff &lt;(sort file1.txt) &lt;(sort file2.txt)</div>
+            <p class="ne-text"><span class="ne-inline-code">tee</span> duplicates a stream: it writes to a file and also passes the stream downstream. Use it whenever you want both a saved log and live terminal output. <span class="ne-inline-code">xargs -I{}</span> lets you specify exactly where the input goes in the command template. Process substitution <span class="ne-inline-code">&lt;(command)</span> creates a file descriptor from command output, allowing tools that expect file arguments (like <span class="ne-inline-code">diff</span>) to work with command output directly.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>When you need to pass filenames instead of content, use xargs. When you need to compare two command outputs, use process substitution.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Redirection: Complete Reference</h2>
+            <p class="ne-text">Redirection controls where stdin, stdout, and stderr go. Mastering it fully is prerequisite to writing clean bash scripts in Week 3. Errors that disappear into <span class="ne-inline-code">/dev/null</span> during an incident cannot be debugged.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Operator</th><th>Meaning</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="op-cell">&gt; file</td><td>Redirect stdout, overwrite file</td></tr>
+                    <tr><td class="op-cell">&gt;&gt; file</td><td>Redirect stdout, append to file</td></tr>
+                    <tr><td class="op-cell">&lt; file</td><td>Read stdin from file</td></tr>
+                    <tr><td class="op-cell">2&gt; file</td><td>Redirect stderr only</td></tr>
+                    <tr><td class="op-cell">2&gt;&amp;1</td><td>Merge stderr into stdout stream</td></tr>
+                    <tr><td class="op-cell">&amp;&gt; file</td><td>Redirect both stdout and stderr to file</td></tr>
+                    <tr><td class="op-cell">&gt; /dev/null</td><td>Discard output entirely</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-code"><span class="comment"># Here document: feed multi-line text as stdin to a command</span>
+cat &lt;&lt; 'EOF'
+line one
+line two
+EOF
+
+<span class="comment"># Redirect both streams to a file, silent operation</span>
+./script.sh &amp;&gt; /var/log/script.log
+
+<span class="comment"># Discard stderr noise while keeping stdout</span>
+find / -name "target" 2&gt;/dev/null</div>
+            <p class="ne-text">Order matters. <span class="ne-inline-code">2&gt;&amp;1 &gt;file</span> and <span class="ne-inline-code">&gt;file 2&gt;&amp;1</span> are not equivalent. The shell processes redirections left to right. To send both streams to a file, the correct order is <span class="ne-inline-code">&gt;file 2&gt;&amp;1</span>, or use the shorthand <span class="ne-inline-code">&amp;&gt;file</span>.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Understanding redirection completely is prerequisite to writing clean bash scripts in Week 3. Errors that disappear into /dev/null cannot be debugged.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Self-Check</h3>
+            <ol>
+                <li>Write a single pipeline that counts the number of failed SSH login attempts in <span class="ne-inline-code">/var/log/auth.log</span> using only grep and wc.</li>
+                <li>What does <span class="ne-inline-code">set -o pipefail</span> do, and why does it matter in a script that pipes output through several filters?</li>
+                <li>Write an awk command that reads <span class="ne-inline-code">/etc/passwd</span> and prints only the usernames of accounts with UID 0 (root-level UIDs).</li>
+                <li>Write the one-line pipeline that finds the top 5 IP addresses in <span class="ne-inline-code">/var/log/nginx/access.log</span> by request count, using only awk, sort, uniq, and head.</li>
+            </ol>
+            <p class="proceed-note">If you are comfortable with all of these, you have completed the Week 0 refresher sequence. Week 1 begins with ALA-01.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn">Mark Complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID    = 'ala-r5';
+
+        document.getElementById('completeBtn').addEventListener('click', function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            this.textContent = 'Completed';
+            this.disabled = true;
+        });
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+            }
+        })();
+    </script>
+</body>
+</html>

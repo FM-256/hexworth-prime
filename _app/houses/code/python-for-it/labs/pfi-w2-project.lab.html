@@ -172,7 +172,7 @@ SEVERITY COUNTS
   ERROR     :  3
   CRITICAL  :  1
 ------------------------------------
-ERROR RATE  : 36.36%
+ERROR RATE  : 27.27%
 ------------------------------------
 UNIQUE ERRORS (2 total)
   - Connection refused to database
@@ -206,9 +206,9 @@ CRITICAL EVENTS (1 total)
             <div class="content-section">
                 <ul class="requirement-list">
                     <li><span class="req-num">1.</span> Reads the log file using <code>with open('server.log', 'r') as f</code> — do not use f.read() on the whole file; iterate line by line</li>
-                    <li><span class="req-num">2.</span> Uses string methods — specifically split() to break each line into parts, strip() to remove trailing whitespace and newlines, and upper() or lower() at least once</li>
+                    <li><span class="req-num">2.</span> Uses string methods — specifically split() to break each line into parts, strip() to remove trailing whitespace and newlines, strip("[]") to remove severity brackets, and upper() or lower() at least once</li>
                     <li><span class="req-num">3.</span> Uses string slicing to extract the date component from each line (characters 0 through 10) rather than always relying on split()</li>
-                    <li><span class="req-num">4.</span> Stores the count of each severity level (INFO, WARNING, ERROR) in a dictionary — keys are severity strings, values are integer counts</li>
+                    <li><span class="req-num">4.</span> Stores the count of each severity level (INFO, WARNING, ERROR, CRITICAL) in a dictionary — keys are severity strings, values are integer counts</li>
                     <li><span class="req-num">5.</span> Uses a set to track unique error messages — only ERROR-level messages go in the set; duplicates are automatically eliminated</li>
                     <li><span class="req-num">6.</span> Stores each parsed log entry (as a tuple or dict) in a list — this list must contain all entries, not just errors</li>
                     <li><span class="req-num">7.</span> Writes the summary report to <strong>log_summary.txt</strong> using <code>with open('log_summary.txt', 'w') as f</code></li>
@@ -243,18 +243,18 @@ CRITICAL EVENTS (1 total)
                 <h3>Reading and Parsing a Log Line</h3>
                 <p>Each log line has four parts separated by spaces. The split() method with no argument splits on any whitespace and handles consecutive spaces cleanly. Use maxsplit=3 so the message field is kept intact even if it contains spaces.</p>
                 <div class="code-block"><span class="cm"># Sample line from server.log</span>
-line = <span class="st">"2026-04-01 09:17:02 ERROR Connection refused to database\n"</span>
+line = <span class="st">"2026-04-01 09:17:02 [ERROR] Connection refused to database\n"</span>
 
 <span class="cm"># strip() removes the trailing newline before splitting</span>
 parts = line.strip().split(maxsplit=<span class="num">3</span>)
 
-<span class="cm"># parts[0] = "2026-04-01"  (date)
-# parts[1] = "09:17:02"    (time)
-# parts[2] = "ERROR"       (severity)
+<span class="cm"># parts[0] = "2026-04-01"   (date)
+# parts[1] = "09:17:02"     (time)
+# parts[2] = "[ERROR]"      (severity — still has brackets)
 # parts[3] = "Connection refused to database"  (message)</span>
 
-date_field = parts[<span class="num">0</span>]      <span class="cm"># or use slicing: line[:10]</span>
-severity   = parts[<span class="num">2</span>].upper()
+date_field = parts[<span class="num">0</span>]                       <span class="cm"># or use slicing: line[:10]</span>
+severity   = parts[<span class="num">2</span>].strip(<span class="st">"[]"</span>).upper()   <span class="cm"># strip brackets, then normalize case</span>
 message    = parts[<span class="num">3</span>]</div>
             </div>
 
@@ -267,6 +267,9 @@ severity_counts = {}
 <span class="cm"># Set for unique ERROR messages — add() ignores duplicates</span>
 unique_errors = <span class="fn">set</span>()
 
+<span class="cm"># Set for CRITICAL events</span>
+critical_events = <span class="fn">set</span>()
+
 <span class="cm"># List of all parsed entries as dicts</span>
 log_entries = []
 
@@ -277,6 +280,10 @@ severity_counts[severity] = severity_counts.<span class="fn">get</span>(severity
 <span class="cm"># Add to the unique errors set only if this is an ERROR line</span>
 <span class="kw">if</span> severity == <span class="st">"ERROR"</span>:
     unique_errors.<span class="fn">add</span>(message)
+
+<span class="cm"># Track CRITICAL events separately</span>
+<span class="kw">if</span> severity == <span class="st">"CRITICAL"</span>:
+    critical_events.<span class="fn">add</span>(message)
 
 <span class="cm"># Append the parsed entry to the list</span>
 log_entries.<span class="fn">append</span>({<span class="st">'date'</span>: date_field, <span class="st">'severity'</span>: severity, <span class="st">'message'</span>: message})</div>
@@ -334,7 +341,7 @@ error_entries = [
     <span class="fn">print</span>(<span class="st">"="</span> * <span class="num">36</span>, file=out)
 
     <span class="cm">    # Right-align the count value in a 4-character field</span>
-    <span class="kw">for</span> level <span class="kw">in</span> [<span class="st">"INFO"</span>, <span class="st">"WARNING"</span>, <span class="st">"ERROR"</span>]:
+    <span class="kw">for</span> level <span class="kw">in</span> [<span class="st">"INFO"</span>, <span class="st">"WARNING"</span>, <span class="st">"ERROR"</span>, <span class="st">"CRITICAL"</span>]:
         count = severity_counts.<span class="fn">get</span>(level, <span class="num">0</span>)
         <span class="fn">print</span>(<span class="kw">f</span><span class="st">"  {level:<9}: {count:>4}"</span>, file=out)</div>
             </div>
@@ -382,7 +389,7 @@ error_entries = [
                         </tr>
                         <tr>
                             <td>Dictionary Usage</td>
-                            <td>severity_counts dictionary accumulates counts correctly; get() used to avoid KeyError; all three severity levels represented in output</td>
+                            <td>severity_counts dictionary accumulates counts correctly; get() used to avoid KeyError; all four severity levels represented in output</td>
                             <td class="pts">15</td>
                         </tr>
                         <tr>
@@ -466,7 +473,7 @@ error_entries = [
             </div>
 
             <div class="question-block">
-                <label>Q4: Does your severity_counts dictionary correctly count INFO, WARNING, and ERROR lines from the sample log?</label>
+                <label>Q4: Does your severity_counts dictionary correctly count INFO, WARNING, ERROR, and CRITICAL lines from the sample log?</label>
                 <input type="text" id="q5_4" placeholder="yes / no">
                 <button class="check-btn" onclick="checkAnswer('q5_4', 'yes', 'fb5_4', false)">Check</button>
                 <div class="feedback" id="fb5_4"></div>

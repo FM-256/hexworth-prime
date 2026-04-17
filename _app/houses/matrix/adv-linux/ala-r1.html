@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA-R1: Cell Navigation | Advanced Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:    #060d08;
+            --bg-card:    #0a130c;
+            --accent:     #00ff41;
+            --accent-dim: rgba(0, 255, 65, 0.12);
+            --green:      #10b981;
+            --text-primary:   #e0e0e0;
+            --text-secondary: #8b9e8e;
+            --border: rgba(0, 255, 65, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Sticky header bar */
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+
+        .ne-badge {
+            background: var(--accent);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .ne-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        /* Main content container */
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        /* Objectives / briefing panel */
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+        .ne-objectives li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content sections */
+        .ne-section { margin-bottom: 35px; }
+
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ne-section-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        /* Code blocks */
+        .ne-code {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 14px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+        .ne-code .prompt    { color: var(--green); }
+        .ne-code .comment   { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value     { color: #f0883e; }
+
+        /* Inline code */
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        /* Tables */
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .ne-table tr:hover td { background: rgba(0, 255, 65, 0.04); }
+
+        /* Card grid */
+        .ne-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .ne-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Callout boxes (lore context lines, tips) */
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        /* Self-check / takeaways */
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 255, 65, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ol {
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.9;
+        }
+        .ne-takeaways .proceed-note {
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Completion button */
+        .ne-complete {
+            text-align: center;
+            padding: 30px 20px 40px;
+        }
+        #completeBtn {
+            background: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+            transition: all 0.2s;
+        }
+        #completeBtn:hover:not(:disabled) { background: #16a34a; }
+        #completeBtn:disabled { opacity: 0.85; cursor: default; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        @media (max-width: 700px) {
+            .ne-card-grid { grid-template-columns: 1fr; }
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">ALA-R1: Cell Navigation</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">ALA-R1</span>
+            <h1>Cell Navigation</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Adv Linux</a> / ALA-R1
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Operational Briefing</h2>
+            <ul>
+                <li>Navigate the Filesystem Hierarchy Standard with precision</li>
+                <li>Use find, locate, which, and whereis to sweep a cell for files</li>
+                <li>Identify any file type by its magic bytes, not its extension</li>
+                <li>Control stdin, stdout, and stderr independently with redirection</li>
+                <li>Understand why absolute paths are mandatory in operational scripts</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Mission Context:</strong>
+            <p>"Every cell runs the same directory skeleton. An operator who does not know the filesystem hierarchy before touching a live cell is a liability. This module re-establishes that foundation. Read it fast if it feels familiar. Read it carefully if anything is unclear."</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The Filesystem Hierarchy Standard</h2>
+            <p class="ne-text">The FHS defines where everything lives on a Linux system. Every Ubuntu 22.04 cell uses the same top-level structure. Operators who internalize this navigate incident response without hesitation.</p>
+            <div class="ne-code"><span class="comment"># Inspect the root hierarchy</span>
+ls -la /
+
+<span class="comment"># Read the official hierarchy man page</span>
+man hier
+
+<span class="comment"># Tree view of /etc, two levels deep (requires tree package)</span>
+tree /etc --max-depth=2</div>
+            <p class="ne-text">Key directories to know: <span class="ne-inline-code">/bin</span> and <span class="ne-inline-code">/sbin</span> (user/system binaries, now symlinks to <span class="ne-inline-code">/usr/bin</span> on Ubuntu 22.04), <span class="ne-inline-code">/etc</span> (configuration), <span class="ne-inline-code">/var</span> (variable data including logs), <span class="ne-inline-code">/proc</span> and <span class="ne-inline-code">/sys</span> (virtual kernel interfaces), <span class="ne-inline-code">/home</span> (user home directories), <span class="ne-inline-code">/tmp</span> (ephemeral), <span class="ne-inline-code">/opt</span> (third-party software).</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Every cell runs the same directory skeleton. Knowing the FHS is knowing the cell's anatomy before you touch anything.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Navigation and Inspection</h2>
+            <p class="ne-text">Efficient navigation is a speed multiplier in every operational scenario. These commands build the habits that make directory movement automatic.</p>
+            <div class="ne-code"><span class="comment"># Print working directory</span>
+pwd
+
+<span class="comment"># Jump to previous directory (toggle between two locations)</span>
+cd -
+
+<span class="comment"># Push to a directory, return to origin with popd</span>
+pushd /var/log
+popd
+
+<span class="comment"># List with human sizes, sorted by size descending, then by time</span>
+ls -lhSt
+
+<span class="comment"># Full metadata for a single file</span>
+stat /etc/passwd</div>
+            <p class="ne-text">On modern Ubuntu, <span class="ne-inline-code">ls -la /bin</span> shows a symlink pointing to <span class="ne-inline-code">/usr/bin</span>. Absolute paths start with <span class="ne-inline-code">/</span> and never depend on your current position. Relative paths do. Always prefer absolute paths in scripts to avoid context-dependent failures.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>In an incident response scenario, speed of navigation is speed of recovery. Operators who hesitate on paths cost the grid downtime.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The find Command</h2>
+            <p class="ne-text"><span class="ne-inline-code">find</span> performs a real-time walk of the filesystem. It is the primary sweep tool for locating files by name, age, size, permission, or ownership. Learn its flags before you need them under pressure.</p>
+            <div class="ne-code"><span class="comment"># All .conf files under /etc modified in the last 7 days</span>
+find /etc -name "*.conf" -mtime -7
+
+<span class="comment"># All SUID binaries on the system (suppress permission errors)</span>
+find / -perm /4000 -type f 2&gt;/dev/null
+
+<span class="comment"># Log files larger than 10 MB</span>
+find /var/log -size +10M
+
+<span class="comment"># Files owned by a specific user, run a command on each</span>
+find /home -user operator -type f -exec ls -la {} \;</div>
+            <p class="ne-text">Core flags: <span class="ne-inline-code">-name</span> / <span class="ne-inline-code">-iname</span> (case-insensitive), <span class="ne-inline-code">-type f</span> (file) / <span class="ne-inline-code">d</span> (directory), <span class="ne-inline-code">-mtime</span> (modification days), <span class="ne-inline-code">-size</span>, <span class="ne-inline-code">-perm</span>, <span class="ne-inline-code">-user</span>, <span class="ne-inline-code">-exec</span>. The <span class="ne-inline-code">2&gt;/dev/null</span> suffix suppresses "Permission denied" noise on system directories.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>When an anomaly is reported, find is your first sweep tool. Learn its flags before you need them under pressure.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">locate, which, and whereis</h2>
+            <p class="ne-text"><span class="ne-inline-code">locate</span> queries a pre-built index rather than walking the live filesystem. It is fast but potentially stale. <span class="ne-inline-code">which</span> and <span class="ne-inline-code">whereis</span> find executable locations in <span class="ne-inline-code">$PATH</span> and standard system directories respectively.</p>
+            <div class="ne-code"><span class="comment"># Fast index-based search (may be out of date)</span>
+locate sshd_config
+
+<span class="comment"># Rebuild the locate database (run as root)</span>
+sudo updatedb
+
+<span class="comment"># Find the exact path of an executable in $PATH</span>
+which bash
+
+<span class="comment"># Find binary, source, and man page locations</span>
+whereis curl</div>
+            <p class="ne-text"><span class="ne-inline-code">find</span> is authoritative: it reads the live filesystem. <span class="ne-inline-code">locate</span> is fast but reads an index that was last built when <span class="ne-inline-code">updatedb</span> ran (typically via cron). On a compromised cell, <span class="ne-inline-code">locate</span> may report a file that has already been deleted or miss a file that was just planted.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>On a compromised cell, the locate index may lie. Know when to trust it and when to use find instead.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">File Type Identification</h2>
+            <p class="ne-text">Linux files are not identified by extension. The <span class="ne-inline-code">file</span> command reads the file's actual content (magic bytes) and reports its true type. This is critical when investigating suspicious files on a tampered cell.</p>
+            <div class="ne-code"><span class="comment"># Report the type of any file</span>
+file /bin/ls
+file /etc/passwd
+file /dev/sda
+
+<span class="comment"># Inspect raw hex to see magic bytes directly</span>
+xxd /bin/ls | head -5</div>
+            <p class="ne-text">Special file types you will encounter: block devices (<span class="ne-inline-code">b</span>), character devices (<span class="ne-inline-code">c</span>), named pipes (<span class="ne-inline-code">p</span>), sockets (<span class="ne-inline-code">s</span>), and symbolic links (<span class="ne-inline-code">l</span>). All are visible in the first character of <span class="ne-inline-code">ls -la</span> output. A regular file shows <span class="ne-inline-code">-</span>.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Not every file is what its extension claims. On a cell that has been tampered with, file tells the truth when names do not.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">File Descriptors and Redirection</h2>
+            <p class="ne-text">Every process inherits three standard file descriptors: stdin (0), stdout (1), stderr (2). Redirection operators control where each stream goes. Understanding this is prerequisite to writing bash scripts and understanding pipes.</p>
+            <div class="ne-code"><span class="comment"># See the open file descriptors of the current shell</span>
+ls /proc/$$/fd
+
+<span class="comment"># Open a custom file descriptor (fd 3) pointing to a log file</span>
+exec 3&gt;/tmp/debug.log
+
+<span class="comment"># Redirect stdout to a file</span>
+ls /etc &gt; /tmp/etc-list.txt
+
+<span class="comment"># Append stdout to a file</span>
+ls /var &gt;&gt; /tmp/etc-list.txt
+
+<span class="comment"># Redirect stderr only</span>
+find / -name "secret" 2&gt; /tmp/errors.txt
+
+<span class="comment"># Merge stderr into stdout, pipe both to tee</span>
+command 2&gt;&amp;1 | tee /tmp/output.txt</div>
+            <p class="ne-text">The operator <span class="ne-inline-code">&amp;&gt;</span> is shorthand for redirecting both stdout and stderr to the same destination. Piping to <span class="ne-inline-code">tee</span> writes to a file while still printing to the terminal, which is essential when you need a live view and a saved record simultaneously.</p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong>
+                <p>Understanding file descriptors is prerequisite to understanding pipes and process communication, which underpin everything in Week 1.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Self-Check</h3>
+            <ol>
+                <li>What is the FHS, and why does it matter that all cells follow the same directory structure?</li>
+                <li>What is the difference between find and locate? When would you distrust locate on a compromised cell?</li>
+                <li>What does <span class="ne-inline-code">find / -user root -perm /4000 -type f 2&gt;/dev/null</span> find, and why are those results security-relevant?</li>
+                <li>What are stdin, stdout, and stderr, and how do you redirect each one independently?</li>
+            </ol>
+            <p class="proceed-note">If you are comfortable with all of these, proceed to ALA-R2: Access Control.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <div class="ne-complete">
+        <button id="completeBtn">Mark Complete</button>
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* Completion tracking via ModuleProgress component */
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID    = 'ala-r1';
+
+        document.getElementById('completeBtn').addEventListener('click', function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+            }
+            this.textContent = 'Completed';
+            this.disabled = true;
+        });
+
+        /* Restore completed state on page load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+            }
+        })();
+    </script>
+</body>
+</html>

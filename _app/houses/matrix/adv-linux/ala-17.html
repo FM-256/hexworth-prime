@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitals Dashboard // ALA-17</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── Root: Matrix green palette (NE pattern adaptation) ── */
+        :root {
+            --accent:        #00ff41;
+            --accent-dim:    rgba(0, 255, 65, 0.12);
+            --green:         #10b981;
+            --bg-dark:       #060d08;
+            --bg-card:       #0a130c;
+            --text-primary:  #e0e0e0;
+            --text-secondary:#8b9e8e;
+            --border:        rgba(0, 255, 65, 0.1);
+            --font-body:     'Inter', sans-serif;
+            --font-mono:     'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .ne-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 13, 8, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 25px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ne-badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: var(--accent);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+
+        .ne-back {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+
+        .ne-back:hover { color: #000; }
+
+        .ne-back img { width: 13px; height: 13px; opacity: 0.6; }
+
+        /* ── Content wrapper ── */
+        .ne-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        /* ── Module intro block ── */
+        .ne-objectives {
+            border-left: 3px solid var(--accent);
+            padding: 14px 18px;
+            margin-bottom: 28px;
+            background: var(--accent-dim);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .ne-objectives h1 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .ne-objectives .ne-meta {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .ne-objectives p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── Section ── */
+        .ne-section {
+            margin-bottom: 28px;
+        }
+
+        .ne-section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Vertical accent bar before section titles */
+        .ne-section-title::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .ne-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 14px;
+            line-height: 1.7;
+        }
+
+        /* ── Code blocks ── */
+        .ne-code {
+            background: #050c07;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            overflow-x: auto;
+        }
+
+        .ne-code code {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: #7dffaa;
+            line-height: 1.65;
+            white-space: pre;
+        }
+
+        .ne-code .cm { color: #4a6650; } /* comments */
+
+        /* ── Inline code ── */
+        .ne-inline-code {
+            font-family: var(--font-mono);
+            font-size: 0.82em;
+            background: var(--accent-dim);
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 3px;
+            padding: 1px 5px;
+            color: #7dffaa;
+        }
+
+        /* ── Callout boxes (replaces lore-line) ── */
+        .ne-callout {
+            background: var(--accent-dim);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-top: 14px;
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .ne-callout strong {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Quiz wrapper ── */
+        .ne-quiz {
+            background: var(--bg-card);
+            border: 1px solid rgba(0, 255, 65, 0.18);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 28px;
+        }
+
+        .ne-quiz-title {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .ne-quiz h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        .quiz-question {
+            margin-bottom: 22px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .quiz-question:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .quiz-question p {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .quiz-question .q-num {
+            color: var(--accent);
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .quiz-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            transition: background 0.15s;
+        }
+
+        .quiz-option:hover {
+            background: var(--accent-dim);
+            color: var(--text-primary);
+        }
+
+        .quiz-option input[type="radio"] {
+            margin-top: 2px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .quiz-submit {
+            display: inline-block;
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 10px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 18px;
+        }
+
+        .quiz-submit:hover:not(:disabled) {
+            background: var(--accent-dim);
+        }
+
+        .quiz-submit:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .quiz-result {
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .quiz-result.pass {
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            color: #7dffaa;
+            display: block;
+        }
+
+        .quiz-result.fail {
+            background: rgba(255, 100, 0, 0.06);
+            border: 1px solid rgba(255, 100, 0, 0.28);
+            color: #ff9955;
+            display: block;
+        }
+
+        .quiz-result .score-line {
+            font-weight: 700;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Completion ── */
+        .ne-complete {
+            text-align: center;
+            padding: 20px 0 8px;
+        }
+
+        #completeBtn {
+            background: #22c55e;
+            border: none;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 12px 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        #completeBtn:hover:not(:disabled) { opacity: 0.85; }
+        #completeBtn:disabled { opacity: 0.7; cursor: default; }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky navigation header -->
+    <header class="ne-header">
+        <span class="ne-badge">ALA-17</span>
+        <a href="index.html" class="ne-back">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <main class="ne-content">
+
+        <!-- Module intro -->
+        <div class="ne-objectives">
+            <h1>Vitals Dashboard</h1>
+            <div class="ne-meta">ALA-17 &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; Module &nbsp;|&nbsp; Duration: 30 min &nbsp;|&nbsp; Objective 7 &nbsp;|&nbsp; Prerequisites: ALA-R3</div>
+            <p><strong style="color:#fff;">Course Objective 7:</strong> Apply integrity monitoring, performance analysis, and log management techniques to detect anomalies and maintain operational visibility across the cell.</p>
+        </div>
+
+        <div class="ne-callout" style="margin-bottom:28px;">
+            <strong>Operational Briefing:</strong> Your cell's vitals are spiking. CPU is pegged. Memory is trending up. A log directory is at 91%. Grid Command is watching. Monitor your cell's performance before it flatlines -- identify every anomaly, trace every root cause.
+        </div>
+
+        <!-- Section 1: top and htop -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">top and htop -- Real-Time Process Monitoring</h2>
+            <p class="ne-text">
+                <span class="ne-inline-code">top</span> is the first tool when a cell's performance degrades. It shows a
+                real-time view of CPU usage, memory usage, load average, and the processes
+                consuming the most resources. Understanding its output is a prerequisite for
+                every performance investigation.
+            </p>
+            <div class="ne-code"><code><span class="cm"># Launch top interactively</span>
+top
+
+<span class="cm"># Interactive keys while top is running:</span>
+<span class="cm"># P -- sort by CPU usage (default)</span>
+<span class="cm"># M -- sort by memory usage</span>
+<span class="cm"># 1 -- toggle per-CPU breakdown</span>
+<span class="cm"># k -- kill a process (prompts for PID)</span>
+<span class="cm"># r -- renice a process (change priority)</span>
+<span class="cm"># q -- quit</span>
+
+<span class="cm"># Non-interactive snapshot: one batch iteration, sorted by CPU</span>
+top -b -n 1 -o %CPU | head -20</code></div>
+            <p class="ne-text">
+                The load average line reads three values: 1-minute, 5-minute, and 15-minute
+                averages. A load average of 1.00 on a single-core system means the CPU is
+                exactly at capacity. On a 4-core system, a load of 4.00 means full utilization.
+                Load consistently above the CPU count means processes are waiting for CPU time.
+            </p>
+            <div class="ne-code"><code><span class="cm"># htop: interactive with visual process tree and color coding</span>
+<span class="cm"># Install if not present</span>
+apt install htop
+
+htop
+
+<span class="cm"># htop keys:</span>
+<span class="cm"># F5 -- toggle tree view (shows parent-child relationships)</span>
+<span class="cm"># F9 -- kill selected process</span>
+<span class="cm"># /  -- search for a process by name</span></code></div>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong> A rogue cron job causing 100% CPU every 4 minutes appears at the top of the CPU-sorted view in top. The burst pattern -- spike then drop -- is visible in the load average numbers.
+            </div>
+        </section>
+
+        <!-- Section 2: Memory Analysis -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">Memory Analysis</h2>
+            <p class="ne-text">
+                Linux memory management is not intuitive. The kernel uses unused RAM for disk
+                buffer and page cache to improve performance. A cell with 7.5 GB "used" out of
+                8 GB total may have only 100 MB consumed by applications -- the rest is cache
+                that will be released on demand.
+            </p>
+            <div class="ne-code"><code><span class="cm"># Human-readable memory summary</span>
+free -h
+
+<span class="cm"># Example output:</span>
+<span class="cm">#               total   used    free    shared  buff/cache  available</span>
+<span class="cm"># Mem:          8.0Gi   1.2Gi   312Mi   45Mi    6.5Gi       6.5Gi</span>
+<span class="cm"># Swap:         2.0Gi   0B      2.0Gi</span>
+<span class="cm"># The "available" column is what matters for application memory pressure.</span>
+
+<span class="cm"># vmstat: report at 1-second intervals, 5 samples</span>
+<span class="cm"># si/so columns show swap-in/swap-out -- non-zero means real memory pressure</span>
+vmstat 1 5
+
+<span class="cm"># Key meminfo fields from /proc</span>
+cat /proc/meminfo | grep -E 'MemTotal|MemFree|Buffers|Cached|SwapUsed'</code></div>
+            <p class="ne-text">
+                When investigating a suspected memory leak, take sequential <span class="ne-inline-code">free -h</span>
+                snapshots several minutes apart and watch the <span class="ne-inline-code">available</span> column
+                trend downward without a corresponding workload increase. A gradual decrease
+                over hours with no cache growth is the leak signature.
+            </p>
+            <div class="ne-code"><code><span class="cm"># Detect OOM killer events -- kernel logs the PID and process name killed</span>
+dmesg | grep -i 'out of memory'
+
+<span class="cm"># Journal equivalent for OOM events</span>
+journalctl -k | grep oom</code></div>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong> The memory leak investigation starts with the available column trending down, not the used column trending up. Cache and buffer growth is expected -- unconstrained available memory loss is not.
+            </div>
+        </section>
+
+        <!-- Section 3: Disk and I/O Analysis -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">Disk and I/O Analysis</h2>
+            <p class="ne-text">
+                Disk crises follow a predictable investigation path: <span class="ne-inline-code">df -h</span> identifies
+                the full filesystem, <span class="ne-inline-code">du -sh</span> locates the directory consuming the
+                space, and <span class="ne-inline-code">lsof</span> identifies the process actively writing to it.
+                <span class="ne-inline-code">iostat</span> provides the device-level I/O utilization picture.
+            </p>
+            <div class="ne-code"><code><span class="cm"># Per-filesystem disk usage -- look for high Use% on /var</span>
+df -h
+
+<span class="cm"># Find which directories under /var/log are consuming space</span>
+du -sh /var/log/*
+
+<span class="cm"># Drill into a specific directory</span>
+du -sh /var/log/cell-ops/*</code></div>
+            <div class="ne-code"><code><span class="cm"># iostat: extended device statistics, 1-second intervals, 5 samples</span>
+<span class="cm"># %util shows what percentage of time the device was busy</span>
+<span class="cm"># await shows average request queue wait time in milliseconds</span>
+iostat -x 1 5
+
+<span class="cm"># iotop: per-process I/O accounting (requires root)</span>
+<span class="cm"># -a: accumulated totals, -b: batch mode, -n 3: three iterations</span>
+iotop -a -b -n 3</code></div>
+            <div class="ne-code"><code><span class="cm"># lsof: find all processes with open files under a directory</span>
+<span class="cm"># Identifies what is actively writing to a log directory</span>
+lsof +D /var/log/cell-ops/</code></div>
+            <p class="ne-text">
+                A <span class="ne-inline-code">%util</span> value of 98-100% in <span class="ne-inline-code">iostat -x</span> output means
+                the disk is saturated -- requests are queuing. Sustained saturation causes
+                I/O wait to climb in <span class="ne-inline-code">top</span>, which appears as CPU load even though
+                the processor is not actually computing.
+            </p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong> The sequence is always the same: df -h shows the full filesystem, du shows which directory, lsof shows which process. Three commands from symptom to root cause.
+            </div>
+        </section>
+
+        <!-- Section 4: sar -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">sar -- Historical Performance Data</h2>
+            <p class="ne-text">
+                <span class="ne-inline-code">sar</span> (System Activity Reporter) collects and reports system
+                performance data at regular intervals. Unlike <span class="ne-inline-code">top</span> which shows
+                only the current moment, <span class="ne-inline-code">sar</span> answers the question: what was the
+                CPU load at 3 AM when the incident occurred?
+            </p>
+            <div class="ne-code"><code><span class="cm"># Enable sysstat collection (required before sar has historical data)</span>
+apt install sysstat
+
+<span class="cm"># Edit /etc/default/sysstat and set ENABLED="true"</span>
+<span class="cm"># Then restart the collection service</span>
+systemctl enable --now sysstat
+
+<span class="cm"># Historical data is stored in /var/log/sysstat/sa* files</span>
+ls /var/log/sysstat/</code></div>
+            <div class="ne-code"><code><span class="cm"># Real-time: CPU usage, 1-second interval, 5 samples</span>
+sar -u 1 5
+
+<span class="cm"># Real-time: memory usage</span>
+sar -r 1 5
+
+<span class="cm"># Real-time: disk I/O statistics</span>
+sar -d 1 5
+
+<span class="cm"># Real-time: network interface statistics</span>
+sar -n DEV 1 5
+
+<span class="cm"># Historical: CPU usage between 14:00 and 16:00 from today's data file</span>
+sar -u -s 14:00:00 -e 16:00:00
+
+<span class="cm"># Historical: full report for a specific time window</span>
+sar -A -s 03:00:00 -e 04:00:00</code></div>
+            <p class="ne-text">
+                The <span class="ne-inline-code">-A</span> flag reports all available statistics for the time window.
+                Use <span class="ne-inline-code">-s</span> and <span class="ne-inline-code">-e</span> to bound the report to the incident
+                window. Combine with the specific metric flags (<span class="ne-inline-code">-u</span>, <span class="ne-inline-code">-r</span>,
+                <span class="ne-inline-code">-d</span>) to focus on the relevant subsystem.
+            </p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong> sar is the only tool that answers performance questions about the past. Real-time tools are useless after an incident resolves. Operators who have sysstat enabled before an incident can reconstruct the full timeline afterward.
+            </div>
+        </section>
+
+        <!-- Section 5: /proc and /sys -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">/proc and /sys Exploration</h2>
+            <p class="ne-text">
+                The <span class="ne-inline-code">/proc</span> filesystem is a virtual filesystem that exposes kernel
+                and process state as readable files. There is no disk I/O involved -- reads
+                return live kernel data. <span class="ne-inline-code">/sys</span> exposes device and driver state
+                through a similar virtual structure.
+            </p>
+            <div class="ne-code"><code><span class="cm"># System-wide metrics from /proc</span>
+cat /proc/loadavg        <span class="cm"># load averages and running process count</span>
+cat /proc/meminfo        <span class="cm"># full memory statistics</span>
+cat /proc/cpuinfo        <span class="cm"># CPU model, cores, features</span>
+
+<span class="cm"># Per-process information (replace PID with actual process ID)</span>
+cat /proc/&lt;PID&gt;/status   <span class="cm"># process state, memory, UID, GID</span>
+ls -la /proc/&lt;PID&gt;/fd/   <span class="cm"># all file descriptors open by this process</span>
+
+<span class="cm"># Resolve the actual binary path for any running process</span>
+<span class="cm"># This is a symlink -- ls -la shows what it resolves to</span>
+ls -la /proc/&lt;PID&gt;/exe</code></div>
+            <div class="ne-code"><code><span class="cm"># /sys: hardware-level statistics</span>
+<span class="cm"># Network interface receive byte counter</span>
+cat /sys/class/net/eth0/statistics/rx_bytes
+
+<span class="cm"># Transmit byte counter</span>
+cat /sys/class/net/eth0/statistics/tx_bytes
+
+<span class="cm"># Read multiple network stats at once</span>
+cat /sys/class/net/eth0/statistics/*</code></div>
+            <p class="ne-text">
+                The <span class="ne-inline-code">/proc/&lt;PID&gt;/exe</span> symlink resolves to the binary that
+                launched the process. A legitimate service will resolve to a path under
+                <span class="ne-inline-code">/usr/bin</span>, <span class="ne-inline-code">/usr/local/bin</span>, or <span class="ne-inline-code">/opt/</span>.
+                A binary resolving to a path under <span class="ne-inline-code">/tmp</span> or a hidden directory
+                is a significant anomaly indicator.
+            </p>
+            <div class="ne-callout">
+                <strong>Operational Context:</strong> /proc/&lt;PID&gt;/exe is how you confirm the binary behind any suspicious process. The process name in top can be changed -- the exe symlink cannot be faked while the process runs.
+            </div>
+        </section>
+
+        <!-- Quiz -->
+        <div class="ne-quiz">
+            <div class="ne-quiz-title">Knowledge Check</div>
+            <h2>Module Quiz</h2>
+            <div id="quizContainer"></div>
+            <button class="quiz-submit" id="quizSubmit" disabled>Submit Answers</button>
+            <div class="quiz-result" id="quizResult"></div>
+        </div>
+
+        <!-- Completion -->
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+    </main>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Quiz configuration ── */
+        /* Correct answers are NOT stored here. Server-graded via gradeQuiz Cloud Function. */
+        const QUIZ_ID = 'ala-17';
+        const QUESTIONS = [
+            {
+                q: 'A cell\'s load average reads `4.22 2.15 1.08` and the cell has 2 CPU cores. What does this indicate?',
+                options: [
+                    'A) The cell is running at normal capacity',
+                    'B) There are more runnable processes than CPUs can serve -- the cell is overloaded in the most recent minute',
+                    'C) The cell had peak load 1 minute ago that has since recovered',
+                    'D) The load average is below the threshold for intervention'
+                ]
+            },
+            {
+                q: '`free -h` shows `available: 312 MiB` on a cell with `total: 8.0 GiB`. The `buff/cache` column shows `6.8 GiB`. Is this a memory problem?',
+                options: [
+                    'A) Yes -- only 312 MB is free; this is a memory leak',
+                    'B) No -- Linux uses unused RAM for buffers and cache; the cache is released when applications need memory; 312 MB available means applications are actively using most RAM',
+                    'C) Yes -- buffers and cache should not exceed 50% of total RAM',
+                    'D) Cannot determine without swap usage data'
+                ]
+            },
+            {
+                q: 'An operator runs `iostat -x 1 5` and sees `%util: 98.7` for `/dev/sda`. What does this mean?',
+                options: [
+                    'A) 98.7% of the disk\'s capacity is used',
+                    'B) The disk was busy 98.7% of the measurement interval -- it is saturated and requests are queuing',
+                    'C) 98.7% of disk I/O is write operations',
+                    'D) The disk has 1.3% health remaining'
+                ]
+            },
+            {
+                q: 'The OOM killer terminates a service at 03:47. Which command retrieves the kernel log evidence?',
+                options: [
+                    'A) `journalctl --oom-kill`',
+                    'B) `dmesg | grep -i \'out of memory\'`',
+                    'C) `cat /var/log/oom.log`',
+                    'D) `ausearch -m OOM_KILL`'
+                ]
+            },
+            {
+                q: '`/proc/<PID>/exe` resolves to `/tmp/.cache/.grid-sync`. Why is this suspicious?',
+                options: [
+                    'A) `/proc/<PID>/exe` never resolves to a path; it only shows the process name',
+                    'B) Legitimate services use binaries in `/usr/bin`, `/usr/local/bin`, or `/opt/`; a binary in `/tmp` suggests a deployed payload running from a world-writable directory',
+                    'C) The `.cache` directory name is reserved by systemd',
+                    'D) Binaries in `/tmp` run with elevated privileges'
+                ]
+            }
+        ];
+
+        /* Build quiz DOM from QUESTIONS array */
+        (function buildQuiz() {
+            const container = document.getElementById('quizContainer');
+            QUESTIONS.forEach(function(question, qIndex) {
+                const block = document.createElement('div');
+                block.className = 'quiz-question';
+
+                const qText = document.createElement('p');
+                qText.innerHTML = '<span class="q-num">Q' + (qIndex + 1) + '.</span> ' +
+                    question.q.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+                block.appendChild(qText);
+
+                question.options.forEach(function(option, oIndex) {
+                    const label = document.createElement('label');
+                    label.className = 'quiz-option';
+
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'q' + qIndex;
+                    radio.value = oIndex;
+                    radio.addEventListener('change', checkAllAnswered);
+
+                    const text = document.createElement('span');
+                    text.innerHTML = option.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+
+                    label.appendChild(radio);
+                    label.appendChild(text);
+                    block.appendChild(label);
+                });
+
+                container.appendChild(block);
+            });
+        })();
+
+        /* Enable submit button only when all questions are answered */
+        function checkAllAnswered() {
+            const answered = QUESTIONS.every(function(_, i) {
+                return document.querySelector('input[name="q' + i + '"]:checked');
+            });
+            document.getElementById('quizSubmit').disabled = !answered;
+        }
+
+        /* Collect selected answer indices and submit to server for grading */
+        document.getElementById('quizSubmit').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Grading...';
+
+            const selectedAnswers = QUESTIONS.map(function(_, i) {
+                const checked = document.querySelector('input[name="q' + i + '"]:checked');
+                return checked ? parseInt(checked.value, 10) : -1;
+            });
+
+            try {
+                const result = await FirebaseAuth.callFunction('gradeQuiz', {
+                    quizId: QUIZ_ID,
+                    answers: selectedAnswers
+                });
+
+                const data = result.data;
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'quiz-result ' + (data.passed ? 'pass' : 'fail');
+                resultEl.innerHTML =
+                    '<div class="score-line">' +
+                        (data.passed ? 'PASSED' : 'NOT PASSED') + ' -- ' +
+                        data.score + '% (' + data.correct + '/' + data.total + ' correct)' +
+                    '</div>' +
+                    (data.passed
+                        ? '<div>Cell vitals monitoring verified. Module marked complete.</div>'
+                        : '<div>Review the sections above and retry. Focus on the questions you missed.</div>');
+
+                if (data.passed) {
+                    markComplete(data.score);
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Retry Quiz';
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Submit Answers';
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'quiz-result fail';
+                resultEl.innerHTML = '<div>Submission error. Check your connection and try again.</div>';
+            }
+        });
+
+        /* ── Module completion tracking ── */
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID    = 'ala-17';
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', function() {
+            markComplete(0);
+        });
+
+        /* Restore completed state on page load */
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                const btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+            }
+        })();
+    </script>
+</body>
+</html>

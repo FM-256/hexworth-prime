@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<!-- eduscan-ignore: HTML-001 reason="XSSI training lab — script src patterns in JS strings and code displays are intentional" -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires house membership -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSSI Attack Lab -- Bug Hunting // Dark Arts</title>
+    <style>
+        /* --- Reset & Base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:       #0a0508;
+            --bg-panel:      #0f0812;
+            --bg-card:       #120a18;
+            --bg-input:      #0d0710;
+            --border-dim:    rgba(100, 60, 130, 0.15);
+            --border-mid:    rgba(147, 51, 234, 0.25);
+            --border-bright: rgba(147, 51, 234, 0.5);
+            --accent:        #9333ea;
+            --accent-light:  #a855f7;
+            --accent-glow:   rgba(147, 51, 234, 0.3);
+            --text-bright:   #c4a0d8;
+            --text-mid:      #9a7aaa;
+            --text-dim:      #6a4a7a;
+            --text-faint:    #3a2a4a;
+            --green:         #22c55e;
+            --green-dim:     rgba(34, 197, 94, 0.15);
+            --red:           #ef4444;
+            --red-dim:       rgba(239, 68, 68, 0.12);
+            --amber:         #f59e0b;
+            --amber-dim:     rgba(245, 158, 11, 0.12);
+            --mono:          'Courier New', 'Consolas', monospace;
+        }
+
+        body {
+            height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--mono);
+            color: #a080b0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- Header --- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #9333ea;
+            border-color: rgba(147, 51, 234, 0.4);
+        }
+
+        .header-badge {
+            font-size: 0.65rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.7rem;
+        }
+
+        .score-display { color: #a855f7; }
+        .obj-display { color: var(--text-dim); }
+        .obj-display span { color: var(--green); font-weight: 700; }
+
+        /* --- Ethics Banner --- */
+        .ethics-banner {
+            position: fixed;
+            top: 50px; left: 0; right: 0;
+            background: linear-gradient(90deg, rgba(239,68,68,0.10), rgba(239,68,68,0.05));
+            border-bottom: 1px solid rgba(239,68,68,0.2);
+            padding: 6px 20px;
+            font-size: 0.68rem;
+            color: #fca5a5;
+            letter-spacing: 0.04em;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ethics-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: blink 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- Main Layout: workspace | sidebar --- */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            height: calc(100vh - 78px);
+            margin-top: 78px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- Left Panel: Workspace --- */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        /* Challenge tabs across top of workspace */
+        .level-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .level-tab {
+            flex: 1;
+            padding: 9px 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .level-tab:hover {
+            color: var(--text-mid);
+            background: rgba(147, 51, 234, 0.04);
+        }
+
+        .level-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .level-tab .tab-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-right: 5px;
+            vertical-align: middle;
+            transition: background 0.3s;
+        }
+
+        .level-tab.done .tab-dot { background: var(--green); }
+
+        /* Scrollable challenge area */
+        .challenge-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        /* Challenge panels — hidden unless .active */
+        .level-panel { display: none; }
+        .level-panel.active { display: block; }
+
+        /* --- Terminal-style code display boxes --- */
+        .terminal-box {
+            background: #050208;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+
+        .terminal-bar {
+            background: #0d0710;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .terminal-dots { display: flex; gap: 4px; }
+        .tdot { width: 7px; height: 7px; border-radius: 50%; }
+        .tdot.r { background: #ef4444; opacity: 0.7; }
+        .tdot.y { background: #eab308; opacity: 0.7; }
+        .tdot.g { background: #22c55e; opacity: 0.7; }
+
+        .terminal-content {
+            padding: 14px 16px;
+            font-size: 0.8rem;
+            line-height: 1.65;
+            white-space: pre;
+            overflow-x: auto;
+            color: #b090c0;
+        }
+
+        /* Syntax highlight classes */
+        .kw  { color: #a855f7; }
+        .str { color: #86efac; }
+        .val { color: #fbbf24; }
+        .cmt { color: #5a3a7a; font-style: italic; }
+        .tag { color: #60a5fa; }
+        .atr { color: #f9a8d4; }
+        .hdr { color: #34d399; }
+        .url { color: #93c5fd; }
+
+        /* --- Challenge description block --- */
+        .challenge-header {
+            margin-bottom: 14px;
+        }
+
+        .challenge-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .challenge-title {
+            font-size: 1rem;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+            letter-spacing: 0.02em;
+        }
+
+        .challenge-desc {
+            font-size: 0.83rem;
+            color: var(--text-mid);
+            line-height: 1.65;
+        }
+
+        /* Difficulty badge */
+        .diff-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.62rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .diff-easy   { background: rgba(34, 197, 94, 0.12);  border: 1px solid rgba(34, 197, 94, 0.3);  color: #4ade80; }
+        .diff-medium { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
+        .diff-hard   { background: rgba(239, 68, 68, 0.12);  border: 1px solid rgba(239, 68, 68, 0.3);  color: #f87171; }
+
+        /* --- Input area --- */
+        .input-section {
+            margin-top: 14px;
+        }
+
+        .input-label {
+            font-size: 0.67rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .code-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: #c4a0d8;
+            resize: vertical;
+            min-height: 80px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .code-input:focus {
+            border-color: rgba(147, 51, 234, 0.4);
+        }
+
+        /* Multiple choice options for Challenge 4 */
+        .mc-options {
+            margin: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mc-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(8, 4, 12, 0.6);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.82rem;
+            color: var(--text-mid);
+        }
+
+        .mc-option:hover {
+            border-color: rgba(147, 51, 234, 0.3);
+            color: var(--text-bright);
+        }
+
+        .mc-option.selected {
+            border-color: var(--accent);
+            background: rgba(147, 51, 234, 0.08);
+            color: var(--text-bright);
+        }
+
+        .mc-option.correct {
+            border-color: var(--green);
+            background: rgba(34, 197, 94, 0.08);
+            color: #4ade80;
+        }
+
+        .mc-option.wrong {
+            border-color: var(--red);
+            background: rgba(239, 68, 68, 0.06);
+            color: #f87171;
+        }
+
+        .mc-radio {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 1px solid var(--text-dim);
+            flex-shrink: 0;
+            margin-top: 2px;
+            transition: all 0.2s;
+        }
+
+        .mc-option.selected .mc-radio {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Submit button */
+        .submit-btn {
+            margin-top: 10px;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #7c3aed, var(--accent));
+            border: none;
+            border-radius: 4px;
+            color: #f3e8ff;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(147, 51, 234, 0.35);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Feedback box — shows result after submission */
+        .feedback-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback-box.show { display: block; }
+
+        .feedback-box.pass {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #86efac;
+        }
+
+        .feedback-box.fail {
+            background: rgba(239, 68, 68, 0.07);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        /* Defense reveal section at bottom of each challenge */
+        .defense-section {
+            margin-top: 20px;
+            border-top: 1px solid var(--border-dim);
+            padding-top: 16px;
+            display: none;
+        }
+
+        .defense-section.show { display: block; }
+
+        .defense-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--green);
+            margin-bottom: 8px;
+        }
+
+        .defense-body {
+            font-size: 0.8rem;
+            color: #7a9a7a;
+            line-height: 1.65;
+        }
+
+        /* --- Right Panel: Sidebar --- */
+        .sidebar {
+            background: rgba(5, 2, 10, 0.6);
+            overflow-y: auto;
+            border-left: 1px solid var(--border-dim);
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .sidebar-header {
+            padding: 10px 16px;
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .sidebar-body {
+            padding: 12px 16px;
+        }
+
+        /* Objective list items */
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06);
+            line-height: 1.5;
+        }
+
+        .obj-item:last-child { border-bottom: none; }
+
+        .obj-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            border: 1px solid var(--text-faint);
+            flex-shrink: 0;
+            margin-top: 4px;
+            transition: all 0.3s;
+        }
+
+        .obj-item.done { color: var(--green); }
+        .obj-item.done .obj-dot { background: var(--green); border-color: var(--green); }
+
+        /* Hint system */
+        .hint-btn {
+            width: 100%;
+            padding: 7px 12px;
+            background: rgba(20, 10, 30, 0.6);
+            border: 1px solid var(--border-dim);
+            border-radius: 3px;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            cursor: pointer;
+            text-align: left;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            letter-spacing: 0.04em;
+        }
+
+        .hint-btn:hover { color: var(--text-mid); border-color: rgba(147, 51, 234, 0.25); }
+        .hint-btn.revealed { color: #5a3a7a; cursor: default; }
+
+        .hint-text {
+            font-size: 0.74rem;
+            color: #8a9a6a;
+            line-height: 1.6;
+            padding: 8px 10px;
+            background: rgba(34, 197, 94, 0.04);
+            border: 1px solid rgba(34, 197, 94, 0.1);
+            border-radius: 3px;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        .hint-text.show { display: block; }
+
+        /* XSSI reference panel */
+        .ref-item {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06);
+        }
+
+        .ref-item:last-child { border-bottom: none; }
+
+        .ref-code {
+            font-size: 0.71rem;
+            color: #a855f7;
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+
+        .ref-desc {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+        }
+
+        /* --- Completion Overlay --- */
+        .completion-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 2, 10, 0.92);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .completion-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .completion-card {
+            background: #0f0812;
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            border-radius: 12px;
+            padding: 36px;
+            max-width: 440px;
+            text-align: center;
+            box-shadow: 0 0 80px rgba(147, 51, 234, 0.15);
+        }
+
+        .completion-title {
+            font-size: 1.4rem;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+            letter-spacing: 0.04em;
+        }
+
+        .completion-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-mid);
+            line-height: 1.6;
+            margin-bottom: 22px;
+        }
+
+        .completion-score-box {
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid var(--border-mid);
+            border-radius: 8px;
+            padding: 14px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .score-big {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .score-meta { text-align: left; }
+        .score-meta .label { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--text-faint); text-transform: uppercase; }
+        .score-meta .rank  { font-size: 0.88rem; color: var(--text-bright); font-weight: 600; }
+
+        .completion-btn {
+            display: inline-block;
+            padding: 11px 32px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--mono);
+            transition: all 0.2s;
+        }
+
+        .completion-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(147, 51, 234, 0.4);
+        }
+
+        /* Flash notification */
+        .obj-flash {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            font-weight: 600;
+            z-index: 500;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.5s forwards;
+            max-width: 320px;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(147, 51, 234, 0.5); }
+
+        /* Visually hidden heading for accessibility */
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px;
+            padding: 0; margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">XSSI Attack Lab</h1>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&larr; Bug Hunting</a>
+        <span class="header-badge">Lab</span>
+        <span class="header-title">XSSI Attack Lab</span>
+    </div>
+    <div class="header-right">
+        <div class="obj-display">Objectives: <span id="obj-count">0</span>/4</div>
+        <div class="score-display">Score: <span id="score-display">100</span></div>
+    </div>
+</div>
+
+<!-- Ethics Banner -->
+<div class="ethics-banner">
+    <div class="ethics-dot"></div>
+    <strong>AUTHORIZED TRAINING ENVIRONMENT</strong>
+    &mdash; All targets are simulated. Cross-site script inclusion attacks against real systems without authorization is illegal. Educational purposes only.
+</div>
+
+<!-- Main Layout -->
+<div class="lab-body">
+
+    <!-- Left: Workspace -->
+    <div class="workspace">
+
+        <!-- Challenge Tabs -->
+        <div class="level-tabs">
+            <button class="level-tab active" data-level="1"><span class="tab-dot"></span>C1: Leaky API</button>
+            <button class="level-tab"        data-level="2"><span class="tab-dot"></span>C2: JSONP Hijack</button>
+            <button class="level-tab"        data-level="3"><span class="tab-dot"></span>C3: Array Override</button>
+            <button class="level-tab"        data-level="4"><span class="tab-dot"></span>C4: Defense Bypass</button>
+        </div>
+
+        <!-- Challenge Area -->
+        <div class="challenge-area">
+
+            <!-- ====================================================
+                 Challenge 1: The Leaky API  (Easy)
+                 Validate: attacker HTML includes correct script tag
+                 and accesses profile.name or profile.email or profile.role
+                 ==================================================== -->
+            <div class="level-panel active" id="level-1">
+                <div class="challenge-header">
+                    <div class="challenge-label">Challenge 01</div>
+                    <div class="challenge-title">
+                        The Leaky API
+                        <span class="diff-badge diff-easy">Easy</span>
+                    </div>
+                    <div class="challenge-desc">
+                        The target endpoint at <code>https://corp-app.net/api/profile.js</code> returns
+                        an authenticated JavaScript variable containing user profile data. Any logged-in
+                        user's browser that visits your attacker page will expose their data.<br><br>
+                        <strong>Your task:</strong> Write the attacker HTML that (1) includes the victim's
+                        profile endpoint as a script tag, then (2) reads the <code>profile.name</code>
+                        field and sends it to your collection server. The validator checks both actions.
+                    </div>
+                </div>
+
+                <!-- Simulated vulnerable endpoint response -->
+                <div class="terminal-box">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <div class="tdot r"></div><div class="tdot y"></div><div class="tdot g"></div>
+                        </div>
+                        <span>Vulnerable Endpoint Response &mdash; https://corp-app.net/api/profile.js</span>
+                    </div>
+                    <div class="terminal-content"><span class="hdr">HTTP/1.1 200 OK</span>
+<span class="hdr">Content-Type: application/javascript</span>
+<span class="hdr">Cache-Control: no-store</span>
+
+<span class="cmt">// Server-rendered authenticated profile data</span>
+<span class="kw">var</span> profile = {
+    name:  <span class="str">"Agent_X"</span>,
+    email: <span class="str">"agent@corp.net"</span>,
+    role:  <span class="str">"admin"</span>
+};</div>
+                </div>
+
+                <!-- Student input -->
+                <div class="input-section">
+                    <label class="input-label" for="input-1">Your Attacker HTML:</label>
+                    <textarea class="code-input" id="input-1" rows="8"
+                        placeholder="Write the attacker page HTML here. Include the victim script and read profile.name..."></textarea>
+                    <button class="submit-btn" onclick="XSSILab.submit(1)">Submit Attack</button>
+                </div>
+
+                <div class="feedback-box" id="feedback-1"></div>
+
+                <!-- Defense section — revealed after passing -->
+                <div class="defense-section" id="defense-1">
+                    <div class="defense-label">
+                        <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        How to Fix This
+                    </div>
+                    <div class="defense-body">
+                        Change the endpoint response to <code>Content-Type: application/json</code>.
+                        Browsers will not execute a cross-origin JSON response included via a script tag
+                        &mdash; the request will fail with a MIME type mismatch error. Additionally,
+                        add <code>X-Content-Type-Options: nosniff</code> and set session cookies to
+                        <code>SameSite=Strict</code> to prevent the browser from sending them with
+                        cross-site subresource requests at all.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====================================================
+                 Challenge 2: JSONP Hijack  (Medium)
+                 Validate: defines callback function AND includes script
+                 with the endpoint URL containing ?callback=
+                 ==================================================== -->
+            <div class="level-panel" id="level-2">
+                <div class="challenge-header">
+                    <div class="challenge-label">Challenge 02</div>
+                    <div class="challenge-title">
+                        JSONP Hijack
+                        <span class="diff-badge diff-medium">Medium</span>
+                    </div>
+                    <div class="challenge-desc">
+                        The target application has a legacy JSONP endpoint that accepts a
+                        <code>?callback=</code> parameter. When called with a callback name, the server
+                        wraps the authenticated token data in that function call and returns it as
+                        JavaScript.<br><br>
+                        <strong>Your task:</strong> Write attacker HTML that (1) defines a function named
+                        <code>callback</code> to intercept the data, then (2) includes the victim endpoint
+                        with the correct <code>?callback=callback</code> parameter so the browser calls
+                        your function with the token data. The validator checks both the function definition
+                        and the script tag with the correct URL pattern.
+                    </div>
+                </div>
+
+                <!-- Simulated JSONP endpoint -->
+                <div class="terminal-box">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <div class="tdot r"></div><div class="tdot y"></div><div class="tdot g"></div>
+                        </div>
+                        <span>Vulnerable Endpoint &mdash; https://corp-app.net/api/wallet.js?callback=YOUR_FUNC</span>
+                    </div>
+                    <div class="terminal-content"><span class="hdr">HTTP/1.1 200 OK</span>
+<span class="hdr">Content-Type: application/javascript</span>
+
+<span class="cmt">// Server injects victim data into your callback function name</span>
+YOUR_FUNC({
+    token:   <span class="str">"sec_abc123"</span>,
+    balance: <span class="val">45000</span>,
+    uid:     <span class="val">4721</span>
+});</div>
+                </div>
+
+                <!-- Student input -->
+                <div class="input-section">
+                    <label class="input-label" for="input-2">Your Attacker HTML:</label>
+                    <textarea class="code-input" id="input-2" rows="10"
+                        placeholder="Define your callback function, then include the script with ?callback=callback..."></textarea>
+                    <button class="submit-btn" onclick="XSSILab.submit(2)">Submit Attack</button>
+                </div>
+
+                <div class="feedback-box" id="feedback-2"></div>
+
+                <div class="defense-section" id="defense-2">
+                    <div class="defense-label">
+                        <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        How to Fix This
+                    </div>
+                    <div class="defense-body">
+                        Eliminate the JSONP endpoint entirely. Replace it with a standard REST endpoint
+                        returning <code>application/json</code>, consumed by the client via <code>fetch()</code>
+                        with appropriate CORS headers. If cross-origin access is genuinely needed,
+                        configure CORS with an explicit allowlist rather than opening an XSSI vector
+                        for every origin via JSONP. There is no safe way to implement JSONP in 2026.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====================================================
+                 Challenge 3: Array Constructor Override  (Medium)
+                 Validate: overrides Array AND includes script tag
+                 pointing to the array endpoint
+                 ==================================================== -->
+            <div class="level-panel" id="level-3">
+                <div class="challenge-header">
+                    <div class="challenge-label">Challenge 03</div>
+                    <div class="challenge-title">
+                        Array Constructor Override
+                        <span class="diff-badge diff-medium">Medium</span>
+                    </div>
+                    <div class="challenge-desc">
+                        This legacy endpoint returns a bare JSON array as a JavaScript response.
+                        In ES5-era browsers, overriding the global <code>Array</code> constructor
+                        before the script loads causes the browser to call your constructor when
+                        parsing the array literal, passing the data as arguments.<br><br>
+                        <strong>Your task:</strong> Write attacker HTML that (1) overrides the global
+                        <code>Array</code> function to capture arguments, then (2) includes the victim
+                        endpoint as a script. The validator checks for both the Array override and the
+                        script inclusion. Study the endpoint response format carefully &mdash; the
+                        override technique only works on bare array literals.
+                    </div>
+                </div>
+
+                <!-- Simulated array endpoint -->
+                <div class="terminal-box">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <div class="tdot r"></div><div class="tdot y"></div><div class="tdot g"></div>
+                        </div>
+                        <span>Vulnerable Endpoint &mdash; https://corp-app.net/api/records.js</span>
+                    </div>
+                    <div class="terminal-content"><span class="hdr">HTTP/1.1 200 OK</span>
+<span class="hdr">Content-Type: application/javascript</span>
+
+<span class="cmt">// Bare array literal — no variable assignment, just the array.
+// When evaluated as JS, the Array() constructor is called.</span>
+[
+    {<span class="str">"id"</span>: <span class="val">1</span>, <span class="str">"ssn"</span>: <span class="str">"123-45-6789"</span>, <span class="str">"salary"</span>: <span class="val">84000</span>},
+    {<span class="str">"id"</span>: <span class="val">2</span>, <span class="str">"ssn"</span>: <span class="str">"987-65-4321"</span>, <span class="str">"salary"</span>: <span class="val">72500</span>},
+    {<span class="str">"id"</span>: <span class="val">3</span>, <span class="str">"ssn"</span>: <span class="str">"456-78-9012"</span>, <span class="str">"salary"</span>: <span class="val">95000</span>}
+]</div>
+                </div>
+
+                <!-- Student input -->
+                <div class="input-section">
+                    <label class="input-label" for="input-3">Your Attacker HTML:</label>
+                    <textarea class="code-input" id="input-3" rows="10"
+                        placeholder="Override Array constructor first, then include the script tag..."></textarea>
+                    <button class="submit-btn" onclick="XSSILab.submit(3)">Submit Attack</button>
+                </div>
+
+                <div class="feedback-box" id="feedback-3"></div>
+
+                <div class="defense-section" id="defense-3">
+                    <div class="defense-label">
+                        <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        How to Fix This
+                    </div>
+                    <div class="defense-body">
+                        Two fixes apply: (1) Change <code>Content-Type</code> to
+                        <code>application/json</code> &mdash; script tags refuse to execute non-JS
+                        MIME types in modern browsers with <code>nosniff</code> set. (2) Wrap the
+                        array in an object or a variable assignment (e.g., <code>var data = [...];</code>)
+                        rather than returning a bare array literal. A bare array literal is the
+                        only form that historically triggered constructor override attacks.
+                        Modern browsers (Chrome 80+, Firefox 72+) have also patched this specific
+                        constructor override path, but defense in depth still requires the Content-Type fix.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====================================================
+                 Challenge 4: Defense Bypass  (Hard)
+                 Partially protected endpoint — missing SameSite cookie.
+                 Student must identify the missing protection via MC,
+                 then explain why the endpoint is still vulnerable.
+                 ==================================================== -->
+            <div class="level-panel" id="level-4">
+                <div class="challenge-header">
+                    <div class="challenge-label">Challenge 04</div>
+                    <div class="challenge-title">
+                        Defense Bypass
+                        <span class="diff-badge diff-hard">Hard</span>
+                    </div>
+                    <div class="challenge-desc">
+                        The security team has applied partial protections to this endpoint but missed
+                        one critical defense. Analyze the response headers and server configuration
+                        below, identify which protection is absent, and explain why the endpoint
+                        remains exploitable despite the controls that are present.
+                    </div>
+                </div>
+
+                <!-- Partially protected endpoint for analysis -->
+                <div class="terminal-box">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <div class="tdot r"></div><div class="tdot y"></div><div class="tdot g"></div>
+                        </div>
+                        <span>Endpoint Under Review &mdash; https://corp-app.net/api/settings.js</span>
+                    </div>
+                    <div class="terminal-content"><span class="hdr">HTTP/1.1 200 OK</span>
+<span class="hdr">Content-Type: application/javascript</span>
+<span class="hdr">X-Content-Type-Options: nosniff</span>
+<span class="hdr">Cache-Control: no-store, private</span>
+<span class="hdr">Access-Control-Allow-Origin: https://corp-app.net</span>
+<span class="cmt"># Note: Session cookie is set with:
+# Set-Cookie: session=abc123; HttpOnly; Secure; Path=/</span>
+
+<span class="kw">var</span> settings = {
+    userId:      <span class="val">4721</span>,
+    mfa_enabled: <span class="kw">false</span>,
+    api_key:     <span class="str">"sk-live-9f3abc..."</span>,
+    exports_dir: <span class="str">"/var/data/exports/4721"</span>
+};
+
+<span class="cmt">/* Checklist the team applied:
+   [x] CORS header — restricts fetch() cross-origin reads
+   [x] X-Content-Type-Options: nosniff
+   [x] Cache-Control: private
+   [x] HttpOnly + Secure on session cookie
+   [ ] ???
+*/</span></div>
+                </div>
+
+                <!-- Part A: Multiple choice — which protection is missing -->
+                <div class="input-section">
+                    <label class="input-label">Part A: Which protection is missing?</label>
+                    <div class="mc-options" id="mc-options">
+                        <div class="mc-option" data-value="a" onclick="XSSILab.selectOption('a')">
+                            <div class="mc-radio" id="radio-a"></div>
+                            <span>A. The endpoint should use HTTP/2 instead of HTTP/1.1</span>
+                        </div>
+                        <div class="mc-option" data-value="b" onclick="XSSILab.selectOption('b')">
+                            <div class="mc-radio" id="radio-b"></div>
+                            <span>B. The Content-Type header should be application/json, not application/javascript &mdash; and the session cookie is missing the SameSite attribute</span>
+                        </div>
+                        <div class="mc-option" data-value="c" onclick="XSSILab.selectOption('c')">
+                            <div class="mc-radio" id="radio-c"></div>
+                            <span>C. A CSRF token should be required in the request body</span>
+                        </div>
+                        <div class="mc-option" data-value="d" onclick="XSSILab.selectOption('d')">
+                            <div class="mc-radio" id="radio-d"></div>
+                            <span>D. The response should require a Bearer token in the Authorization header</span>
+                        </div>
+                    </div>
+
+                    <!-- Part B: Written explanation -->
+                    <label class="input-label" for="input-4" style="margin-top:14px;">Part B: Explain why the endpoint is still exploitable (one to three sentences):</label>
+                    <textarea class="code-input" id="input-4" rows="4"
+                        placeholder="Explain the attack path that remains open despite the existing defenses..."></textarea>
+                    <button class="submit-btn" onclick="XSSILab.submit(4)">Submit Analysis</button>
+                </div>
+
+                <div class="feedback-box" id="feedback-4"></div>
+
+                <div class="defense-section" id="defense-4">
+                    <div class="defense-label">
+                        <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:0.9em;height:0.9em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        Full Remediation
+                    </div>
+                    <div class="defense-body">
+                        The CORS header does not block script tag inclusion &mdash; CORS only applies to
+                        <code>fetch()</code> and <code>XHR</code> requests, not <code>&lt;script src&gt;</code>
+                        tags. The missing controls are: (1) <code>Content-Type: application/json</code>
+                        instead of <code>application/javascript</code>, which prevents browser execution
+                        of the response, and (2) <code>SameSite=Strict</code> (or <code>Lax</code>) on the
+                        session cookie, which prevents the browser from sending it with cross-site subresource
+                        requests. Without <code>SameSite</code>, the cookie travels with every script tag
+                        request regardless of origin. The <code>nosniff</code> header helps, but only if
+                        the Content-Type is already correct &mdash; here it still declares
+                        <code>application/javascript</code>, which the browser happily executes.
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end challenge-area -->
+    </div><!-- end workspace -->
+
+    <!-- Right: Sidebar -->
+    <div class="sidebar">
+
+        <!-- Current challenge info -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">Current Challenge</div>
+            <div class="sidebar-body">
+                <div id="level-title" style="color:var(--accent-light);font-weight:700;margin-bottom:4px;">
+                    C1: The Leaky API
+                </div>
+                <div id="level-desc" style="font-size:0.78rem;color:var(--text-mid);line-height:1.6;">
+                    Include the victim script and read the profile variable.
+                </div>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">Objectives</div>
+            <div class="sidebar-body">
+                <div class="obj-item" id="obj-1">
+                    <span class="obj-dot"></span>C1: Exploit variable assignment XSSI
+                </div>
+                <div class="obj-item" id="obj-2">
+                    <span class="obj-dot"></span>C2: Hijack a JSONP callback
+                </div>
+                <div class="obj-item" id="obj-3">
+                    <span class="obj-dot"></span>C3: Override Array constructor
+                </div>
+                <div class="obj-item" id="obj-4">
+                    <span class="obj-dot"></span>C4: Identify the missing defense
+                </div>
+            </div>
+        </div>
+
+        <!-- Hints -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">Hints (-5 pts each)</div>
+            <div class="sidebar-body">
+                <button class="hint-btn" data-hint="1" onclick="XSSILab.revealHint(1)">Hint for Challenge 1</button>
+                <div class="hint-text" id="hint-1">Use a &lt;script src="https://corp-app.net/api/profile.js"&gt;&lt;/script&gt; tag. After it loads, read window.profile.name in a second script block.</div>
+
+                <button class="hint-btn" data-hint="2" onclick="XSSILab.revealHint(2)">Hint for Challenge 2</button>
+                <div class="hint-text" id="hint-2">Define: function callback(data) { /* capture data */ } BEFORE the script tag. Then include: &lt;script src="https://corp-app.net/api/wallet.js?callback=callback"&gt;&lt;/script&gt;</div>
+
+                <button class="hint-btn" data-hint="3" onclick="XSSILab.revealHint(3)">Hint for Challenge 3</button>
+                <div class="hint-text" id="hint-3">Override Array before the script loads: function Array() { /* use arguments */ }. Then include the records.js endpoint. The browser calls your Array() when parsing the bare array literal.</div>
+
+                <button class="hint-btn" data-hint="4" onclick="XSSILab.revealHint(4)">Hint for Challenge 4</button>
+                <div class="hint-text" id="hint-4">CORS headers only affect fetch() and XHR. Script tags bypass CORS entirely. The missing piece is both a wrong Content-Type AND the absence of SameSite on the session cookie.</div>
+            </div>
+        </div>
+
+        <!-- XSSI Quick Reference -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">XSSI Patterns</div>
+            <div class="sidebar-body">
+                <div class="ref-item">
+                    <div class="ref-code">&lt;script src="https://victim.com/api/data.js"&gt;&lt;/script&gt;</div>
+                    <div class="ref-desc">Basic script inclusion — sends victim cookies</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">function cb(d){} then ?callback=cb</div>
+                    <div class="ref-desc">JSONP hijack — define before include</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">function Array(){ /* args */ }</div>
+                    <div class="ref-desc">Constructor override — before script loads</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">window.onload = function(){ use(profile); }</div>
+                    <div class="ref-desc">Read global after script executes</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">navigator.sendBeacon(url, JSON.stringify(data))</div>
+                    <div class="ref-desc">Exfiltrate — works even on page unload</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Defenses Reference -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">Key Defenses</div>
+            <div class="sidebar-body">
+                <div class="ref-item">
+                    <div class="ref-code">Content-Type: application/json</div>
+                    <div class="ref-desc">Prevents browser executing response as script</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">X-Content-Type-Options: nosniff</div>
+                    <div class="ref-desc">Prevents MIME sniffing — enforces declared type</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">SameSite=Strict (cookie)</div>
+                    <div class="ref-desc">Blocks cookie on cross-site subresource requests</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">)]}'</div>
+                    <div class="ref-desc">JSON prefix — breaks JS parsing if included as script</div>
+                </div>
+                <div class="ref-item">
+                    <div class="ref-code">No JSONP endpoints</div>
+                    <div class="ref-desc">Eliminate the pattern entirely; use CORS + fetch()</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end sidebar -->
+</div><!-- end lab-body -->
+
+<!-- Completion Overlay -->
+<div class="completion-overlay" id="completion-overlay">
+    <div class="completion-card">
+        <div class="completion-title">Lab Complete</div>
+        <div class="completion-subtitle">
+            You have exploited all four XSSI attack vectors: variable assignment inclusion,
+            JSONP callback hijacking, Array constructor override, and partial defense analysis.
+        </div>
+        <div class="completion-score-box">
+            <div class="score-big" id="final-score">100</div>
+            <div class="score-meta">
+                <div class="label">Final Score</div>
+                <div class="rank" id="final-rank">Elite</div>
+            </div>
+        </div>
+        <button class="completion-btn" onclick="XSSILab.completeModule()">Mark Complete &amp; Return</button>
+    </div>
+</div>
+
+<script>
+/**
+ * XSSILab -- XSSI Attack Lab Simulation Engine
+ *
+ * Four challenges teaching Cross-Site Script Inclusion vectors:
+ *  1. Variable assignment XSSI (Easy)
+ *  2. JSONP callback hijacking (Medium)
+ *  3. Array constructor override (Medium)
+ *  4. Defense bypass analysis — MC + explanation (Hard)
+ */
+var XSSILab = (function() {
+    'use strict';
+
+    // --- State ---
+    var state = {
+        score:       100,
+        completed:   { 1: false, 2: false, 3: false, 4: false },
+        hintsUsed:   {},
+        mcSelected:  null
+    };
+
+    var CHALLENGE_INFO = {
+        1: {
+            title: 'C1: The Leaky API',
+            desc:  'Include the victim script and read the profile variable.'
+        },
+        2: {
+            title: 'C2: JSONP Hijack',
+            desc:  'Define the callback function before including the JSONP endpoint.'
+        },
+        3: {
+            title: 'C3: Array Constructor Override',
+            desc:  'Override the Array constructor before including the bare-array endpoint.'
+        },
+        4: {
+            title: 'C4: Defense Bypass',
+            desc:  'Identify the missing defense and explain the remaining attack path.'
+        }
+    };
+
+    // ---------------------------------------------------------------
+    // Validation helpers
+    // ---------------------------------------------------------------
+
+    /**
+     * Challenge 1: Must include a script tag pointing to corp-app.net/api/profile.js
+     * AND access profile.name (or profile.email or profile.role) in a subsequent script.
+     */
+    function validateC1(input) {
+        var hasScriptTag = /script[^>]+src\s*=\s*["'][^"']*corp-app\.net\/api\/profile\.js["']/i.test(input);
+        var accessesData = /profile\.(name|email|role)/i.test(input);
+        return { pass: hasScriptTag && accessesData, hasScript: hasScriptTag, hasAccess: accessesData };
+    }
+
+    /**
+     * Challenge 2: Must define a function named 'callback' (or any name) before
+     * including a script tag with ?callback= in the URL pointing to corp-app.net.
+     * The function definition must appear BEFORE the script tag in the source.
+     */
+    function validateC2(input) {
+        // Detect any function definition that will serve as the JSONP receiver
+        var hasCallback = /function\s+(\w+)\s*\(/.test(input);
+        // Detect script tag with the wallet endpoint and a callback query parameter
+        var hasScriptTag = /script[^>]+src\s*=\s*["'][^"']*corp-app\.net\/api\/wallet\.js[^"']*\?callback=/i.test(input) ||
+                           /script[^>]+src\s*=\s*["'][^"']*corp-app\.net\/api\/wallet\.js[^"']*callback=/i.test(input);
+        // Verify function definition appears before the script tag in document order
+        var funcIdx   = input.search(/function\s+\w+\s*\(/);
+        var scriptIdx = input.search(/script[^>]+src\s*=\s*["'][^"']*wallet/i);
+        var orderOk   = (funcIdx !== -1 && scriptIdx !== -1) ? funcIdx < scriptIdx : false;
+        return {
+            pass: hasCallback && hasScriptTag && orderOk,
+            hasCallback: hasCallback,
+            hasScriptTag: hasScriptTag,
+            orderOk: orderOk
+        };
+    }
+
+    /**
+     * Challenge 3: Must override the Array constructor AND include the records.js
+     * script. Override must appear before the script inclusion.
+     */
+    function validateC3(input) {
+        var hasArrayOverride = /function\s+Array\s*\(/.test(input);
+        var hasScriptTag     = /script[^>]+src\s*=\s*["'][^"']*corp-app\.net\/api\/records\.js["']/i.test(input);
+        var overrideIdx      = input.search(/function\s+Array\s*\(/);
+        var scriptIdx        = input.search(/script[^>]+src\s*=\s*["'][^"']*records/i);
+        var orderOk          = (overrideIdx !== -1 && scriptIdx !== -1) ? overrideIdx < scriptIdx : false;
+        return {
+            pass: hasArrayOverride && hasScriptTag && orderOk,
+            hasOverride: hasArrayOverride,
+            hasScript: hasScriptTag,
+            orderOk: orderOk
+        };
+    }
+
+    /**
+     * Challenge 4: MC answer must be 'b' (Content-Type + SameSite).
+     * Written explanation must mention at least two of: SameSite, Content-Type,
+     * CORS / script tag distinction, cookie, application/json.
+     */
+    function validateC4() {
+        var mcCorrect   = state.mcSelected === 'b';
+        var explanation = (document.getElementById('input-4').value || '').toLowerCase();
+        // Check that the explanation demonstrates understanding of the attack path
+        var keyTerms = ['samesite', 'content-type', 'script tag', 'cors', 'application/json', 'cookie', 'application/javascript'];
+        var termCount = 0;
+        keyTerms.forEach(function(term) {
+            if (explanation.indexOf(term) !== -1) { termCount++; }
+        });
+        return {
+            pass:        mcCorrect && explanation.length > 30 && termCount >= 2,
+            mcCorrect:   mcCorrect,
+            hasExplain:  explanation.length > 30,
+            enoughTerms: termCount >= 2
+        };
+    }
+
+    // ---------------------------------------------------------------
+    // Score management
+    // ---------------------------------------------------------------
+
+    function adjustScore(delta) {
+        state.score = Math.max(0, state.score + delta);
+        document.getElementById('score-display').textContent = state.score;
+    }
+
+    // ---------------------------------------------------------------
+    // Objective tracker
+    // ---------------------------------------------------------------
+
+    function markObjective(num) {
+        if (state.completed[num]) { return; }
+        state.completed[num] = true;
+
+        var el = document.getElementById('obj-' + num);
+        if (el) { el.classList.add('done'); }
+
+        var tab = document.querySelector('.level-tab[data-level="' + num + '"]');
+        if (tab) { tab.classList.add('done'); }
+
+        // Tally completed count
+        var done = Object.values(state.completed).filter(Boolean).length;
+        document.getElementById('obj-count').textContent = done;
+
+        showFlash('Objective complete: Challenge ' + num);
+
+        if (done === 4) {
+            setTimeout(showCompletion, 900);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Feedback rendering
+    // ---------------------------------------------------------------
+
+    function showFeedback(num, pass, message) {
+        var box = document.getElementById('feedback-' + num);
+        if (!box) { return; }
+        box.className = 'feedback-box show ' + (pass ? 'pass' : 'fail');
+        box.textContent = message;
+    }
+
+    function showDefense(num) {
+        var section = document.getElementById('defense-' + num);
+        if (section) { section.classList.add('show'); }
+    }
+
+    // ---------------------------------------------------------------
+    // Submit dispatcher
+    // ---------------------------------------------------------------
+
+    function submit(num) {
+        if (state.completed[num]) {
+            showFeedback(num, true, 'Already completed. Advance to the next challenge.');
+            return;
+        }
+
+        var result;
+
+        if (num === 1) {
+            var input = document.getElementById('input-1').value;
+            result = validateC1(input);
+
+            if (result.pass) {
+                adjustScore(0);   // no deduction on first-pass success
+                markObjective(1);
+                showFeedback(1, true,
+                    'Correct. The script tag fetches profile.js with the victim\'s session cookies. ' +
+                    'The browser executes the response, placing profile into the global scope. ' +
+                    'Your code then reads profile.name — the data is yours.');
+                showDefense(1);
+            } else {
+                adjustScore(-10);
+                var msg = 'Incorrect. ';
+                if (!result.hasScript) { msg += 'Missing a <script src> tag pointing to corp-app.net/api/profile.js. '; }
+                if (!result.hasAccess) { msg += 'Missing access to a profile field (profile.name, profile.email, or profile.role). '; }
+                showFeedback(1, false, msg + '(-10 pts)');
+            }
+
+        } else if (num === 2) {
+            var input2 = document.getElementById('input-2').value;
+            result = validateC2(input2);
+
+            if (result.pass) {
+                markObjective(2);
+                showFeedback(2, true,
+                    'Correct. The function definition intercepts the JSONP wrapper. ' +
+                    'When the browser loads wallet.js?callback=callback, the server wraps the data ' +
+                    'in your function name and your code receives token and balance as arguments.');
+                showDefense(2);
+            } else {
+                adjustScore(-10);
+                var msg2 = 'Incorrect. ';
+                if (!result.hasCallback) { msg2 += 'No callback function defined. '; }
+                if (!result.hasScriptTag) { msg2 += 'Missing script tag with ?callback= pointing to wallet.js. '; }
+                if (result.hasCallback && result.hasScriptTag && !result.orderOk) {
+                    msg2 += 'The function definition must appear BEFORE the script tag in the document. ';
+                }
+                showFeedback(2, false, msg2 + '(-10 pts)');
+            }
+
+        } else if (num === 3) {
+            var input3 = document.getElementById('input-3').value;
+            result = validateC3(input3);
+
+            if (result.pass) {
+                markObjective(3);
+                showFeedback(3, true,
+                    'Correct. The Array constructor override fires when the browser parses the bare ' +
+                    'array literal in records.js. Your constructor receives the array elements as ' +
+                    'arguments — the SSN and salary data are captured before the native Array behavior runs.');
+                showDefense(3);
+            } else {
+                adjustScore(-10);
+                var msg3 = 'Incorrect. ';
+                if (!result.hasOverride) { msg3 += 'Missing "function Array() { ... }" override. '; }
+                if (!result.hasScript)   { msg3 += 'Missing script tag pointing to corp-app.net/api/records.js. '; }
+                if (result.hasOverride && result.hasScript && !result.orderOk) {
+                    msg3 += 'The Array override must appear BEFORE the script tag. ';
+                }
+                showFeedback(3, false, msg3 + '(-10 pts)');
+            }
+
+        } else if (num === 4) {
+            result = validateC4();
+
+            if (result.pass) {
+                markObjective(4);
+                showFeedback(4, true,
+                    'Correct analysis. CORS headers do not protect script tag inclusions — only ' +
+                    'fetch()/XHR. The missing controls are Content-Type: application/json and ' +
+                    'SameSite=Strict on the session cookie. Without SameSite, the cookie travels ' +
+                    'with every cross-site script request, making the data fully reachable via ' +
+                    'script inclusion despite all other headers.');
+                showDefense(4);
+            } else {
+                adjustScore(-10);
+                var msg4 = 'Incomplete analysis. ';
+                if (!result.mcCorrect)   { msg4 += 'The multiple-choice selection is incorrect. CORS does not block script tags. '; }
+                if (!result.hasExplain)  { msg4 += 'The written explanation is too short. '; }
+                if (!result.enoughTerms) { msg4 += 'The explanation does not demonstrate understanding of the attack path (mention SameSite, Content-Type, and how script tags differ from fetch). '; }
+                showFeedback(4, false, msg4 + '(-10 pts)');
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Multiple-choice selection (Challenge 4)
+    // ---------------------------------------------------------------
+
+    function selectOption(value) {
+        state.mcSelected = value;
+        document.querySelectorAll('.mc-option').forEach(function(opt) {
+            opt.classList.remove('selected');
+        });
+        var chosen = document.querySelector('.mc-option[data-value="' + value + '"]');
+        if (chosen) { chosen.classList.add('selected'); }
+    }
+
+    // ---------------------------------------------------------------
+    // Hint system
+    // ---------------------------------------------------------------
+
+    function revealHint(num) {
+        if (state.hintsUsed[num]) { return; }
+        state.hintsUsed[num] = true;
+
+        var btn  = document.querySelector('.hint-btn[data-hint="' + num + '"]');
+        var text = document.getElementById('hint-' + num);
+        if (btn)  { btn.classList.add('revealed'); btn.textContent = 'Hint ' + num + ' revealed (-5 pts)'; }
+        if (text) { text.classList.add('show'); }
+
+        adjustScore(-5);
+    }
+
+    // ---------------------------------------------------------------
+    // Flash notification
+    // ---------------------------------------------------------------
+
+    function showFlash(msg) {
+        var el = document.createElement('div');
+        el.className = 'obj-flash';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() { if (el.parentNode) { el.parentNode.removeChild(el); } }, 3000);
+    }
+
+    // ---------------------------------------------------------------
+    // Completion
+    // ---------------------------------------------------------------
+
+    function showCompletion() {
+        document.getElementById('final-score').textContent = state.score;
+        var rank = state.score >= 90 ? 'Elite -- XSSI Expert'
+                 : state.score >= 75 ? 'Proficient -- Skilled Hunter'
+                 : state.score >= 60 ? 'Competent -- Attack Successful'
+                 :                     'Novice -- Completed with Guidance';
+        document.getElementById('final-rank').textContent = rank;
+        document.getElementById('completion-overlay').classList.add('show');
+    }
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-lab-xssi', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Tab switching
+    // ---------------------------------------------------------------
+
+    function switchChallenge(num) {
+        // Deactivate all panels and tabs
+        document.querySelectorAll('.level-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.level-tab').forEach(function(t) { t.classList.remove('active'); });
+
+        // Activate target
+        var panel = document.getElementById('level-' + num);
+        var tab   = document.querySelector('.level-tab[data-level="' + num + '"]');
+        if (panel) { panel.classList.add('active'); }
+        if (tab)   { tab.classList.add('active'); }
+
+        // Update sidebar info
+        var info = CHALLENGE_INFO[num];
+        if (info) {
+            document.getElementById('level-title').textContent = info.title;
+            document.getElementById('level-desc').textContent  = info.desc;
+        }
+
+        // Scroll workspace back to top
+        var area = document.querySelector('.challenge-area');
+        if (area) { area.scrollTop = 0; }
+    }
+
+    // ---------------------------------------------------------------
+    // Init
+    // ---------------------------------------------------------------
+
+    function init() {
+        document.querySelectorAll('.level-tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                switchChallenge(parseInt(this.dataset.level, 10));
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    // Public API
+    return {
+        submit:         submit,
+        revealHint:     revealHint,
+        selectOption:   selectOption,
+        completeModule: completeModule
+    };
+
+}());
+</script>
+
+</body>
+</html>

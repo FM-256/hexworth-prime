@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hexworth Prime - Messages</title>
+    <title>Hexworth Prime - Ansible</title>
     <link rel="icon" type="image/webp" href="/assets/images/icons/icon-explosion.webp">
     <style>
     .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -33,12 +33,18 @@
             --unread: #06b6d4;
         }
 
+        html {
+            height: 100%;
+        }
+
         body {
             background: var(--bg);
             color: var(--text);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
+            height: 100%;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ═══════════════════════════════════════════════════════════════
@@ -47,8 +53,10 @@
 
         .messaging-app {
             display: flex;
-            height: 100vh;
+            flex: 1;
+            min-height: 0;
             max-width: 1400px;
+            width: 100%;
             margin: 0 auto;
         }
 
@@ -515,6 +523,12 @@
         }
 
         /* Empty thread state */
+        #threadContent {
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+
         .thread-empty {
             flex: 1;
             display: flex;
@@ -852,7 +866,7 @@
     </style>
 </head>
 <body>
-<h1 class="visually-hidden">Messages</h1>
+<h1 class="visually-hidden">Ansible</h1>
 
     <div class="messaging-app">
 
@@ -860,7 +874,7 @@
         <div class="conversation-list">
             <div class="conv-header">
                 <a href="/dashboard.html" class="back-link">[< Dashboard]</a>
-                <h2>Messages</h2>
+                <h2>Ansible</h2>
             </div>
             <div class="conv-search">
                 <label for="convSearchInput" class="sr-only">Search conversations</label>
@@ -886,7 +900,7 @@
                 </div>
             </div>
 
-            <div id="threadContent" style="display: none; flex-direction: column; height: 100%;">
+            <div id="threadContent" style="display: none;">
                 <div class="thread-header">
                     <div class="thread-user">
                         <button class="thread-action-btn mobile-back-btn" id="mobileBackBtn">[<]</button>
@@ -1057,24 +1071,23 @@
                 // Check classes where user is handler
                 const handlerSnap = await getDocs(query(
                     collection(db, 'classes'),
-                    where('handlerUid', '==', currentUser.uid),
-                    where('deleted', '!=', true)
+                    where('handlerUid', '==', currentUser.uid)
                 ));
                 handlerSnap.forEach(d => {
                     const data = d.data();
+                    if (data.deleted === true) return;
                     classCache[d.id] = { name: data.name, handlerUid: data.handlerUid };
                     memberOf.push({ id: d.id, name: data.name, role: 'Handler' });
                 });
 
                 // Check classes where user is a member
-                const allClasses = await getDocs(query(
-                    collection(db, 'classes'),
-                    where('deleted', '!=', true)
-                ));
+                const allClasses = await getDocs(
+                    collection(db, 'classes')
+                );
 
                 const memberChecks = [];
                 allClasses.forEach(d => {
-                    if (!classCache[d.id]) {
+                    if (!classCache[d.id] && d.data().deleted !== true) {
                         memberChecks.push(
                             getDoc(doc(db, 'classes', d.id, 'members', currentUser.uid))
                                 .then(memberDoc => {
@@ -1280,39 +1293,70 @@
             function subscribeMessages(conversationId) {
                 if (messagesUnsubscribe) messagesUnsubscribe();
 
-                messagesUnsubscribe = onSnapshot(
-                    query(
-                        collection(db, 'messages'),
-                        where('conversationId', '==', conversationId),
-                        where('deleted', '==', false),
-                        orderBy('timestamp', 'desc'),
-                        limit(20)
-                    ),
-                    (snapshot) => {
-                        const messages = [];
-                        snapshot.forEach(d => {
-                            messages.push({ id: d.id, ...d.data(), _doc: d });
-                        });
+                // Two queries needed: Firestore rules require from==uid or to==uid,
+                // so a single query filtering only by conversationId gets rejected.
+                let sentMessages = [];
+                let receivedMessages = [];
 
-                        if (messages.length > 0) {
-                            lastMessageDoc = messages[messages.length - 1]._doc;
-                        }
-
-                        // Show load more if we got a full page
-                        $('loadMoreBtn').style.display = messages.length >= 20 ? 'block' : 'none';
-
-                        // Reverse for chronological order
-                        messages.reverse();
-                        renderMessages(messages);
-
-                        // Auto-mark incoming as read
-                        messages.forEach(msg => {
-                            if (msg.to === currentUser.uid && !msg.read) {
-                                updateDoc(doc(db, 'messages', msg.id), { read: true });
-                            }
-                        });
-                    }
+                const sentQ = query(
+                    collection(db, 'messages'),
+                    where('from', '==', currentUser.uid),
+                    where('conversationId', '==', conversationId),
+                    where('deleted', '==', false),
+                    orderBy('timestamp', 'desc'),
+                    limit(20)
                 );
+
+                const recvQ = query(
+                    collection(db, 'messages'),
+                    where('to', '==', currentUser.uid),
+                    where('conversationId', '==', conversationId),
+                    where('deleted', '==', false),
+                    orderBy('timestamp', 'desc'),
+                    limit(20)
+                );
+
+                function mergeAndRender() {
+                    const allMap = new Map();
+                    [...sentMessages, ...receivedMessages].forEach(m => allMap.set(m.id, m));
+                    const messages = [...allMap.values()].sort((a, b) => {
+                        const ta = a.timestamp ? a.timestamp.toMillis() : 0;
+                        const tb = b.timestamp ? b.timestamp.toMillis() : 0;
+                        return ta - tb;
+                    });
+
+                    if (messages.length > 0) {
+                        lastMessageDoc = messages[messages.length - 1]._doc;
+                    }
+
+                    $('loadMoreBtn').style.display = messages.length >= 20 ? 'block' : 'none';
+                    renderMessages(messages);
+
+                    // Auto-mark incoming as read
+                    messages.forEach(msg => {
+                        if (msg.to === currentUser.uid && !msg.read) {
+                            updateDoc(doc(db, 'messages', msg.id), { read: true });
+                        }
+                    });
+                }
+
+                const unsub1 = onSnapshot(sentQ, (snapshot) => {
+                    sentMessages = [];
+                    snapshot.forEach(d => sentMessages.push({ id: d.id, ...d.data(), _doc: d }));
+                    mergeAndRender();
+                }, (error) => {
+                    console.error('[Messaging] Sent messages query failed:', error.code, error.message);
+                });
+
+                const unsub2 = onSnapshot(recvQ, (snapshot) => {
+                    receivedMessages = [];
+                    snapshot.forEach(d => receivedMessages.push({ id: d.id, ...d.data(), _doc: d }));
+                    mergeAndRender();
+                }, (error) => {
+                    console.error('[Messaging] Received messages query failed:', error.code, error.message);
+                });
+
+                messagesUnsubscribe = () => { unsub1(); unsub2(); };
             }
 
             function renderMessages(messages) {

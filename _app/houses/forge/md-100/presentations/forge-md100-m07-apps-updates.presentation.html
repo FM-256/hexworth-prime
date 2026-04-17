@@ -8,832 +8,1058 @@
     <!-- Progress & Achievements -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Apps and Windows Updates - MD-100 | House of the Forge</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1510 50%, #0a0a0f 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #d4c4b0;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .presentation-header {
-            padding: 18px 40px;
-            background: rgba(10, 10, 15, 0.95);
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .header-left { display: flex; align-items: center; gap: 15px; }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(234, 88, 12, 0.1);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 6px;
-            color: #f97316;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .back-btn:hover { background: rgba(234, 88, 12, 0.2); border-color: rgba(234, 88, 12, 0.5); }
-
-        .house-badge { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #a07850; letter-spacing: 0.1em; }
-
-        .progress-indicator { display: flex; align-items: center; gap: 10px; }
-
-        .progress-bar { width: 150px; height: 4px; background: rgba(234, 88, 12, 0.2); border-radius: 2px; overflow: hidden; }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ea580c, #f97316);
-            border-radius: 2px;
-            transition: width 0.5s ease;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .progress-text { font-size: 0.75rem; color: #7a5c40; }
-
-        .slides-container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-
-        .slide { display: none; animation: fadeIn 0.5s ease; }
-        .slide.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-title { font-size: 2.4rem; font-weight: 300; color: #f5e8d8; margin-bottom: 10px; text-align: center; }
-        .slide-subtitle { font-size: 1.05rem; color: #a07850; text-align: center; margin-bottom: 40px; }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-            gap: 22px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover { border-color: rgba(234, 88, 12, 0.4); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
-
-        .card-icon { font-size: 2.2rem; margin-bottom: 14px; }
-        .card-title { font-size: 1.15rem; color: #f5e8d8; margin-bottom: 10px; }
-        .card-description { font-size: 0.88rem; color: #a07850; line-height: 1.65; }
-
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 28px; }
-
-        .key-points {
-            background: rgba(20, 14, 8, 0.65);
-            border-left: 3px solid #ea580c;
-            padding: 18px 24px;
-            margin: 24px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 { color: #f97316; margin-bottom: 10px; font-size: 0.85rem; letter-spacing: 0.06em; }
-        .key-points ul { list-style: none; }
-
-        .key-points li {
-            padding: 7px 0 7px 24px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.88rem;
-        }
-
-        .key-points li::before { content: '→'; position: absolute; left: 0; color: #ea580c; }
-
-        .exam-tip {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.05));
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 10px;
-            padding: 18px 22px;
-            margin: 22px 0;
-        }
-
-        .exam-tip-label { font-size: 0.78rem; color: #f97316; font-weight: 600; letter-spacing: 0.08em; margin-bottom: 8px; }
-        .exam-tip p { font-size: 0.9rem; color: #d4c4b0; line-height: 1.6; }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(180, 60, 8, 0.06));
-            border: 1px solid rgba(234, 88, 12, 0.25);
-            border-radius: 12px;
-            padding: 26px;
-            margin: 26px 0;
-        }
-
-        .scenario-title { font-size: 1.05rem; color: #f97316; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
-        .scenario-content { font-size: 0.92rem; color: #d4c4b0; line-height: 1.7; }
-
-        /* Servicing ring diagram */
-        .ring-diagram {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 14px;
-            margin-top: 24px;
-        }
-
-        .ring-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 10px;
-            padding: 18px;
-            text-align: center;
-        }
-
-        .ring-card.ring-1 { border-top: 3px solid #f97316; }
-        .ring-card.ring-2 { border-top: 3px solid #fbbf24; }
-        .ring-card.ring-3 { border-top: 3px solid #4ade80; }
-
-        .ring-name { font-size: 0.95rem; color: #f5e8d8; margin-bottom: 8px; font-weight: 500; }
-        .ring-detail { font-size: 0.82rem; color: #a07850; line-height: 1.5; }
-
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 24px;
-            font-size: 0.87rem;
-        }
-
-        .comparison-table th {
-            background: rgba(234, 88, 12, 0.15);
-            padding: 13px 14px;
-            text-align: left;
-            color: #f5e8d8;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
-        }
-
-        .comparison-table td {
-            padding: 10px 14px;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.1);
-            color: #a07850;
-        }
-
-        .comparison-table tr:hover td { background: rgba(234, 88, 12, 0.05); }
-
-        .feature-yes { color: #4ade80; }
-        .feature-no { color: #6b5b40; }
-        .feature-limited { color: #fbbf24; }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 14px 18px;
-            margin: 9px 0;
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            color: #d4c4b0;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.92rem;
-        }
-
-        .quiz-option:hover { border-color: rgba(234, 88, 12, 0.5); background: rgba(234, 88, 12, 0.08); }
-        .quiz-option.correct { border-color: #4ade80; background: rgba(74,222,128,0.08); color: #4ade80; }
-        .quiz-option.incorrect { border-color: #f87171; background: rgba(248,113,113,0.08); color: #f87171; }
-
-        .feedback {
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            display: none;
-            line-height: 1.6;
-        }
-
-        .feedback.correct { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; display: block; }
-        .feedback.incorrect { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: #f87171; display: block; }
-
-        .summary-list { list-style: none; margin-top: 20px; }
-
-        .summary-list li {
-            padding: 10px 0 10px 30px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.92rem;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .summary-list li::before { content: '✓'; position: absolute; left: 0; color: #4ade80; font-weight: bold; }
-
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 28px;
-            border-top: 1px solid rgba(234, 88, 12, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 28px;
-            background: rgba(234, 88, 12, 0.12);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 8px;
-            color: #f97316;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em; text-decoration: none; display: inline-flex; align-items: center;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover { background: rgba(234, 88, 12, 0.22); border-color: rgba(234, 88, 12, 0.5); }
-        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
-            border: none;
-            color: white;
-            font-weight: 500;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn.primary:hover { box-shadow: 0 5px 20px rgba(234, 88, 12, 0.35); transform: translateY(-1px); }
-
-        .slide-dots { display: flex; gap: 8px; }
-
-        .slide-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(234, 88, 12, 0.3); cursor: pointer; transition: all 0.3s ease; }
-        .slide-dot.active { background: #f97316; transform: scale(1.2); }
-
-        @media (max-width: 768px) {
-            .presentation-header { flex-direction: column; gap: 14px; padding: 14px 18px; }
-            .slide-title { font-size: 1.7rem; }
-            .content-grid, .two-col, .ring-diagram { grid-template-columns: 1fr; }
-            .comparison-table { font-size: 0.76rem; }
-            .slide-nav { flex-direction: column; gap: 18px; }
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        /* ── CODE BLOCK ── */
+        .code-block {
+            background: rgba(5, 5, 8, 0.8); border: 1px solid rgba(201, 168, 58, 0.2);
+            border-radius: 8px; padding: 12px 16px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem; color: #c9a83a;
+        }
+        .code-block .cm { color: #475569; }
+
+        /* ── LAYOUT HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .diagram-pair { display: flex; justify-content: center; gap: 24px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">← Back to MD-100</a>
-            <div class="house-badge">
-                <span><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Manage Apps and Windows Updates</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">MD-100 &mdash; Module 7 &nbsp;|&nbsp; Manage Apps &amp; Updates</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Module 7:<br>
+                <span class="accent">Manage Apps &amp; Updates</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:620px; margin-top:4px;">
+                Application installation formats, deployment tools, WSUS architecture, Windows Update delivery rings, and application compatibility strategies for Windows 10 enterprise environments.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 8</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>MD-100 Exam Weight: 15&ndash;20%</span>
+            <span>WSUS &bull; Update Rings &bull; MSI &bull; MSIX &bull; AppX</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
+<!-- ==================== SLIDE 2 — APP INSTALLATION FORMATS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">App Installation <span class="accent">Formats</span></div>
+        <div class="slide-subtitle">MSI, MSIX, AppX, and EXE &mdash; the four formats encountered in enterprise Windows deployments.</div>
 
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Manage Apps and Windows Updates</h1>
-            <p class="slide-subtitle">MD-100 Module 7 — App deployment, UWP, Edge, Windows as a Service, and WSUS</p>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">MSI (Windows Installer)</div>
+                <div class="card-desc">The legacy enterprise standard. Structured database of installation instructions, files, registry entries, and repair data. Supports Group Policy deployment, silent install flags (/quiet /norestart), and MST transform files for customization. Managed by the Windows Installer service (msiexec.exe). Widely supported by all deployment tools.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MSIX</div>
+                <div class="card-desc">Modern replacement for MSI and AppX. Containerized packaging with clean install/uninstall using a virtual file system. Supports modification packages (mod packages for enterprise customization). Requires Windows 10 1709+. Sideloading requires allowing Developer Mode or a trusted certificate. Recommended format for all new enterprise applications.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">AppX (Universal Windows Platform)</div>
+                <div class="card-desc">Package format for UWP (Store) apps. Digitally signed. Sandboxed execution model with declared capabilities. Installed per-user or provisioned for all users. Managed via <strong>Add-AppxPackage</strong> and <strong>Remove-AppxPackage</strong> PowerShell cmdlets. AppXBundle is a multi-architecture package container.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">EXE (Setup Executables)</div>
+                <div class="card-desc">Traditional Win32 installer. Most flexible but no structured deployment standard. Many EXEs wrap an MSI internally. Common silent install flags: <strong>/S</strong>, <strong>/silent</strong>, <strong>/quiet</strong>, <strong>/norestart</strong>. Check vendor documentation for specific parameters. Not natively deployable via GPO without extra tooling.</div>
+            </div>
+        </div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h2 class="card-title">Providing Applications</h2>
-                    <p class="card-description">From the Microsoft Store to enterprise MSI deployment via Group Policy and Intune — understand the full spectrum of Windows application packaging and delivery models.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Servicing</h3>
-                    <p class="card-description">Windows as a Service changed how organizations receive updates. Understand feature vs. quality updates, servicing channels, and how to control update behavior in enterprise environments.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Application Control</h3>
-                    <p class="card-description">AppLocker, Microsoft Store for Business, and UWP app restrictions — the tools administrators use to control which applications users can run on corporate devices.</p>
+        <div class="box box-gold">
+            <div class="box-label">Deployment Recommendation</div>
+            MSI for legacy enterprise apps deployed via GPO or SCCM. MSIX for modern apps. Use Intune for cloud-managed deployments supporting both MSI (line-of-business) and MSIX/AppX packages.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — APP INSTALLATION FLOW SVG ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">App Installation <span class="accent">Flow</span></div>
+        <div class="slide-subtitle">Decision path from package format to deployment method to installed state.</div>
+
+        <!-- SVG: App installation flow (MSI/MSIX/AppX) -->
+        <div class="diagram-center">
+            <svg width="680" height="178" viewBox="0 0 680 178" aria-label="Application installation flow from package type through deployment method to installed app" role="img">
+                <defs>
+                    <marker id="appArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                    <marker id="appArrB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#06b6d4"/>
+                    </marker>
+                    <marker id="appArrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#3ab577"/>
+                    </marker>
+                </defs>
+
+                <!-- Package types column -->
+                <text x="60" y="14" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#475569" letter-spacing="0.06em">PACKAGE</text>
+                <!-- MSI -->
+                <rect x="6" y="20" width="108" height="26" rx="4" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="60" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">MSI / MSP</text>
+                <!-- MSIX -->
+                <rect x="6" y="54" width="108" height="26" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="60" y="71" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">MSIX</text>
+                <!-- AppX -->
+                <rect x="6" y="88" width="108" height="26" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="60" y="105" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">AppX / AppXBundle</text>
+                <!-- EXE -->
+                <rect x="6" y="122" width="108" height="26" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="60" y="139" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">EXE (Win32)</text>
+
+                <!-- Arrows to deployment -->
+                <line x1="114" y1="33" x2="190" y2="55" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#appArr)"/>
+                <line x1="114" y1="67" x2="190" y2="73" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#appArrB)"/>
+                <line x1="114" y1="101" x2="190" y2="100" stroke="#3ab577" stroke-width="1.5" marker-end="url(#appArrG)"/>
+                <line x1="114" y1="135" x2="190" y2="128" stroke="#ef4444" stroke-width="1.5" marker-end="url(#appArr)"/>
+
+                <!-- Deployment methods column -->
+                <text x="270" y="14" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#475569" letter-spacing="0.06em">DEPLOYMENT METHOD</text>
+                <rect x="192" y="20" width="156" height="26" rx="4" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"/>
+                <text x="270" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">GPO Software Installation</text>
+                <rect x="192" y="54" width="156" height="26" rx="4" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="270" y="71" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Intune / SCCM / Endpoint</text>
+                <rect x="192" y="88" width="156" height="26" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="270" y="105" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Microsoft Store / Add-AppxPackage</text>
+                <rect x="192" y="122" width="156" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="270" y="139" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">msiexec.exe / Manual</text>
+
+                <!-- Arrows to engine -->
+                <line x1="348" y1="33" x2="420" y2="75" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#appArr)"/>
+                <line x1="348" y1="67" x2="420" y2="85" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#appArrB)"/>
+                <line x1="348" y1="101" x2="420" y2="95" stroke="#3ab577" stroke-width="1.5" marker-end="url(#appArrG)"/>
+                <line x1="348" y1="135" x2="420" y2="110" stroke="#ef4444" stroke-width="1.5" marker-end="url(#appArr)"/>
+
+                <!-- Install engine -->
+                <rect x="422" y="58" width="110" height="68" rx="5" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="477" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Windows</text>
+                <text x="477" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Installer /</text>
+                <text x="477" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">App Platform</text>
+                <line x1="532" y1="92" x2="572" y2="92" stroke="#c9a83a" stroke-width="2" marker-end="url(#appArr)"/>
+
+                <!-- Installed app result -->
+                <rect x="574" y="68" width="100" height="48" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="2"/>
+                <text x="624" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Installed</text>
+                <text x="624" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Application</text>
+
+                <!-- Footer note -->
+                <text x="340" y="168" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">All formats end in the same state: files written, registry configured, shortcuts created, and the app ready to launch</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">msiexec.exe Silent Install</div>
+                <div class="card-desc"><strong>msiexec /i app.msi /quiet /norestart /l*v install.log</strong> &mdash; silent install with verbose log. <strong>/x {GUID}</strong> removes by product code. GPO can deploy MSI to Computer or User configuration for machine-wide or per-user installation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MSIX Sideloading</div>
+                <div class="card-desc">Enterprise MSIX packages must be signed by a certificate trusted by the client. Enable sideloading via Settings &rarr; Developer Mode, or via GPO: Allow all trusted apps to install (AllowAllTrustedApps). Then: <strong>Add-AppxPackage -Path .\app.msix</strong>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">winget</div>
+                <div class="card-desc">Windows Package Manager (Windows 10 1809+). <strong>winget install VLC</strong>, <strong>winget upgrade --all</strong>. Installs from the Microsoft Store and GitHub-hosted packages. Scriptable for provisioning. Not a full enterprise deployment solution but useful for individual machines.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — MICROSOFT STORE AND PROVISIONED APPS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Microsoft Store and <span class="accent">Provisioned Apps</span></div>
+        <div class="slide-subtitle">Managing built-in UWP apps and the Microsoft Store in enterprise environments.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Provisioned vs. Installed AppX</div>
+                <div class="card-desc"><strong>Provisioned:</strong> Staged in the image and installed for new users on first login. Stored in C:\Program Files\WindowsApps and C:\ProgramData\Microsoft\Windows\AppRepository. <strong>Per-user installed:</strong> In user profile AppData. Provisioned apps are managed per-machine; installed apps are per-user.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Remove Built-in Apps</div>
+                <div class="card-desc">
+                    Remove for one user: <strong>Get-AppxPackage *XboxApp* | Remove-AppxPackage</strong><br>
+                    Remove for all existing users + new users: <strong>Get-AppxPackage -AllUsers *XboxApp* | Remove-AppxPackage -AllUsers</strong><br>
+                    Remove provisioned package: <strong>Get-AppxProvisionedPackage -Online | Where-Object {$_.PackageName -like "*Xbox*"} | Remove-AppxProvisionedPackage -Online</strong>
                 </div>
             </div>
-
-            <div class="key-points">
-                <h4>MODULE OVERVIEW</h4>
-                <ul>
-                    <li>Windows Servicing Model concepts appear on nearly every MD-100 exam — know the channel names</li>
-                    <li>App packaging formats (MSI vs. MSIX vs. AppX) are frequently compared in exam scenarios</li>
-                    <li>WSUS vs. Windows Update for Business — know which is appropriate for which scenario</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">Disable Store via GPO</div>
+                <div class="card-desc">Computer Configuration &rarr; Administrative Templates &rarr; Windows Components &rarr; Store &rarr; Turn off the Store application. Prevents users from installing apps from the public store. Does not affect side-loaded or enterprise MSIX packages.</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+        <div class="box box-red">
+            <div class="box-label">Windows 11 Store Change</div>
+            Windows 11 Store supports Win32 apps in addition to UWP. This allows IT to distribute traditional Win32 applications through the Store infrastructure with centralized management, reducing dependence on legacy deployment tools for simple single-application deployments.
+        </div>
+    </div>
+</section>
 
-        <!-- Slide 2: Providing Apps -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">Providing Applications</h2>
-            <p class="slide-subtitle">Store, sideloading, MSI vs. MSIX vs. AppX, Group Policy and Intune deployment</p>
+<!-- ==================== SLIDE 5 — WINDOWS UPDATE OVERVIEW ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Windows Update <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Update types, release channels, and the servicing model for Windows 10.</div>
 
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Format</th>
-                        <th scope="col">Type</th>
-                        <th scope="col">Deployment Method</th>
-                        <th scope="col">Sandboxed</th>
-                        <th scope="col">Best Use</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>MSI</strong></td>
-                        <td>Win32 installer</td>
-                        <td>GPO, SCCM, Intune</td>
-                        <td class="feature-no">No</td>
-                        <td>Traditional enterprise apps</td>
-                    </tr>
-                    <tr>
-                        <td><strong>MSIX</strong></td>
-                        <td>Modern Win32</td>
-                        <td>Intune, Store, MSIX App Attach</td>
-                        <td class="feature-limited">Partial</td>
-                        <td>Modern enterprise deployment</td>
-                    </tr>
-                    <tr>
-                        <td><strong>AppX</strong></td>
-                        <td>UWP package</td>
-                        <td>Store, Intune, sideloading</td>
-                        <td class="feature-yes">Yes</td>
-                        <td>Store apps, provisioned apps</td>
-                    </tr>
-                    <tr>
-                        <td><strong>EXE</strong></td>
-                        <td>Self-contained</td>
-                        <td>Manual, scripted, Intune</td>
-                        <td class="feature-no">No</td>
-                        <td>Legacy standalone installs</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Quality Updates (Cumulative)</div>
+                <div class="card-desc">Monthly security and bug fixes. Released on Patch Tuesday (second Tuesday of each month). Cumulative: each update includes all previous monthly patches. A single monthly cumulative update brings a machine fully current from any prior state. No need to chain earlier updates.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Feature Updates (Semi-Annual)</div>
+                <div class="card-desc">New OS versions released approximately twice per year (Spring H1, Fall H2). Major version updates: 21H2, 22H2, 23H2. Each introduces new features, UI changes, and deprecations. Require more testing than quality updates. Can be deferred via update policy for up to 365 days.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Driver Updates</div>
+                <div class="card-desc">Hardware driver updates distributed through Windows Update. Can be managed separately from OS updates. Some organizations block driver updates via policy to maintain approved driver baselines. Settings &rarr; Windows Update &rarr; Advanced Options &rarr; Receive updates for other Microsoft products.</div>
+            </div>
+        </div>
 
-            <div class="two-col" style="margin-top: 22px;">
-                <div class="content-card">
-                    <h3 class="card-title">Group Policy App Deployment</h3>
-                    <p class="card-description">Deploys MSI packages via Active Directory GPO. Two assignment modes:</p>
-                    <ul style="list-style: none; margin-top: 12px;">
-                        <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Published</strong> — available in Add/Remove Programs, not installed automatically</li>
-                        <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Assigned</strong> — installed automatically at logon or computer startup</li>
-                        <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>User-assigned apps follow the user; computer-assigned apps install on the machine</li>
-                    </ul>
+        <table class="slide-table">
+            <thead><tr><th>Update Type</th><th>Frequency</th><th>Max Deferral</th><th>Managed By</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Quality (Security)</strong></td><td>Monthly</td><td>30 days (Business/Enterprise)</td><td>WU / WSUS / Intune</td></tr>
+                <tr><td><strong>Feature</strong></td><td>Semi-Annual</td><td>365 days</td><td>WU / WSUS / Intune</td></tr>
+                <tr><td><strong>Driver</strong></td><td>As released</td><td>Configurable</td><td>WU / WSUS / SCCM</td></tr>
+                <tr><td><strong>Definition (Defender)</strong></td><td>Daily / Multiple</td><td>None recommended</td><td>WU / MU / Intune</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — UPDATE RINGS SVG ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Windows Update <span class="accent">Deployment Rings</span></div>
+        <div class="slide-subtitle">Staged rollout strategy to validate updates before broad production deployment.</div>
+
+        <!-- SVG: Windows Update deployment ring diagram (preview → broad → targeted) -->
+        <div class="diagram-center">
+            <svg width="680" height="166" viewBox="0 0 680 166" aria-label="Windows Update deployment ring stages: Preview, Pilot, Broad, and General Availability" role="img">
+                <defs>
+                    <marker id="ringArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                </defs>
+
+                <!-- Patch Tuesday release point -->
+                <rect x="4" y="60" width="90" height="46" rx="5" fill="rgba(100,116,139,0.12)" stroke="#475569" stroke-width="1.5"/>
+                <text x="49" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">Microsoft</text>
+                <text x="49" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Patch Tuesday</text>
+                <text x="49" y="106" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Release</text>
+                <line x1="94" y1="83" x2="126" y2="83" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#ringArr)"/>
+
+                <!-- Ring 0: Preview / Insider -->
+                <rect x="128" y="40" width="110" height="86" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="183" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#ef4444">Ring 0</text>
+                <text x="183" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">Preview / IT Lab</text>
+                <text x="183" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">1&ndash;5% of devices</text>
+                <text x="183" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Immediate / 0 day defer</text>
+                <text x="183" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Validate compatibility</text>
+                <line x1="238" y1="83" x2="270" y2="83" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#ringArr)"/>
+                <text x="254" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">7&ndash;14d</text>
+
+                <!-- Ring 1: Pilot -->
+                <rect x="272" y="40" width="110" height="86" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="327" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Ring 1</text>
+                <text x="327" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">Pilot Group</text>
+                <text x="327" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">5&ndash;15% of devices</text>
+                <text x="327" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Defer 7&ndash;14 days</text>
+                <text x="327" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Tech-savvy volunteers</text>
+                <line x1="382" y1="83" x2="414" y2="83" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#ringArr)"/>
+                <text x="398" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">14&ndash;21d</text>
+
+                <!-- Ring 2: Broad -->
+                <rect x="416" y="40" width="110" height="86" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="471" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">Ring 2</text>
+                <text x="471" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Broad Deployment</text>
+                <text x="471" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">60&ndash;80% of devices</text>
+                <text x="471" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Defer 21&ndash;30 days</text>
+                <text x="471" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Most production PCs</text>
+                <line x1="526" y1="83" x2="558" y2="83" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#ringArr)"/>
+                <text x="542" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">30+d</text>
+
+                <!-- Ring 3: Critical / Legacy -->
+                <rect x="560" y="40" width="114" height="86" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="617" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Ring 3</text>
+                <text x="617" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Critical Systems</text>
+                <text x="617" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Remaining devices</text>
+                <text x="617" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Max defer: 30 days</text>
+                <text x="617" y="117" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Servers / kiosks / OT</text>
+
+                <!-- Timeline bar -->
+                <rect x="128" y="140" width="546" height="8" rx="3" fill="rgba(201,168,58,0.08)" stroke="#1e293b" stroke-width="1"/>
+                <rect x="128" y="140" width="136" height="8" rx="3" fill="rgba(239,68,68,0.3)"/>
+                <rect x="264" y="140" width="140" height="8" rx="3" fill="rgba(201,168,58,0.3)"/>
+                <rect x="404" y="140" width="148" height="8" rx="3" fill="rgba(6,182,212,0.3)"/>
+                <rect x="552" y="140" width="122" height="8" rx="3" fill="rgba(58,181,119,0.3)"/>
+                <text x="340" y="162" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">Time from Microsoft release (days 0 &rarr; 30+)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Configure Rings via Intune</div>
+                <div class="card-desc">Intune &rarr; Devices &rarr; Windows 10 Update Rings. Create a ring policy, set quality update deferral period, feature update deferral, and assign to device groups. Each ring is a separate policy assigned to a different Azure AD group.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Configure Rings via GPO</div>
+                <div class="card-desc">Computer Configuration &rarr; Administrative Templates &rarr; Windows Components &rarr; Windows Update &rarr; Windows Update for Business. Set "Select when Quality Updates are received" and "Select when Feature Updates are received" with target version and deferral days.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — WSUS ARCHITECTURE SVG ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">WSUS <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Windows Server Update Services &mdash; on-premises update server for enterprise environments.</div>
+
+        <!-- SVG: WSUS architecture (Microsoft → WSUS server → clients) -->
+        <div class="diagram-center">
+            <svg width="680" height="155" viewBox="0 0 680 155" aria-label="WSUS architecture: Microsoft Update catalog syncs to WSUS server which distributes to client computers" role="img">
+                <defs>
+                    <marker id="wsusArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                    <marker id="wsusArrB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#06b6d4"/>
+                    </marker>
+                </defs>
+
+                <!-- Microsoft Update Catalog (Internet) -->
+                <rect x="4" y="38" width="120" height="80" rx="6" fill="rgba(100,116,139,0.12)" stroke="#475569" stroke-width="1.5"/>
+                <text x="64" y="64" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">Microsoft</text>
+                <text x="64" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Update</text>
+                <text x="64" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Catalog</text>
+                <text x="64" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">(Internet)</text>
+                <!-- Sync arrow -->
+                <line x1="124" y1="78" x2="172" y2="78" stroke="#c9a83a" stroke-width="2" marker-end="url(#wsusArr)"/>
+                <text x="148" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">Sync</text>
+                <text x="148" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">(daily/manual)</text>
+
+                <!-- WSUS Server -->
+                <rect x="174" y="20" width="150" height="116" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="249" y="46" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">WSUS Server</text>
+                <text x="249" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a08820">Windows Server Role</text>
+                <rect x="184" y="70" width="130" height="58" rx="3" fill="rgba(201,168,58,0.06)" stroke="#7a5c10" stroke-width="1"/>
+                <text x="249" y="85" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Approve / Decline updates</text>
+                <text x="249" y="99" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Create computer groups</text>
+                <text x="249" y="113" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Schedule deployments</text>
+                <text x="249" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Reports &amp; compliance</text>
+
+                <!-- Distribution arrows to client groups -->
+                <line x1="324" y1="58" x2="380" y2="38" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#wsusArrB)"/>
+                <line x1="324" y1="78" x2="380" y2="78" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#wsusArr)"/>
+                <line x1="324" y1="98" x2="380" y2="118" stroke="#3ab577" stroke-width="1.5" marker-end="url(#wsusArr)"/>
+
+                <!-- Client group: Test -->
+                <rect x="382" y="16" width="130" height="44" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="447" y="34" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#ef4444">Test Group</text>
+                <text x="447" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Immediate approval</text>
+
+                <!-- Client group: Production -->
+                <rect x="382" y="56" width="130" height="44" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="447" y="74" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Production Group</text>
+                <text x="447" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Delayed approval</text>
+
+                <!-- Client group: Critical -->
+                <rect x="382" y="96" width="130" height="44" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="447" y="114" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Critical Systems</text>
+                <text x="447" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Manual approval only</text>
+
+                <!-- Client devices -->
+                <line x1="512" y1="38" x2="556" y2="38" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#wsusArrB)"/>
+                <line x1="512" y1="78" x2="556" y2="78" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#wsusArr)"/>
+                <line x1="512" y1="118" x2="556" y2="118" stroke="#3ab577" stroke-width="1.5" marker-end="url(#wsusArr)"/>
+
+                <!-- Client computers -->
+                <rect x="558" y="20" width="116" height="115" rx="5" fill="rgba(255,255,255,0.02)" stroke="#1e293b" stroke-width="1"/>
+                <text x="616" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4">Test PC (2)</text>
+                <text x="616" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Prod PCs (200)</text>
+                <text x="616" y="118" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Server (10)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">GPO Client Configuration</div>
+                <div class="card-desc">Computer Configuration &rarr; Admin Templates &rarr; Windows Components &rarr; Windows Update &rarr; "Specify intranet Microsoft update service location." Set both the update service URL and statistics URL to <strong>http://wsusserver:8530</strong>. Port 8530 (HTTP) or 8531 (HTTPS).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Approval Workflow</div>
+                <div class="card-desc">Updates arrive as "Not Approved." Admin reviews and approves per group. Test group approvals test compatibility. Production approval follows after test sign-off. Declined updates are not distributed to any group. Emergency security updates can be approved immediately to all groups.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Downstream WSUS</div>
+                <div class="card-desc">Hierarchical deployment: upstream WSUS syncs from Microsoft, downstream WSUS servers replicate from upstream. Useful for branch offices with limited WAN bandwidth. Downstream servers can be autonomous (own approvals) or replica (inherits upstream approvals).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — WINDOWS UPDATE FOR BUSINESS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Windows Update <span class="accent">for Business</span></div>
+        <div class="slide-subtitle">Cloud-based update management without an on-premises WSUS infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What it Provides</div>
+                <div class="card-desc">Direct connection to Microsoft Update with policy-controlled deferrals. No server infrastructure required. Managed via GPO, MDM (Intune), or Settings. Supports quality and feature update deferral, maintenance windows, and active hours configuration. Ideal for cloud-managed environments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Active Hours</div>
+                <div class="card-desc">Prevent Windows from restarting during working hours. Default: 8 AM to 5 PM. Configurable to up to 18 hours. Set via Settings &rarr; Windows Update &rarr; Advanced Options &rarr; Active Hours, or GPO: "Turn off auto-restart for updates during active hours." Restart will occur outside defined active hours.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Delivery Optimization (DO)</div>
+                <div class="card-desc">Peer-to-peer update distribution. Windows 10 clients on the same network share downloaded update content. Reduces WAN bandwidth consumption. Modes: LAN only (preferred for enterprise), Internet + LAN, Group (by AD/AAD group). Configure via Settings or MDM policy.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">WUfB vs WSUS</div>
+            WSUS gives granular control over which specific updates are approved and distributed, requiring on-premises infrastructure. WUfB provides deferral-based management using cloud connectivity &mdash; no server required. For hybrid or cloud-native environments, WUfB via Intune is the recommended path. WSUS remains relevant for large on-premises fleets with bandwidth constraints.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — APP COMPATIBILITY FLOWCHART SVG ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Application Compatibility <span class="accent">Flowchart</span></div>
+        <div class="slide-subtitle">Diagnosing and resolving application compatibility issues on Windows 10.</div>
+
+        <!-- SVG: Application compatibility decision flowchart -->
+        <div class="diagram-center">
+            <svg width="680" height="170" viewBox="0 0 680 170" aria-label="Application compatibility decision flowchart" role="img">
+                <defs>
+                    <marker id="compArr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#c9a83a"/>
+                    </marker>
+                    <marker id="compArrR" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+                    </marker>
+                    <marker id="compArrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill="#3ab577"/>
+                    </marker>
+                </defs>
+
+                <!-- Start: App runs? -->
+                <rect x="6" y="65" width="100" height="40" rx="5" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1.5"/>
+                <text x="56" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">App installed</text>
+                <text x="56" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">but fails to run?</text>
+                <line x1="106" y1="85" x2="138" y2="85" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#compArr)"/>
+
+                <!-- Run as Admin? -->
+                <rect x="140" y="65" width="110" height="40" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="195" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Try Run as</text>
+                <text x="195" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Administrator</text>
+                <!-- Yes fix arrow -->
+                <line x1="195" y1="65" x2="195" y2="40" stroke="#3ab577" stroke-width="1.5" marker-end="url(#compArrG)"/>
+                <rect x="148" y="18" width="94" height="20" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"/>
+                <text x="195" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Works = UAC issue</text>
+                <!-- No: continue -->
+                <line x1="250" y1="85" x2="282" y2="85" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#compArr)"/>
+                <text x="266" y="79" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8">still fails</text>
+
+                <!-- Compatibility tab -->
+                <rect x="284" y="65" width="110" height="40" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="339" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Compatibility Tab</text>
+                <text x="339" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Set Windows 7/8 mode</text>
+                <!-- Yes fix arrow -->
+                <line x1="339" y1="65" x2="339" y2="40" stroke="#3ab577" stroke-width="1.5" marker-end="url(#compArrG)"/>
+                <rect x="286" y="18" width="106" height="20" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"/>
+                <text x="339" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Works = OS version check</text>
+                <!-- No: continue -->
+                <line x1="394" y1="85" x2="426" y2="85" stroke="#c9a83a" stroke-width="1.5" marker-end="url(#compArr)"/>
+                <text x="410" y="79" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8">still fails</text>
+
+                <!-- App Compat Troubleshooter -->
+                <rect x="428" y="65" width="110" height="40" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="483" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Run Compat</text>
+                <text x="483" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Troubleshooter</text>
+                <!-- Yes fix -->
+                <line x1="483" y1="65" x2="483" y2="40" stroke="#3ab577" stroke-width="1.5" marker-end="url(#compArrG)"/>
+                <rect x="430" y="18" width="106" height="20" rx="3" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"/>
+                <text x="483" y="31" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Works = Shim applied</text>
+                <!-- No: continue -->
+                <line x1="538" y1="85" x2="570" y2="85" stroke="#ef4444" stroke-width="1.5" marker-end="url(#compArrR)"/>
+                <text x="554" y="79" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#94a3b8">still fails</text>
+
+                <!-- VM or Replace -->
+                <rect x="572" y="58" width="102" height="54" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="623" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="#ef4444">Escalate:</text>
+                <text x="623" y="90" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">VM / Hyper-V</text>
+                <text x="623" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">or Replace App</text>
+
+                <!-- Bottom note -->
+                <text x="340" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">Check Application Compatibility Toolkit (ACT) and Windows Assessment and Deployment Kit (ADK) for enterprise-scale compatibility analysis</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Compatibility Tab Options</div>
+                <div class="card-desc">Right-click EXE &rarr; Properties &rarr; Compatibility. Available modes: Windows 95, 98/ME, XP (SP2/SP3), Vista, 7, 8. Additional options: Run in 256 colors, 640x480 resolution, disable fullscreen optimizations, run as administrator. These apply shims via the Application Compatibility Infrastructure (ACI).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Application Compatibility Toolkit (ACT)</div>
+                <div class="card-desc">Microsoft tool for enterprise-scale compatibility assessment before OS upgrades. Inventory installed apps, test against target OS, flag known incompatibilities, create custom shims. Included with Windows ADK. Essential for organizations migrating from Windows 7/8 to 10/11.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Compatibility Shims</div>
+                <div class="card-desc">Small code patches applied at runtime to modify how an application interacts with the OS. Examples: redirect file writes from System32 to AppData, lie about OS version number, inject missing API functions. Applied transparently without modifying the application binary.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — TROUBLESHOOT UPDATE FAILURES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Troubleshoot Update <span class="accent">Failures</span></div>
+        <div class="slide-subtitle">Common Windows Update error codes and resolution strategies.</div>
+
+        <table class="slide-table">
+            <thead><tr><th>Error Code</th><th>Meaning</th><th>Common Resolution</th></tr></thead>
+            <tbody>
+                <tr><td><strong>0x80070002</strong></td><td>File not found</td><td>Run Windows Update Troubleshooter; reset WU components (net stop wuauserv)</td></tr>
+                <tr><td><strong>0x8024200D</strong></td><td>WU metadata corrupt</td><td>Clear C:\Windows\SoftwareDistribution\Download folder contents</td></tr>
+                <tr><td><strong>0x80240022</strong></td><td>All updates failed</td><td>Check disk space (&gt;10 GB free required); verify Windows Update service is running</td></tr>
+                <tr><td><strong>0x800F0922</strong></td><td>Feature update failure</td><td>Insufficient disk space or VPN/proxy blocking Microsoft CDN; check CBS.log</td></tr>
+                <tr><td><strong>0x80073701</strong></td><td>Missing manifest</td><td>DISM /Online /Cleanup-Image /RestoreHealth then sfc /scannow</td></tr>
+                <tr><td><strong>0xC1900101</strong></td><td>Driver compatibility failure</td><td>Uninstall incompatible drivers; check Windows 10 HCL for hardware compatibility</td></tr>
+            </tbody>
+        </table>
+
+        <div class="code-block">
+            <span class="cm"># Reset Windows Update components (run as admin)</span><br>
+            net stop wuauserv &amp;&amp; net stop cryptSvc &amp;&amp; net stop bits &amp;&amp; net stop msiserver<br>
+            ren C:\Windows\SoftwareDistribution SoftwareDistribution.old<br>
+            ren C:\Windows\System32\catroot2 catroot2.old<br>
+            net start wuauserv &amp;&amp; net start cryptSvc &amp;&amp; net start bits &amp;&amp; net start msiserver<br><br>
+            <span class="cm"># Repair Windows image</span><br>
+            DISM /Online /Cleanup-Image /RestoreHealth<br>
+            sfc /scannow
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — MANAGING APPS VIA POWERSHELL ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">Managing Apps via <span class="accent">PowerShell</span></div>
+        <div class="slide-subtitle">PowerShell and winget commands for application management in enterprise deployments.</div>
+
+        <div class="layout-split">
+            <div class="code-block">
+                <span class="cm"># Query installed Win32 apps</span><br>
+                Get-Package<br>
+                Get-Package -Name "Visual Studio Code"<br><br>
+                <span class="cm"># Query AppX packages for current user</span><br>
+                Get-AppxPackage<br>
+                Get-AppxPackage -AllUsers | Select Name, PackageFullName<br><br>
+                <span class="cm"># Remove a provisioned app (all new users)</span><br>
+                Get-AppxProvisionedPackage -Online |<br>
+                  Where {$_.PackageName -like "*BingWeather*"} |<br>
+                  Remove-AppxProvisionedPackage -Online<br><br>
+                <span class="cm"># Install MSIX/AppX</span><br>
+                Add-AppxPackage -Path "C:\Packages\app.msix"<br><br>
+                <span class="cm"># winget bulk upgrade</span><br>
+                winget upgrade --all --silent
+            </div>
+            <div>
+                <div class="card c-gold">
+                    <div class="card-label">Get-Package vs Get-AppxPackage</div>
+                    <div class="card-desc"><strong>Get-Package</strong> queries the Windows Installer database &mdash; traditional Win32 and MSI apps. <strong>Get-AppxPackage</strong> queries the AppX manifest store &mdash; UWP and MSIX apps. Both are needed for a complete application inventory.</div>
                 </div>
-                <div class="content-card">
-                    <h3 class="card-title">Sideloading</h3>
-                    <p class="card-description">Installing UWP/AppX packages outside the Microsoft Store. Requires enabling sideloading in Settings → Update &amp; Security → For Developers, or via Group Policy.</p>
-                    <p class="card-description" style="margin-top: 10px;">Common in enterprise for internally developed apps that have not been published to the Store. The device must trust the signing certificate used to sign the package.</p>
+                <div class="card c-cyan" style="margin-top:10px;">
+                    <div class="card-label">Automation Use Cases</div>
+                    <div class="card-desc">Generate software compliance reports. Remove bloatware from OEM images during provisioning. Deploy enterprise line-of-business MSIX packages post-imaging. Audit versions against known-vulnerable package lists.</div>
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>GPO can only deploy MSI packages natively — not EXE or MSIX. For modern formats, use Microsoft Intune or Microsoft Endpoint Configuration Manager (MECM). Publishing vs. Assigning is a common exam distinction: published apps require the user to initiate installation.</p>
+<!-- ==================== SLIDE 12 — OPTIONAL FEATURES AND WINDOWS CAPABILITIES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Optional Features and <span class="accent">Windows Capabilities</span></div>
+        <div class="slide-subtitle">Adding and removing Windows OS components without a full reinstall.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Windows Features</div>
+                <div class="card-desc">Legacy feature management: Control Panel &rarr; Programs and Features &rarr; Turn Windows features on or off. Examples: Hyper-V, IIS, .NET Framework 3.5, Windows Subsystem for Linux, Telnet Client. Or via DISM: <strong>DISM /Online /Enable-Feature /FeatureName:Hyper-V /All</strong>.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: UWP Apps -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">UWP Apps</h2>
-            <p class="slide-subtitle">Universal Windows Platform architecture, app lifecycle, and AppLocker</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">UWP Architecture</h3>
-                        <p class="card-description">Universal Windows Platform apps run in a sandboxed container with limited system access. Key characteristics:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Sandboxed — cannot access arbitrary file system locations</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Permissions declared in app manifest</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Update via Microsoft Store automatically</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Installed per-user by default</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span>Can be provisioned to all users at OS deployment time</li>
-                        </ul>
-                    </div>
-                    <div class="content-card" style="margin-top: 18px;">
-                        <h3 class="card-title">Microsoft Store for Business</h3>
-                        <p class="card-description">Enterprise version of the Microsoft Store. Allows organizations to purchase apps in volume, distribute them to users without requiring a personal Microsoft account, and curate a private store of approved apps.</p>
-                        <p class="card-description" style="margin-top: 10px;">Integrates with Intune and Microsoft Endpoint Manager for deployment.</p>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">AppLocker</h3>
-                        <p class="card-description">Group Policy-based application control. Administrators define rules about which applications users are allowed to run. More granular than Software Restriction Policies.</p>
-                        <p class="card-description" style="margin-top: 10px;"><strong style="color:#f5e8d8;">Rule types:</strong></p>
-                        <ul style="list-style: none; margin-top: 8px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Publisher</strong> — based on digital signature (most flexible)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Path</strong> — based on file location (risky if path is writable)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Hash</strong> — based on file hash (must update on each version)</li>
-                        </ul>
-                        <p class="card-description" style="margin-top: 10px;"><strong style="color:#f5e8d8;">Rule collections:</strong> Executable rules, Windows Installer rules, Script rules, DLL rules, Packaged app rules</p>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Optional Features (Modern)</div>
+                <div class="card-desc">Settings &rarr; Apps &rarr; Optional Features. Add features: OpenSSH Server/Client, RSAT Tools, Windows Media Player, WordPad, Notepad. Add via PowerShell: <strong>Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0</strong>. Downloaded from Windows Update on demand.</div>
             </div>
-
-            <div class="key-points">
-                <h4>APPLOCKER REQUIREMENTS</h4>
-                <ul>
-                    <li>AppLocker requires the <strong>Application Identity (AppIDSvc)</strong> service to be running</li>
-                    <li>Available on Windows 10 Enterprise and Education — not available on Home or Pro</li>
-                    <li>Rules with no default allow rule block all unlisted apps for that collection</li>
-                    <li>Always create default rules first to prevent locking out administrators</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">RSAT (Remote Server Admin Tools)</div>
+                <div class="card-desc">Manage Active Directory, DHCP, DNS, and other server roles from a Windows 10/11 client. Install via Optional Features or: <strong>Get-WindowsCapability -Online | Where Name -like 'Rsat*' | Add-WindowsCapability -Online</strong>. Requires access to Windows Update or WSUS for download.</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
+        <div class="code-block">
+            <span class="cm"># List available optional features</span><br>
+            Get-WindowsOptionalFeature -Online<br><br>
+            <span class="cm"># Enable Hyper-V</span><br>
+            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All<br><br>
+            <span class="cm"># List and install capabilities</span><br>
+            Get-WindowsCapability -Online | Where State -eq "NotPresent" | Where Name -like "Rsat*"<br>
+            Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+        </div>
+    </div>
+</section>
 
-        <!-- Slide 4: Microsoft Edge -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">Microsoft Edge</h2>
-            <p class="slide-subtitle">Chromium-based Edge, profiles, IE mode, and enterprise policies</p>
+<!-- ==================== SLIDE 13 — APP DEPLOYMENT VIA GROUP POLICY ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">App Deployment via <span class="accent">Group Policy</span></div>
+        <div class="slide-subtitle">Software installation policies using MSI packages and Group Policy Objects.</div>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Chromium-Based Edge</h3>
-                    <p class="card-description">Released January 2020, replacing the legacy EdgeHTML-based browser. Built on the same Blink rendering engine as Google Chrome. Provides better compatibility with modern web standards and improved extension support via Chrome Web Store.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Profiles</h3>
-                    <p class="card-description">Multiple user profiles within a single browser installation. Each profile maintains separate bookmarks, history, saved passwords, and extensions. Work accounts (Azure AD) and personal Microsoft accounts can both be used. Supports automatic sign-in with Azure AD in domain environments.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-redirect.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">IE Mode</h3>
-                    <p class="card-description">Renders specific sites using the Internet Explorer 11 engine inside an Edge tab. Critical for legacy intranet applications that require ActiveX controls or IE-specific rendering. Configured via an Enterprise Site List (XML file) deployed through Group Policy.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Edge Policies via GPO</h3>
-                    <p class="card-description">Edge supports over 500 Group Policy settings. Requires the Edge ADMX template files installed in the Group Policy Central Store. Settings include startup pages, password manager control, extension management, and security policies like certificate validation.</p>
-                </div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Published vs. Assigned</div>
+                <div class="card-desc"><strong>Published</strong> (User Config): App appears in Add/Remove Programs; user installs on demand. Available for user-targeted deployments. <strong>Assigned</strong> (User or Computer Config): App installs automatically. Advertised on desktop; installs on first launch. Computer assignment installs for all users of that machine.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Internet Explorer 11 reached end of life on June 15, 2022. IE mode in Edge is the supported path forward for legacy applications. The Enterprise Site List is required to configure which sites open in IE mode — this cannot be configured per-user in the browser UI in managed environments.</p>
+            <div class="card c-cyan">
+                <div class="card-label">GPO Path</div>
+                <div class="card-desc">User/Computer Configuration &rarr; Software Settings &rarr; Software Installation. Add new package (must be MSI). Source must be a UNC path accessible by all target machines. The distribution share must have Everyone: Read permission so the computer account can download the MSI during machine startup (for Computer assignments).</div>
             </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 5: Windows Servicing Model -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Windows Servicing Model</h2>
-            <p class="slide-subtitle">Windows as a Service, feature vs. quality updates, and servicing channels</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Windows as a Service (WaaS)</h3>
-                        <p class="card-description">Microsoft's continuous delivery model introduced with Windows 10. Eliminates the traditional major-release cycle. Instead:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Feature Updates</strong> — released annually (previously twice yearly). Major OS enhancements. Named by year and month (e.g., 22H2).</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Quality Updates</strong> — cumulative monthly patches. Security fixes, bug fixes. Released "Patch Tuesday" (second Tuesday of each month).</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">→</span><strong style="color:#f5e8d8;">Driver Updates</strong> — hardware driver updates via Windows Update.</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Servicing Channels</h3>
-                        <p class="card-description">Control when devices receive updates by placing them in the appropriate channel:</p>
-                        <div style="margin-top: 14px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 4px;"><strong>General Availability Channel (GAC)</strong></p>
-                            <p style="color:#a07850; font-size:0.84rem; margin-bottom: 12px;">Receives feature updates as they are released. Appropriate for most enterprise devices. Previously called Semi-Annual Channel.</p>
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 4px;"><strong>Long-Term Servicing Channel (LTSC)</strong></p>
-                            <p style="color:#a07850; font-size:0.84rem; margin-bottom: 12px;">Fixed-feature releases with 5-year mainstream + 5-year extended support. No feature updates — security only. For specialized systems (medical, ATM, industrial control).</p>
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 4px;"><strong>Windows Insider Program</strong></p>
-                            <p style="color:#a07850; font-size:0.84rem;">Pre-release builds for testing. Dev, Beta, and Release Preview rings.</p>
-                        </div>
-                    </div>
-                </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">MST Transform Files</div>
+                <div class="card-desc">Customize MSI installations without modifying the original package. Examples: pre-configure settings, suppress reboot, set install directory. Apply via GPO by adding the transform to the MSI deployment package properties. Created with the Microsoft Orca tool or third-party repackaging tools.</div>
             </div>
-
-            <div class="ring-diagram">
-                <div class="ring-card ring-1">
-                    <div class="ring-name">Pilot (Ring 1)</div>
-                    <div class="ring-detail">IT staff and power users. First to receive updates. Validates compatibility before broad deployment.</div>
-                </div>
-                <div class="ring-card ring-2">
-                    <div class="ring-name">Broad (Ring 2)</div>
-                    <div class="ring-detail">Most devices in the organization. Receives updates after pilot validates. Delayed by 2–4 weeks.</div>
-                </div>
-                <div class="ring-card ring-3">
-                    <div class="ring-name">Critical (Ring 3)</div>
-                    <div class="ring-detail">Mission-critical systems. Maximum deferral. Longest validation period before receiving updates.</div>
-                </div>
+            <div class="card c-gold">
+                <div class="card-label">Targeting</div>
+                <div class="card-desc">Computer assignments target the OU containing computer objects. User assignments target the OU containing user objects. WMI filters and GPO Security Filtering further narrow which computers or users receive the deployment. Test with a small pilot OU before production deployment.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Updating Windows -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Updating Windows</h2>
-            <p class="slide-subtitle">Windows Update, WSUS, Windows Update for Business, and Delivery Optimization</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Update</h3>
-                    <p class="card-description">Direct update delivery from Microsoft's CDN. Default for consumer and small business. Settings → Windows Update controls active hours, pause settings, and update history. Delivery Optimization (DO) uses P2P sharing to reduce bandwidth — devices share update files with peers on the same network or across the internet.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">WSUS</h3>
-                    <p class="card-description">Windows Server Update Services — on-premises update management. IT approves which updates are deployed before they reach client machines. Reduces internet bandwidth by caching updates on a local server. Requires Windows Server. Integrates with Active Directory GPO for client targeting.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Windows Update for Business</h3>
-                    <p class="card-description">Cloud-based update management without a WSUS server. Updates still come from Microsoft CDN but administrators control deferral periods via Group Policy or Intune. Supports deferring feature updates up to 365 days and quality updates up to 30 days (Pro) or longer (Enterprise).</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
-                    <h3 class="card-title">Update Troubleshooting</h3>
-                    <p class="card-description">Common troubleshooting steps: run Windows Update troubleshooter, reset Windows Update components (net stop/start wuauserv bits), check C:\Windows\WindowsUpdate.log (post-Windows 10: use Get-WindowsUpdateLog), verify disk space (&gt;10 GB free required for feature updates).</p>
-                </div>
+            <div class="card c-red">
+                <div class="card-label">GPO Software Limitations</div>
+                <div class="card-desc">Only MSI packages natively. No EXE or MSIX without wrapping. Deployment is slow (requires computer/user login cycle). No bandwidth throttling. No deployment status reporting. For modern deployments, Intune or SCCM/Endpoint Manager provides superior control and reporting.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>WSUS requires a Windows Server and is for organizations that need to approve each update before deployment. Windows Update for Business is the cloud-managed alternative — it controls timing but not approval. For fully managed enterprise deployments, Microsoft Endpoint Configuration Manager (MECM) is the gold standard.</p>
+<!-- ==================== SLIDE 14 — INTUNE APP DEPLOYMENT ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Intune <span class="accent">App Deployment</span></div>
+        <div class="slide-subtitle">Cloud-based app lifecycle management for modern Windows 10 environments.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">App Types in Intune</div>
+                <div class="card-desc">Line-of-business (LOB) MSI/MSIX uploads. Windows app (Win32) using .intunewin wrapper. Microsoft Store apps. Web apps (browser shortcuts). Microsoft 365 Apps (click-to-run). Each type has a deployment category: Required, Available for enrolled devices, Uninstall.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-
-        <!-- Slide: Commands & Tools -->
-        <section class="slide" data-slide="7">
-            <p class="module-tag">MD-100</p>
-            <h2 class="slide-title">Application &amp; Update Commands</h2>
-            <p class="slide-subtitle">Installing, managing, and updating applications from the command line</p>
-
-            <div class="cmd-block">
-                <div class="cmd-line">winget search "visual studio"</div>
-                <div class="cmd-comment">Search the Windows Package Manager repository for apps matching the query. Shows package ID, name, version, and source.</div>
-                <div class="cmd-line">winget install --id Microsoft.VisualStudioCode --silent</div>
-                <div class="cmd-comment">Install an app by exact ID. --silent suppresses the installer UI. Add --accept-package-agreements to skip license prompts in scripts.</div>
-                <div class="cmd-line">winget upgrade --all</div>
-                <div class="cmd-comment">Check and upgrade ALL installed applications that have updates available. The modern replacement for manually checking each app.</div>
-                <div class="cmd-line">winget list</div>
-                <div class="cmd-comment">List all installed applications that winget can manage. Shows current version and available version if an update exists.</div>
+            <div class="card c-cyan">
+                <div class="card-label">Win32 App Wrapping</div>
+                <div class="card-desc">The Microsoft Win32 Content Prep Tool converts an EXE or MSI installer into a .intunewin file. Upload to Intune with install/uninstall command lines, detection rules (registry key, file, MSI product code), and return codes. Supports complex application packages that GPO MSI deployment cannot handle.</div>
             </div>
-
-            <div class="cmd-block">
-                <div class="cmd-line">wusa C:\updates\KB5025221.msu /quiet /norestart</div>
-                <div class="cmd-comment">Windows Update Standalone Installer &mdash; install a standalone .msu update package. /quiet suppresses UI, /norestart prevents automatic reboot. Used for offline/manual patching.</div>
-                <div class="cmd-line">Get-WindowsUpdateLog</div>
-                <div class="cmd-comment">PowerShell: converts the ETL-format Windows Update log into a readable text file on the desktop. Essential for troubleshooting failed updates. Replaces the old WindowsUpdate.log.</div>
-                <div class="cmd-line">DISM /Online /Add-Package /PackagePath:C:\updates\package.cab</div>
-                <div class="cmd-comment">Install a .cab update package via DISM. Used for driver packages and hotfixes that come in .cab format.</div>
+            <div class="card c-green">
+                <div class="card-label">Required vs. Available</div>
+                <div class="card-desc"><strong>Required:</strong> Pushed to assigned devices/users automatically. No user interaction needed (or possible). Use for compliance applications. <strong>Available:</strong> Appears in Company Portal for user self-service installation. User initiates install when needed. Use for optional productivity tools.</div>
             </div>
+        </div>
 
-            <div class="cmd-block">
-                <div class="cmd-line">Get-AppxPackage | Select Name,Version | Sort Name</div>
-                <div class="cmd-comment">List all installed UWP/Store apps (AppX packages) for the current user. Use -AllUsers for all user packages.</div>
-                <div class="cmd-line">Remove-AppxPackage -Package "Microsoft.XboxApp_1.0.0.0_x64__8wekyb3d8bbwe"</div>
-                <div class="cmd-comment">Remove a specific UWP app. Get the full package name from Get-AppxPackage. Add -AllUsers to remove for every user on the machine.</div>
-                <div class="cmd-line">msiexec /i setup.msi /qn /l*v install.log</div>
-                <div class="cmd-comment">Silent MSI install. /i = install, /qn = no UI, /l*v = verbose logging to file. The log file is critical for diagnosing failed MSI installations.</div>
+        <div class="scenario-strip">
+            Migration scenario: IT needs to deploy a legacy EXE across 500 machines without GPO. Solution: wrap with IntuneWinAppUtil.exe to create a .intunewin file, upload to Intune as Win32 app, set install command (setup.exe /silent), detection rule (check for HKLM registry key set by installer), assign as Required to All Devices group. Intune agent handles download and silent install during next policy sync.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — APP LIFECYCLE MANAGEMENT ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">App Lifecycle <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Deployment, update, and retirement of enterprise applications.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Software Inventory</div>
+                <div class="card-desc">Know what is installed before managing it. Tools: SCCM Hardware/Software Inventory, Intune App Inventory, PowerShell Get-Package and Get-AppxPackage queries, WSUS compliance reports, Azure Log Analytics. Accurate inventory is prerequisite to patch compliance tracking.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p><strong>msiexec /l*v</strong> creates a verbose installation log. When an MSI install fails silently, this log contains the exact error code and the point of failure. Always generate logs for unattended deployments. Error 1603 = generic fatal error (usually permissions or locked files).</p>
+            <div class="card c-cyan">
+                <div class="card-label">Supersedence and Replacement</div>
+                <div class="card-desc">When a new version of an application replaces an old one, configure supersedence in SCCM/Intune to uninstall the old version as part of the new installation deployment. Prevents version accumulation where multiple versions of the same app consume disk space and create security exposure.</div>
             </div>
+            <div class="card c-green">
+                <div class="card-label">Application Retirement</div>
+                <div class="card-desc">End-of-life apps should be actively removed, not just abandoned. Remove GPO deployment links. Set Intune assignment to "Uninstall." Use SCCM deployment type set to uninstall. Remove from software catalog. Document the retirement in change management. Running obsolete apps creates vulnerability surface area.</div>
+            </div>
+        </div>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&#8592; Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &#8594;</button>
-            </nav>
-        </section>
+        <div class="box box-cyan">
+            <div class="box-label">App Version Pinning</div>
+            Some enterprise applications require a specific version for regulatory compliance or dependency reasons. Pin via Intune Win32 detection rules tied to exact version strings. Document the business reason. Establish a review cycle to evaluate whether the version lock can be lifted after vendor qualification updates.
+        </div>
+    </div>
+</section>
 
-        <!-- Slide 7: Knowledge Check -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Apply what you know — two scenario-based questions</p>
+<!-- ==================== SLIDE 16 — TROUBLESHOOT APP PROBLEMS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Troubleshoot <span class="accent">App Problems</span></div>
+        <div class="slide-subtitle">Diagnostic steps for application installation and runtime failures.</div>
 
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title">Scenario 1</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">A hospital needs to deploy Windows to specialized medical imaging workstations. These machines must not receive feature updates that could disrupt software compatibility. The update cycle should be security-only with a long support lifespan. Which Windows servicing channel is appropriate?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">A) General Availability Channel with a 365-day feature update deferral</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1', 'q1')">B) Long-Term Servicing Channel (LTSC)</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">C) Windows Insider Program — Release Preview ring</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">D) General Availability Channel with WSUS approval control</button>
-                    <div class="feedback" id="feedback-quiz1"></div>
+        <table class="slide-table">
+            <thead><tr><th>Symptom</th><th>Diagnostic</th><th>Resolution</th></tr></thead>
+            <tbody>
+                <tr><td>MSI install fails silently</td><td>Enable logging: msiexec /i app.msi /l*v install.log</td><td>Review install.log for specific error; common causes: prerequisites, admin rights, locked files</td></tr>
+                <tr><td>App crashes immediately on launch</td><td>Event Viewer &rarr; Application log, look for App Error (1000) or App Hang (1002)</td><td>Check compatibility mode; reinstall with /repair; check for missing C++ redistributables</td></tr>
+                <tr><td>App works for admin but not standard user</td><td>Run as standard user + Process Monitor to find Access Denied events</td><td>Grant user write access to required registry keys or file paths; use compatibility shim</td></tr>
+                <tr><td>WSUS clients not receiving updates</td><td>Check WindowsUpdate.log (Get-WindowsUpdateLog); verify WSUS server is reachable</td><td>Confirm GPO is applied (gpresult); check WSUS approval status; verify port 8530/8531</td></tr>
+                <tr><td>WUfB update ring not applying</td><td>Run gpresult /h and review WU settings; check MDM diagnostic report</td><td>Confirm device is enrolled; check AAD group membership; force sync with usoclient StartScan</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">Process Monitor (ProcMon)</div>
+            Sysinternals Process Monitor captures all file system, registry, and network activity in real time. Filter by process name and ACCESS DENIED result to quickly identify exactly what resources an application needs but cannot access. Indispensable for diagnosing permission-related application failures.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — EXAM SCENARIOS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Exam <span class="accent">Scenarios</span></div>
+        <div class="slide-subtitle">Six app and update situations tested on MD-100.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <div class="fact-num">Q1</div>
+                <div class="fact-text">A legacy app designed for Windows 7 crashes on Windows 10. The first troubleshooting step? &mdash; <strong>Right-click the EXE &rarr; Properties &rarr; Compatibility tab &rarr; Run in Windows 7 compatibility mode.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q2</div>
+                <div class="fact-text">IT needs to prevent Windows 10 clients from receiving feature updates for 60 days. How? &mdash; <strong>Configure Windows Update for Business GPO: "Select when Feature Updates are received" with a 60-day deferral. Or use an Intune Update Ring with FeatureUpdatesDeferralPeriodInDays=60.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q3</div>
+                <div class="fact-text">WSUS clients show "No updates available" but Microsoft's site shows new patches. Cause? &mdash; <strong>The patches have not been approved in WSUS for those computer groups. Log into WSUS console and approve the updates for the affected group.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q4</div>
+                <div class="fact-text">A user receives Windows Update error 0x800F0922. What should be checked first? &mdash; <strong>Disk space. 0x800F0922 commonly occurs when insufficient disk space is available for the feature update staging area. Requires at least 10 GB free.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q5</div>
+                <div class="fact-text">An EXE installer needs to deploy silently via GPO. What is required? &mdash; <strong>EXE files cannot be deployed directly via GPO Software Installation (MSI only). Wrap the EXE in an MSI using a repackaging tool, or use Intune Win32 app deployment instead.</strong></div>
+            </div>
+            <div class="fact-row">
+                <div class="fact-num">Q6</div>
+                <div class="fact-text">A new MSIX app fails to install with "Certificate not trusted." Fix? &mdash; <strong>The signing certificate of the MSIX is not in the Trusted Root or Trusted Publishers store. Add the certificate via GPO Certificate Management or enable Developer Mode if in a test environment.</strong></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Module 7 app and update terms by category.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Package Formats</div>
+                <div class="card-desc">
+                    <strong>MSI</strong> &mdash; legacy Windows Installer database package<br>
+                    <strong>MSIX</strong> &mdash; modern containerized app package (Win10 1709+)<br>
+                    <strong>AppX</strong> &mdash; UWP / Microsoft Store package format<br>
+                    <strong>MST</strong> &mdash; MSI transform file for customization<br>
+                    <strong>.intunewin</strong> &mdash; Intune Win32 app container<br>
+                    <strong>msiexec.exe</strong> &mdash; Windows Installer host process
                 </div>
             </div>
-
-            <div class="scenario-box" id="quiz2" style="margin-top: 24px;">
-                <div class="scenario-title">Scenario 2</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">An IT administrator needs to deploy an internal line-of-business application (packaged as an MSI) to 200 domain-joined Windows 10 computers automatically, without user interaction. Which deployment method should they use?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">A) Publish the MSI via Group Policy Software Installation to a User GPO</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2', 'q2')">B) Assign the MSI via Group Policy Software Installation to a Computer GPO</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">C) Upload the MSI to the Microsoft Store for Business</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">D) Use AppLocker to deploy and run the MSI on each computer</button>
-                    <div class="feedback" id="feedback-quiz2"></div>
+            <div class="card c-cyan">
+                <div class="card-label">Update Infrastructure</div>
+                <div class="card-desc">
+                    <strong>WSUS</strong> &mdash; Windows Server Update Services (on-premises)<br>
+                    <strong>WUfB</strong> &mdash; Windows Update for Business (cloud)<br>
+                    <strong>Quality Update</strong> &mdash; monthly cumulative security patch<br>
+                    <strong>Feature Update</strong> &mdash; semi-annual OS version update<br>
+                    <strong>Delivery Optimization</strong> &mdash; P2P update distribution<br>
+                    <strong>Active Hours</strong> &mdash; window where reboots are blocked
                 </div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next →</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Summary -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">Module 7 Summary</h2>
-            <p class="slide-subtitle">Manage Apps and Windows Updates — key takeaways</p>
-
-            <ul class="summary-list">
-                <li>GPO Software Installation deploys MSI packages; it cannot deploy EXE or MSIX packages natively</li>
-                <li>Published apps require user initiation; Assigned apps install automatically at logon or startup</li>
-                <li>AppLocker requires the Application Identity service and is only available on Enterprise and Education editions</li>
-                <li>UWP apps are sandboxed, installed per-user, and updated via the Microsoft Store</li>
-                <li>IE mode in Edge uses the IE 11 engine — configured via Enterprise Site List XML deployed through GPO</li>
-                <li>Feature updates add new Windows capabilities; Quality updates are monthly cumulative security and bug fixes</li>
-                <li>General Availability Channel receives feature updates as released; LTSC is fixed-feature, security-only for specialized systems</li>
-                <li>WSUS provides on-premises update approval and caching; Windows Update for Business provides cloud-managed deferral</li>
-                <li>Delivery Optimization uses peer-to-peer sharing to reduce bandwidth for Windows Update downloads</li>
-                <li>Feature updates require at least 10 GB of free disk space to install successfully</li>
-            </ul>
-
-            <div class="exam-tip" style="margin-top: 28px;">
-                <div class="exam-tip-label">EXAM FOCUS AREAS</div>
-                <p>Know the servicing channel names and their use cases. LTSC vs. GAC is a classic exam scenario. For app deployment, GPO = MSI only, and know Published vs. Assigned. AppLocker availability (Enterprise/Education only) is commonly tested.</p>
-            </div>
-
-            <div class="scenario-box" style="text-align: center; margin-top: 24px;">
-                <div class="scenario-title" style="justify-content: center;">Module Complete</div>
-                <div class="scenario-content">
-                    <p>You have covered all app management and Windows Update topics for the MD-100 exam. Mark this module complete to track your progress.</p>
+            <div class="card c-green">
+                <div class="card-label">Compatibility &amp; Deployment</div>
+                <div class="card-desc">
+                    <strong>Compatibility Shim</strong> &mdash; runtime OS behavior patch for legacy apps<br>
+                    <strong>ACT</strong> &mdash; Application Compatibility Toolkit<br>
+                    <strong>Assigned</strong> &mdash; GPO auto-installs app (mandatory)<br>
+                    <strong>Published</strong> &mdash; GPO offers app (user opt-in)<br>
+                    <strong>Update Ring</strong> &mdash; staged deployment group with deferral<br>
+                    <strong>winget</strong> &mdash; Windows Package Manager CLI
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">← Previous</button>
-                <div class="slide-dots"></div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19 &mdash; Module Complete</div>
+        <div class="slide-title">Module 7 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Eight key takeaways for the MD-100 apps and updates domain.</div>
 
-    </main>
+        <div class="summary-facts">
+            <div class="fact-row"><div class="fact-num">1</div><div class="fact-text"><strong>MSI</strong> is the legacy enterprise standard for GPO deployment. <strong>MSIX</strong> is the modern replacement with containerized clean install/uninstall. <strong>AppX</strong> is the UWP format managed via Add-AppxPackage.</div></div>
+            <div class="fact-row"><div class="fact-num">2</div><div class="fact-text"><strong>Quality updates</strong> are monthly cumulative patches. <strong>Feature updates</strong> are semi-annual OS versions. Both can be deferred via Windows Update for Business (cloud) or WSUS (on-premises).</div></div>
+            <div class="fact-row"><div class="fact-num">3</div><div class="fact-text"><strong>Update rings</strong> provide staged rollout: Ring 0 (IT/Preview) receives immediately, Ring 1 (Pilot) defers 7&ndash;14 days, Ring 2 (Broad) defers 21&ndash;30 days. This validates compatibility before broad deployment.</div></div>
+            <div class="fact-row"><div class="fact-num">4</div><div class="fact-text"><strong>WSUS</strong> requires explicit approval before distributing updates to client groups. "No updates available" typically means not approved, not that no updates exist.</div></div>
+            <div class="fact-row"><div class="fact-num">5</div><div class="fact-text"><strong>GPO Software Installation</strong> supports MSI only. EXE installers require repackaging or Intune Win32 app wrapping (.intunewin format) for automated enterprise deployment.</div></div>
+            <div class="fact-row"><div class="fact-num">6</div><div class="fact-text"><strong>Application compatibility</strong> troubleshooting order: (1) Run as Admin. (2) Compatibility tab (OS version mode). (3) Compatibility Troubleshooter. (4) Hyper-V VM or app replacement.</div></div>
+            <div class="fact-row"><div class="fact-num">7</div><div class="fact-text"><strong>MSIX sideloading</strong> requires the signing certificate to be trusted on the client machine. Developer Mode enables broad trust for testing; enterprise deployments use a trusted code-signing certificate.</div></div>
+            <div class="fact-row"><div class="fact-num">8</div><div class="fact-text"><strong>Delivery Optimization</strong> uses P2P content sharing between LAN clients to reduce bandwidth for Windows Update, Store app, and MSIX downloads. Configure mode via MDM or GPO.</div></div>
+        </div>
+    </div>
+</section>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 9;
+<!-- ==================== FIXED NAV BAR ==================== -->
+<nav id="nav-bar" aria-label="Slide navigation">
+    <a href="../index.html" class="nav-btn back-btn" aria-label="Back to MD-100 hub">Back to MD-100</a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled aria-label="Previous slide">Prev</button>
+    <span id="slide-counter" aria-live="polite">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)" aria-label="Next slide">Next</button>
+    <button id="complete-btn" onclick="markComplete()" aria-label="Mark module complete">Mark Complete</button>
+</nav>
 
-        function buildDots() {
-            document.querySelectorAll('.slide-dots').forEach(function(container) {
-                container.innerHTML = '';
-                for (var i = 1; i <= totalSlides; i++) {
-                    var dot = document.createElement('span');
-                    dot.className = 'slide-dot' + (i === currentSlide ? ' active' : '');
-                    dot.setAttribute('onclick', 'goToSlide(' + i + ')');
-                    container.appendChild(dot);
-                }
-            });
-        }
+<script>
+    /* ── SLIDE NAVIGATION ENGINE ── */
+    const TOTAL = 19;
+    let current = 1;
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = 'Slide ' + currentSlide + ' of ' + totalSlides;
+    function goToSlide(n) {
+        const prev = document.getElementById('slide-' + current);
+        const next = document.getElementById('slide-' + n);
+        if (!next) return;
 
-            document.querySelectorAll('.slide-dots').forEach(function(container) {
-                container.querySelectorAll('.slide-dot').forEach(function(dot, index) {
-                    dot.classList.toggle('active', index + 1 === currentSlide);
-                });
-            });
+        prev.classList.remove('active');
 
-            document.querySelectorAll('.slide').forEach(function(slide, index) {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
-
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                buildDots();
-        updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                buildDots();
-        updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
-        function goToSlide(n) {
-            currentSlide = n;
-            buildDots();
-        updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function checkAnswer(button, isCorrect, quizId, qKey) {
-            var feedbackEl = document.getElementById('feedback-' + quizId);
-            var options = button.parentElement.querySelectorAll('.quiz-option');
-
-            options.forEach(function(opt) { opt.style.pointerEvents = 'none'; });
-
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Correct. LTSC is specifically designed for specialized, fixed-function devices like medical imaging systems, ATMs, and industrial control systems. It does not receive feature updates and has a 10-year support lifecycle, making it the right choice when stability and long-term consistency are mandatory.';
-                } else {
-                    feedbackEl.textContent = 'Correct. Assigning an MSI via a Computer Configuration GPO installs the application at computer startup, before the user logs in, without any user interaction required. Computer-assigned apps are available to all users of that computer.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Incorrect. LTSC is the right answer. The GAC still receives feature updates even with maximum deferral — it only delays them, not prevents them permanently. The Insider Program is pre-release and inappropriate for production. WSUS controls approval but not the update type received.';
-                } else {
-                    feedbackEl.textContent = 'Incorrect. The correct answer is Computer GPO with Assigned deployment. Published means users must manually install from Add/Remove Programs — not automatic. AppLocker controls which apps run, not deployment. The Store for Business distributes Store apps, not traditional MSI packages.';
-                }
-                options.forEach(function(opt) {
-                    if (opt.getAttribute('onclick').includes('true')) { opt.classList.add('correct'); }
-                });
-            }
-        }
-
-        function completeModule() {
-            ModuleProgress.complete('forge', 'forge-md100-m07', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
+        /* SVG animation restart: clone and replace each SVG in the incoming slide
+           so that all <animate> elements restart from the beginning on slide entry. */
+        next.querySelectorAll('svg').forEach(function(svg) {
+            const clone = svg.cloneNode(true);
+            svg.parentNode.replaceChild(clone, svg);
         });
 
-        buildDots();
-        updateProgress();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../components/PresentationA11y.js"></script>
+        next.classList.add('active');
+        current = n;
+
+        /* Progress bar */
+        document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100) + '%';
+
+        /* Counter */
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+
+        /* Prev / Next button state */
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === TOTAL);
+
+        /* Show Mark Complete on final slide only */
+        document.getElementById('complete-btn').style.display = (current === TOTAL) ? 'inline-block' : 'none';
+    }
+
+    function changeSlide(dir) {
+        const target = current + dir;
+        if (target >= 1 && target <= TOTAL) goToSlide(target);
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   changeSlide(-1);
+    });
+
+    /* Mark Complete — records module progress and returns to MD-100 hub */
+    function markComplete() {
+        ModuleProgress.complete('forge', 'forge-md100-m07', {
+            returnUrl: '../index.html'
+        });
+    }
+</script>
 </body>
 </html>

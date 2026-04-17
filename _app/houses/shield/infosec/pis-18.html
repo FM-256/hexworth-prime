@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity and Account Management // BSL-4 // PIS-18</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── CSS custom properties: Shield House blue palette ── */
+        :root {
+            --accent:         #3b82f6;
+            --accent-dim:     rgba(59, 130, 246, 0.12);
+            --accent-border:  rgba(59, 130, 246, 0.30);
+            --bg-dark:        #060810;
+            --bg-card:        #0a1018;
+            --bg-surface:     #0d1520;
+            --text-primary:   #dde8f8;
+            --text-secondary: #7ca4cc;
+            --text-muted:     #4a6480;
+            --border-subtle:  rgba(255, 255, 255, 0.06);
+            --breach-bg:      rgba(239, 68, 68, 0.06);
+            --breach-border:  rgba(239, 68, 68, 0.28);
+            --breach-text:    #fca5a5;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+        .ne-header { position: sticky; top: 0; z-index: 100; background: rgba(6, 8, 16, 0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+        .ne-header-left { display: flex; align-items: center; gap: 12px; }
+        .ne-course-label { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .ne-back-btn { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; transition: opacity 0.2s; }
+        .ne-back-btn:hover { opacity: 0.75; }
+        .ne-back-btn img { width: 14px; height: 14px; opacity: 0.7; }
+
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+        .ne-module-header { margin-bottom: 36px; }
+        .ne-badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .ne-badge { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 3px 9px; }
+        .obj-badge { font-size: 0.68rem; letter-spacing: 1.5px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 4px; padding: 3px 9px; }
+        .ne-module-title { font-size: 1.85rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; margin-bottom: 16px; }
+        .ne-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+        .ne-meta-item { font-size: 0.78rem; color: var(--text-muted); }
+        .ne-meta-item strong { color: var(--text-secondary); }
+
+        .ne-callout { background: var(--accent-dim); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--text-secondary); line-height: 1.65; font-style: italic; }
+        .ne-callout strong { color: var(--accent); font-style: normal; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+
+        .ne-breach { background: var(--breach-bg); border: 1px solid var(--breach-border); border-radius: 6px; padding: 14px 18px; margin: 20px 0; font-size: 0.87rem; color: var(--breach-text); line-height: 1.65; }
+        .ne-breach strong { display: block; margin-bottom: 6px; font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase; color: #f87171; }
+
+        .ne-section { margin-bottom: 40px; }
+        .ne-section-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); position: relative; }
+        .ne-section-title::before { content: ''; position: absolute; bottom: -1px; left: 0; width: 40px; height: 2px; background: var(--accent); }
+
+        .ne-term { color: var(--accent); font-weight: 600; }
+
+        .ne-section p { font-size: 0.90rem; color: var(--text-secondary); margin-bottom: 14px; }
+
+        .ne-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0; }
+        .ne-table th { background: var(--bg-surface); color: var(--text-secondary); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        .ne-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: top; line-height: 1.6; }
+        .ne-table tr:last-child td { border-bottom: none; }
+        .ne-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .ne-takeaways { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 22px 26px; margin: 32px 0; }
+        .ne-takeaways-title { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
+        .ne-takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .ne-takeaways li { font-size: 0.87rem; color: var(--text-secondary); padding-left: 16px; position: relative; line-height: 1.6; }
+        .ne-takeaways li::before { content: '--'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+        .ne-quiz { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px 32px; margin-top: 36px; }
+        .ne-quiz-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-quiz-header img { width: 24px; height: 24px; opacity: 0.8; flex-shrink: 0; margin-top: 3px; }
+        .ne-quiz-header h3 { font-size: 1.0rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .ne-quiz-header p { font-size: 0.80rem; color: var(--text-muted); }
+
+        .ne-question { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border-subtle); }
+        .ne-question:last-of-type { border-bottom: none; }
+        .ne-q-num { font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); margin-bottom: 8px; }
+        .ne-q-text { font-size: 0.92rem; color: var(--text-primary); line-height: 1.65; margin-bottom: 14px; }
+        .ne-options { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .ne-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .ne-option:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+        .ne-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: var(--accent); }
+        .ne-option label { font-size: 0.87rem; color: var(--text-secondary); cursor: pointer; line-height: 1.5; }
+
+        .ne-quiz-submit { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+        #quizSubmitBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 10px 28px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        #quizSubmitBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #quizSubmitBtn:disabled { opacity: 0.35; cursor: default; }
+        #quizStatusMsg { font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+        .ne-quiz-result { display: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 24px 28px; margin-top: 20px; text-align: center; }
+        .ne-quiz-result.pass { display: block; border-color: rgba(16, 185, 129, 0.30); background: rgba(16, 185, 129, 0.05); }
+        .ne-quiz-result.fail { display: block; border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); }
+        .result-score { font-size: 2.4rem; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 6px; }
+        .ne-quiz-result.pass .result-score { color: #34d399; }
+        .ne-quiz-result.fail .result-score { color: #f87171; }
+        .result-label { font-size: 0.78rem; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; }
+        .ne-quiz-result.pass .result-label { color: #6ee7b7; }
+        .ne-quiz-result.fail .result-label { color: #fca5a5; }
+        .result-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+
+        .retry-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.40); color: #f87171; font-family: 'JetBrains Mono', monospace; font-size: 0.80rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 22px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .retry-btn:hover { background: rgba(239, 68, 68, 0.08); }
+
+        .ne-complete { text-align: center; padding: 32px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 14px 44px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        #completeBtn.is-done { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .complete-note { margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">PIS-18: Identity and Account Management</h1>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-course-label">PIS // Principles of Information Security</span>
+        </div>
+        <a href="index.html" class="ne-back-btn">
+            <img src="../../../assets/images/icons/icon-arrow-left.webp" alt="">
+            Course Index
+        </a>
+    </header>
+
+    <div class="ne-content">
+
+        <!-- Module header -->
+        <div class="ne-module-header">
+            <div class="ne-badge-row">
+                <span class="ne-badge">PIS-18 &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; BSL-4</span>
+                <span class="obj-badge">SY0-701: 5.3, 5.4</span>
+            </div>
+            <h2 class="ne-module-title">Identity and Account Management</h2>
+            <div class="ne-meta">
+                <span class="ne-meta-item"><strong>Duration:</strong> 30 min</span>
+                <span class="ne-meta-item"><strong>Clearance:</strong> BSL-4</span>
+                <span class="ne-meta-item"><strong>Quiz:</strong> 5 questions, 80% to pass</span>
+            </div>
+        </div>
+
+        <!-- Lore callout -->
+        <div class="ne-callout">
+            <strong>Facility Context:</strong>
+            "Managing clearance levels across the entire facility. Every staff member has a clearance tier -- not a blanket access grant. A BSL-1 technician cannot open a BSL-4 vault door regardless of how long they have worked here. Access follows function, not seniority. When a staff member transfers, their old clearances are revoked the same day. When they leave, their accounts are terminated within the hour."
+        </div>
+
+        <!-- Section 1: Access Control Models -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">01 / 04 -- Access Control Models: MAC, DAC, RBAC, ABAC, Rule-Based</h3>
+            <p>SY0-701 Objective 5.3 tests access control models by scenario. You must recognize which model is in use from a description of how access decisions are made.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Full Name</th>
+                        <th>How Access Is Decided</th>
+                        <th>Typical Use</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>MAC</td>
+                        <td>Mandatory Access Control</td>
+                        <td>The system enforces access based on labels and classifications assigned by the administrator. Users cannot override or grant access to others. Top Secret data can only be accessed by Top Secret-cleared users.</td>
+                        <td>Military and government systems. Bell-LaPadula model (no read up, no write down). SELinux implements MAC in Linux.</td>
+                    </tr>
+                    <tr>
+                        <td>DAC</td>
+                        <td>Discretionary Access Control</td>
+                        <td>The owner of a resource decides who can access it. Users can grant access to other users at their discretion. Access control lists (ACLs) are owner-managed.</td>
+                        <td>Standard file systems (Windows NTFS, Linux standard permissions). High flexibility, high risk of privilege creep because owners may over-share.</td>
+                    </tr>
+                    <tr>
+                        <td>RBAC</td>
+                        <td>Role-Based Access Control</td>
+                        <td>Access is assigned to roles, not individuals. A user's permissions are determined by their role in the organization. Adding a user to the "Network Administrator" role grants all network admin permissions.</td>
+                        <td>Enterprise IT. Most widely deployed model. Simplifies management: change the role definition and all role members are updated simultaneously.</td>
+                    </tr>
+                    <tr>
+                        <td>ABAC</td>
+                        <td>Attribute-Based Access Control</td>
+                        <td>Access decisions evaluate multiple attributes simultaneously: user attributes (department, clearance), resource attributes (sensitivity level), and environmental attributes (time of day, location, device health).</td>
+                        <td>Complex policy requirements where RBAC alone is insufficient. Zero trust architectures. Example: "allow access if user.clearance = BSL-4 AND device.compliant = true AND time BETWEEN 06:00 AND 22:00."</td>
+                    </tr>
+                    <tr>
+                        <td>Rule-Based</td>
+                        <td>Rule-Based Access Control</td>
+                        <td>Access is determined by system-wide rules that apply to all users regardless of role. ACLs on firewalls and routers are rule-based: if source IP matches this range, allow on port 443.</td>
+                        <td>Network access control. Firewall ACLs. Often confused with RBAC -- the key distinction is that rule-based applies system-level conditions while RBAC assigns roles to individuals.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The containment facility uses RBAC as the base access model: Lab Technician, Senior Analyst, Containment Lead, and Facility Director each have precisely scoped permissions. ABAC overlays add context: a Lab Technician cannot access specimen vault records after hours even with a valid role assignment. The specimen vault itself runs MAC -- classification labels enforced by the system, not by individual users.
+            </div>
+        </section>
+
+        <!-- Section 2: Least Privilege and PAM -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">02 / 04 -- Least Privilege, Need-to-Know, and Privileged Access Management</h3>
+            <p><span class="ne-term">Least privilege</span> is the principle that users, processes, and systems should be granted only the minimum permissions required to perform their assigned function -- nothing more. It is a foundational control tested throughout SY0-701 across multiple domains.</p>
+            <p><span class="ne-term">Need-to-know</span> restricts access to information based on whether the individual requires that information to perform their job, even if they hold the appropriate clearance level. A Secret-cleared analyst cannot access a Secret-level project they are not assigned to. Clearance grants the ceiling; need-to-know grants the specific access.</p>
+            <p><span class="ne-term">Privileged Access Management (PAM)</span> is a framework for controlling, monitoring, and auditing the use of elevated privileges. PAM systems enforce:</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>PAM Control</th>
+                        <th>What It Does</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Just-in-time (JIT) access</td>
+                        <td>Elevated privileges are granted on-demand for a defined time window and automatically revoked when the window expires. Eliminates standing admin accounts.</td>
+                    </tr>
+                    <tr>
+                        <td>Privileged session recording</td>
+                        <td>All privileged sessions (root logins, admin console access) are recorded and stored for forensic review. The recording itself deters misuse.</td>
+                    </tr>
+                    <tr>
+                        <td>Credential vaulting</td>
+                        <td>Privileged account passwords are stored in an encrypted vault. Users never know the actual password -- they check out access and the PAM system injects credentials. Passwords rotate automatically after use.</td>
+                    </tr>
+                    <tr>
+                        <td>Dual approval</td>
+                        <td>Sensitive privileged operations require approval from a second authorized party before the PAM system releases access. Mirrors two-person integrity at the software level.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-breach">
+                <strong>Real-World: Twitter Breach (2020)</strong>
+                Attackers used social engineering to compromise Twitter employee credentials and then accessed internal admin tools with excessive standing privileges. PAM with just-in-time access, credential vaulting, and session recording would have limited the blast radius and created an audit trail that could have detected the intrusion faster.
+            </div>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                No facility account carries standing admin rights. All elevated access is checked out through the PAM vault with a maximum two-hour window. Every privileged session in the specimen database is recorded. The Facility Director's credentials are themselves vaulted -- even the director checks out access through the same process as everyone else.
+            </div>
+        </section>
+
+        <!-- Section 3: Account Lifecycle -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">03 / 04 -- Account Lifecycle: Provisioning, Deprovisioning, and Access Reviews</h3>
+            <p>SY0-701 Objective 5.3 tests the complete account lifecycle and common failure points. Accounts that are not properly managed accumulate privileges and create long-term attack surface.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Lifecycle Stage</th>
+                        <th>Description</th>
+                        <th>Security Risk if Skipped</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Provisioning</td>
+                        <td>Creating the account with appropriate permissions based on role. Should follow an approval workflow -- HR notifies IT, IT creates account per a defined template for the role, no ad hoc permissions.</td>
+                        <td>Accounts created manually often receive excessive permissions ("copy this user's access") leading to privilege creep from the start.</td>
+                    </tr>
+                    <tr>
+                        <td>Modification</td>
+                        <td>Updating permissions when a user changes role, transfers department, or takes on temporary responsibilities. Old permissions must be revoked when new ones are granted.</td>
+                        <td>Permission accumulation over time. A user who moves from Accounting to IT retains accounting system access indefinitely if modification is not performed.</td>
+                    </tr>
+                    <tr>
+                        <td>Access review (recertification)</td>
+                        <td>Periodic audit (quarterly or annually) where managers certify that each account still requires its current access. Uncertified access is revoked.</td>
+                        <td>Zombie accounts and orphaned privileges survive indefinitely without regular review. These become prime targets for lateral movement.</td>
+                    </tr>
+                    <tr>
+                        <td>Deprovisioning</td>
+                        <td>Disabling or deleting accounts when employment ends. Includes revoking VPN certificates, disabling Active Directory accounts, removing API keys, and recovering physical access tokens.</td>
+                        <td>Terminated employee accounts that remain active allow former employees to access systems. This is a common insider threat vector.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><span class="ne-term">Separation of duties (SoD)</span> requires that sensitive transactions be divided so no single person can complete them alone. Creating a vendor payment and approving that same payment must be performed by different people. This prevents fraud and limits the damage a single compromised account can cause.</p>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                When a facility employee's contract ends, their account is flagged for same-day deprovisioning. Physical access tokens are recovered at exit. Active Directory accounts are disabled, not deleted -- disabled accounts preserve audit history while removing access. Reactivation requires written authorization from the Facility Director.
+            </div>
+        </section>
+
+        <!-- Section 4: Service Accounts and Account Policies -->
+        <section class="ne-section">
+            <h3 class="ne-section-title">04 / 04 -- Service Accounts, Shared Accounts, and Account Policies</h3>
+            <p><span class="ne-term">Service accounts</span> are used by applications and services to authenticate and access resources without a human user in the loop. They represent significant risk because they often require elevated privileges and their credentials are embedded in application configurations where they may never be rotated.</p>
+            <p>Best practices per SY0-701 Objective 5.3: use dedicated accounts (never a shared human account), apply least privilege scoped specifically to what the service needs, disable interactive login capability, rotate passwords on a defined schedule, and audit service account activity for anomalies.</p>
+            <p><span class="ne-term">Shared accounts</span> violate non-repudiation -- if multiple people use the same login, you cannot determine who performed a specific action. Where shared accounts cannot be eliminated (legacy systems, operational consoles), access to the shared credential must be mediated through a PAM vault that logs who checked it out and when.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Account Policy</th>
+                        <th>Control</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Password complexity</td>
+                        <td>Minimum length (12+ chars), mixed case, numbers, special characters</td>
+                        <td>Increases entropy. Harder to crack via brute force or dictionary attacks.</td>
+                    </tr>
+                    <tr>
+                        <td>Password history</td>
+                        <td>System stores N previous password hashes; user cannot reuse</td>
+                        <td>Prevents cycling back to a known compromised password immediately after a forced reset.</td>
+                    </tr>
+                    <tr>
+                        <td>Account lockout</td>
+                        <td>Disable account after N failed login attempts</td>
+                        <td>Prevents online brute force attacks. Threshold must balance security against lockout-based DoS.</td>
+                    </tr>
+                    <tr>
+                        <td>Time-based restrictions</td>
+                        <td>Accounts active only during defined hours (e.g., 07:00-20:00)</td>
+                        <td>Limits attack window. Legitimate users do not log in at 03:00; a login at that hour is anomalous.</td>
+                    </tr>
+                    <tr>
+                        <td>Geolocation restrictions</td>
+                        <td>Block logins from unexpected geographic regions</td>
+                        <td>Detects credential theft where stolen credentials are used from a foreign IP. Impossible travel detection flags a login from different continents within minutes.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Facility Context:</strong>
+                The facility's specimen database API runs on a dedicated service account with read-only access scoped to exactly the endpoints the application uses. The account cannot log in interactively. The PAM system rotates its credential every 24 hours. The one remaining shared console account for the legacy environmental monitoring system has its password vaulted -- any checkout is logged and triggers a notification to the Security Operations Lead.
+            </div>
+        </section>
+
+        <!-- Key Takeaways -->
+        <div class="ne-takeaways">
+            <div class="ne-takeaways-title">Key Takeaways</div>
+            <ul>
+                <li>MAC: system-enforced labels, users cannot override. DAC: owner-managed ACLs. RBAC: role determines access. ABAC: multi-attribute policy evaluation.</li>
+                <li>Least privilege grants only what is needed. Need-to-know adds the assignment requirement on top of clearance level.</li>
+                <li>PAM: JIT access eliminates standing admin accounts; credential vaulting means users never see the password; session recording creates the audit trail.</li>
+                <li>Privilege creep results from failing to revoke old permissions when roles change.</li>
+                <li>Shared accounts violate non-repudiation -- you cannot prove who did what if multiple people share a login.</li>
+                <li>Deprovisioning on the same day employment ends is critical to prevent insider threat via dormant accounts.</li>
+            </ul>
+        </div>
+
+        <!-- Quiz -->
+        <div class="ne-quiz" id="quizSection">
+            <div class="ne-quiz-header">
+                <img src="../../../assets/images/icons/icon-user.webp" alt="">
+                <div>
+                    <h3>Module Quiz</h3>
+                    <p>5 questions -- 80% required to pass -- answers graded server-side</p>
+                </div>
+            </div>
+
+            <form id="quizForm">
+
+                <!-- Q1 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 1 of 5</div>
+                    <p class="ne-q-text">An employee transfers from the Finance department to the IT department. Six months later, an audit reveals the employee still has full access to all Finance systems in addition to IT systems. Which account management failure does this BEST describe?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a0" value="0"><label for="q0a0">Improper deprovisioning</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a1" value="1"><label for="q0a1">Privilege creep from failure to modify access upon role change</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a2" value="2"><label for="q0a2">Violation of separation of duties</label></li>
+                        <li class="ne-option"><input type="radio" name="q0" id="q0a3" value="3"><label for="q0a3">Misconfigured RBAC role definition</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q2 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 2 of 5</div>
+                    <p class="ne-q-text">A government system assigns data labels such as "Top Secret" and "Secret." Access to labeled data is enforced by the operating system and cannot be overridden by the data owner. Which access control model is this?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a0" value="0"><label for="q1a0">Discretionary Access Control (DAC)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a1" value="1"><label for="q1a1">Role-Based Access Control (RBAC)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a2" value="2"><label for="q1a2">Mandatory Access Control (MAC)</label></li>
+                        <li class="ne-option"><input type="radio" name="q1" id="q1a3" value="3"><label for="q1a3">Attribute-Based Access Control (ABAC)</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q3 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 3 of 5</div>
+                    <p class="ne-q-text">A company wants to ensure that no single employee can both create a purchase order and approve it for payment. Which security principle does this implement?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a0" value="0"><label for="q2a0">Least privilege</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a1" value="1"><label for="q2a1">Separation of duties</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a2" value="2"><label for="q2a2">Need-to-know</label></li>
+                        <li class="ne-option"><input type="radio" name="q2" id="q2a3" value="3"><label for="q2a3">Account lockout policy</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q4 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 4 of 5</div>
+                    <p class="ne-q-text">A Privileged Access Management (PAM) system grants administrator access only for the duration of a specific change window and automatically revokes it when the window closes, even if the task is incomplete. Which PAM capability does this describe?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a0" value="0"><label for="q3a0">Credential vaulting</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a1" value="1"><label for="q3a1">Just-in-time (JIT) access</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a2" value="2"><label for="q3a2">Privileged session recording</label></li>
+                        <li class="ne-option"><input type="radio" name="q3" id="q3a3" value="3"><label for="q3a3">Separation of duties enforcement</label></li>
+                    </ul>
+                </div>
+
+                <!-- Q5 -->
+                <div class="ne-question">
+                    <div class="ne-q-num">Question 5 of 5</div>
+                    <p class="ne-q-text">Multiple developers share a single service account to deploy applications to production. An unauthorized configuration change is discovered. The security team cannot determine which developer made the change. Which principle does this shared account arrangement violate?</p>
+                    <ul class="ne-options">
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a0" value="0"><label for="q4a0">Least privilege</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a1" value="1"><label for="q4a1">Defense in depth</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a2" value="2"><label for="q4a2">Non-repudiation</label></li>
+                        <li class="ne-option"><input type="radio" name="q4" id="q4a3" value="3"><label for="q4a3">Mandatory access control</label></li>
+                    </ul>
+                </div>
+
+                <div class="ne-quiz-submit">
+                    <button type="button" id="quizSubmitBtn" disabled>Submit Quiz</button>
+                    <span id="quizStatusMsg">Answer all 5 questions to submit.</span>
+                </div>
+            </form>
+
+            <!-- Result panel -->
+            <div class="ne-quiz-result" id="quizResult">
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-label" id="resultLabel"></div>
+                <p class="result-msg" id="resultMsg"></p>
+                <button class="retry-btn" id="retryBtn" style="display:none;" onclick="retryQuiz()">Retry Quiz</button>
+            </div>
+        </div>
+
+        <!-- Completion area -->
+        <div class="ne-complete">
+            <button id="completeBtn" disabled>Pass the quiz to complete</button>
+            <p class="complete-note" id="completeNote">Complete the quiz with 80% or higher to mark this module complete.</p>
+        </div>
+
+    </div><!-- /.ne-content -->
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* ── Module constants ── */
+        const MODULE_HOUSE = 'shield';
+        const MODULE_ID    = 'pis-18';
+        const QUIZ_ID      = 'pis-18-quiz';
+        const PASS_SCORE   = 4; /* 4 of 5 = 80% */
+        const TOTAL_Q      = 5;
+
+        var selections = {};
+
+        document.getElementById('quizForm').addEventListener('change', function(e) {
+            if (e.target.type !== 'radio') return;
+            var qIndex = parseInt(e.target.name.replace('q', ''), 10);
+            selections[qIndex] = parseInt(e.target.value, 10);
+
+            var answered = Object.keys(selections).length;
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            var statusMsg = document.getElementById('quizStatusMsg');
+
+            if (answered >= TOTAL_Q) {
+                submitBtn.disabled = false;
+                statusMsg.textContent = 'All questions answered. Ready to submit.';
+            } else {
+                statusMsg.textContent = answered + ' of ' + TOTAL_Q + ' answered.';
+            }
+        });
+
+        document.getElementById('quizSubmitBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            this.textContent = 'Grading...';
+
+            var answerMap = {};
+            for (var i = 0; i < TOTAL_Q; i++) {
+                if (selections[i] !== undefined) {
+                    answerMap[String(i)] = selections[i];
+                }
+            }
+
+            var score = 0, percentage = 0, passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    var response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                    passed = response.data.passed;
+                }
+            } catch (e) {
+                console.warn('[PIS-18] Server grading failed:', e.message);
+            }
+
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.disabled = true;
+            });
+
+            var resultEl = document.getElementById('quizResult');
+            resultEl.className = 'ne-quiz-result ' + (passed ? 'pass' : 'fail');
+            document.getElementById('resultScore').textContent = percentage + '%';
+            document.getElementById('resultLabel').textContent = passed ? 'Quiz Passed' : 'Not Passed';
+            document.getElementById('resultMsg').textContent = passed
+                ? 'Clearance registry protocols confirmed. Module marked complete.'
+                : 'You scored ' + score + ' of ' + TOTAL_Q + '. 80% required. Review the content above and retry.';
+
+            if (passed) {
+                markComplete(score);
+            } else {
+                document.getElementById('retryBtn').style.display = 'inline-block';
+            }
+
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+            document.getElementById('quizStatusMsg').style.display = 'none';
+        });
+
+        function retryQuiz() {
+            selections = {};
+            document.querySelectorAll('#quizForm input[type="radio"]').forEach(function(r) {
+                r.checked = false;
+                r.disabled = false;
+            });
+
+            document.getElementById('quizResult').className = 'ne-quiz-result';
+
+            var submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Quiz';
+
+            var statusMsg = document.getElementById('quizStatusMsg');
+            statusMsg.style.display = '';
+            statusMsg.textContent = 'Answer all 5 questions to submit.';
+
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function markComplete(score) {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, score);
+            }
+            var btn = document.getElementById('completeBtn');
+            btn.textContent = 'Module Complete';
+            btn.disabled = true;
+            btn.classList.add('is-done');
+            document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+        }
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Module Complete';
+                btn.disabled = true;
+                btn.classList.add('is-done');
+                document.getElementById('completeNote').textContent = 'BSL-4 progress recorded.';
+            }
+        })();
+    </script>
+</body>
+</html>

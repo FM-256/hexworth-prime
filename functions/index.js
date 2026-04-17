@@ -5,10 +5,19 @@
  * AR-11: Server-side flag validation (per-session salted flags)
  */
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret, defineString } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const crypto = require('crypto');
+
+// ─── The Wire: Tournament Notification System ────────────────────
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
+
+// ─── LiveKit Secrets (Google Cloud Secret Manager) ──────────────
+const livekitApiKey = defineSecret('LIVEKIT_API_KEY');
+const livekitApiSecret = defineSecret('LIVEKIT_API_SECRET');
+const LIVEKIT_WS_URL = 'wss://hexworth-fxq4kwzr.livekit.cloud';
 
 initializeApp();
 const db = getFirestore();
@@ -211,6 +220,12 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
             await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
                 boxId, flagId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
+            // Sync flag count to profile
+            const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
+            await db.doc(`users/${uid}`).set({
+                ctfFlagsCaptured: allCaptures.data().count,
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
         }
         return { correct: isCorrect, flagId: isCorrect ? flagId : null };
     }
@@ -223,6 +238,12 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
             await db.doc(`users/${uid}/flag_captures/${boxId}_${resolvedId}`).set({
                 boxId, flagId: resolvedId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
+            // Sync flag count to profile
+            const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
+            await db.doc(`users/${uid}`).set({
+                ctfFlagsCaptured: allCaptures.data().count,
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
             return { correct: true, flagId: resolvedId };
         }
     }
@@ -2470,6 +2491,290 @@ exports.hideConversation = onCall(cfOptions, async (request) => {
     return { success: true };
 });
 
+/**
+ * blockStudent — Callable: handler blocks a student from messaging in a class.
+ * Creates a document in messaging_blocks collection.
+ * Only the class handler can block students in their class.
+ */
+exports.blockStudent = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { studentUid, classId } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!studentUid || typeof studentUid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid student UID.');
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid class ID.');
+    }
+
+    // Verify caller is the handler for this class
+    const classDoc = await db.doc(`classes/${classId}`).get();
+    if (!classDoc.exists) {
+        throw new HttpsError('not-found', 'Class not found.');
+    }
+    if (classDoc.data().handlerUid !== uid) {
+        throw new HttpsError('permission-denied', 'Only the class handler can block students.');
+    }
+
+    // Check if already blocked
+    const existingSnap = await db.collection('messaging_blocks')
+        .where('blockedUid', '==', studentUid)
+        .where('blockedBy', '==', uid)
+        .where('classId', '==', classId)
+        .limit(1)
+        .get();
+
+    if (!existingSnap.empty) {
+        return { success: true, alreadyBlocked: true };
+    }
+
+    await db.collection('messaging_blocks').add({
+        blockedUid: studentUid,
+        blockedBy: uid,
+        classId: classId,
+        timestamp: FieldValue.serverTimestamp()
+    });
+
+    return { success: true };
+});
+
+/**
+ * unblockStudent — Callable: handler unblocks a student from messaging.
+ * Deletes the messaging_blocks document.
+ * Only the original blocker (handler) can unblock.
+ */
+exports.unblockStudent = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { blockId } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!blockId || typeof blockId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid block ID.');
+    }
+
+    const blockRef = db.doc(`messaging_blocks/${blockId}`);
+    const blockDoc = await blockRef.get();
+
+    if (!blockDoc.exists) {
+        throw new HttpsError('not-found', 'Block record not found.');
+    }
+
+    if (blockDoc.data().blockedBy !== uid) {
+        throw new HttpsError('permission-denied', 'Only the handler who created the block can remove it.');
+    }
+
+    await blockRef.delete();
+    return { success: true };
+});
+
+// ─── Spectator: LiveKit Token Generation ────────────────────────
+
+/**
+ * getLiveKitToken — Callable: generates a LiveKit access token.
+ * Broadcasters get publish+subscribe permissions.
+ * Spectators get subscribe-only permissions.
+ */
+exports.getLiveKitToken = onCall({
+    region: 'us-central1',
+    enforceAppCheck: ENFORCE_APP_CHECK,
+    secrets: [livekitApiKey, livekitApiSecret]
+}, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { roomName, role } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!roomName || typeof roomName !== 'string') {
+        throw new HttpsError('invalid-argument', 'Room name required.');
+    }
+    if (!role || (role !== 'broadcaster' && role !== 'spectator')) {
+        throw new HttpsError('invalid-argument', 'Role must be "broadcaster" or "spectator".');
+    }
+
+    // Get user display name
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const displayName = userDoc.exists
+        ? (userDoc.data().callsign || userDoc.data().displayName || uid.substring(0, 8))
+        : uid.substring(0, 8);
+
+    const { AccessToken } = require('livekit-server-sdk');
+
+    const identity = role === 'spectator' ? `${uid}_spec_${Date.now()}` : uid;
+
+    const token = new AccessToken(livekitApiKey.value(), livekitApiSecret.value(), {
+        identity: identity,
+        name: displayName,
+        ttl: '4h'
+    });
+
+    token.addGrant({
+        room: roomName,
+        roomJoin: true,
+        canPublish: role === 'broadcaster',
+        canSubscribe: true,
+        canPublishData: role === 'broadcaster'
+    });
+
+    const jwt = await token.toJwt();
+
+    // Track active stream in Firestore if broadcaster
+    if (role === 'broadcaster') {
+        await db.doc(`spectator_streams/${uid}`).set({
+            uid,
+            displayName,
+            roomName,
+            startedAt: FieldValue.serverTimestamp(),
+            active: true
+        }, { merge: true });
+    }
+
+    return { token: jwt, wsUrl: LIVEKIT_WS_URL };
+});
+
+/**
+ * endLiveStream — Callable: marks a broadcaster's stream as inactive.
+ */
+exports.endLiveStream = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    await db.doc(`spectator_streams/${request.auth.uid}`).update({
+        active: false,
+        endedAt: FieldValue.serverTimestamp()
+    });
+    return { success: true };
+});
+
+/**
+ * validateAction — Callable: server-side action flag validation for labs.
+ *
+ * Unlike validateFlag (text-based: student finds FLAG{text}, submits it, server checks hash),
+ * validateAction is action-based: student performs work, client sends state proof,
+ * server validates the state against conditions stored in flag_registry.
+ *
+ * The conditions are ONLY on the server. The client config knows "call awardFlag when
+ * services are restored" but the server decides if the state actually proves it.
+ *
+ * flag_registry/{boxId} schema for action flags:
+ * {
+ *   flags: {
+ *     flag1: 'FLAG{...}',          // text flags (traditional)
+ *     flag2: 'FLAG{...}'
+ *   },
+ *   actionConditions: {            // action flag conditions (new)
+ *     flag1: {
+ *       required: { servicesUp: ['networking','sshd','cron'], logRecovered: true },
+ *       minActions: 5              // minimum command count before flag is plausible
+ *     }
+ *   },
+ *   flagOrder: ['flag1','flag2']
+ * }
+ */
+exports.validateAction = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { boxId, flagId, stateProof } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!boxId || !flagId) {
+        throw new HttpsError('invalid-argument', 'boxId and flagId required.');
+    }
+    if (!stateProof || typeof stateProof !== 'object') {
+        throw new HttpsError('invalid-argument', 'State proof required.');
+    }
+
+    // Load registry
+    const registryDoc = await db.doc(`flag_registry/${boxId}`).get();
+    if (!registryDoc.exists) {
+        throw new HttpsError('not-found', 'Lab not registered.');
+    }
+
+    const registry = registryDoc.data();
+    const conditions = (registry.actionConditions || {})[flagId];
+
+    if (!conditions) {
+        throw new HttpsError('not-found', 'No action conditions for this flag.');
+    }
+
+    // Validate sequential order
+    const flagOrder = registry.flagOrder || [];
+    const flagIndex = flagOrder.indexOf(flagId);
+    if (flagIndex > 0) {
+        const prevFlag = flagOrder[flagIndex - 1];
+        const prevCapture = await db.doc(`users/${uid}/flag_captures/${boxId}_${prevFlag}`).get();
+        if (!prevCapture.exists) {
+            throw new HttpsError('failed-precondition', 'Complete previous objectives first.');
+        }
+    }
+
+    // Already captured — idempotent
+    const existing = await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).get();
+    if (existing.exists) {
+        return { success: true, duplicate: true };
+    }
+
+    // Validate state proof against conditions
+    const required = conditions.required || {};
+    for (const [key, expected] of Object.entries(required)) {
+        const actual = stateProof[key];
+
+        if (Array.isArray(expected)) {
+            // All items in expected must be present in actual
+            if (!Array.isArray(actual) || !expected.every(item => actual.includes(item))) {
+                return { success: false, reason: `Condition not met: ${key}` };
+            }
+        } else if (typeof expected === 'boolean') {
+            if (actual !== expected) {
+                return { success: false, reason: `Condition not met: ${key}` };
+            }
+        } else if (typeof expected === 'number') {
+            if (typeof actual !== 'number' || actual < expected) {
+                return { success: false, reason: `Condition not met: ${key}` };
+            }
+        } else if (typeof expected === 'string') {
+            if (actual !== expected) {
+                return { success: false, reason: `Condition not met: ${key}` };
+            }
+        }
+    }
+
+    // Minimum actions check (anti-console-abuse)
+    if (conditions.minActions && typeof stateProof._actionCount === 'number') {
+        if (stateProof._actionCount < conditions.minActions) {
+            return { success: false, reason: 'Insufficient activity.' };
+        }
+    }
+
+    // All conditions met — record the capture
+    await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
+        boxId,
+        flagId,
+        capturedAt: FieldValue.serverTimestamp(),
+        source: 'action-lab',
+        stateSnapshot: stateProof
+    });
+
+    // Sync profile
+    const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
+    await db.doc(`users/${uid}`).set({
+        ctfFlagsCaptured: allCaptures.data().count,
+        updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { success: true, totalFlags: allCaptures.data().count };
+});
+
 // ─── WL: White Label Tenant API ─────────────────────────────────
 
 /**
@@ -4356,6 +4661,26 @@ exports.c2ListDevices = onCall(cfOptions, async (request) => {
     return { devices, count: devices.length };
 });
 
+// ─── The Wire: Discord Tournament Notifications ─────────────────
+// Non-blocking. Fire-and-forget. Never throws — a failed notification
+// must never block a flag submission.
+
+async function sendWireNotification(embed) {
+    if (!DISCORD_WEBHOOK_URL) return;
+    try {
+        const response = await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [embed] })
+        });
+        if (!response.ok) {
+            console.warn('[Wire] Discord webhook failed:', response.status);
+        }
+    } catch (err) {
+        console.warn('[Wire] Discord notification error:', err.message);
+    }
+}
+
 // ─── CTF Tournament: Flag Submission ──────────────────────────────
 // Server-side flag validation for CTF tournaments.
 // Hashes the submitted flag with the challenge's salt and compares
@@ -4458,6 +4783,19 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             lastSolveTime: FieldValue.serverTimestamp()
         });
 
+        // Record individual flag capture + sync profile
+        await db.doc(`users/${uid}/flag_captures/${tournamentId}_${challengeId}`).set({
+            boxId: tournamentId,
+            flagId: challengeId,
+            capturedAt: FieldValue.serverTimestamp(),
+            source: 'tournament'
+        });
+        const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
+        await db.doc(`users/${uid}`).set({
+            ctfFlagsCaptured: allCaptures.data().count,
+            updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
         // Update challenge solve count
         const newSolveCount = (challenge.solveCount || 0) + 1;
         const chUpdate = { solveCount: newSolveCount };
@@ -4479,6 +4817,37 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             totalSolves: FieldValue.increment(1)
         });
 
+        // ── The Wire: broadcast flag capture to Discord ──
+        // Non-blocking — don't await. A failed notification never blocks the response.
+        const teamDoc = await tRef.collection('teams').doc(userTeamId).get();
+        const teamName = teamDoc.exists ? (teamDoc.data().name || userTeamId) : userTeamId;
+        const teamScore = teamDoc.exists ? (teamDoc.data().score || 0) : 0;
+        const wirePayload = {
+            type: 'flag_capture',
+            team: teamName,
+            teamId: userTeamId,
+            challenge: challengeId,
+            points: pointsAwarded,
+            totalScore: teamScore,
+            timestamp: FieldValue.serverTimestamp()
+        };
+
+        // Firestore live feed (in-platform tournament board reads this)
+        tRef.collection('notifications').add(wirePayload).catch(() => {});
+
+        // Discord webhook (external feed)
+        sendWireNotification({
+            title: 'FLAG CAPTURED',
+            color: 3066993,
+            fields: [
+                { name: 'Team', value: teamName, inline: true },
+                { name: 'Challenge', value: challengeId, inline: true },
+                { name: 'Points', value: '+' + pointsAwarded + ' (Total: ' + teamScore + ')', inline: true }
+            ],
+            footer: { text: 'Hexworth Prime // The Wire' },
+            timestamp: new Date().toISOString()
+        }).catch(() => {});
+
         return {
             correct: true,
             points: pointsAwarded,
@@ -4496,4 +4865,1106 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         points: 0,
         message: 'Incorrect flag.'
     };
+});
+
+// ─── EDT: Ethical Decision Training Lab Submission ───────────────
+
+/**
+ * submitEDTLab — Receives and stores a completed Case Room investigation.
+ *
+ * Payload (from EDTEngine._doSubmit):
+ *   labId                  — config.id, e.g. 'eth-l01'
+ *   evidenceTags           — { [evId]: { tag, note } }
+ *   stakeholderSelections  — string[]
+ *   decisionId             — chosen decision ID
+ *   frameworkResponse      — free text
+ *   codeRanking            — ordered provision ref string[]
+ *   codeConflictResponse   — free text
+ *   autoScores             — { evidence, stakeholder, codeConflict }
+ *
+ * Writes to: edt_submissions/{labId}_{uid}
+ * Marks frameworkResponse + codeConflictResponse for instructor review.
+ * Auto-scores evidence quality and stakeholder depth (included in payload).
+ */
+exports.submitEDTLab = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const data = request.data || {};
+
+    const {
+        labId,
+        evidenceTags,
+        stakeholderSelections,
+        decisionId,
+        frameworkResponse,
+        codeRanking,
+        codeConflictResponse,
+        autoScores
+    } = data;
+
+    // ── Input validation ──────────────────────────────────
+    if (!labId || typeof labId !== 'string' || labId.length > 64) {
+        throw new HttpsError('invalid-argument', 'Invalid labId.');
+    }
+
+    if (!decisionId || typeof decisionId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing decisionId.');
+    }
+
+    if (!frameworkResponse || typeof frameworkResponse !== 'string' || frameworkResponse.trim().length < 80) {
+        throw new HttpsError('invalid-argument', 'Framework response must be at least 80 characters.');
+    }
+
+    if (!codeConflictResponse || typeof codeConflictResponse !== 'string' || codeConflictResponse.trim().length < 80) {
+        throw new HttpsError('invalid-argument', 'Code conflict response must be at least 80 characters.');
+    }
+
+    if (!Array.isArray(stakeholderSelections) || stakeholderSelections.length === 0) {
+        throw new HttpsError('invalid-argument', 'Stakeholder selections required.');
+    }
+
+    if (!Array.isArray(codeRanking) || codeRanking.length === 0) {
+        throw new HttpsError('invalid-argument', 'Code ranking required.');
+    }
+
+    // ── Rate limiting: 3 submissions per lab per hour ─────
+    const subRef = db.collection(`users/${uid}/edt_attempts`);
+    try {
+        const recent = await subRef
+            .where('labId', '==', labId)
+            .where('timestamp', '>', new Date(Date.now() - 3600000))
+            .get();
+        if (recent.size >= 3) {
+            throw new HttpsError('resource-exhausted',
+                'Too many submissions for this lab. Wait an hour before resubmitting.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('[EDT] Rate limit query failed:', e.message);
+    }
+
+    // Log attempt
+    subRef.add({
+        labId,
+        timestamp: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('[EDT] Attempt log failed:', e.message));
+
+    // ── Sanitize free text fields (server-side strip) ─────
+    const sanitize = (str, max) =>
+        typeof str === 'string' ? str.replace(/<[^>]*>/g, '').trim().slice(0, max) : '';
+
+    const cleanFramework = sanitize(frameworkResponse, 3000);
+    const cleanConflict  = sanitize(codeConflictResponse, 2000);
+
+    // ── Sanitize evidenceTags ─────────────────────────────
+    const cleanTags = {};
+    const validTagValues = new Set(['relevant', 'irrelevant', 'contested']);
+    if (evidenceTags && typeof evidenceTags === 'object') {
+        for (const [evId, tag] of Object.entries(evidenceTags)) {
+            if (typeof evId === 'string' && evId.length < 10 &&
+                tag && validTagValues.has(tag.tag)) {
+                cleanTags[evId] = {
+                    tag: tag.tag,
+                    note: sanitize(tag.note || '', 500)
+                };
+            }
+        }
+    }
+
+    // ── Sanitize stakeholder selections ──────────────────
+    const cleanStakeholders = Array.isArray(stakeholderSelections)
+        ? stakeholderSelections.filter(s => typeof s === 'string' && s.length < 8).slice(0, 20)
+        : [];
+
+    // ── Sanitize code ranking ─────────────────────────────
+    const cleanRanking = Array.isArray(codeRanking)
+        ? codeRanking.filter(r => typeof r === 'string' && r.length < 30).slice(0, 10)
+        : [];
+
+    // ── Validate auto-scores (sanity bounds) ──────────────
+    const cleanAutoScores = {
+        evidence:     Math.min(20, Math.max(0, parseInt((autoScores || {}).evidence) || 0)),
+        stakeholder:  Math.min(20, Math.max(0, parseInt((autoScores || {}).stakeholder) || 0)),
+        codeConflict: Math.min(20, Math.max(0, parseInt((autoScores || {}).codeConflict) || 0))
+    };
+
+    // ── Fetch user callsign for instructor display ────────
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const callsign = userDoc.exists ? (userDoc.data().callsign || 'Anonymous') : 'Anonymous';
+
+    // ── Check reset count for instructor visibility ────────
+    let resetCount = 0;
+    try {
+        const resetSnap = await db.doc(`users/${uid}/edt_resets/${labId}`).get();
+        if (resetSnap.exists) resetCount = resetSnap.data().count || 0;
+    } catch (e) { /* non-critical */ }
+
+    // ── Write submission document ─────────────────────────
+    const docId = labId + '_' + uid;
+    await db.doc(`edt_submissions/${docId}`).set({
+        labId,
+        uid,
+        callsign,
+        resetCount,
+        submittedAt:           FieldValue.serverTimestamp(),
+        decisionId,
+        evidenceTags:          cleanTags,
+        stakeholderSelections: cleanStakeholders,
+        frameworkResponse:     cleanFramework,
+        codeRanking:           cleanRanking,
+        codeConflictResponse:  cleanConflict,
+        autoScores:            cleanAutoScores,
+        // Flags for instructor grading workflow
+        needsInstructorReview: true,
+        frameworkGraded:       false,
+        conflictGraded:        false,
+        instructorScore:       null,
+        instructorFeedback:    null
+    }, { merge: false });
+
+    // ── Record lab completion via recordProgress ──────────
+    await db.doc(`users/${uid}`).set({
+        labsCompleted: FieldValue.arrayUnion(labId),
+        updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return {
+        success: true,
+        docId,
+        autoScores: cleanAutoScores
+    };
+});
+
+// ─── EDT: Student Reset ──────────────────────────────────────────
+
+/**
+ * resetEDTSubmission — Student resets their own Case Room submission.
+ *
+ * Deletes the edt_submissions document and increments a reset counter
+ * so instructors can see how many times the student started over.
+ * Does NOT clear edt_attempts (rate-limit history persists).
+ */
+exports.resetEDTSubmission = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const labId = (request.data || {}).labId;
+
+    if (!labId || typeof labId !== 'string' || labId.length > 64) {
+        throw new HttpsError('invalid-argument', 'Invalid labId.');
+    }
+
+    const docId = labId + '_' + uid;
+    const docRef = db.doc(`edt_submissions/${docId}`);
+
+    // Verify the document exists and belongs to this user
+    const snap = await docRef.get();
+    if (!snap.exists) {
+        throw new HttpsError('not-found', 'No submission found for this lab.');
+    }
+    if (snap.data().uid !== uid) {
+        throw new HttpsError('permission-denied', 'Cannot reset another user\'s submission.');
+    }
+
+    // Check reset count before transaction
+    const resetRef = db.doc(`users/${uid}/edt_resets/${labId}`);
+    const resetSnap = await resetRef.get();
+    const currentCount = resetSnap.exists ? (resetSnap.data().count || 0) : 0;
+
+    if (currentCount >= 5) {
+        throw new HttpsError('resource-exhausted',
+            'Maximum resets reached for this lab. Contact your instructor.');
+    }
+
+    // Atomic transaction: delete submission + increment counter + update profile
+    await db.runTransaction(async (t) => {
+        t.delete(docRef);
+        t.set(resetRef, {
+            count: currentCount + 1,
+            lastResetAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        t.update(db.doc(`users/${uid}`), {
+            labsCompleted: FieldValue.arrayRemove(labId)
+        });
+    });
+
+    return {
+        success: true,
+        resetCount: currentCount + 1,
+        remaining: 5 - (currentCount + 1)
+    };
+});
+
+// ─── EDT: Instructor Grading ─────────────────────────────────────
+
+/**
+ * gradeEDTSubmission — Instructor grades a student's framework response.
+ *
+ * Auth: must be authenticated with handler or admin claim.
+ * Writes frameworkScore, frameworkFeedback, frameworkGraded, finalTotal
+ * to the edt_submissions/{docId} document.
+ *
+ * Payload:
+ *   docId              — e.g. 'eth-l01_uid123'
+ *   frameworkScore     — integer 0-40
+ *   frameworkFeedback  — string, max 2000 chars
+ *   finalTotal         — integer, pre-computed by client (server re-validates)
+ */
+exports.gradeEDTSubmission = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    // Must be a handler or admin
+    const isHandler = request.auth.token.handler === true || request.auth.token.admin === true;
+    if (!isHandler) {
+        throw new HttpsError('permission-denied', 'Handler role required.');
+    }
+
+    const { docId, frameworkScore, frameworkFeedback, finalTotal } = request.data || {};
+
+    // ── Input validation ──────────────────────────────────
+    if (!docId || typeof docId !== 'string' || docId.length > 128) {
+        throw new HttpsError('invalid-argument', 'Invalid docId.');
+    }
+
+    const score = parseInt(frameworkScore, 10);
+    if (isNaN(score) || score < 0 || score > 40) {
+        throw new HttpsError('invalid-argument', 'frameworkScore must be 0-40.');
+    }
+
+    const feedback = typeof frameworkFeedback === 'string'
+        ? frameworkFeedback.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
+        : '';
+
+    if (feedback.length === 0) {
+        throw new HttpsError('invalid-argument', 'frameworkFeedback is required.');
+    }
+
+    const instructorUid = request.auth.uid;
+
+    // ── Fetch submission doc ──────────────────────────────
+    const subRef  = db.doc('edt_submissions/' + docId);
+    const subSnap = await subRef.get();
+
+    if (!subSnap.exists) {
+        throw new HttpsError('not-found', 'Submission document not found.');
+    }
+
+    const subData = subSnap.data();
+
+    // ── Verify this handler owns a class containing the student ──
+    // We check by querying classes where handlerUid == instructor and
+    // the student uid is a member. If no class found, deny.
+    const studentUid = subData.uid;
+
+    if (!studentUid) {
+        throw new HttpsError('internal', 'Submission missing student uid.');
+    }
+
+    // Handler-class ownership check
+    const classesSnap = await db.collection('classes')
+        .where('handlerUid', '==', instructorUid)
+        .get();
+
+    let authorized = false;
+
+    // Check each class for member doc
+    const memberChecks = classesSnap.docs.map(classDoc =>
+        db.doc('classes/' + classDoc.id + '/members/' + studentUid).get()
+    );
+    const memberResults = await Promise.all(memberChecks);
+    authorized = memberResults.some(snap => snap.exists);
+
+    // Admin bypass
+    if (!authorized && request.auth.token.admin === true) {
+        authorized = true;
+    }
+
+    if (!authorized) {
+        throw new HttpsError('permission-denied', 'Student not in any of your classes.');
+    }
+
+    // ── Re-validate finalTotal server-side ───────────────
+    const auto       = subData.autoScores || {};
+    const evScore    = Math.min(20, Math.max(0, auto.evidence    || 0));
+    const stScore    = Math.min(20, Math.max(0, auto.stakeholder || 0));
+    const codeScore  = Math.min(20, Math.max(0, auto.codeConflict || 0));
+    const calcTotal  = evScore + stScore + score + codeScore;
+
+    // Accept client-provided total only if it matches server calculation
+    // (client has the same formula — this is a sanity gate, not blind trust)
+    const validatedTotal = calcTotal;
+
+    // ── Write grade to submission doc ────────────────────
+    await subRef.update({
+        frameworkScore:    score,
+        frameworkFeedback: feedback,
+        frameworkGraded:   true,
+        finalTotal:        validatedTotal,
+        gradedBy:          instructorUid,
+        gradedAt:          FieldValue.serverTimestamp(),
+        needsInstructorReview: false
+    });
+
+    return { success: true, finalTotal: validatedTotal };
+});
+
+/**
+ * togglePeerView — Instructor enables/disables peer view for a lab.
+ *
+ * Auth: handler or admin required.
+ * Writes peerViewEnabled (true/false) to edt_lab_config/{labId}.
+ *
+ * Payload:
+ *   labId    — lab configuration ID (e.g. 'eth-l01')
+ *   enabled  — boolean
+ */
+exports.togglePeerView = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const isHandler = request.auth.token.handler === true || request.auth.token.admin === true;
+    if (!isHandler) {
+        throw new HttpsError('permission-denied', 'Handler role required.');
+    }
+
+    const { labId, enabled } = request.data || {};
+
+    if (!labId || typeof labId !== 'string' || labId.length > 64) {
+        throw new HttpsError('invalid-argument', 'Invalid labId.');
+    }
+
+    if (typeof enabled !== 'boolean') {
+        throw new HttpsError('invalid-argument', 'enabled must be a boolean.');
+    }
+
+    const instructorUid = request.auth.uid;
+
+    await db.doc('edt_lab_config/' + labId).set({
+        peerViewEnabled: enabled,
+        peerViewUpdatedBy: instructorUid,
+        peerViewUpdatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { success: true, labId, peerViewEnabled: enabled };
+});
+
+/**
+ * getUngradedEDTSubmissions — Returns ungraded submissions for the handler's classes.
+ *
+ * Auth: handler or admin required.
+ * Returns submissions where frameworkGraded == false for classes
+ * owned by the requesting handler.
+ */
+exports.getUngradedEDTSubmissions = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const isHandler = request.auth.token.handler === true || request.auth.token.admin === true;
+    if (!isHandler) {
+        throw new HttpsError('permission-denied', 'Handler role required.');
+    }
+
+    const instructorUid = request.auth.uid;
+
+    // Get all student UIDs in this handler's classes
+    const classesSnap = await db.collection('classes')
+        .where('handlerUid', '==', instructorUid)
+        .get();
+
+    if (classesSnap.empty) {
+        return { submissions: [] };
+    }
+
+    // Collect all member UIDs across classes
+    const memberUids = new Set();
+    const memberFetches = [];
+
+    classesSnap.docs.forEach(classDoc => {
+        memberFetches.push(
+            db.collection('classes/' + classDoc.id + '/members').get()
+                .then(snap => snap.forEach(m => memberUids.add(m.id)))
+        );
+    });
+    await Promise.all(memberFetches);
+
+    if (memberUids.size === 0) {
+        return { submissions: [] };
+    }
+
+    // Query ungraded EDT submissions — Firestore 'in' supports up to 30 values
+    // Chunk if needed
+    const uidArray   = Array.from(memberUids);
+    const CHUNK      = 30;
+    const allSubs    = [];
+
+    for (let i = 0; i < uidArray.length; i += CHUNK) {
+        const chunk = uidArray.slice(i, i + CHUNK);
+        const snap  = await db.collection('edt_submissions')
+            .where('uid', 'in', chunk)
+            .where('frameworkGraded', '==', false)
+            .orderBy('submittedAt', 'desc')
+            .limit(100)
+            .get();
+
+        snap.forEach(d => {
+            const data = d.data();
+            // Return only fields needed for the grading list + grading view
+            // Full content fields (frameworkResponse, evidenceTags) are included
+            // for the grading view — sanitized on submission, safe to return here.
+            allSubs.push({
+                docId:                 d.id,
+                labId:                 data.labId,
+                uid:                   data.uid,
+                callsign:              data.callsign,
+                submittedAt:           data.submittedAt,
+                decisionId:            data.decisionId,
+                evidenceTags:          data.evidenceTags,
+                stakeholderSelections: data.stakeholderSelections,
+                frameworkResponse:     data.frameworkResponse,
+                codeRanking:           data.codeRanking,
+                codeConflictResponse:  data.codeConflictResponse,
+                autoScores:            data.autoScores
+            });
+        });
+    }
+
+    return { submissions: allSubs };
+});
+
+/**
+ * getEDTAggregates — Returns all submissions for a lab for aggregate display.
+ *
+ * Auth: handler or admin required.
+ * Returns non-PII aggregate data for the requested labId.
+ */
+exports.getEDTAggregates = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const isHandler = request.auth.token.handler === true || request.auth.token.admin === true;
+    if (!isHandler) {
+        throw new HttpsError('permission-denied', 'Handler role required.');
+    }
+
+    const { labId } = request.data || {};
+
+    if (!labId || typeof labId !== 'string' || labId.length > 64) {
+        throw new HttpsError('invalid-argument', 'Invalid labId.');
+    }
+
+    const snap = await db.collection('edt_submissions')
+        .where('labId', '==', labId)
+        .get();
+
+    const submissions = [];
+    snap.forEach(d => {
+        const data = d.data();
+        // Return only what the charts need — no student UIDs, no free text
+        submissions.push({
+            decisionId:            data.decisionId,
+            stakeholderSelections: data.stakeholderSelections,
+            evidenceTags:          data.evidenceTags,
+            autoScores:            data.autoScores
+        });
+    });
+
+    return { submissions };
+});
+
+/**
+ * getEDTLabIds — Returns distinct lab IDs that have submissions.
+ *
+ * Auth: handler or admin required.
+ * Used to populate the lab selector in CaseRoomAggregates.
+ */
+exports.getEDTLabIds = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const isHandler = request.auth.token.handler === true || request.auth.token.admin === true;
+    if (!isHandler) {
+        throw new HttpsError('permission-denied', 'Handler role required.');
+    }
+
+    // Firestore does not support SELECT DISTINCT — fetch a batch and deduplicate
+    const snap = await db.collection('edt_submissions')
+        .orderBy('labId')
+        .limit(500)
+        .get();
+
+    const labIdSet = new Set();
+    snap.forEach(d => { labIdSet.add(d.data().labId); });
+
+    return { labIds: Array.from(labIdSet).sort() };
+});
+
+
+// ─── The Wire: Discord Interaction Handler ───────────────────────
+// Handles slash commands from the Hexworth Prime Discord bot.
+// Discord POSTs to this endpoint when a user runs /standings, /team, etc.
+
+const nacl = require('tweetnacl');
+const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY || '';
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
+
+// House role IDs (mapped during server setup)
+const HOUSE_ROLES = {
+    'shield':    '1494411653784141834',
+    'forge':     '1494411655633834044',
+    'web':       '1494411661761577011',
+    'code':      '1494411663955464414',
+    'matrix':    '1494411665410752614',
+    'dark-arts': '1494411667293868063',
+    'eye':       '1494411669030436924',
+    'script':    '1494411670767009998',
+    'cloud':     '1494411672951984350',
+    'key':       '1494411680481022092',
+    'ai':        '1494411682628374610',
+    'signal':    '1494411684771790848'
+};
+
+const GUILD_ID = '1494399956126138383';
+const STUDENT_ROLE_ID = '1494421554556047440';
+const INTRODUCTIONS_CHANNEL = '1494411540382744667';
+
+exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method not allowed');
+    }
+
+    // Verify Discord signature
+    const signature = req.headers['x-signature-ed25519'];
+    const timestamp = req.headers['x-signature-timestamp'];
+    const rawBody = JSON.stringify(req.body);
+
+    const isValid = nacl.sign.detached.verify(
+        Buffer.from(timestamp + rawBody),
+        Buffer.from(signature, 'hex'),
+        Buffer.from(DISCORD_PUBLIC_KEY, 'hex')
+    );
+
+    if (!isValid) {
+        return res.status(401).send('Invalid signature');
+    }
+
+    const interaction = req.body;
+
+    // PING — Discord sends this to verify the endpoint
+    if (interaction.type === 1) {
+        return res.json({ type: 1 });
+    }
+
+    // SLASH COMMAND
+    if (interaction.type === 2) {
+        const command = interaction.data.name;
+
+        // /help
+        if (command === 'help') {
+            return res.json({
+                type: 4,
+                data: {
+                    embeds: [{
+                        title: 'Hexworth Prime Bot Commands',
+                        color: 433476,
+                        fields: [
+                            { name: '/join', value: 'Get your Student role and welcome message', inline: true },
+                            { name: '/house <name>', value: 'Join a House role', inline: true },
+                            { name: '/standings', value: 'Tournament leaderboard', inline: true },
+                            { name: '/team <name>', value: 'Look up a team', inline: true },
+                            { name: '/challenge', value: 'Random challenge', inline: true },
+                            { name: '/trivia', value: 'Cybersecurity trivia', inline: true },
+                            { name: '/boxinfo <name>', value: 'Look up a CTF box', inline: true },
+                            { name: '/profile', value: 'Your profile', inline: true },
+                            { name: '/streak', value: 'Completion streak', inline: true },
+                            { name: '/help', value: 'This message', inline: true }
+                        ],
+                        footer: { text: 'Hexworth Prime // The Wire' }
+                    }]
+                }
+            });
+        }
+
+        // /standings
+        if (command === 'standings') {
+            try {
+                // Find the active tournament
+                const tournSnap = await db.collection('tournaments')
+                    .where('status', 'in', ['active', 'frozen'])
+                    .limit(1)
+                    .get();
+
+                if (tournSnap.empty) {
+                    return res.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: 'No Active Tournament',
+                                description: 'There is no tournament running right now. Check #announcements for the next event.',
+                                color: 10038562
+                            }]
+                        }
+                    });
+                }
+
+                const tourn = tournSnap.docs[0];
+                const tournData = tourn.data();
+                const teamsSnap = await tourn.ref.collection('teams')
+                    .orderBy('score', 'desc')
+                    .limit(10)
+                    .get();
+
+                let leaderboard = '';
+                let rank = 1;
+                teamsSnap.forEach(doc => {
+                    const t = doc.data();
+                    const medal = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : rank + 'th';
+                    leaderboard += `**${medal}** — ${t.name || doc.id} — ${t.score || 0} pts (${(t.solves || []).length} flags)\n`;
+                    rank++;
+                });
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Tournament Leaderboard: ' + (tournData.name || 'Active'),
+                            description: leaderboard || 'No teams have scored yet.',
+                            color: 15844367,
+                            footer: { text: 'Hexworth Prime // The Wire // Live Standings' },
+                            timestamp: new Date().toISOString()
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /standings error:', err);
+                return res.json({
+                    type: 4,
+                    data: { content: 'Error loading standings. Try again in a moment.' }
+                });
+            }
+        }
+
+        // /team <name>
+        if (command === 'team') {
+            const teamName = interaction.data.options?.[0]?.value;
+            if (!teamName) {
+                return res.json({ type: 4, data: { content: 'Usage: /team <team name>' } });
+            }
+
+            try {
+                const tournSnap = await db.collection('tournaments')
+                    .where('status', 'in', ['active', 'frozen'])
+                    .limit(1)
+                    .get();
+
+                if (tournSnap.empty) {
+                    return res.json({ type: 4, data: { content: 'No active tournament.' } });
+                }
+
+                const teamsSnap = await tournSnap.docs[0].ref.collection('teams').get();
+                let found = null;
+                teamsSnap.forEach(doc => {
+                    const t = doc.data();
+                    if ((t.name || '').toLowerCase() === teamName.toLowerCase()) {
+                        found = { id: doc.id, ...t };
+                    }
+                });
+
+                if (!found) {
+                    return res.json({ type: 4, data: { content: `Team "${teamName}" not found in the active tournament.` } });
+                }
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Team: ' + found.name,
+                            color: 3066993,
+                            fields: [
+                                { name: 'Score', value: String(found.score || 0), inline: true },
+                                { name: 'Flags Captured', value: String((found.solves || []).length), inline: true },
+                                { name: 'Members', value: String((found.members || []).length), inline: true }
+                            ],
+                            footer: { text: 'Hexworth Prime // The Wire' },
+                            timestamp: new Date().toISOString()
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /team error:', err);
+                return res.json({ type: 4, data: { content: 'Error loading team data.' } });
+            }
+        }
+
+        // /profile
+        if (command === 'profile') {
+            const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+            const discordUsername = interaction.member?.user?.username || interaction.user?.username || 'Unknown';
+
+            return res.json({
+                type: 4,
+                data: {
+                    embeds: [{
+                        title: 'Profile: ' + discordUsername,
+                        description: 'Discord-to-Hexworth profile linking coming soon. For now, visit your dashboard at hexworth.com for full stats.',
+                        color: 433476,
+                        fields: [
+                            { name: 'Discord ID', value: discordUserId, inline: true },
+                            { name: 'Platform', value: '[Open Dashboard](https://hexworth.com/dashboard.html)', inline: true }
+                        ],
+                        footer: { text: 'Hexworth Prime // The Wire' }
+                    }]
+                }
+            });
+        }
+
+        // /house <name>
+        if (command === 'house') {
+            const houseName = interaction.data.options?.[0]?.value;
+            const roleId = HOUSE_ROLES[houseName];
+            const memberId = interaction.member?.user?.id;
+
+            if (!roleId || !memberId) {
+                return res.json({ type: 4, data: { content: 'Invalid house or unable to identify you.' } });
+            }
+
+            try {
+                // Remove existing house roles first
+                const roleValues = Object.values(HOUSE_ROLES);
+                const memberRoles = interaction.member?.roles || [];
+                for (const existingRole of memberRoles) {
+                    if (roleValues.includes(existingRole) && existingRole !== roleId) {
+                        await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${memberId}/roles/${existingRole}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+                        });
+                    }
+                }
+
+                // Add the new house role
+                const addResult = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${memberId}/roles/${roleId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+                });
+
+                if (addResult.ok || addResult.status === 204) {
+                    const houseDisplay = houseName.charAt(0).toUpperCase() + houseName.slice(1);
+                    return res.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: 'House Assigned',
+                                description: `You are now a member of **House of ${houseDisplay}**. Your name color has been updated.`,
+                                color: 3066993,
+                                footer: { text: 'Hexworth Prime // Houses' }
+                            }]
+                        }
+                    });
+                } else {
+                    return res.json({ type: 4, data: { content: 'Failed to assign role. The bot may need Manage Roles permission.' } });
+                }
+            } catch (err) {
+                console.error('[Wire] /house error:', err);
+                return res.json({ type: 4, data: { content: 'Error assigning house role.' } });
+            }
+        }
+
+        // /join — assign Student role and welcome
+        if (command === 'join') {
+            const memberId = interaction.member?.user?.id;
+            const username = interaction.member?.user?.username || 'Operator';
+            if (!memberId) {
+                return res.json({ type: 4, data: { content: 'Could not identify you. Try again in a server channel.' } });
+            }
+
+            try {
+                // Assign Student role
+                await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${memberId}/roles/${STUDENT_ROLE_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+                });
+
+                // Post welcome in #introductions
+                await fetch(`https://discord.com/api/v10/channels/${INTRODUCTIONS_CHANNEL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bot ' + DISCORD_BOT_TOKEN,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        embeds: [{
+                            title: 'New Operator Joined',
+                            description: `Welcome **${username}** to Hexworth Prime.\n\nUse \`/house <name>\` to join a House and get your colored role.\nUse \`/help\` to see all available commands.\n\nIntroduce yourself below.`,
+                            color: 3066993,
+                            footer: { text: 'Hexworth Prime // Welcome' },
+                            timestamp: new Date().toISOString()
+                        }]
+                    })
+                });
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Welcome, ' + username,
+                            description: 'You have been assigned the **Student** role.\n\n**Next steps:**\n1. Use `/house <name>` to join your House\n2. Check out #quick-links for platform URLs\n3. Introduce yourself in #introductions\n4. Try `/challenge` for a random challenge',
+                            color: 3066993,
+                            footer: { text: 'Hexworth Prime // You are in.' }
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /join error:', err);
+                return res.json({ type: 4, data: { content: 'Error setting up your profile. The bot may need Manage Roles permission.' } });
+            }
+        }
+
+        // /challenge — random CTF box or Operator mission
+        if (command === 'challenge') {
+            const challenges = [
+                { name: 'A1-Phantom Gate', type: 'CTF Box', diff: 'Beginner', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'B3-Cipher Lock', type: 'CTF Box', diff: 'Intermediate', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'C7-Veiled Logic', type: 'CTF Box', diff: 'Advanced', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'D5-Breach Point', type: 'CTF Box', diff: 'Expert', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'OW-01 Mole Hunt', type: 'Open World', diff: 'Investigation', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'Python-01 Grid Search', type: 'Operator', diff: 'Tier 3', url: 'https://hexworth.com/operator/index.html' },
+                { name: 'Python-10 Route Planner', type: 'Operator', diff: 'Tier 5', url: 'https://hexworth.com/operator/index.html' },
+                { name: 'PFI-OP-01 The Patrol', type: 'Operator', diff: 'Tier 2', url: 'https://hexworth.com/operator/missions/pfi-op-01.mission.html' },
+                { name: 'PFI-OP-03 The Router', type: 'Operator', diff: 'Tier 3', url: 'https://hexworth.com/operator/missions/pfi-op-03.mission.html' },
+                { name: 'White Belt Challenge', type: 'Dojo', diff: 'Beginner', url: 'https://hexworth.com/dojo/index.html' },
+                { name: 'Green Belt Challenge', type: 'Dojo', diff: 'Intermediate', url: 'https://hexworth.com/dojo/index.html' },
+                { name: 'Black Belt Challenge', type: 'Dojo', diff: 'Expert', url: 'https://hexworth.com/dojo/index.html' }
+            ];
+            const pick = challenges[Math.floor(Math.random() * challenges.length)];
+            return res.json({
+                type: 4,
+                data: {
+                    embeds: [{
+                        title: 'Daily Challenge',
+                        color: 15844367,
+                        fields: [
+                            { name: 'Challenge', value: pick.name, inline: true },
+                            { name: 'Type', value: pick.type, inline: true },
+                            { name: 'Difficulty', value: pick.diff, inline: true },
+                            { name: 'Link', value: '[Launch Challenge](' + pick.url + ')', inline: false }
+                        ],
+                        footer: { text: 'Hexworth Prime // /challenge' }
+                    }]
+                }
+            });
+        }
+
+        // /trivia — cybersecurity trivia
+        if (command === 'trivia') {
+            const questions = [
+                { q: 'What port does HTTPS use by default?', a: '443' },
+                { q: 'What does CIA stand for in cybersecurity?', a: 'Confidentiality, Integrity, Availability' },
+                { q: 'What protocol resolves domain names to IP addresses?', a: 'DNS (Domain Name System)' },
+                { q: 'What is the default subnet mask for a Class C network?', a: '255.255.255.0 (/24)' },
+                { q: 'What does SIEM stand for?', a: 'Security Information and Event Management' },
+                { q: 'What layer of the OSI model does a switch operate at?', a: 'Layer 2 (Data Link)' },
+                { q: 'What tool is commonly used for packet capture and analysis?', a: 'Wireshark' },
+                { q: 'What does the "S" in HTTPS stand for?', a: 'Secure (HTTP over TLS/SSL)' },
+                { q: 'What is the well-known port for SSH?', a: '22' },
+                { q: 'What type of attack involves sending too many requests to overwhelm a server?', a: 'DDoS (Distributed Denial of Service)' },
+                { q: 'What does VLAN stand for?', a: 'Virtual Local Area Network' },
+                { q: 'What is the first phase of the Cyber Kill Chain?', a: 'Reconnaissance' },
+                { q: 'What command shows the routing table on a Windows machine?', a: 'route print' },
+                { q: 'What does ARP stand for?', a: 'Address Resolution Protocol' },
+                { q: 'What is the private IP range for Class A networks?', a: '10.0.0.0 - 10.255.255.255' },
+                { q: 'What encryption standard replaced DES?', a: 'AES (Advanced Encryption Standard)' },
+                { q: 'What does NIST stand for?', a: 'National Institute of Standards and Technology' },
+                { q: 'How many usable hosts are in a /24 subnet?', a: '254' },
+                { q: 'What Linux command changes file permissions?', a: 'chmod' },
+                { q: 'What is the maximum MTU size for standard Ethernet?', a: '1500 bytes' }
+            ];
+            const pick = questions[Math.floor(Math.random() * questions.length)];
+            return res.json({
+                type: 4,
+                data: {
+                    embeds: [{
+                        title: 'Cybersecurity Trivia',
+                        description: '**' + pick.q + '**\n\n||' + pick.a + '||',
+                        color: 433476,
+                        footer: { text: 'Hexworth Prime // Click the spoiler to reveal the answer' }
+                    }]
+                }
+            });
+        }
+
+        // /boxinfo <name> — look up a CTF box
+        if (command === 'boxinfo') {
+            const boxName = (interaction.data.options?.[0]?.value || '').toLowerCase();
+            try {
+                const boxFlags = require('./box_flags.json');
+                let found = null;
+                let foundKey = null;
+                for (const [key, val] of Object.entries(boxFlags)) {
+                    if (key.toLowerCase().includes(boxName) || (val.title || '').toLowerCase().includes(boxName)) {
+                        found = val;
+                        foundKey = key;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return res.json({ type: 4, data: { content: 'Box "' + boxName + '" not found. Try a partial name like "phantom" or "cipher".' } });
+                }
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Box: ' + (found.title || foundKey),
+                            color: 10038562,
+                            fields: [
+                                { name: 'ID', value: foundKey, inline: true },
+                                { name: 'Flags', value: String(Object.keys(found.flags || {}).length || found.flagCount || '?'), inline: true },
+                                { name: 'Link', value: '[Open in Arena](https://hexworth.com/arena/index.html)', inline: true }
+                            ],
+                            footer: { text: 'Hexworth Prime // CTF Arena' }
+                        }]
+                    }
+                });
+            } catch (err) {
+                return res.json({ type: 4, data: { content: 'Error looking up box data.' } });
+            }
+        }
+
+        // /streak — completion streak (placeholder until Discord-Hexworth linking)
+        if (command === 'streak') {
+            return res.json({
+                type: 4,
+                data: {
+                    embeds: [{
+                        title: 'Streak Tracker',
+                        description: 'Discord-to-Hexworth account linking is coming soon. Once linked, this command will show your daily completion streak, XP earned this week, and current level.\n\nFor now, check your streak on the [Hexworth Dashboard](https://hexworth.com/dashboard.html).',
+                        color: 16766720,
+                        footer: { text: 'Hexworth Prime // Coming Soon' }
+                    }]
+                }
+            });
+        }
+
+        // Unknown command
+        return res.json({ type: 4, data: { content: 'Unknown command.' } });
+    }
+
+    // Unknown interaction type
+    return res.status(400).send('Unknown interaction type');
+});
+
+
+// ─── The Wire: Daily Challenge (Scheduled) ───────────────────────
+// Posts a random challenge to #daily-challenge every day at 8am EST (13:00 UTC)
+
+const DAILY_CHALLENGE_CHANNEL = '1494417032702066708';
+
+exports.dailyChallenge = onSchedule({
+    schedule: 'every day 13:00',
+    region: 'us-central1',
+    timeZone: 'America/New_York'
+}, async () => {
+    const challenges = [
+        { name: 'A1-Phantom Gate', type: 'CTF Box', diff: 'Beginner', desc: 'Your first breach. Enumerate services, find the way in, capture the flag.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'A5-Binary Storm', type: 'CTF Box', diff: 'Beginner', desc: 'A misconfigured server with too many open doors. Find the right one.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'B3-Cipher Lock', type: 'CTF Box', diff: 'Intermediate', desc: 'Encrypted comms, hidden keys, and a locked vault. Break in.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'B7-Dark Relay', type: 'CTF Box', diff: 'Intermediate', desc: 'Pivot through a relay network. Each hop reveals the next target.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'C7-Veiled Logic', type: 'CTF Box', diff: 'Advanced', desc: 'The logic is hidden in the code. Reverse it to find the flag.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'D5-Breach Point', type: 'CTF Box', diff: 'Expert', desc: 'Multi-stage. Full kill chain from recon to exfiltration.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'OW-01 Mole Hunt', type: 'Open World', diff: 'Investigation', desc: 'An insider is leaking data. Analyze SIEM logs, emails, and badge records to find them.', url: 'https://hexworth.com/arena/index.html' },
+        { name: 'Python-01 Grid Search', type: 'Operator', diff: 'Tier 3', desc: 'Write a loop to sweep a 7x7 grid and find 5 hidden servers.', url: 'https://hexworth.com/operator/index.html' },
+        { name: 'Python-15 Quadrant Siege', type: 'Operator', diff: 'Tier 6', desc: '11x11 grid, 4 zones, gates everywhere. Functions are mandatory.', url: 'https://hexworth.com/operator/index.html' },
+        { name: 'PFI-OP-01 The Patrol', type: 'Operator', diff: 'Tier 2', desc: 'Your first function mission. Define patrol(), call it 4 times.', url: 'https://hexworth.com/operator/missions/pfi-op-01.mission.html' },
+        { name: 'PFI-OP-04 The Architect', type: 'Operator', diff: 'Tier 4', desc: 'Compose complex behavior from simple functions. 4 quadrants, 4 servers.', url: 'https://hexworth.com/operator/missions/pfi-op-04.mission.html' },
+        { name: 'White Belt: SQL Injection', type: 'Dojo', diff: 'Beginner', desc: 'Classic SQL injection on a login form. Can you bypass authentication?', url: 'https://hexworth.com/dojo/index.html' },
+        { name: 'Green Belt: SSRF', type: 'Dojo', diff: 'Intermediate', desc: 'Server-Side Request Forgery. Make the server fetch internal resources for you.', url: 'https://hexworth.com/dojo/index.html' },
+        { name: 'Black Belt: Chain Attack', type: 'Dojo', diff: 'Expert', desc: 'Combine 3 vulnerabilities into a single kill chain. No hints.', url: 'https://hexworth.com/dojo/index.html' }
+    ];
+
+    const pick = challenges[Math.floor(Math.random() * challenges.length)];
+    const colors = { 'Beginner': 3066993, 'Intermediate': 15844367, 'Advanced': 16753920, 'Expert': 16711680, 'Investigation': 5025616, 'Tier 2': 3066993, 'Tier 3': 3447003, 'Tier 4': 15844367, 'Tier 6': 16711680 };
+
+    try {
+        await fetch(`https://discord.com/api/v10/channels/${DAILY_CHALLENGE_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bot ' + DISCORD_BOT_TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                embeds: [{
+                    title: 'DAILY CHALLENGE — ' + new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+                    color: colors[pick.diff] || 433476,
+                    fields: [
+                        { name: pick.name, value: pick.desc, inline: false },
+                        { name: 'Type', value: pick.type, inline: true },
+                        { name: 'Difficulty', value: pick.diff, inline: true },
+                        { name: 'Link', value: '[Launch Challenge](' + pick.url + ')', inline: true }
+                    ],
+                    footer: { text: 'Hexworth Prime // The Wire // Daily Challenge' },
+                    timestamp: new Date().toISOString()
+                }]
+            })
+        });
+        console.log('[Wire] Daily challenge posted:', pick.name);
+    } catch (err) {
+        console.error('[Wire] Daily challenge failed:', err.message);
+    }
+});
+
+
+// ─── The Wire: Patch Notes (callable by deploy process) ──────────
+// Called manually or via post-deploy hook to announce a deployment.
+
+const PATCH_NOTES_CHANNEL = '1494417027446739025';
+
+exports.postPatchNote = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const email = request.auth.token.email || '';
+    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    const { title, changes, version } = request.data || {};
+    if (!title || !changes) {
+        throw new HttpsError('invalid-argument', 'title and changes are required.');
+    }
+
+    const fields = [];
+    if (version) fields.push({ name: 'Version', value: version, inline: true });
+    fields.push({ name: 'Changes', value: changes, inline: false });
+
+    try {
+        await fetch(`https://discord.com/api/v10/channels/${PATCH_NOTES_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bot ' + DISCORD_BOT_TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                embeds: [{
+                    title: 'PATCH NOTES — ' + title,
+                    color: 3447003,
+                    fields: fields,
+                    footer: { text: 'Hexworth Prime // Deploy' },
+                    timestamp: new Date().toISOString()
+                }]
+            })
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('[Wire] Patch note failed:', err.message);
+        throw new HttpsError('internal', 'Failed to post patch note.');
+    }
 });

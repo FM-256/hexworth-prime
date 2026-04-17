@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-05 10:17:16 PM
+                    Scanned: 2026-04-09 2:43:34 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 3871 |
-| Directories | 973 |
-| Content Files | 3871 |
-| Scan Duration | 1510ms |
+| Files Scanned | 4119 |
+| Directories | 1015 |
+| Content Files | 4119 |
+| Scan Duration | 442ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 1855 |
-| html | 1188 |
-| lab | 424 |
-| quiz | 243 |
-| applet | 161 |
+| presentation | 1880 |
+| html | 1384 |
+| lab | 430 |
+| quiz | 248 |
+| applet | 177 |
 
 ### ContentCatalog Validation
 
@@ -32,7 +32,7 @@
 | Total Modules | 1894 |
 | Available | 1889 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 321 |
+| Undeclared Files (CAT-002) | 361 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 48 |
-| Warning | 2057 |
-| Info | 431 |
-| **Total** | **13465** |
+| Suspect | 55 |
+| Warning | 2157 |
+| Info | 447 |
+| **Total** | **13842** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 2674 |
+| Ready | 2726 |
 | Not Ready | 9 |
-| Unknown | 1188 |
+| Unknown | 1384 |
 
 
 ## FILE HIERARCHY
@@ -367,6 +367,10 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 ops-04-operation-steel-wall
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 ops-05-operation-blackwire
+│   │   │   ├── 📄 database.html
+│   │   │   ├── 📄 gateway.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 osint-01-social-trace
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 osint-02-geolocation
@@ -377,6 +381,126 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 osint-05-breach-hunt
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 ow-01-mole-hunt
+│   │   │   ├── 📄 badge.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 email.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 hr.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 reports
+│   │   │   ├── 📄 siem.html
+│   │   │   └── 📄 workstation.html
+│   │   ├── 📁 ow-02-dead-drop
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 comms.html
+│   │   │   ├── 📄 contracts.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 exchange.html
+│   │   │   ├── 📄 explorer.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 mixer.html
+│   │   │   └── 📁 reports
+│   │   ├── 📁 ow-03-glass-house
+│   │   │   ├── 📄 bms.html
+│   │   │   ├── 📄 cameras.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 network.html
+│   │   │   ├── 📁 reports
+│   │   │   ├── 📄 workstation-a.html
+│   │   │   └── 📄 workstation-b.html
+│   │   ├── 📁 ow-04-burned-source
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 laptop.html
+│   │   │   ├── 📄 newsroom.html
+│   │   │   ├── 📄 osint.html
+│   │   │   ├── 📄 phone.html
+│   │   │   ├── 📁 reports
+│   │   │   └── 📄 tipline.html
+│   │   ├── 📁 ow-05-phantom-ledger
+│   │   │   ├── 📄 banking.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 email.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 reports
+│   │   │   ├── 📄 sar.html
+│   │   │   ├── 📄 shell.html
+│   │   │   └── 📄 surveillance.html
+│   │   ├── 📁 ow-06-signal-lost
+│   │   │   ├── 📄 briefing.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 network.html
+│   │   │   ├── 📁 reports
+│   │   │   ├── 📄 satellite.html
+│   │   │   ├── 📄 sigint.html
+│   │   │   └── 📄 telemetry.html
+│   │   ├── 📁 ow-07-counterfeit
+│   │   │   ├── 📄 attribution.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 domains.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 narrative.html
+│   │   │   ├── 📄 payments.html
+│   │   │   ├── 📁 reports
+│   │   │   └── 📄 social.html
+│   │   ├── 📁 ows-01-ghost-haul
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 email.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 gps.html
+│   │   │   ├── 📄 iam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 network.html
+│   │   │   ├── 📁 reports
+│   │   │   └── 📄 tms.html
+│   │   ├── 📁 ows-02-paper-trail
+│   │   │   ├── 📄 carrier.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 docs.html
+│   │   │   ├── 📄 email.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 financial.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 loadboard.html
+│   │   │   └── 📁 reports
+│   │   ├── 📁 ows-03-black-box
+│   │   │   ├── 📄 api.html
+│   │   │   ├── 📄 cameras.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 eld.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 manifest.html
+│   │   │   ├── 📄 network.html
+│   │   │   └── 📁 reports
+│   │   ├── 📁 ows-04-iron-gate
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 customs.html
+│   │   │   ├── 📄 drayage.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 gate.html
+│   │   │   ├── 📄 iam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 reports
+│   │   │   └── 📄 tos.html
+│   │   ├── 📁 ows-05-blind-spot
+│   │   │   ├── 📄 carrier.html
+│   │   │   ├── 📄 caseboard.html
+│   │   │   ├── 📄 dispatch.html
+│   │   │   ├── 📄 email.html
+│   │   │   ├── 📁 evidence
+│   │   │   ├── 📄 financial.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 loadboard.html
+│   │   │   └── 📁 reports
 │   │   ├── 📁 rev-01-strings-basics
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 rev-02-disassembly
@@ -393,7 +517,21 @@
 │   ├── 📄 tournament-lobby.html
 │   └── 📄 tournament-podium.html
 ├── 📁 bot-avatars
+├── 📄 bot-knowledge-ai.html
+├── 📄 bot-knowledge-cloud.html
+├── 📄 bot-knowledge-code.html
+├── 📄 bot-knowledge-dark-arts.html
+├── 📄 bot-knowledge-divergent.html
+├── 📄 bot-knowledge-eye.html
+├── 📄 bot-knowledge-forge.html
+├── 📄 bot-knowledge-key.html
+├── 📄 bot-knowledge-matrix.html
+├── 📄 bot-knowledge-script.html
+├── 📄 bot-knowledge-shield.html
+├── 📄 bot-knowledge-signal.html
+├── 📄 bot-knowledge-web.html
 ├── 📄 bot-knowledge.html
+├── 📄 bot-test.html
 ├── 📁 bot-widgets
 ├── 📁 career
 │   ├── 📄 career-paths.html
@@ -906,9 +1044,6 @@
 │   │       └── 📍 index.html
 │   └── 📍 index.html
 ├── 📁 docs
-│   ├── 📁 features
-│   └── 📁 themes
-│       └── 📁 ui-themes
 ├── 📄 faq.html
 ├── 📁 forensics
 │   ├── 📍 index.html
@@ -4232,7 +4367,54 @@
 │       │       ├── 📄 bb-wl-10.html
 │       │       └── 📍 index.html
 │       ├── 📁 ccna
-│       │   └── 📍 index.html
+│       │   ├── 📁 configs [config]
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 ccna-acl-lab.lab.html
+│       │   │   ├── 🔬 ccna-ios-cli.lab.html
+│       │   │   ├── 🔬 ccna-nat-config.lab.html
+│       │   │   ├── 🔬 ccna-ospf-config.lab.html
+│       │   │   ├── 🔬 ccna-troubleshooting.lab.html
+│       │   │   └── 🔬 ccna-vlan-config.lab.html
+│       │   ├── 📁 modules [modules]
+│       │   │   ├── 📄 ccna-01.module.html
+│       │   │   ├── 📄 ccna-02.module.html
+│       │   │   ├── 📄 ccna-03.module.html
+│       │   │   ├── 📄 ccna-04.module.html
+│       │   │   ├── 📄 ccna-05.module.html
+│       │   │   ├── 📄 ccna-06.module.html
+│       │   │   ├── 📄 ccna-07.module.html
+│       │   │   ├── 📄 ccna-08.module.html
+│       │   │   ├── 📄 ccna-09.module.html
+│       │   │   ├── 📄 ccna-10.module.html
+│       │   │   ├── 📄 ccna-11.module.html
+│       │   │   ├── 📄 ccna-12.module.html
+│       │   │   ├── 📄 ccna-13.module.html
+│       │   │   ├── 📄 ccna-14.module.html
+│       │   │   ├── 📄 ccna-15.module.html
+│       │   │   ├── 📄 ccna-16.module.html
+│       │   │   ├── 📄 ccna-17.module.html
+│       │   │   ├── 📄 ccna-18.module.html
+│       │   │   ├── 📄 ccna-19.module.html
+│       │   │   ├── 📄 ccna-20.module.html
+│       │   │   ├── 📄 ccna-21.module.html
+│       │   │   ├── 📄 ccna-22.module.html
+│       │   │   ├── 📄 ccna-23.module.html
+│       │   │   ├── 📄 ccna-24.module.html
+│       │   │   └── 📄 ccna-25.module.html
+│       │   ├── 📁 presentations [presentations]
+│       │   ├── 📁 quizzes [quizzes]
+│       │   │   ├── ❓ ccna-comprehensive.quiz.html
+│       │   │   ├── ❓ ccna-domain1.quiz.html
+│       │   │   ├── ❓ ccna-domain2.quiz.html
+│       │   │   ├── ❓ ccna-domain3.quiz.html
+│       │   │   └── ❓ ccna-domain4-5-6.quiz.html
+│       │   ├── 📁 reviews
+│       │   └── 📁 tools
+│       │       ├── 📄 ccna-acl-builder.tool.html
+│       │       ├── 📄 ccna-ios-reference.tool.html
+│       │       ├── 📄 ccna-ospf-visualizer.tool.html
+│       │       └── 📄 ccna-subnet-calculator.tool.html
 │       ├── 📁 exams
 │       │   ├── 📍 index.html
 │       │   ├── 📄 web-network-plus-practice.exam.html
@@ -4533,6 +4715,56 @@
 │       ├── 📄 incident-response-01.mission.html
 │       ├── 📄 incident-response-02.mission.html
 │       ├── 📄 incident-response-03.mission.html
+│       ├── 📄 js-01.mission.html
+│       ├── 📄 js-02.mission.html
+│       ├── 📄 js-03.mission.html
+│       ├── 📄 js-04.mission.html
+│       ├── 📄 js-05.mission.html
+│       ├── 📄 js-06.mission.html
+│       ├── 📄 js-07.mission.html
+│       ├── 📄 js-08.mission.html
+│       ├── 📄 js-09.mission.html
+│       ├── 📄 js-10.mission.html
+│       ├── 📄 js-11.mission.html
+│       ├── 📄 js-12.mission.html
+│       ├── 📄 js-13.mission.html
+│       ├── 📄 js-14.mission.html
+│       ├── 📄 js-15.mission.html
+│       ├── 📄 js-16.mission.html
+│       ├── 📄 js-17.mission.html
+│       ├── 📄 js-18.mission.html
+│       ├── 📄 js-19.mission.html
+│       ├── 📄 js-20.mission.html
+│       ├── 📄 js-21.mission.html
+│       ├── 📄 js-22.mission.html
+│       ├── 📄 js-23.mission.html
+│       ├── 📄 js-24.mission.html
+│       ├── 📄 js-25.mission.html
+│       ├── 📄 js-26.mission.html
+│       ├── 📄 js-27.mission.html
+│       ├── 📄 js-28.mission.html
+│       ├── 📄 js-29.mission.html
+│       ├── 📄 js-30.mission.html
+│       ├── 📄 js-31.mission.html
+│       ├── 📄 js-32.mission.html
+│       ├── 📄 js-33.mission.html
+│       ├── 📄 js-34.mission.html
+│       ├── 📄 js-35.mission.html
+│       ├── 📄 js-36.mission.html
+│       ├── 📄 js-37.mission.html
+│       ├── 📄 js-38.mission.html
+│       ├── 📄 js-39.mission.html
+│       ├── 📄 js-40.mission.html
+│       ├── 📄 js-41.mission.html
+│       ├── 📄 js-42.mission.html
+│       ├── 📄 js-43.mission.html
+│       ├── 📄 js-44.mission.html
+│       ├── 📄 js-45.mission.html
+│       ├── 📄 js-46.mission.html
+│       ├── 📄 js-47.mission.html
+│       ├── 📄 js-48.mission.html
+│       ├── 📄 js-49.mission.html
+│       ├── 📄 js-50.mission.html
 │       ├── 📄 linux-fs-01.mission.html
 │       ├── 📄 linux-fs-02.mission.html
 │       ├── 📄 linux-fs-03.mission.html
@@ -4542,6 +4774,52 @@
 │       ├── 📄 python-02.mission.html
 │       ├── 📄 python-03.mission.html
 │       ├── 📄 python-04.mission.html
+│       ├── 📄 python-05.mission.html
+│       ├── 📄 python-06.mission.html
+│       ├── 📄 python-07.mission.html
+│       ├── 📄 python-08.mission.html
+│       ├── 📄 python-09.mission.html
+│       ├── 📄 python-10.mission.html
+│       ├── 📄 python-11.mission.html
+│       ├── 📄 python-12.mission.html
+│       ├── 📄 python-13.mission.html
+│       ├── 📄 python-14.mission.html
+│       ├── 📄 python-15.mission.html
+│       ├── 📄 python-16.mission.html
+│       ├── 📄 python-17.mission.html
+│       ├── 📄 python-18.mission.html
+│       ├── 📄 python-19.mission.html
+│       ├── 📄 python-20.mission.html
+│       ├── 📄 python-21.mission.html
+│       ├── 📄 python-22.mission.html
+│       ├── 📄 python-23.mission.html
+│       ├── 📄 python-24.mission.html
+│       ├── 📄 python-25.mission.html
+│       ├── 📄 python-26.mission.html
+│       ├── 📄 python-27.mission.html
+│       ├── 📄 python-28.mission.html
+│       ├── 📄 python-29.mission.html
+│       ├── 📄 python-30.mission.html
+│       ├── 📄 python-31.mission.html
+│       ├── 📄 python-32.mission.html
+│       ├── 📄 python-33.mission.html
+│       ├── 📄 python-34.mission.html
+│       ├── 📄 python-35.mission.html
+│       ├── 📄 python-36.mission.html
+│       ├── 📄 python-37.mission.html
+│       ├── 📄 python-38.mission.html
+│       ├── 📄 python-39.mission.html
+│       ├── 📄 python-40.mission.html
+│       ├── 📄 python-41.mission.html
+│       ├── 📄 python-42.mission.html
+│       ├── 📄 python-43.mission.html
+│       ├── 📄 python-44.mission.html
+│       ├── 📄 python-45.mission.html
+│       ├── 📄 python-46.mission.html
+│       ├── 📄 python-47.mission.html
+│       ├── 📄 python-48.mission.html
+│       ├── 📄 python-49.mission.html
+│       ├── 📄 python-50.mission.html
 │       ├── 📄 recon-01.mission.html
 │       ├── 📄 recon-02.mission.html
 │       ├── 📄 recon-03.mission.html
@@ -4682,6 +4960,18 @@
 │   │   │   ├── 📄 sg-90-autonomous-mission.html
 │   │   │   ├── 📄 sg-91-drone-forensics.html
 │   │   │   └── 📄 sg-92-swarm-simulator.html
+│   │   ├── 📁 esp32-s3-arsenal
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-100-marauder-firmware.html
+│   │   │   ├── 📄 sg-101-custom-army-knife.html
+│   │   │   ├── 🔬 sg-102-defense-lab.html
+│   │   │   ├── 📄 sg-93-s3-setup.html
+│   │   │   ├── 📄 sg-94-rubber-ducky-s3.html
+│   │   │   ├── 📄 sg-95-wifi-recon-s3.html
+│   │   │   ├── 📄 sg-96-ble-swiss-army.html
+│   │   │   ├── 📄 sg-97-usb-mass-storage.html
+│   │   │   ├── 📄 sg-98-network-impersonation.html
+│   │   │   └── 📄 sg-99-wifi-deauther-detector.html
 │   │   ├── 📁 field-prep
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 sg-31-bootable-usb.html
@@ -6957,7 +7247,20 @@
 | console | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| siem | applet | ✓ | 1 |
+| workstation | applet | ✓ | 1 |
 | tournament-board | applet | ✓ | 1 |
+| bot-knowledge-ai | applet | ✓ | 1 |
+| bot-knowledge-cloud | applet | ✓ | 1 |
+| bot-knowledge-code | applet | ✓ | 1 |
+| bot-knowledge-dark-arts | applet | ✓ | 1 |
+| bot-knowledge-eye | applet | ✓ | 1 |
+| bot-knowledge-forge | applet | ✓ | 1 |
+| bot-knowledge-key | applet | ✓ | 1 |
+| bot-knowledge-script | applet | ✓ | 1 |
+| bot-knowledge-shield | applet | ✓ | 1 |
+| bot-knowledge-signal | applet | ✓ | 1 |
+| bot-knowledge-web | applet | ✓ | 1 |
 | bot-knowledge | applet | ✓ | 1 |
 | career-quiz | applet | ✓ | 1 |
 | privacy-settings | presentation | ✓ | 1 |
@@ -7222,6 +7525,7 @@
 | dark-arts-sample.tool | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | da-ad-attack-lab.lab | lab | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | product-info | applet | ✓ | 1 |
 | ai-explainable-ml | applet | ✓ | 1 |
 | ai-intrusion-detector | applet | ✓ | 1 |
@@ -7443,6 +7747,44 @@
 | bb-wl-09 | presentation | ✓ | 0 |
 | bb-wl-10 | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
+| ccna-acl-lab.lab | lab | ✓ | 0 |
+| ccna-ios-cli.lab | lab | ✓ | 0 |
+| ccna-nat-config.lab | lab | ✓ | 0 |
+| ccna-ospf-config.lab | lab | ✓ | 0 |
+| ccna-troubleshooting.lab | lab | ✓ | 0 |
+| ccna-vlan-config.lab | lab | ✓ | 0 |
+| ccna-01.module | presentation | ✓ | 0 |
+| ccna-02.module | presentation | ✓ | 0 |
+| ccna-03.module | presentation | ✓ | 0 |
+| ccna-04.module | presentation | ✓ | 0 |
+| ccna-05.module | presentation | ✓ | 0 |
+| ccna-06.module | presentation | ✓ | 0 |
+| ccna-07.module | presentation | ✓ | 0 |
+| ccna-08.module | presentation | ✓ | 0 |
+| ccna-09.module | presentation | ✓ | 0 |
+| ccna-10.module | presentation | ✓ | 0 |
+| ccna-11.module | presentation | ✓ | 0 |
+| ccna-12.module | presentation | ✓ | 0 |
+| ccna-13.module | presentation | ✓ | 0 |
+| ccna-14.module | presentation | ✓ | 0 |
+| ccna-15.module | presentation | ✓ | 0 |
+| ccna-16.module | presentation | ✓ | 0 |
+| ccna-17.module | presentation | ✓ | 0 |
+| ccna-18.module | presentation | ✓ | 0 |
+| ccna-19.module | presentation | ✓ | 0 |
+| ccna-20.module | presentation | ✓ | 0 |
+| ccna-21.module | presentation | ✓ | 0 |
+| ccna-22.module | presentation | ✓ | 0 |
+| ccna-23.module | presentation | ✓ | 0 |
+| ccna-24.module | presentation | ✓ | 0 |
+| ccna-25.module | presentation | ✓ | 0 |
+| ccna-comprehensive-quiz | quiz | ✓ | 0 |
+| ccna-domain1-quiz | quiz | ✓ | 0 |
+| ccna-domain2-quiz | quiz | ✓ | 0 |
+| ccna-domain3-quiz | quiz | ✓ | 0 |
+| ccna-domain456-quiz | quiz | ✓ | 0 |
+| ccna-ospf-visualizer.tool | applet | ✓ | 1 |
+| ccna-subnet-calculator.tool | applet | ✓ | 1 |
 | web-network-plus-practice.exam | presentation | ✓ | 0 |
 | web-networking-midterm.exam | presentation | ✓ | 0 |
 | web-dns-resolver-race.applet | applet | ✓ | 1 |
@@ -7656,7 +7998,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (48) — heuristic, needs review
+### SUSPECT (55) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -7681,6 +8023,10 @@
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `admin/console.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `arena/boxes/ops-05-operation-blackwire/gateway.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-001]** Excessive inline scripts: 12 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/dojo/blue-belt.html`
@@ -7842,6 +8188,30 @@
   File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
   Fix: Remove commented-out code or restore it if needed
 
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne06-dns-dhcp-console-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne06-dns-dhcp-console-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne10-change-mgmt-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne10-change-mgmt-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne10-monitoring-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `houses/web/network-plus/labs/ne10-monitoring-gui.lab.html`
+  Fix: Remove commented-out code or restore it if needed
+
 **[HEUR-001]** Excessive inline scripts: 17 <script> blocks without src (threshold: 8)
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
@@ -7850,14 +8220,66 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2057)
+### WARNING (2157)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/console.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `arena/boxes/ow-01-mole-hunt/siem.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `arena/boxes/ow-01-mole-hunt/workstation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `arena/tournament-board.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-ai.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-cloud.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-code.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-dark-arts.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-eye.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-forge.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-key.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-script.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-shield.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-signal.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-web.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12697,6 +13119,158 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-acl-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-ios-cli.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-nat-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-ospf-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-troubleshooting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/labs/ccna-vlan-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-01.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-02.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-03.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-04.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-05.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-06.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-07.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-08.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-09.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-10.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-11.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-12.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-13.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-14.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-15.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-16.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-17.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-18.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-19.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-20.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-21.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-22.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-23.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-24.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/modules/ccna-25.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/quizzes/ccna-comprehensive.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/quizzes/ccna-domain1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/quizzes/ccna-domain2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/quizzes/ccna-domain3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/tools/ccna-ospf-visualizer.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/ccna/tools/ccna-subnet-calculator.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/exams/web-network-plus-practice.exam.html`
   Fix: Add entry to content-registry.js
 
@@ -13831,6 +14405,10 @@
 **[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `bot-knowledge-forge.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `bot-knowledge.html`
@@ -15929,6 +16507,198 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-04.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-05.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-06.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-07.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-08.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-09.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-10.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-11.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-12.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-13.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-14.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-15.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-16.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-17.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-18.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-19.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-20.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-21.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-22.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-23.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-24.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-25.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-26.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-27.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-28.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-29.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-30.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-31.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-32.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-33.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-34.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-35.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-36.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-37.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-38.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-39.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-40.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-41.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-42.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-43.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-44.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-45.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-46.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-47.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-48.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-49.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-50.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `operator/missions/recon-01.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -15948,7 +16718,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (431)
+### INFO (447)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -15963,7 +16733,59 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/boxes/ow-01-mole-hunt/siem.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/boxes/ow-01-mole-hunt/workstation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `arena/tournament-board.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-ai.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-cloud.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-code.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-dark-arts.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-eye.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-forge.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-key.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-script.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-shield.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-signal.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-web.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -16359,6 +17181,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/ccna/tools/ccna-ospf-visualizer.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/ccna/tools/ccna-subnet-calculator.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/games/web-dns-resolver-race.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -16384,6 +17214,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/network-plus/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -17670,12 +18504,25 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1385)
+### Unregistered Content (1436)
 
 | Path | Type | House |
 |------|------|-------|
 | admin/console.html | presentation | - |
+| arena/boxes/ow-01-mole-hunt/siem.html | applet | - |
+| arena/boxes/ow-01-mole-hunt/workstation.html | applet | - |
 | arena/tournament-board.html | applet | - |
+| bot-knowledge-ai.html | applet | - |
+| bot-knowledge-cloud.html | applet | - |
+| bot-knowledge-code.html | applet | - |
+| bot-knowledge-dark-arts.html | applet | - |
+| bot-knowledge-eye.html | applet | - |
+| bot-knowledge-forge.html | applet | - |
+| bot-knowledge-key.html | applet | - |
+| bot-knowledge-script.html | applet | - |
+| bot-knowledge-shield.html | applet | - |
+| bot-knowledge-signal.html | applet | - |
+| bot-knowledge-web.html | applet | - |
 | bot-knowledge.html | applet | - |
 | career-quiz.html | applet | - |
 | components/profile/privacy-settings.html | presentation | - |
@@ -18878,6 +19725,44 @@
 | houses/web/backbone/wireless/bb-wl-08.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-09.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-10.html | presentation | web |
+| houses/web/ccna/labs/ccna-acl-lab.lab.html | lab | web |
+| houses/web/ccna/labs/ccna-ios-cli.lab.html | lab | web |
+| houses/web/ccna/labs/ccna-nat-config.lab.html | lab | web |
+| houses/web/ccna/labs/ccna-ospf-config.lab.html | lab | web |
+| houses/web/ccna/labs/ccna-troubleshooting.lab.html | lab | web |
+| houses/web/ccna/labs/ccna-vlan-config.lab.html | lab | web |
+| houses/web/ccna/modules/ccna-01.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-02.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-03.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-04.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-05.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-06.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-07.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-08.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-09.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-10.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-11.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-12.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-13.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-14.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-15.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-16.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-17.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-18.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-19.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-20.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-21.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-22.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-23.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-24.module.html | presentation | web |
+| houses/web/ccna/modules/ccna-25.module.html | presentation | web |
+| houses/web/ccna/quizzes/ccna-comprehensive.quiz.html | quiz | web |
+| houses/web/ccna/quizzes/ccna-domain1.quiz.html | quiz | web |
+| houses/web/ccna/quizzes/ccna-domain2.quiz.html | quiz | web |
+| houses/web/ccna/quizzes/ccna-domain3.quiz.html | quiz | web |
+| houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html | quiz | web |
+| houses/web/ccna/tools/ccna-ospf-visualizer.tool.html | applet | web |
+| houses/web/ccna/tools/ccna-subnet-calculator.tool.html | applet | web |
 | houses/web/exams/web-network-plus-practice.exam.html | presentation | web |
 | houses/web/games/web-dns-resolver-race.applet.html | applet | web |
 | houses/web/games/web-subnet-siege.applet.html | applet | web |

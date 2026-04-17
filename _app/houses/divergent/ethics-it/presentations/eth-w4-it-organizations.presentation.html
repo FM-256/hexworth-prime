@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Organizations &amp; Work | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0010 0%, #0d0018 50%, #0f001e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 0, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #cc00cc; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8ff; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e0030; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">IT Organizations &amp; Work | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ETH-W4B &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; Chapter 10</div>
+        <div class="title-hero">
+            <div class="big-title">
+                IT Organizations<br>
+                <span class="accent">&amp; Work</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Contingent Workers &nbsp;&bull;&nbsp; H-1B &nbsp;&bull;&nbsp; Outsourcing &nbsp;&bull;&nbsp; Gig Economy &nbsp;&bull;&nbsp; Whistleblowing &nbsp;&bull;&nbsp; Green IT
+            </div>
+        </div>
+        <div class="scenario-strip">
+            In October 2021, Frances Haugen appeared before the US Senate Commerce Committee and testified that Facebook "consistently chose company profits over user safety." She was a former product manager who had copied thousands of internal documents before leaving the company. Her testimony triggered congressional hearings, regulatory investigations in multiple countries, and significant public debate about tech company accountability. The question this module explores: what obligations do IT professionals have when their employer's conduct conflicts with the public interest?
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ETH-W4B</span>
+            <span>Week 4 of 8</span>
+            <span>Chapter 10</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- THE IT WORKFORCE LANDSCAPE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The IT Workforce <span class="accent">Landscape</span></div>
+        <div class="slide-subtitle">The IT workforce is structured differently from most industries -- with higher proportions of contingent, contract, and geographically distributed work than most comparable professional fields.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Core vs. Contingent</div>
+                <div class="card-desc">Most large IT organizations maintain a core of permanent employees alongside significant populations of contingent workers: contractors, consultants, staff augmentation through third-party staffing firms, and offshore development teams. The ratio of contingent to permanent staff varies widely. In some large technology companies, contractors have exceeded full-time employees in headcount, working in similar roles but with dramatically different compensation, benefits, and job security.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Global Distribution</div>
+                <div class="card-desc">Software development is among the most geographically distributed professional activities. US technology companies routinely employ software engineers in India, Eastern Europe, Latin America, and Southeast Asia, either as full employees, through captive development centers, or through outsourcing partners. This global distribution creates efficiency benefits and raises distinct ethical questions about labor standards, compensation equity, and transfer of knowledge and opportunity across borders.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Gig Platform Model</div>
+                <div class="card-desc">Ride-sharing, food delivery, and task-based platforms have created a new category of work that does not fit traditional employment categories. These workers use technology infrastructure owned by platforms to perform services, but are classified as independent contractors. This classification determines their access to benefits, legal protections, and collective bargaining rights. The legal and ethical status of gig work is actively contested in courts and legislatures globally.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CONTINGENT WORKERS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title"><span class="accent">Contingent Workers</span></div>
+        <div class="slide-subtitle">Temporary, contract, and part-time workers who do not have the employment status and protections of permanent employees -- and the ethical questions this creates.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Two-Tier Workforce</div>
+                <div class="card-desc">Google's temporary and contract workforce exceeded its full-time employee count by 2019. These workers -- often in roles functionally identical to full-time employees -- received lower pay, no stock options, no health insurance, no parental leave, and limited access to on-campus facilities and services. Some Google contractors worked in the same offices as full-time employees for years while excluded from the cultural and economic benefits of Google employment. This two-tier structure is common in large tech companies and raises equity questions that existing employment law does not fully address.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why Organizations Use Contingent Workers</div>
+                <div class="card-desc">Labor cost reduction (lower direct cost and no benefit overhead), workforce flexibility (scale up and down without the friction of permanent headcount changes), risk management (easier to end contingent relationships than permanent employment), and access to specialized skills for defined projects. These are legitimate organizational interests. The ethical question is not whether contingent arrangements exist but whether the terms of those arrangements are fair to the workers in them -- particularly when they are performing work indistinguishable from permanent employee work.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Misclassification</div>
+                <div class="card-desc">Worker classification has legal meaning: employees receive legal protections (minimum wage, overtime, anti-discrimination law, workers' compensation, unemployment insurance). Independent contractors do not. When employers classify workers as contractors when the economic and practical reality of the relationship is employment, they are misclassifying to avoid labor cost -- a practice that is both unethical and potentially illegal. The IRS, NLRB, and state labor agencies all have tests for proper classification, and they are frequently violated in tech-adjacent industries.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Legal Trends</div>
+                <div class="card-desc">California's AB5 (2019) required companies to use the ABC test for worker classification -- making it much harder to classify workers as independent contractors. Several tech companies spent tens of millions lobbying for Proposition 22 (2020), which exempted app-based gig companies from AB5 requirements for their drivers and delivery workers. The California Supreme Court upheld AB5 for other industries while Prop 22 remains in legal limbo. Other states are watching California's experience in deciding whether to enact similar protections.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- H-1B VISA PROGRAM ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">The <span class="accent">H-1B</span> Visa Program</div>
+        <div class="slide-subtitle">The H-1B visa allows US employers to temporarily employ foreign workers in specialty occupations. IT is the largest user of H-1B visas -- and the program's ethical dimensions are contested.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">How H-1B Works</div>
+                <div class="card-desc">H-1B is a nonimmigrant visa for "specialty occupations" requiring a bachelor's degree or equivalent. Annual cap of 65,000 (plus 20,000 for US master's degree holders). Demand substantially exceeds supply -- the USCIS uses a lottery. IT dominates the program: software engineers, systems analysts, and computer programmers account for the majority of approvals. H-1B workers are tied to their sponsoring employer -- changing jobs requires a new visa petition, creating a dependency relationship.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Arguments For H-1B</div>
+                <div class="card-desc">US educational institutions do not produce sufficient domestic supply of qualified IT workers in specific technical specialties -- this is the official justification. H-1B fills genuine skills gaps, enables companies to access global talent pools, and supports the innovation economy. Many prominent technology company founders came to the US on H-1B visas. The visa supports diversity of perspective and international talent mobility that has contributed to US technology leadership.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Arguments Against H-1B</div>
+                <div class="card-desc">Critics argue the program has been used to suppress wages for US technology workers and to displace American employees with lower-cost foreign workers. High-profile cases: Disney IT workers were required to train their H-1B replacements (contracted through outsourcing firms) as a condition of receiving severance. The dependency between H-1B workers and their sponsoring employers creates power imbalances that can enable labor abuse -- workers who complain may lose their visa status, which is tied to employment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- OFFSHORE OUTSOURCING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Offshore <span class="accent">Outsourcing</span></div>
+        <div class="slide-subtitle">Moving IT work to lower-cost geographies -- its business rationale, documented benefits, and ethical dimensions.</div>
+
+        <div class="scenario-strip">
+            A US bank contracts with an Indian IT services firm to take over its application development and maintenance work, employing 500 developers in Bangalore at a cost approximately 60% lower than the equivalent US workforce. The 200 US employees whose positions are eliminated receive severance and 90 days of job placement assistance. The work performed is similar in quality to what the US team produced. Is the decision ethical? Which stakeholders benefit? Which are harmed? Who decides whether the tradeoff is acceptable?
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Business Rationale</div>
+                <div class="card-desc">Labor cost arbitrage: software developers in India, Eastern Europe, and the Philippines earn substantially less than US-based counterparts. For organizations with predictable, defined IT work, the cost savings can be significant -- 40-70% reductions are commonly cited. Organizations also gain access to large talent pools, 24-hour development cycles, and the management discipline that comes from clearly specifying work for remote teams. The cost savings are real and material to organizational competitiveness.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Development Benefits</div>
+                <div class="card-desc">Offshore outsourcing transfers technical knowledge, creates employment and skill development in recipient countries, and contributes to economic development. India's IT services industry, built substantially on US outsourcing, has become a major employer and income source. Whether this represents fair economic benefit distribution or exploitation of wage differentials depends substantially on the terms of the labor relationships at the destination country end of the transaction.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Ethical Tensions</div>
+                <div class="card-desc">Displaced US workers experience real harm -- career disruption, income loss, and long-term earnings reductions that severance packages do not fully offset. Companies that offshore work and simultaneously report record profits are capturing the cost savings without sharing them with workers or the communities that bear the adjustment cost. The distribution of gains from globalization is not automatic -- it requires policy choices (transition assistance, education investment, tax policy) that are independent of the outsourcing decision itself.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- WHAT WOULD YOU DO: OUTSOURCING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Workforce structure decisions. You will face these as managers. Think through the ethical dimensions now.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are the CIO of a regional hospital. A consulting firm proposes outsourcing your IT helpdesk and application support to a firm in the Philippines, saving $3.2 million annually. Your current IT support staff -- 45 people, average 12 years with the organization -- would be laid off. The consulting firm's quality metrics are comparable to your current team. You report to a CFO who is under board pressure to cut costs. What factors do you weigh? What is your recommendation? What transition obligations do you have?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You manage a team that includes three H-1B workers. You learn that they are being paid 20% less than equivalent US employees in identical roles. When you ask HR, you are told this is standard practice and consistent with the "prevailing wage" requirements. You research the prevailing wage database and find the reported wages appear to be based on outdated salary data. What are your obligations to your H-1B team members? To the other employees on your team? To compliance with the spirit of the H-1B program's intent?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            Your company is expanding its use of contingent workers. A proposed policy would classify certain long-term contractors as "project-based" to avoid triggering IRS tests for employee reclassification, even though these workers have been embedded on the same team doing the same work for 3-4 years. Legal says the classification is defensible. HR says it saves the company $2M per year in benefits. You are VP of Technology. What is your position on this policy?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- THE GIG ECONOMY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">The <span class="accent">Gig Economy</span></div>
+        <div class="slide-subtitle">Platforms that use software to match workers with tasks and customers -- and the labor model at the center of their business.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">How Gig Platforms Work</div>
+                <div class="card-desc">Uber, Lyft, DoorDash, Instacart, TaskRabbit, and Upwork are all "gig platforms" -- digital marketplaces that match workers to tasks using algorithms. The platform sets pricing, rating systems, matching criteria, and behavioral requirements. Workers who fall below rating thresholds are deactivated. The platform claims to be a technology company providing software to independent businesses (the drivers, the cleaners, the developers) -- not an employer managing employees.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Worker Benefits</div>
+                <div class="card-desc">Genuine flexibility: gig work enables people to supplement income, work around other obligations, and choose their hours. This flexibility is real and valued by many workers. Some high-skilled gig workers (software freelancers, designers, consultants on platforms like Toptal or Upwork) earn more than they would in traditional employment and genuinely prefer the autonomy. The flexibility argument has the most force for skilled workers with market alternatives -- it has less force for lower-wage gig workers who depend on platform work as their primary income source.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Gig Workers Miss</div>
+                <div class="card-desc">Independent contractor classification means: no employer-provided health insurance, no retirement contribution, no paid leave, no workers' compensation, no unemployment insurance, no minimum wage guarantee (net of expenses), no protection from algorithmic termination without cause, no collective bargaining rights, no NLRA protections, no Title VII anti-discrimination protections in most contexts, and full responsibility for self-employment taxes. The flexibility provided comes at the cost of the entire labor protection framework built over 80 years of US labor law.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Control Contradiction</div>
+                <div class="card-desc">Courts applying the economic realities test and ABC test have found, in multiple jurisdictions, that gig workers are economically dependent on platforms in ways that look like employment. The platform sets prices, controls customer relationships, sets behavioral standards (rating minimums, acceptance rate requirements), provides the work (no customers without the platform), and can terminate the relationship unilaterally. This level of control is inconsistent with independent contractor status under established legal tests -- which is why the litigation continues.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- GIG ECONOMY: POLICY RESPONSES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Gig Economy: <span class="accent">Policy Responses</span></div>
+        <div class="slide-subtitle">Governments, courts, and regulators are responding to the gig economy worker classification issue through multiple channels simultaneously.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">California AB5 and Prop 22</div>
+                <div class="card-desc">AB5 applied the ABC test to California workers, effectively requiring gig companies to classify drivers as employees. Gig companies (Uber, Lyft, DoorDash, Instacart) spent over $200 million campaigning for Proposition 22, a ballot initiative that created an exemption for app-based rideshare and delivery work, substituting a benefit formula for full employee status. Prop 22 passed (58%). Courts have since found parts of Prop 22 unconstitutional, and the legal status of the exemption remains contested in California courts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">UK Supreme Court Decision</div>
+                <div class="card-desc">The UK Supreme Court ruled unanimously in 2021 (Uber BV v. Aslam) that Uber drivers are "workers" (an intermediate category under UK law) entitled to minimum wage, paid holiday, and pension contributions. Uber's characterization of itself as a technology platform and drivers as independent businesses was rejected. The court found that Uber sets fares, controls driver performance through ratings, and manages customer relationships -- this is employment, not platform intermediation. The ruling applies to UK Uber's approximately 70,000 drivers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">EU Directive on Platform Work</div>
+                <div class="card-desc">The EU Platform Work Directive (2024) creates a legal presumption of employment for platform workers and places the burden on platforms to prove workers are genuinely independent. It requires algorithmic transparency -- workers must be informed of decisions made by automated systems -- and prohibits certain algorithmic management practices. This is the most comprehensive gig economy regulation enacted globally and will require significant changes to how major gig platforms operate in the EU.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- WHISTLEBLOWING IN IT ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title"><span class="accent">Whistleblowing</span> in IT</div>
+        <div class="slide-subtitle">When internal reporting fails, when does a professional's obligation to the public require external disclosure -- and at what personal cost?</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Defining Whistleblowing</div>
+                <div class="card-desc">Whistleblowing is the disclosure of information about organizational wrongdoing to parties outside the organization -- regulators, law enforcement, journalists, or the public -- by a current or former member of that organization. It is distinct from complaining internally (which is not whistleblowing) and from leaking to competitors (which is a different category of disclosure). The defining feature is that external disclosure is made because internal channels have failed or are unavailable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Internal Reporting Requirement</div>
+                <div class="card-desc">Professional codes generally require exhausting internal channels before external disclosure: report to the immediate supervisor, then to senior management, then to the board, before going outside the organization. This sequence is ethically appropriate when internal channels function -- management has an interest in knowing about problems and an opportunity to fix them. It is not appropriate when: the wrongdoing involves management, internal reporting would expose the reporter to retaliation, the harm is ongoing and immediate, or internal reporting has been tried and suppressed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Retaliation: The Real Consequence</div>
+                <div class="card-desc">The majority of whistleblowers experience negative employment consequences: termination, demotion, isolation, reassignment to marginal roles, or constructive dismissal. This is true despite whistleblower protection laws (Sarbanes-Oxley, Dodd-Frank, state-level protections). Protection in law does not equal protection in practice -- litigation is expensive, outcomes are uncertain, and the reputational effects of being labeled a whistleblower in the industry can be lasting. The personal cost of whistleblowing is real and should not be minimized when discussing the professional obligation to blow the whistle.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- FRANCES HAUGEN IN DEPTH ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Frances Haugen: <span class="accent">Case Analysis</span></div>
+        <div class="slide-subtitle">Analyzing the Haugen disclosure against professional ethics frameworks and whistleblower law.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">What She Disclosed</div>
+                <div class="card-desc">Thousands of internal Facebook documents including: research showing Instagram harms teenage mental health, evidence that the engagement algorithm amplified political outrage content, documentation of Facebook's global content moderation failures (including Myanmar), and evidence that Facebook's internal "cross-check" program exempted high-follower accounts from content enforcement rules that applied to ordinary users. The disclosures were made to the SEC, the Wall Street Journal, and Congress.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Her Stated Justification</div>
+                <div class="card-desc">Haugen stated that she believed Facebook's products were causing harm that the company understood and chose not to address. She tried to raise concerns internally. She followed the recommended legal path by filing with the SEC before going public. She chose documents she believed documented organizational decisions, not competitive secrets. She did not sell documents or disclose them to competitors. Her stated motivation was public safety rather than personal grievance. This matters ethically -- the motivation for whistleblowing affects how the codes evaluate it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What the Codes Say</div>
+                <div class="card-desc">ACM Code Principle 1.2 requires avoiding harm. Principle 2.5 requires giving comprehensive and accurate evaluations to appropriate parties. Principle 3.7 recognizes that when the public interest requires it, professional obligations to the public override obligations to the employer. IEEE Code Article I requires holding the public's safety paramount. Under both codes, Haugen's disclosure -- of documented public harm that Facebook had not addressed -- is not merely permitted: it is arguably required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Contested Elements</div>
+                <div class="card-desc">Facebook argued that Haugen's disclosures were selective and misleading -- that she presented internal research debates as organizational decisions. Some researchers contested whether the internal data supported her public claims. The copying of confidential documents may violate her employment agreement and potentially federal computer fraud statutes. These contested elements do not resolve the underlying ethical question -- they illustrate that whistleblowing is rarely clean, and that the ethical weight of a disclosure is always evaluated against the harm being disclosed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- WHISTLEBLOWER PROTECTIONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Whistleblower <span class="accent">Protections</span></div>
+        <div class="slide-subtitle">Legal protections for whistleblowers in the technology sector -- their scope, their limitations, and the gap between law and practice.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Sarbanes-Oxley (2002)</div>
+                <div class="card-desc">Prohibits retaliation against employees of publicly traded companies who report potential violations of SEC rules, federal securities laws, or fraud against shareholders to supervisors, compliance officers, or government authorities. Established the SEC whistleblower program. Does not protect disclosures to journalists. Statute of limitations is 180 days (subsequently extended). The law has teeth but the litigation process is long and the burden of proving retaliatory motivation is on the employee.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Dodd-Frank (2010)</div>
+                <div class="card-desc">Significantly strengthened SEC whistleblower protections: extended limitation period, anti-retaliation protections apply to internal reports as well as SEC disclosures, and created financial incentives (10-30% of recoveries over $1M). The SEC's whistleblower office has awarded over $1 billion to whistleblowers since the program's inception. Dodd-Frank represents the most effective whistleblower protection structure currently available to tech workers at publicly traded companies.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">State Protections</div>
+                <div class="card-desc">Many states have whistleblower protection statutes. California Labor Code Section 1102.5 broadly prohibits retaliation against employees who report violations of law to government agencies. Several states have specific protections for employees who report environmental, public safety, or healthcare violations. State protections vary significantly in scope and enforcement mechanisms. Employees at private companies (including most tech startups) have fewer federal protections than those at public companies.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Protection Gap</div>
+                <div class="card-desc">Despite legal protections, research consistently shows that the majority of whistleblowers experience retaliation. Retaliation often takes forms that are technically legal -- poor performance reviews, exclusion from opportunities, hostile work environment, constructive dismissal -- but are effectively punishing. Proving that adverse employment actions were retaliatory rather than performance-based is difficult and expensive. The legal protection floor is real. The practical protection ceiling is much lower than the law suggests.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- CLASSIC WHISTLEBLOWERS IN TECH ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Classic Whistleblowers <span class="accent">in Technology</span></div>
+        <div class="slide-subtitle">Historical cases that established the template for IT professional whistleblowing.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Roger Boisjoly (Challenger, 1986)</div>
+                <div class="card-desc">Morton Thiokol engineer who sent an internal memo in July 1985 warning that O-ring failures at low temperatures could have "catastrophic consequences." The night before the Challenger launch, in a teleconference with NASA, he argued against launch given that overnight temperatures would be below the safe operating range. NASA management overruled Morton Thiokol management. After the disaster, Boisjoly testified to the Rogers Commission. He was subsequently isolated at Thiokol, placed on medical leave, and effectively forced out. His career never recovered. His disclosures were vindicated. His employer's response was retaliation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Edward Snowden (NSA, 2013)</div>
+                <div class="card-desc">NSA contractor who disclosed classified documents revealing mass surveillance programs to journalists Glenn Greenwald and Laura Poitras. Snowden is a contested case in professional ethics: the disclosures revealed genuine overreach (the PRISM program, bulk telephone metadata collection) but also compromised legitimate national security operations. He did not exhaust internal channels and disclosed to journalists, not Congress or an Inspector General. He remains in Russia under asylum. Some view him as a patriot; others as a criminal who violated his oath and caused national security harm.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">William Binney (NSA, 2002)</div>
+                <div class="card-desc">NSA technical director who resigned and became an official whistleblower through the Department of Defense Inspector General -- following the recommended internal pathway. He reported to the IG, Congress, and the Department of Justice that the NSA was engaging in illegal domestic surveillance. He was raided by the FBI, his home was searched, and he faced criminal prosecution before charges were dropped. He received no financial award and faced sustained personal consequences. His case illustrates that following the official whistleblower pathway does not guarantee protection from retaliation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- GREEN COMPUTING ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title"><span class="accent">Green Computing</span></div>
+        <div class="slide-subtitle">The environmental impact of IT infrastructure and the ethical obligations this creates for IT professionals and organizations.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Data Center Energy Consumption</div>
+                <div class="card-desc">Global data centers consumed approximately 200-250 TWh of electricity in 2022 -- roughly 1% of global electricity demand. This understates total IT energy impact: it excludes end-user devices, networking equipment, and device manufacturing energy. AI training and inference is growing as a share of data center energy rapidly. The energy footprint of a single large language model training run can exceed the lifetime energy consumption of several average American households.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Renewable Energy Commitments</div>
+                <div class="card-desc">Google, Microsoft, and Apple have made significant commitments to renewable energy for their data center operations. Google reported matching 100% of electricity use with renewable energy purchases from 2017. Microsoft has committed to being carbon negative by 2030. These commitments are meaningful but complex: renewable energy certificates do not mean the specific electrons powering a data center are renewable -- they mean the organization has purchased renewable generation capacity equivalent to its consumption. The distinction matters for genuine environmental accounting.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Energy Efficiency in Software Design</div>
+                <div class="card-desc">Software design choices have energy consequences: inefficient algorithms require more computation; excessive data transfer increases network energy use; applications that keep processors active during idle periods waste energy at scale. "Green software engineering" is an emerging discipline that treats energy efficiency as a first-class design requirement alongside performance, security, and usability. For applications deployed at internet scale, small efficiency improvements translate to significant aggregate energy savings. This is an area where individual IT professional choices have measurable environmental impact.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Server Lifecycle and Refresh Cycles</div>
+                <div class="card-desc">Cloud infrastructure providers refresh server hardware every 3-5 years as newer hardware offers better performance-per-watt. But early retirement of functional hardware generates e-waste. The decision about when to retire hardware involves a tradeoff between operational efficiency (newer hardware is more efficient) and embodied carbon (manufacturing new hardware has a carbon cost). Green computing frameworks require this tradeoff to be analyzed rather than defaulting to the fastest possible refresh cycle driven solely by performance metrics.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- E-WASTE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title"><span class="accent">E-Waste</span></div>
+        <div class="slide-subtitle">Electronic waste is the fastest-growing waste stream globally. IT organizations generate significant e-waste and have ethical obligations regarding its disposal.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Scale of the Problem</div>
+                <div class="card-desc">The Global E-Waste Monitor reported 57.4 million metric tons of e-waste generated in 2021, with a projected growth to 74.7 million metric tons by 2030. Only 17.4% of 2019 e-waste was formally recycled. The majority was dumped, informally recycled, or incinerated. Electronics contain lead, mercury, cadmium, hexavalent chromium, and brominated flame retardants. Informal recycling (burning cables to extract copper, acid baths to recover precious metals) releases these substances into soil, water, and air -- predominantly in low-income communities in West Africa and South/Southeast Asia.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IT Organization Obligations</div>
+                <div class="card-desc">Organizations that deploy IT equipment bear responsibility for its end-of-life management. Obligations include: secure data destruction before disposition, ensuring disposition partners are certified (R2, e-Stewards standards), verifying that equipment is not exported to unregulated recycling markets in developing countries, preference for refurbishment and donation programs over destruction, and extending equipment lifecycle where operationally possible to reduce generation of new waste. These practices are achievable and increasingly expected in responsible procurement standards.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Right to Repair</div>
+                <div class="card-desc">Right to repair legislation requires manufacturers to make repair parts, tools, and documentation available, enabling independent repair rather than replacement when devices fail. Apple, Microsoft, and most major consumer electronics manufacturers have historically opposed right to repair, arguing it creates security risks and affects product quality. The EU Right to Repair Directive (2024) requires repairability for many product categories. Right to repair directly reduces e-waste by extending product lifespans -- and is an ethical issue in the overlapping domains of environmental sustainability and consumer rights.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- WHAT WOULD YOU DO: GREEN IT ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Environmental and labor ethics scenarios for IT managers and professionals.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            Your company is upgrading 2,000 laptops across your organization. The existing equipment is 4 years old and still fully functional. The vendor proposes recycling the old equipment through a certified US recycler. A local nonprofit asks if the equipment can be donated instead. IT security says donation requires wiping and re-imaging each device, adding 3 weeks to the project timeline. The CFO says "just recycle them, we need to hit the refresh deadline." What do you do?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You are a software architect at a cloud-based SaaS company. Your team's background job processing system runs at 15% average CPU utilization -- the rest is idle, keeping instances warm for spikes. You calculate that restructuring the system to use serverless functions would reduce compute cost and energy use by approximately 60% but would require 3 months of engineering work. There is no scheduled sprint capacity for this work. Management does not treat energy efficiency as a priority metric. What is your obligation, if any? How do you make the case?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            You discover that your company's IT asset disposal vendor -- who has been disposing of servers, laptops, and mobile phones for three years -- is not R2 certified and has been exporting equipment to informal recyclers in Ghana. Your company's vendor policy requires certified recyclers. The cost to switch vendors is minimal. Your manager says "we've been using them for years, the data was wiped, that's all we care about." Is data security the only ethical concern here? What are your obligations to the workers in Ghana? To your organization's stated values?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- DIVERSITY AND INCLUSION IN IT ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Diversity and Inclusion <span class="accent">in IT</span></div>
+        <div class="slide-subtitle">The technology industry has documented demographic disparities. Understanding their causes and organizational obligations is part of IT professional ethics.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Representation Gap</div>
+                <div class="card-desc">In 2022, women held approximately 26% of computing and mathematics jobs in the US (NCWIT). Black and Hispanic/Latino workers are significantly underrepresented in technology relative to their share of the workforce. Leadership positions have even lower representation -- women hold approximately 19% of technology executive roles. The representation gap has been documented for decades and has not substantially improved despite widespread corporate diversity initiatives. The gap is not explained by pipeline alone -- retention of underrepresented workers is also significantly lower.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Causes and Myths</div>
+                <div class="card-desc">The "pipeline problem" explanation -- there are not enough qualified women and underrepresented minority candidates -- is contradicted by data: women leave tech jobs at higher rates than men, not because they are pushed out by better opportunities elsewhere but because of workplace environment factors (harassment, exclusion, limited advancement). The causes are documented: implicit bias in hiring and promotion, hostile workplace cultures, lack of sponsorship, and the "culture fit" criterion that functions as a proxy for demographic similarity to existing employees.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Why Diversity Matters Ethically</div>
+                <div class="card-desc">A workforce that does not represent the population it serves will systematically miss the needs and experiences of underrepresented users. This is not just a business case argument -- it is an ethical argument. When AI systems trained on data reflecting a narrow demographic produce biased outputs that harm excluded populations, the composition of the teams that built those systems is part of the causal explanation. Building systems that serve all users equitably requires teams that include people whose lives reflect the diversity of users' experiences.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Organizational Obligations</div>
+                <div class="card-desc">Organizations cannot fully solve structural inequality through HR policy alone. But they have specific obligations: equitable pay (audit and correct pay gaps), equitable promotion criteria (identify and remove criteria that function as proxies for demographic characteristics), harassment prevention and response, accessible recruitment (consider the format and requirements of job descriptions, interview processes, and location requirements), and inclusion practices that make it feasible for diverse employees to stay and advance. The obligation is process-level, not just outcome-level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- WORKPLACE SURVEILLANCE ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Workplace <span class="accent">Surveillance</span></div>
+        <div class="slide-subtitle">Employers have broad legal authority to monitor employees in most US jurisdictions. When does monitoring cross from legitimate oversight to violation of dignity and trust?</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What Employers Can Monitor</div>
+                <div class="card-desc">In the US, employers have broad latitude: email on company systems, web browsing on company networks, keystrokes, time tracking, location (company devices and vehicles), video surveillance in work areas (not bathrooms, locker rooms), biometrics for access and time tracking, and telephone calls with notice. Remote work has expanded monitoring into employees' homes: bossware products track keystrokes, take screenshots, monitor mouse movement, require active webcam during work hours, and track application usage. These capabilities are technically available and broadly legally permitted.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Dignity and Trust Question</div>
+                <div class="card-desc">Monitoring that is technically permissible may still be ethically problematic. Keystroke logging and screenshot capture of remote workers who have worked independently for years communicates a lack of trust that damages the employment relationship and reduces motivation. Studies on intensive monitoring consistently show increases in stress, decreases in psychological safety, and increases in turnover -- with the workers most affected being the conscientious performers, who find intensive surveillance most uncomfortable. The business case for intensive monitoring of knowledge workers is weak; the harm to trust is documented.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Transparency as Minimum Standard</div>
+                <div class="card-desc">Whether or not specific monitoring practices are appropriate, employees have an ethical right to know what is being monitored and why. Covert monitoring -- surveillance of which employees are unaware -- fails the transparency standard of all major professional ethics codes. Notice of monitoring is not ethically sufficient by itself (you can notify someone that you are going to do something unethical), but it is a minimum requirement: employees cannot make informed decisions about their employment relationship without knowing the terms of that relationship.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- PROFESSIONAL DEVELOPMENT OBLIGATIONS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Professional <span class="accent">Development</span></div>
+        <div class="slide-subtitle">The obligation to maintain competence is not optional. In a field that changes as rapidly as IT, competence maintenance is a continuous professional obligation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">The ACM and IEEE Standard</div>
+                <div class="card-desc">Both codes require professionals to maintain and improve their skills. ACM Code Principle 2.6: "Perform work only in areas of competence." Principle 2.8: "Promote understanding of computing." These principles together require that IT professionals not represent themselves as competent in areas where they are not, and that they actively work to improve their competence over time. This is not a passive standard -- it requires continuous learning, particularly in areas like AI, security, and privacy where the field is evolving rapidly.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Employer Obligations</div>
+                <div class="card-desc">Organizations that benefit from employee competence have obligations to support its development. This includes: providing access to training, allocating time for professional development (not just expecting it to happen in evenings and weekends), supporting conference attendance and peer learning, and not penalizing employees for taking time to maintain skills. Organizations that demand continuous learning while providing no support for it are extracting value without contribution -- a pattern that ethical organizations should recognize and address.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certifications and Their Limits</div>
+                <div class="card-desc">Professional certifications (CISSP, PMP, AWS certifications, etc.) provide verifiable evidence of competence in defined domains at a point in time. They are valuable signals but are not sufficient proxies for current competence in rapidly evolving areas. A CISSP certification from five years ago does not certify competence with current cloud security models. Organizations and professionals who substitute credential maintenance for genuine competence development have confused the signal for the substance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Obsolescence Risk</div>
+                <div class="card-desc">AI-driven automation is changing which IT skills are in demand rapidly. Skills in manual test writing, traditional database administration, and scripted infrastructure management are being affected by AI-assisted alternatives. IT professionals who do not actively engage with how AI is changing their domain will face skills obsolescence. This is not a threat unique to IT -- it is a characteristic of a period of rapid technological transition. The professional obligation to maintain competence is inseparable from actively engaging with the changes in one's field.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- INTELLECTUAL PROPERTY IN THE WORKPLACE ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Intellectual Property <span class="accent">in the Workplace</span></div>
+        <div class="slide-subtitle">Who owns what when an IT professional creates software, tools, or inventions -- and what are the ethical dimensions of these ownership structures?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Work for Hire Doctrine</div>
+                <div class="card-desc">Under US copyright law, work created by employees within the scope of their employment is "work for hire" -- the employer is the legal author and owns the copyright. This applies to software written during work hours using company resources. The scope of employment is broadly construed: software engineers who write useful tools as part of their job role create work that belongs to the employer, even if the specific assignment did not explicitly include that tool. Employment agreements typically reinforce and broaden this beyond the statutory baseline.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Invention Assignment Agreements</div>
+                <div class="card-desc">Most technology company employment agreements include invention assignment clauses that require employees to assign to the employer all inventions created during employment, even outside work hours, if they relate to the employer's business or use company resources. Some states limit these clauses (California Labor Code 2870 carves out inventions using no company resources that do not relate to the employer's business and are not created during work hours). These clauses are broadly enforceable and affect side projects, personal open source contributions, and freelance work.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Open Source Participation</div>
+                <div class="card-desc">Many technology companies actively encourage open source participation and have explicit open source policies defining what employees can contribute to external projects. These policies typically permit contributions not related to proprietary product work, require review before contributing code that touches company product areas, and set boundaries on what can be published. IT professionals should understand their employer's open source policy before contributing, because an unauthorized contribution of employer-owned code to an open source project could have significant legal consequences.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Ethical Dimensions</div>
+                <div class="card-desc">The work for hire doctrine and broad invention assignment clauses create an asymmetry: the employer captures economic value from employee creativity beyond what the employment relationship compensates. In fields like AI research, where a single model or paper can generate enormous commercial value, the compensation model for the creative work does not scale with the value created. This creates ethical tension about whether employment relationships in high-innovation fields adequately compensate the people whose intellectual labor creates the most value.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- ORGANIZATIONAL CULTURE AND ETHICS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Organizational Culture <span class="accent">and Ethics</span></div>
+        <div class="slide-subtitle">Individual professional ethics function inside organizational cultures that can enable or undermine them.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Culture as Ethical Infrastructure</div>
+                <div class="card-desc">An organization's culture -- the shared assumptions, values, and practices that govern how work gets done -- is the primary determinant of whether professional ethics codes are operationally effective. An organization where psychological safety exists (people can raise concerns without fear), where ethics violations are taken seriously rather than minimized, and where decisions are made transparently is one where professional ethics codes have traction. An organization without these characteristics renders individual ethics codes aspirational rather than operational.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Culture Warning Signs</div>
+                <div class="card-desc">Indicators of an ethical culture problem: the person who raises concerns is identified as the problem rather than the concern they raised; ethics issues are routed to legal counsel rather than addressed substantively; the gap between stated values and actual practices is large and acknowledged only privately; senior leaders are exempted from rules that apply to junior employees; and people who leave the organization tell systematically different stories about what it is like than the organization's public communications suggest.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ethical Leadership</div>
+                <div class="card-desc">Leaders set the ethical tone of organizations through their own behavior and through what they tolerate in others. Leaders who openly discuss ethical concerns, respond seriously to reports of problems, apply standards consistently regardless of seniority, and visibly make decisions that sacrifice short-term performance for ethical reasons create organizations where professional ethics has practical effect. Leaders who say the right things while rewarding behavior that conflicts with stated values create organizations where ethics is a performance, not a practice.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CORPORATE SOCIAL RESPONSIBILITY IN IT ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Corporate Social <span class="accent">Responsibility</span></div>
+        <div class="slide-subtitle">What does CSR mean for IT organizations -- and how do we distinguish genuine commitment from public relations performance?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Dimensions of IT CSR</div>
+                <div class="card-desc">Environmental responsibility (energy and e-waste), labor practices (contingent workers, H-1B, diversity), product ethics (safety, privacy, accessibility), community impact (digital inclusion, STEM education, supplier standards), and governance (transparency, whistleblower protection, ethics oversight). IT CSR is more complex than manufacturing CSR because the products themselves raise ethical questions -- it is not just how the product is made but what the product does and who is harmed by it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Greenwashing and Ethics-Washing</div>
+                <div class="card-desc">Organizations communicate CSR commitments that are not matched by operational reality. Renewable energy commitments that rely on energy certificate accounting rather than physical renewable supply are one form. AI ethics principles published without implementation mechanisms are another. The test is not what an organization says about its values -- it is what the organization does when ethical values conflict with financial performance. Public commitments without accountability structures are ethics theater, not ethics practice.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stakeholder vs. Shareholder Models</div>
+                <div class="card-desc">The Business Roundtable's 2019 Statement on the Purpose of a Corporation committed signatory CEOs to obligations to all stakeholders -- customers, employees, suppliers, communities -- not solely to shareholders. Critics noted that the statement had no enforcement mechanism and that the signatories' actual governance structures and executive compensation remained primarily shareholder-aligned. The statement acknowledged a stakeholder model in principle. Whether it has produced stakeholder-oriented behavior in practice is an empirical question with contested answers.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">B Corps and Benefit Corporations</div>
+                <div class="card-desc">Certified B Corporations (B Corps) and state-chartered Benefit Corporations legally require companies to consider stakeholder interests -- not just shareholders -- in corporate decision-making. This provides legal protection for directors who make decisions that sacrifice profit for social benefit. Several technology companies have pursued B Corp certification (Kickstarter, Patagonia's tech arm, various smaller firms). The structures are available but are not the dominant corporate form in the technology industry. They represent one pathway toward operationalizing stakeholder commitments in governance structures.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- GOVERNMENT IT CONTRACTS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Government IT <span class="accent">Contracts</span></div>
+        <div class="slide-subtitle">Technology companies providing services to government face distinct ethical obligations -- and employee conflicts of interest -- that have produced notable internal controversies.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Project Maven (Google, 2018)</div>
+                <div class="card-desc">Google contracted with the US Department of Defense to provide AI image recognition for drone strike targeting assistance. Approximately 3,000 Google employees signed a petition objecting, and several resigned. The ethical arguments raised: AI systems should not be used in lethal military applications without clear accountability frameworks, Google employees had not been consulted before the decision, and Google's "Don't Be Evil" values were inconsistent with lethal weapons systems. Google eventually declined to renew the contract after protests -- a case where employee collective action influenced a major corporate decision.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Microsoft's IVAS Contract</div>
+                <div class="card-desc">Microsoft's Integrated Visual Augmentation System (IVAS) contract with the US Army provides augmented reality goggles for combat. Microsoft employees wrote an open letter to leadership expressing concern: "We did not sign up to develop weapons, and we demand a say in how our work is used." Microsoft leadership responded that national defense work is legitimate and that employees who object can transfer to different product areas. Microsoft retained the contract. The contrast with Google's Project Maven outcome illustrates that employee activism's effectiveness is contingent on leadership responsiveness.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Professional Ethics Question</div>
+                <div class="card-desc">The question of whether IT professionals have an obligation to refuse participation in specific government IT projects is unresolved in professional codes. ACM and IEEE codes require prioritizing public safety and welfare, but national defense and security are also public interests. The ethical analysis requires distinguishing between: systems used for lethal force with poor accountability structures (strong objection case), systems used for surveillance with civil liberties implications (case-specific analysis), and routine IT services for government agencies (no special objection). The line is contested and individual professionals are left to draw it themselves.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- EXECUTIVE COMPENSATION AND ETHICS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Compensation <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">The ethics of executive compensation structures in technology companies -- and the relationship between pay structures and ethical behavior.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">CEO-to-Median Pay Ratios</div>
+                <div class="card-desc">SEC regulations require public companies to disclose the ratio of CEO compensation to median employee compensation. Technology company ratios are among the highest across industries: some exceed 1,000:1. The ethical question is not whether exceptional compensation for exceptional leadership is acceptable in principle -- it is whether compensation structures that reward short-term stock price performance over long-term health create incentives for the types of decisions that produce the harms documented in this course: suppressing safety research, delaying quality fixes, resisting regulatory requirements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Stock-Based Compensation and Incentives</div>
+                <div class="card-desc">Executive compensation heavily weighted toward stock options and restricted stock units creates a powerful incentive to maximize stock price. Decisions that maximize the stock price in the short term -- aggressive growth, cost reduction through workforce cuts, resisting regulation -- may not be the same decisions that maximize long-term value for customers, employees, or society. The compensation structure is not neutral: it shapes which decisions are rewarded and, consequently, which decisions get made. This is an ethical issue in corporate governance, not just a financial one.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Gig Worker Contrast</div>
+                <div class="card-desc">The same technology platforms where executives and early employees accumulated extraordinary wealth through stock compensation structured their service worker relationships to minimize cost and avoid benefit obligations. Uber's founders and early investors became billionaires while Uber drivers -- essential to the product's value -- remained in a classification that denied them the basic protections of employment. The gap between the wealth generation at the top of the corporate structure and the precariousness at the bottom is an ethical issue in how organizations structure relationships with the people who create their value.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Incentive-Compatible Ethics</div>
+                <div class="card-desc">Organizations that want to produce ethical behavior must structure incentives to reward it. If safety metrics are not in executive scorecards, safety will be underinvested. If pay gaps are not tracked and corrected, they will persist. If sustainability is not a compensation metric, environmental performance will be sacrificed for cost. "Incentive-compatible ethics" means designing compensation and performance systems that reward the behaviors the organization claims to value -- rather than compensating for stated values while rewarding contradicting behavior.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- EMERGING WORK MODELS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Emerging <span class="accent">Work Models</span></div>
+        <div class="slide-subtitle">Remote work, hybrid work, and distributed teams have become permanent features of the IT workforce -- with ethical dimensions that organizational policy must address.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Remote Work as Equity</div>
+                <div class="card-desc">Remote work has expanded access to high-quality IT employment for people who cannot relocate to technology hubs: caregivers, people with disabilities, workers in lower-cost regions, and workers with family obligations that preclude frequent travel. This is an equity benefit. The elimination of geographic premium pay for remote workers -- practiced by some companies that reduced salaries for employees who moved out of expensive cities -- undermines this equity benefit and raises questions about whether geographic-based pay discrimination is ethically justifiable when the work product is location-independent.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Proximity Bias</div>
+                <div class="card-desc">Research on hybrid work environments consistently shows "proximity bias" -- the tendency of managers to give more opportunities, recognition, and advancement to employees who are physically present. In a hybrid workforce, remote workers are systematically disadvantaged in promotion and development, not because of performance differences but because of visibility differences. Organizations with hybrid work models have an obligation to actively measure and correct for proximity bias -- otherwise hybrid work becomes a pathway to advancement for those who come to the office and a career plateau for those who do not.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Time Zone Ethics in Global Teams</div>
+                <div class="card-desc">Global IT teams spanning multiple time zones face the question of whose working hours are "normal" and whose must accommodate. When a US-based leadership team schedules recurring meetings at 9 AM Eastern, they are scheduling at 7:30 PM in India and 3 PM in the UK. If this pattern is persistent, it signals whose time is valued and whose is expected to flex. Equitable scheduling requires rotating inconvenience, asynchronous work norms, and explicit acknowledgment of the burden placed on team members in time zones far from the organizational center of gravity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Right to Disconnect</div>
+                <div class="card-desc">Several countries have enacted "right to disconnect" protections that prohibit employers from requiring employees to respond to work communications outside working hours. France (2017), Ireland (2021), and several EU countries under the Work-Life Balance Directive have such protections. These laws address a structural problem in technology work: always-on connectivity tools (Slack, Teams, email on personal phones) blur work and personal time in ways that create chronic overwork, burnout, and health impacts. The right to disconnect is both an individual wellbeing and a public health issue at the scale of the tech workforce.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- WHAT WOULD YOU DO: WORKPLACE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Workplace ethics scenarios for IT professionals at different career stages.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are a team lead at a defense contractor. Your company wins a contract to develop AI targeting assistance for autonomous drone systems. You have significant personal reservations about AI in autonomous lethal weapons. Your manager tells you that refusal to work on the project will be treated as insubordination. You are on an H-1B visa. What are your options? What are your professional obligations? Does your visa status change your ethical calculus? Should it?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You are a senior engineer who discovers that your company has been underreporting a data breach to affected customers. The breach exposed personal health information of 180,000 people. The company's legal team says the breach does not meet the regulatory definition of "significant" under HIPAA and no notification is required. You disagree with that legal interpretation. The 180,000 people whose data was exposed do not know. What are your obligations? Does it matter that you are not the CISO or the person with formal responsibility?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            You are a mid-level manager at a company that uses gig workers for customer support tasks. The gig workers are clearly economically dependent on your company -- they work exclusively for your platform, work full-time hours, and their work is closely supervised by your algorithms. Legal has told you the classification is defensible. But you know the workers lack health insurance and job security. You have no authority over the classification decision. What, if anything, do you do?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- CODES OF CONDUCT VS CODES OF ETHICS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">Codes of Conduct vs. <span class="accent">Codes of Ethics</span></div>
+        <div class="slide-subtitle">The distinction between behavioral rules and ethical principles -- and why it matters for how organizations approach professional ethics.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Code of Conduct</div>
+                <div class="card-desc">Behavioral rules specifying what employees may and may not do. "Do not accept gifts over $50 from vendors." "Report conflicts of interest." "Do not discuss confidential information in public places." Codes of conduct are specific, enforceable, and designed to prevent identifiable misconduct. They are compliance instruments. Their limitation is that they cannot anticipate every ethically relevant situation -- new situations regularly arise that are not covered by existing rules but still require ethical judgment.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Code of Ethics</div>
+                <div class="card-desc">Principled statements of values and obligations that provide a framework for ethical reasoning about situations not covered by specific rules. "Act in the public interest." "Be honest in all technical claims." "Avoid harm." Ethics codes provide a foundation for judgment when rules run out. They require interpretation and application, which makes them harder to enforce than behavioral codes but more applicable across novel situations. Professional ethics codes (ACM, IEEE) operate at this level.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Both Are Needed</div>
+                <div class="card-desc">Conduct codes without ethics foundations become compliance theater -- people follow the letter while violating the spirit. Ethics codes without conduct specifications leave too much to individual interpretation and fail to create consistent organizational behavior. The combination of specific behavioral rules (conduct code) and principled reasoning frameworks (ethics code) provides both the specific guidance needed for common situations and the principled foundation needed for novel ones. Organizations that have only one are inadequately equipped for the full range of ethical challenges they will face.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Enforcement Question</div>
+                <div class="card-desc">Ethics codes without enforcement mechanisms are aspirational statements. Enforcement requires: clear reporting channels, investigation processes, protection for reporters from retaliation, consistent application across levels (senior leaders are not exempt), and consequences proportional to violations. Organizations where ethics codes exist but violations by powerful people are handled differently than violations by junior employees have not implemented ethics -- they have implemented the appearance of ethics. The consistency of enforcement is where stated values are revealed as real or performative.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- LABOR RIGHTS IN THE GLOBAL SUPPLY CHAIN ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Labor Rights in the <span class="accent">Global Supply Chain</span></div>
+        <div class="slide-subtitle">IT organizations' ethical obligations extend beyond direct employees to the global supply chains that produce their hardware.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Conflict Minerals</div>
+                <div class="card-desc">Smartphones, laptops, and servers contain tantalum, tin, tungsten, and gold -- the 3TG minerals. In the Democratic Republic of Congo, these minerals have been mined under conditions that fund armed groups and involve forced labor and child labor. The Dodd-Frank Act Section 1502 requires US public companies to disclose whether their products contain DRC conflict minerals and whether they have conducted due diligence on the supply chain. Compliance is required. Actual supply chain transformation -- ensuring clean sourcing -- is a much higher bar that few companies fully meet.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Contract Manufacturing Conditions</div>
+                <div class="card-desc">Apple's supplier Foxconn operates facilities in China employing hundreds of thousands of workers. In 2010, a series of worker suicides at Foxconn's Shenzhen facilities prompted widespread media coverage and pressure on Apple. Foxconn installed suicide prevention nets and Apple's supplier responsibility program expanded auditing. Subsequent investigations have continued to document excessive hours, unpaid overtime, and harsh working conditions in Apple's supply chain factories -- conditions that Apple's stated supplier code of conduct prohibits but that auditing has not fully remediated.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">What Due Diligence Requires</div>
+                <div class="card-desc">Ethical supply chain management in IT hardware requires: risk mapping of the supply chain to identify labor risk exposure, supplier auditing against a code of conduct (with unannounced audits that are more effective than scheduled ones), remediation programs when violations are found (not just terminating the supplier relationship, which shifts the harm without addressing it), public reporting on findings, and engagement with industry coalitions (Responsible Business Alliance, Responsible Minerals Initiative) to drive systemic improvement. These are labor-intensive commitments. They are also ethical obligations for organizations that profit from supply chains that create labor harms.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- AUTOMATION AND WORKER DIGNITY ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Automation and <span class="accent">Worker Dignity</span></div>
+        <div class="slide-subtitle">When automation changes the nature of work rather than eliminating it, the ethical question becomes: have the changes preserved or degraded human dignity in the workplace?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Deskilling vs. Upskilling</div>
+                <div class="card-desc">Automation can deskill work -- removing the cognitive and creative elements that made a role meaningful while leaving the most monotonous, algorithmically-monitored components. Or it can upskill work -- removing routine tasks and enabling workers to focus on higher-judgment activities that are more satisfying and create more value. Which direction automation takes depends on design choices made by the people building the automated systems. Those choices have direct consequences for the quality of working life of the people whose work is affected.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Algorithmic Management and Autonomy</div>
+                <div class="card-desc">When algorithms set pace, quality standards, routing, and scheduling -- and humans primarily execute instructions generated by software -- the cognitive content of the job is transferred from the worker to the algorithm. This is productive (the algorithm may make better decisions) but it is also a reduction of worker autonomy that has psychological and ethical implications. Work in which humans are the execution layer for algorithmic decisions is degraded relative to work in which humans make the judgments that algorithms assist.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Monitoring and Psychological Safety</div>
+                <div class="card-desc">Studies of intensive monitoring in knowledge work consistently find: increased cortisol (stress marker), decreased psychological safety, decreased creativity, increased counterproductive work behaviors, and decreased intrinsic motivation. Work monitored at the keystroke level changes the nature of the work experience -- not just the data available to managers. This is not a privacy issue only; it is a worker dignity and organizational effectiveness issue. The research evidence against intensive knowledge worker monitoring is strong and is being ignored by organizations adopting bossware.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Consent and Participation Gap</div>
+                <div class="card-desc">In most jurisdictions, workers have no formal role in decisions about how automation changes their jobs, what monitoring systems are introduced, or how algorithmic management is structured. Management makes these decisions unilaterally. Workers can accept or leave. In co-determination models (common in Germany and the Nordic countries), workers have statutory rights to participate in decisions about technological changes to work. The ethical argument for worker participation in automation decisions is based on the same foundation as informed consent: people affected by decisions have a legitimate interest in having a voice in those decisions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- GREEN COMPUTING STANDARDS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Green Computing <span class="accent">Standards</span></div>
+        <div class="slide-subtitle">The standards and frameworks that translate environmental obligations into measurable, verifiable commitments.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Energy Star: US EPA certification for energy-efficient products. Computers, monitors, servers, and data center equipment can be Energy Star certified. Procurement preference for Energy Star products is a minimum green IT practice for organizations. Not sufficient for large-scale infrastructure decisions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">EPEAT (Electronic Product Environmental Assessment Tool): Comprehensive rating system for environmental performance of electronics. Gold, Silver, Bronze tiers. Evaluates energy, materials, end of life, and corporate performance. Required for US federal government electronics purchases. Sets the standard for responsible IT procurement.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">R2 and e-Stewards Certifications: Responsible Recycling (R2) and e-Stewards standards for electronics recyclers. Require audited, responsible handling of hazardous materials, prohibition on export to developing countries without equivalent environmental standards, and data security practices. Required before using any e-waste recycler.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Green Software Foundation Principles: Software Carbon Intensity (SCI) specification for measuring software's energy consumption. Carbon-aware computing (running workloads when and where renewable energy is available). Demand shaping (reducing energy-intensive operations during peak carbon intensity periods). Emerging standards for software sustainability.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">GHG Protocol Scope 3: Framework for accounting for supply chain carbon emissions, including hardware manufacturing and use-phase emissions. Organizations that disclose only their direct emissions (Scope 1 and 2) while ignoring supply chain impact are presenting an incomplete environmental accounting picture.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- CHAPTER 10 SYNTHESIS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Chapter 10: <span class="accent">Synthesis</span></div>
+        <div class="slide-subtitle">The ethical issues in IT organizations and work all involve the same fundamental question: who bears the cost when IT organizations make decisions that benefit some stakeholders at the expense of others?</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Stakeholder Distribution Question</div>
+            Contingent workers pay the cost of organizational workforce flexibility. H-1B workers pay the cost of the employer's control through visa dependency. Gig workers pay the cost of platform profitability through lack of labor protections. Displaced workers pay the cost of outsourcing cost savings. Communities in receiving countries bear the environmental cost of e-waste. In each case, the benefits are captured by the organization and its shareholders, and the costs are borne by people with less power and voice. Ethical IT organizations must actively address this distribution, not merely note it.
+        </div>
+
+        <div class="summary-facts" style="margin-top: 8px;">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Contingent workers in IT often perform identical work to permanent employees at lower cost with fewer protections. The ethical case for distinguishing their treatment requires more than classification convenience.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">H-1B ties workers to employers through visa dependency. This power asymmetry creates ethical obligations for employers that exceed normal employment relationships.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Frances Haugen's disclosure illustrates both the professional obligation to blow the whistle on documented harm and the inadequacy of existing structural protections for people who fulfill that obligation.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- KEY LEGAL LANDMARKS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Legal <span class="accent">Landmarks</span></div>
+        <div class="slide-subtitle">The key legal frameworks that govern IT work arrangements, environmental obligations, and whistleblower protections.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1990</span>
+                <span class="fact-text">Immigration Act creates H-1B visa. Intent: fill genuine domestic skills gaps in specialty occupations. Prevailing wage requirement intended to prevent use as wage suppression tool. Enforcement gaps have allowed both legitimate and problematic uses.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">1988</span>
+                <span class="fact-text">WARN Act requires 60-day advance notice of mass layoffs or plant closings affecting 100+ employees. Minimum notice floor. Does not require transition assistance, retraining, or preferential rehiring. Widely viewed as inadequate for the scale of workforce transitions technology automation produces.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2002</span>
+                <span class="fact-text">Sarbanes-Oxley establishes SEC whistleblower program and protections for employees of public companies who report securities violations. Foundational whistleblower protection statute for the corporate context.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2010</span>
+                <span class="fact-text">Dodd-Frank significantly strengthens SEC whistleblower protections and creates financial incentives (10-30% of recoveries). Most effective whistleblower framework for IT professionals at public companies. SEC has awarded over $1B since inception.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2019</span>
+                <span class="fact-text">California AB5 applies ABC test to worker classification. Gig companies fund Prop 22 (2020) to create exemption. Legal status still contested. Sets the national template for gig worker classification battles.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2024</span>
+                <span class="fact-text">EU Platform Work Directive creates employment presumption for gig workers, requires algorithmic transparency, and shifts burden of proof to platforms. Most comprehensive gig economy worker protection law enacted globally.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- COLLECTIVE ACTION ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Collective Action in <span class="accent">Tech</span></div>
+        <div class="slide-subtitle">Individual professional ethics are insufficient when organizational failures are structural. Collective action within and across organizations is a mechanism for ethical change.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Internal Organizing</div>
+                <div class="card-desc">Technology workers have increasingly used collective action to influence employer decisions: Google's 2018 walkout (20,000 employees in 50 cities) over sexual harassment handling resulted in policy changes. Amazon workers have organized in multiple locations. Kickstarter workers formed a union in 2020 -- the first major tech company union in the US. The National Labor Relations Act protects most technology workers' rights to organize and engage in collective action, but union density in tech remains very low relative to other industries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Open Letters and Petitions</div>
+                <div class="card-desc">Technology worker open letters -- signed by hundreds or thousands of employees -- have become a mechanism for expressing collective professional ethics positions: against specific government contracts (Project Maven, JEDI), against treatment of specific groups (Timnit Gebru's firing at Google), and against harassment handling. These actions are protected as concerted activity under the NLRA when they address working conditions. Their effectiveness varies: some produce meaningful change, others produce PR responses without operational change.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Industry Coalitions</div>
+                <div class="card-desc">Industry coalitions address ethical standards that are better addressed collectively than by individual companies: the Partnership on AI (Meta, Google, Amazon, Apple, IBM, Microsoft) develops AI ethics standards. The Responsible Business Alliance sets supply chain standards for electronics manufacturers. These coalitions can raise floors across the industry, but they are composed of companies with competitive interests and can be captured by the lowest-common-denominator positions of their least-committed members. Independent oversight matters.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- DISCUSSION QUESTIONS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Discussion Questions</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Prepare written or oral responses. These themes appear in the final exam.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Compare contingent worker arrangements in IT to gig economy work. What ethical obligations do organizations have toward workers in each category? Are those obligations different? Why or why not? What legal or policy changes would most effectively address the gaps you identify?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Analyze the Frances Haugen disclosure using the ACM Code of Ethics. Which principles support her disclosure? Which might counsel a different approach? At what point, if any, does internal reporting failure justify external disclosure, and what obligation to exhaust internal channels exists before reaching that point?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Evaluate the H-1B visa program against the ethical standard of treating persons as ends rather than means. Does the program as currently structured respect the dignity and autonomy of H-1B workers? What specific changes would bring the program into better alignment with that standard?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">An IT organization's commitment to green computing is only as meaningful as the completeness of its environmental accounting. What does complete environmental accounting for an IT organization require? What is typically excluded from corporate environmental reports that should be included?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Offshore outsourcing is ethically contested: it harms displaced domestic workers and benefits workers in the destination country. Using both utilitarian and deontological frameworks, evaluate an organization's decision to offshore 500 IT positions. Do the frameworks produce different conclusions? Which do you find more persuasive?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Chapter 10 <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next class session. Written responses required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Research the Project Maven controversy at Google. Identify: what the employees objected to, what arguments management made in defense of the contract, what the outcome was, and whether Google's subsequent decisions regarding military AI contracts are consistent with the principles invoked in the protest. Has Google's position changed? If so, why?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Review your state's whistleblower protection statute (or a state you are interested in). Identify: what conduct is protected, what reporting channels are specified, what remedies are available for retaliation, what the limitation period is, and what the statute's primary limitation is compared to Dodd-Frank's federal protections.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Design a contingent worker policy for a hypothetical mid-sized technology company that addresses: the ethical distinction between project-specific contracting and long-term embedded contractors in permanent roles, compensation equity requirements, a defined pathway from contractor to permanent employment, and specific protections for H-1B contractors against visa-status-based exploitation. Justify each policy element by reference to an ethical principle.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Prepare a one-page green computing policy for a 200-person IT services company. Address: hardware procurement standards, e-waste disposal requirements, energy efficiency practices, employee device lifecycle management, and how you will measure and report on environmental performance. Identify the two areas where current legal requirements are inadequate and explain what voluntary standards you are adopting to address those gaps.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Find a documented case of worker misclassification in the technology industry (there are multiple public examples). Analyze: what the correct classification should have been and why, what benefits workers were denied by the misclassification, what the legal outcome was, and what organizational practice change, if any, resulted. What would ethical workforce classification practice have looked like in this case?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">IT organizations make choices about how they structure work, relate to employees and contractors, handle dissent, and manage environmental impact. These choices have ethical content and ethical consequences.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            Professional ethics does not stop at the edge of the technical work. How you treat the people who work with you and for you, how you handle knowledge of organizational wrongdoing, and how your organization manages its environmental footprint are all expressions of professional ethics. The codes do not confine themselves to technical conduct -- and neither should the professionals who claim to follow them.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Contingent IT workers often perform the same work as permanent employees at lower cost with fewer protections. Misclassification as independent contractors is both an ethical and legal violation when the economic realities of the relationship resemble employment.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">H-1B creates visa dependency that ties workers to employers. The prevailing wage requirement is intended to prevent wage suppression but has enforcement gaps. Power asymmetry in the H-1B relationship creates additional obligations for employers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Offshore outsourcing produces real cost savings and real harms to displaced workers. The ethical question is whether organizations are sharing the benefits or exclusively externalizing the costs. Transition assistance and worker support are within organizational control.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Gig workers classified as independent contractors are denied employment protections that the economic reality of their relationship may entitle them to. California AB5, UK Uber ruling, and EU Platform Work Directive are pushing toward reclassification globally.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Whistleblowing: Frances Haugen copied internal Facebook documents showing known harms to teenage mental health, political outrage amplification, and moderation failures. She reported to the SEC before going public. Both ACM and IEEE codes support her disclosure -- prioritizing public safety over organizational loyalty.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Whistleblower protections exist (SOX, Dodd-Frank, state laws) but are inadequately enforced in practice. The majority of whistleblowers experience retaliation despite legal protections. The gap between legal protection and practical protection is a structural failure that professional organizations cannot address alone.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Green computing obligations include energy efficiency, responsible e-waste disposal (R2/e-Stewards certified), supply chain environmental due diligence (conflict minerals, manufacturing labor), and lifecycle extension through repair and refurbishment programs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Workplace surveillance of knowledge workers: technically legal, often ethically problematic. Intensive monitoring reduces psychological safety, creativity, and intrinsic motivation. Transparency is a minimum ethical requirement regardless of the legality of the monitoring practice.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Organizational culture is the primary determinant of whether professional ethics codes function in practice. Individual virtue is insufficient in a culture that systematically suppresses ethical concerns. Structural responses -- protected reporting channels, consistent enforcement, ethical leadership -- are required.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w4-organizations', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

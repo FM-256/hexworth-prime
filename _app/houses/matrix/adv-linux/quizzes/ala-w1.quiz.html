@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 1 Quiz: CLI Operations + Networking | Advanced Linux Administration</title>
+    <style>
+        :root {
+            --bg: #060d08;
+            --bg-card: #0a130c;
+            --bg-option: #0f1a11;
+            --green: #00ff41;
+            --green-dim: rgba(0, 255, 65, 0.15);
+            --text: #e2f0e5;
+            --text-muted: #86a88c;
+            --success: #00ff41;
+            --danger: #ff3333;
+            --border: rgba(0, 255, 65, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(135deg, var(--bg) 0%, #040b06 50%, #061008 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--green);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #33ff66; transform: translateX(-5px); display: inline-block; }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--green-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--green);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        /* Progress */
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), #33ff66);
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--green);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Question card */
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num {
+            font-size: 0.8rem;
+            color: var(--green);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-text {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .question-text code {
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #66ff88;
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .option:hover { border-color: rgba(0, 255, 65, 0.4); background: rgba(0, 255, 65, 0.05); }
+
+        .option.selected { border-color: var(--green); background: rgba(0, 255, 65, 0.08); }
+
+        .option.correct {
+            border-color: var(--success);
+            background: rgba(0, 255, 65, 0.10);
+        }
+
+        .option.incorrect {
+            border-color: var(--danger);
+            background: rgba(255, 51, 51, 0.08);
+        }
+
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--green);
+            flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .option.correct .option-letter { background: rgba(0, 255, 65, 0.25); color: var(--success); border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        /* Feedback */
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(0, 255, 65, 0.06);
+            border: 1px solid rgba(0, 255, 65, 0.30);
+            color: #88ffaa;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(255, 51, 51, 0.06);
+            border: 1px solid rgba(255, 51, 51, 0.30);
+            color: #ff9999;
+        }
+
+        /* Navigation */
+        .quiz-nav {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(0, 255, 65, 0.10);
+            border: 1px solid rgba(0, 255, 65, 0.40);
+            color: var(--green);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .next-btn:hover { background: rgba(0, 255, 65, 0.20); }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(0, 255, 65, 0.10); }
+
+        /* Results */
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 {
+            color: var(--green);
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .score-big {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .results-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btns a, .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .btn-retry {
+            background: rgba(0, 255, 65, 0.10);
+            border: 1px solid rgba(0, 255, 65, 0.40) !important;
+            color: var(--green);
+        }
+        .btn-retry:hover { background: rgba(0, 255, 65, 0.25); }
+
+        .btn-hub {
+            background: rgba(0, 255, 65, 0.15);
+            border: 1px solid rgba(0, 255, 65, 0.40) !important;
+            color: var(--success);
+        }
+        .btn-hub:hover { background: rgba(0, 255, 65, 0.30); }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Advanced Linux Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Week 1 Quiz: Grid Connection</h1>
+            <p class="subtitle">CLI Operations, systemd, Network Configuration, and Grid Diagnostics</p>
+            <div class="meta">
+                <span>Week 1</span>
+                <span>15 Questions</span>
+                <span>Obj 1, 2</span>
+                <span>70% to Pass</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to ALA Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Answers are NOT stored in this file.
+           Server-graded via gradeQuiz Cloud Function.
+           Answer key stored in Firestore quiz_keys/matrix-ala-w1-quiz */
+        var QUIZ_ID = 'matrix-ala-w1-quiz';
+
+        var questions = [
+            {
+                q: 'An operator runs <code>systemctl start networking &amp;&amp; systemctl start sshd</code>. The networking service fails to start. What happens to the sshd start command?',
+                opts: [
+                    'sshd starts anyway because the commands are independent',
+                    'sshd is skipped because &amp;&amp; only runs the next command on success',
+                    'Both commands fail and systemd rolls back all changes',
+                    'sshd starts but immediately exits with a dependency error'
+                ],
+                ans: 1,
+                exp: 'The &amp;&amp; operator executes the next command only if the previous command exits with code 0 (success). A failed systemctl start exits non-zero, so sshd is never started.'
+            },
+            {
+                q: 'What is the key difference between running commands in <code>(cd /tmp &amp;&amp; rm *.tmp)</code> versus <code>cd /tmp &amp;&amp; rm *.tmp</code> directly in the current shell?',
+                opts: [
+                    'The subshell version is faster because it runs in a separate process',
+                    'The subshell version does not affect the current shell\'s working directory; the direct version does',
+                    'The direct version runs as root automatically',
+                    'There is no difference; both forms are equivalent'
+                ],
+                ans: 1,
+                exp: 'Parentheses create a subshell. Environment changes inside a subshell (like cd) do not propagate back to the parent shell. Running cd directly in the current shell changes its working directory permanently for that session.'
+            },
+            {
+                q: 'An operator needs to capture all DNS queries leaving a cell and save them to a file named dns-capture.pcap. Which command is correct for Ubuntu 22.04?',
+                opts: [
+                    'tcpdump -i eth0 port 53 -w dns-capture.pcap',
+                    'wireshark -i eth0 -f "port 53" -o dns-capture.pcap',
+                    'netstat -tulnp port 53 > dns-capture.pcap',
+                    'ss -u -a port 53 -w dns-capture.pcap'
+                ],
+                ans: 0,
+                exp: 'tcpdump -i eth0 port 53 captures packets on interface eth0 matching port 53 (DNS). The -w flag writes raw packets to a pcap file for later analysis with Wireshark or tshark.'
+            },
+            {
+                q: 'Which <code>journalctl</code> command displays only the log entries from the previous boot?',
+                opts: [
+                    'journalctl --last-boot',
+                    'journalctl -b -1',
+                    'journalctl --boot=previous',
+                    'journalctl -b 0 --prev'
+                ],
+                ans: 1,
+                exp: 'journalctl -b -1 displays logs from the boot before the current one. -b 0 is current boot, -b -1 is one boot ago, -b -2 is two boots ago, etc.'
+            },
+            {
+                q: 'A cell\'s service starts successfully but logs show it exits 5 seconds later with a non-zero exit code. Which systemd unit file directive causes the service to restart automatically after a 10-second delay?',
+                opts: [
+                    'RestartPolicy=on-failure and RestartDelay=10',
+                    'Restart=on-failure and RestartSec=10',
+                    'AutoRestart=yes and WaitSec=10',
+                    'FailureAction=restart and RestartTimer=10'
+                ],
+                ans: 1,
+                exp: 'The correct directives in a [Service] section are Restart=on-failure (restart when the service exits with a non-zero code) and RestartSec=10 (wait 10 seconds before restarting).'
+            },
+            {
+                q: 'Which directory contains the persistent Netplan network configuration files on Ubuntu 22.04?',
+                opts: [
+                    '/etc/network/interfaces.d/',
+                    '/etc/sysconfig/network-scripts/',
+                    '/etc/netplan/',
+                    '/run/systemd/network/'
+                ],
+                ans: 2,
+                exp: '/etc/netplan/ contains the YAML configuration files applied by netplan apply. The /run/systemd/network/ directory is used by systemd-networkd at runtime and is not where you write persistent configuration.'
+            },
+            {
+                q: 'An operator runs <code>ss -tulnp</code> on a cell and sees port 22 listed with state LISTEN but no process name shown. What is the most likely cause?',
+                opts: [
+                    'SSH is not running; the port is in a TIME_WAIT state',
+                    'The command was run without root privileges; process names require elevated access',
+                    'The -p flag only works with UDP sockets',
+                    'The ss command does not support process names; use netstat instead'
+                ],
+                ans: 1,
+                exp: 'The -p flag in ss requires root or sudo to display the process name and PID associated with each socket. Without elevated privileges, the process column is empty.'
+            },
+            {
+                q: 'What does the <code>ip route get 8.8.8.8</code> command tell an operator?',
+                opts: [
+                    'Whether 8.8.8.8 is reachable via ICMP ping',
+                    'Which local interface and gateway the kernel would use to reach 8.8.8.8',
+                    'The full routing table sorted by destination',
+                    'The BGP path to 8.8.8.8 from the local AS'
+                ],
+                ans: 1,
+                exp: 'ip route get simulates the kernel\'s routing decision for a specific destination without sending any packets. It shows the selected interface, source IP, and gateway that would be used, making it ideal for verifying routing policy.'
+            },
+            {
+                q: 'An operator edits <code>/lib/systemd/system/sshd.service</code> directly to add a custom environment variable. What is the primary risk of this approach?',
+                opts: [
+                    'The file permissions will prevent systemd from reading the change',
+                    'The change will be overwritten the next time the openssh-server package is updated',
+                    'Direct edits to /lib require a full system reboot to take effect',
+                    'systemd locks unit files in /lib and ignores all manual changes'
+                ],
+                ans: 1,
+                exp: 'Unit files in /lib/systemd/system/ are owned by the package manager. A package update will overwrite your changes. The correct approach is to use systemctl edit sshd.service which creates a drop-in override in /etc/systemd/system/sshd.service.d/'
+            },
+            {
+                q: 'Which command correctly creates a network bond interface named bond0 using two physical interfaces on Ubuntu 22.04 via the ip command?',
+                opts: [
+                    'ip link add bond0 type bond mode active-backup',
+                    'ifconfig bond0 create type bonding',
+                    'nmcli con add type bond ifname bond0 mode 1',
+                    'netplan bond bond0 --mode=active-backup eth0 eth1'
+                ],
+                ans: 0,
+                exp: 'ip link add bond0 type bond mode active-backup creates a bonding interface using the kernel\'s bonding driver. Slave interfaces are added separately with ip link set eth0 master bond0. Netplan also supports bonds but the ip command approach is lower-level and does not persist across reboots without netplan or another configuration layer.'
+            },
+            {
+                q: 'A cell cannot resolve hostnames but can ping IP addresses directly. Which three-command sequence correctly diagnoses whether the issue is local DNS configuration, upstream DNS server failure, or network routing?',
+                opts: [
+                    'ping 8.8.8.8, nslookup google.com, traceroute 8.8.8.8',
+                    'dig @127.0.0.1 google.com, dig @8.8.8.8 google.com, cat /etc/resolv.conf',
+                    'nslookup google.com, host google.com, systemctl status bind9',
+                    'resolvectl status, ping google.com, ss -tulnp'
+                ],
+                ans: 1,
+                exp: 'dig @127.0.0.1 tests the local stub resolver. dig @8.8.8.8 tests a known-good external DNS server bypassing local config. cat /etc/resolv.conf shows which nameserver the system is currently pointed at. Together these three commands isolate whether the fault is in local resolver config or the upstream DNS server.'
+            },
+            {
+                q: 'Which <code>systemctl</code> command shows the dependency tree for the ssh.service unit including all units it requires and wants?',
+                opts: [
+                    'systemctl show ssh.service --property=Requires,Wants',
+                    'systemctl list-dependencies ssh.service',
+                    'systemctl status ssh.service --full',
+                    'systemctl cat ssh.service'
+                ],
+                ans: 1,
+                exp: 'systemctl list-dependencies outputs a tree view of all dependencies for a unit. It shows Required, Wanted, and After/Before ordering relationships. systemctl cat shows the unit file contents; systemctl show outputs machine-readable properties.'
+            },
+            {
+                q: 'An operator needs to monitor incoming SSH connections in real time from the journal without seeing any other log entries. Which command is correct?',
+                opts: [
+                    'journalctl -f -u sshd --since now',
+                    'journalctl -fu ssh.service',
+                    'tail -f /var/log/syslog | grep ssh',
+                    'journalctl --follow --unit=sshd --live'
+                ],
+                ans: 1,
+                exp: 'journalctl -f follows new journal entries in real time (like tail -f). -u ssh.service filters to only that unit\'s output. The unit name on Ubuntu 22.04 is ssh.service (not sshd). The --follow flag is the long form of -f.'
+            },
+            {
+                q: 'What is the correct <code>netplan</code> YAML directive to set a static default gateway on Ubuntu 22.04?',
+                opts: [
+                    'gateway4: 192.168.1.1',
+                    'routes:\n  - to: default\n    via: 192.168.1.1',
+                    'default-route: 192.168.1.1',
+                    'gateway:\n  ipv4: 192.168.1.1'
+                ],
+                ans: 1,
+                exp: 'The gateway4 key was deprecated in Netplan 0.104. The current correct syntax is a routes block with to: default and via: <gateway>. Ubuntu 22.04 ships with Netplan 0.105+, so the routes form should be used.'
+            },
+            {
+                q: 'An operator runs <code>dig +trace cell-alpha.sector7.matrix.net</code> and the trace stops at the root nameservers with SERVFAIL. What is the most likely cause?',
+                opts: [
+                    'The cell\'s firewall is blocking outbound UDP port 53',
+                    'The TLD nameservers for .net do not have a delegation for sector7.matrix.net',
+                    'The local BIND instance has a misconfigured named.conf',
+                    'DNSSEC validation failed on the root zone'
+                ],
+                ans: 1,
+                exp: '+trace performs iterative resolution starting from the root. If the trace stops at root and returns SERVFAIL, it means the root knows about .net but the .net TLD nameservers do not have an NS delegation pointing to an authoritative server for matrix.net or its subdomain. This is a delegation or glue record problem, not a local BIND issue.'
+            }
+        ];
+
+        /* ── Quiz Engine State ──
+           Server-graded: no answer key in this file.
+           On pass (>=70%), records completion via ModuleProgress
+           which syncs to Firestore for instructor visibility. */
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        /** Render the current question with HTML-safe content. */
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').innerHTML = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            answered = false;
+        }
+
+        /**
+         * Handle answer selection. Locks all options, marks correct/incorrect,
+         * shows explanation. Increments score if correct.
+         */
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        /** Advance to next question or show results on final question. */
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        /**
+         * Display results and record completion via ModuleProgress.
+         * Passing threshold: 70%. Syncs to Firestore for instructor visibility.
+         */
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) {
+                scoreBig.className = 'score-big';
+            } else if (pct >= 60) {
+                scoreBig.className = 'score-big mid';
+            } else {
+                scoreBig.className = 'score-big low';
+            }
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. CLI and networking fundamentals locked in.';
+            else if (pct >= 70) msg = 'Passing score. Review the questions you missed before Week 2.';
+            else if (pct >= 50) msg = 'Not quite. Revisit the ALA-01 through ALA-04 modules and retry.';
+            else msg = 'Below threshold. Review Week 1 materials before attempting the midterm.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            // Record completion for passing score (>=70%)
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('matrix', 'ala-w1-quiz', score);
+            }
+        }
+
+        /** Reset all state and restart from question 1. */
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

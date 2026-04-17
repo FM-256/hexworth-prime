@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIND9 Deployment | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">BIND9 Deployment | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; ALA-W3-BIND &nbsp;|&nbsp; Week 3 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                BIND9 Deployment<br>
+                <span class="accent">Install, Configure, Operate</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                named.conf &nbsp;&bull;&nbsp; Zone Files &nbsp;&bull;&nbsp; Forward/Reverse Zones &nbsp;&bull;&nbsp; AXFR &nbsp;&bull;&nbsp; rndc
+            </div>
+        </div>
+        <div class="scenario-strip">
+            The sector node needs a local authoritative DNS server. External DNS cannot be trusted for internal resolution. You are standing up BIND9 from a clean Ubuntu 22.04 install. Every command in this module maps to a real deployment decision.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>ALA-W3-BIND</span>
+            <span>Week 3 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- BIND9 OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">BIND9: <span class="accent">What It Is</span></div>
+        <div class="slide-subtitle">Berkeley Internet Name Domain version 9. The reference implementation of the DNS protocol.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">What BIND9 Can Do</div>
+                <div class="card-desc">Run as an authoritative server (holds zone data), a recursive resolver (walks the hierarchy for clients), or both simultaneously. Supports split-horizon views, DNSSEC signing, dynamic DNS updates, access control lists, and response rate limiting.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Processes</div>
+                <div class="card-desc"><span class="ic">named</span> is the DNS daemon. <span class="ic">rndc</span> is the remote name daemon control tool -- it connects to named's control channel to issue commands without restarting the service. Both are in the same package.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Alternatives</div>
+                <div class="card-desc">NSD (authoritative only, minimal footprint), Knot DNS (authoritative, fast), Unbound (recursive resolver only, security-focused), PowerDNS (database-backed, API-driven). BIND9 is the most widely deployed and the best choice for learning the full DNS stack.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Why BIND9 Specifically</div>
+            BIND9 implements every RFC-defined DNS feature. Understanding it gives you the conceptual foundation to operate any DNS server. Its configuration syntax is the reference that all documentation and tutorials use. Learn BIND9 first.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- INSTALLATION ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">BIND9 <span class="accent">Installation</span></div>
+        <div class="slide-subtitle">Clean install on Ubuntu 22.04. Three packages, one disable, one verify.</div>
+
+        <div class="code-block"><span class="cm"># Update package index first</span>
+<span class="fn">sudo</span> <span class="fn">apt</span> update
+
+<span class="cm"># Install BIND9 and utilities</span>
+<span class="fn">sudo</span> <span class="fn">apt</span> install -y bind9 bind9utils bind9-doc
+
+<span class="cm"># bind9       -- the named daemon and startup scripts</span>
+<span class="cm"># bind9utils  -- rndc, named-checkconf, named-checkzone, nsupdate</span>
+<span class="cm"># bind9-doc   -- manpages and documentation</span>
+
+<span class="cm"># Disable systemd-resolved stub listener (conflicts with BIND on port 53)</span>
+<span class="fn">sudo</span> <span class="fn">sed</span> -i <span class="st">'s/#DNSStubListener=yes/DNSStubListener=no/'</span> /etc/systemd/resolved.conf
+<span class="fn">sudo</span> <span class="fn">systemctl</span> restart systemd-resolved
+
+<span class="cm"># Verify named is running</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> status named
+<span class="fn">sudo</span> <span class="fn">ss</span> -tulnp <span class="kw">|</span> <span class="fn">grep</span> <span class="st">':53'</span>      <span class="cm"># named should own port 53</span>
+
+<span class="cm"># Verify named starts on boot</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> enable named</div>
+
+        <div class="box box-gold">
+            <div class="box-label">AppArmor</div>
+            Ubuntu ships with AppArmor profiles for named. The profile restricts what files named can read and write. If named cannot read your zone files, check the AppArmor profile at <span class="ic">/etc/apparmor.d/usr.sbin.named</span>. Zone files in <span class="ic">/etc/bind/</span> are permitted by default.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- FILE LAYOUT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">BIND9 <span class="accent">File Layout</span></div>
+        <div class="slide-subtitle">Know every file and directory before touching any of them.</div>
+
+        <div class="code-block"><span class="cm"># Primary configuration directory</span>
+/etc/bind/
+  named.conf              <span class="cm"># main config -- usually just includes others</span>
+  named.conf.options      <span class="cm"># global options: forwarders, recursion, ACLs</span>
+  named.conf.local        <span class="cm"># your zones go here</span>
+  named.conf.default-zones <span class="cm"># root hints, localhost zones (do not edit)</span>
+  db.local                <span class="cm"># zone file for localhost (reference example)</span>
+  db.127                  <span class="cm"># reverse zone file for 127.0.0.1</span>
+  db.root                 <span class="cm"># root hints -- list of root server addresses</span>
+  rndc.key                <span class="cm"># authentication key for rndc commands</span>
+
+<span class="cm"># Runtime directory (writable by named user)</span>
+/var/cache/bind/          <span class="cm"># journal files, secondary zone data</span>
+/var/run/named/           <span class="cm"># PID file and control socket</span>
+
+<span class="cm"># Logging</span>
+/var/log/syslog           <span class="cm"># BIND9 logs here by default (named category)</span>
+
+<span class="cm"># Process user</span>
+<span class="fn">grep</span> bind /etc/passwd     <span class="cm"># bind:x:117:122::/var/cache/bind:/usr/sbin/nologin</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Never Put Zone Files in /tmp or /home</div>
+            AppArmor restricts named to specific directories. Your zone files must live in <span class="ic">/etc/bind/</span> or <span class="ic">/var/cache/bind/</span>. Files placed elsewhere will cause silent load failures.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- named.conf.options ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">named.conf.options: <span class="accent">Global Settings</span></div>
+        <div class="slide-subtitle">The options block controls recursion, forwarders, ACLs, and security posture.</div>
+
+        <div class="code-block"><span class="cm">// /etc/bind/named.conf.options</span>
+
+<span class="cm">// Define trusted networks that may recurse</span>
+acl <span class="st">"trusted"</span> {
+    <span class="nb">127.0.0.1</span>;
+    <span class="nb">10.0.0.0/8</span>;
+    <span class="nb">192.168.0.0/16</span>;
+};
+
+options {
+    directory <span class="st">"/var/cache/bind"</span>;     <span class="cm">// working directory for named</span>
+
+    recursion <span class="kw">yes</span>;
+    allow-recursion { trusted; };     <span class="cm">// only trusted clients may recurse</span>
+    allow-query { trusted; };         <span class="cm">// only trusted clients may query</span>
+    allow-transfer { <span class="kw">none</span>; };        <span class="cm">// deny all zone transfers by default</span>
+
+    <span class="cm">// Forwarders: upstream resolvers for names we don't own</span>
+    forwarders {
+        <span class="nb">8.8.8.8</span>;
+        <span class="nb">1.1.1.1</span>;
+    };
+    forward only;                     <span class="cm">// don't recurse independently -- use forwarders</span>
+
+    dnssec-validation auto;           <span class="cm">// validate DNSSEC responses</span>
+    listen-on { any; };              <span class="cm">// listen on all interfaces</span>
+    listen-on-v6 { any; };
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- named.conf.local ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">named.conf.local: <span class="accent">Zone Declarations</span></div>
+        <div class="slide-subtitle">This is where you declare your zones. The zone type and file path are the two critical fields.</div>
+
+        <div class="code-block"><span class="cm">// /etc/bind/named.conf.local</span>
+
+<span class="cm">// Forward zone -- name to IP</span>
+zone <span class="st">"matrix.internal"</span> {
+    type master;                                       <span class="cm">// this server is authoritative</span>
+    file <span class="st">"/etc/bind/db.matrix.internal"</span>;             <span class="cm">// zone file path</span>
+    allow-transfer { <span class="nb">10.0.1.11</span>; };                   <span class="cm">// allow ns2 to transfer</span>
+    notify <span class="kw">yes</span>;                                       <span class="cm">// notify ns2 on zone change</span>
+    also-notify { <span class="nb">10.0.1.11</span>; };
+};
+
+<span class="cm">// Reverse zone for 10.0.1.0/24</span>
+zone <span class="st">"1.0.10.in-addr.arpa"</span> {
+    type master;
+    file <span class="st">"/etc/bind/db.10.0.1"</span>;
+    allow-transfer { <span class="nb">10.0.1.11</span>; };
+    notify <span class="kw">yes</span>;
+};
+
+<span class="cm">// Secondary zone -- pulls from primary via AXFR</span>
+zone <span class="st">"partner.example"</span> {
+    type slave;
+    masters { <span class="nb">10.0.2.10</span>; };                          <span class="cm">// primary server IP</span>
+    file <span class="st">"/var/cache/bind/db.partner.example"</span>;        <span class="cm">// stored in cache dir</span>
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ZONE FILE STRUCTURE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">Zone File <span class="accent">Structure</span></div>
+        <div class="slide-subtitle">The anatomy of a forward zone file. Every field has a specific meaning and strict syntax.</div>
+
+        <div class="code-block"><span class="cm">; /etc/bind/db.matrix.internal</span>
+<span class="cm">; Semicolons begin comments in zone files</span>
+
+<span class="fn">$TTL</span>    <span class="nb">3600</span>          <span class="cm">; default TTL for all records without explicit TTL</span>
+<span class="fn">$ORIGIN</span> matrix.internal.  <span class="cm">; appended to unqualified names (optional -- set by zone name)</span>
+
+<span class="cm">; SOA record -- required, must be first</span>
+<span class="kw">@</span>   IN  SOA  ns1.matrix.internal.  admin.matrix.internal. (
+                <span class="nb">2026040901</span>  <span class="cm">; serial</span>
+                <span class="nb">3600</span>        <span class="cm">; refresh (secondary polls primary every 1 hour)</span>
+                <span class="nb">900</span>         <span class="cm">; retry (on refresh failure, retry after 15 min)</span>
+                <span class="nb">604800</span>      <span class="cm">; expire (secondary stops answering after 7 days without refresh)</span>
+                <span class="nb">300</span>         <span class="cm">; minimum TTL (negative cache TTL)</span>
+            )
+
+<span class="cm">; NS records -- required, define authoritative name servers</span>
+<span class="kw">@</span>           IN  NS      ns1.matrix.internal.
+<span class="kw">@</span>           IN  NS      ns2.matrix.internal.
+
+<span class="cm">; A records</span>
+ns1         IN  A       <span class="st">10.0.1.10</span>
+ns2         IN  A       <span class="st">10.0.1.11</span>
+ops         IN  A       <span class="st">10.0.1.50</span>
+db1         IN  A       <span class="st">10.0.1.60</span>
+
+<span class="cm">; MX record</span>
+<span class="kw">@</span>           IN  MX  <span class="nb">10</span>  mail.matrix.internal.
+mail        IN  A       <span class="st">10.0.1.70</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- REVERSE ZONE FILE ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">Reverse Zone <span class="accent">File</span></div>
+        <div class="slide-subtitle">PTR records that map IP addresses back to hostnames. The format is different from forward zones.</div>
+
+        <div class="code-block"><span class="cm">; /etc/bind/db.10.0.1</span>
+<span class="cm">; Reverse zone for 10.0.1.0/24</span>
+<span class="cm">; Zone name: 1.0.10.in-addr.arpa.</span>
+
+<span class="fn">$TTL</span>    <span class="nb">3600</span>
+
+<span class="kw">@</span>   IN  SOA  ns1.matrix.internal.  admin.matrix.internal. (
+                <span class="nb">2026040901</span>
+                <span class="nb">3600</span>
+                <span class="nb">900</span>
+                <span class="nb">604800</span>
+                <span class="nb">300</span>
+            )
+
+<span class="kw">@</span>   IN  NS  ns1.matrix.internal.
+<span class="kw">@</span>   IN  NS  ns2.matrix.internal.
+
+<span class="cm">; PTR records: only the last octet (zone provides the rest)</span>
+<span class="nb">10</span>  IN  PTR  ns1.matrix.internal.
+<span class="nb">11</span>  IN  PTR  ns2.matrix.internal.
+<span class="nb">50</span>  IN  PTR  ops.matrix.internal.
+<span class="nb">60</span>  IN  PTR  db1.matrix.internal.
+<span class="nb">70</span>  IN  PTR  mail.matrix.internal.
+
+<span class="cm">; Test reverse lookup</span>
+<span class="cm">; dig -x 10.0.1.50 @127.0.0.1  -->  ops.matrix.internal.</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Zone Name Derivation</div>
+            For network <span class="ic">10.0.1.0/24</span>, reverse the network octets: <span class="ic">1.0.10</span> then append <span class="ic">.in-addr.arpa</span>. Full zone name: <span class="ic">1.0.10.in-addr.arpa.</span>. For <span class="ic">192.168.5.0/24</span> the zone name is <span class="ic">5.168.192.in-addr.arpa.</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- VALIDATING CONFIG AND ZONES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34</div>
+        <div class="slide-title">Validating: <span class="accent">named-checkconf and named-checkzone</span></div>
+        <div class="slide-subtitle">Never reload BIND without running both tools first. Syntax errors cause zone load failures.</div>
+
+        <div class="code-block"><span class="cm"># Validate the main configuration file</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span>
+<span class="cm"># No output = no errors. Any error is fatal -- do not proceed.</span>
+
+<span class="cm"># Validate a specific zone file</span>
+<span class="fn">sudo</span> <span class="fn">named-checkzone</span> matrix.internal /etc/bind/db.matrix.internal
+<span class="cm"># Expected good output:</span>
+<span class="cm"># zone matrix.internal/IN: loaded serial 2026040901</span>
+<span class="cm"># OK</span>
+
+<span class="cm"># Validate reverse zone</span>
+<span class="fn">sudo</span> <span class="fn">named-checkzone</span> 1.0.10.in-addr.arpa /etc/bind/db.10.0.1
+
+<span class="cm"># Common errors and what they mean</span>
+<span class="er"># no SOA RR found       -- SOA record is missing or has a syntax error</span>
+<span class="er"># missing '.'           -- FQDN missing trailing dot</span>
+<span class="er"># out of zone data      -- a name resolves outside the zone (missing trailing dot)</span>
+<span class="er"># CNAME and other data  -- a CNAME record coexists with another record type</span>
+
+<span class="cm"># Validate ALL zones defined in named.conf at once</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span> -z</div>
+
+        <div class="box box-red">
+            <div class="box-label">The Workflow</div>
+            Edit zone file. Increment serial. Run <span class="ic">named-checkconf -z</span>. Fix any errors. Reload. This sequence is non-negotiable. Skipping validation and reloading a broken zone causes BIND to stop serving that zone with no warning to clients.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- RELOADING BIND ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">Loading Changes: <span class="accent">rndc reload</span></div>
+        <div class="slide-subtitle">How to apply configuration and zone changes without dropping connections or restarting the daemon.</div>
+
+        <div class="code-block"><span class="cm"># Reload all configuration and all zones</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> reload
+<span class="cm"># server reload successful</span>
+
+<span class="cm"># Reload a specific zone only (faster for large deployments)</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> reload matrix.internal
+
+<span class="cm"># Reload just the configuration file (without zone files)</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> reconfig
+
+<span class="cm"># Alternative: systemctl reload (sends SIGHUP -- same effect as rndc reload)</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> reload named
+
+<span class="cm"># Full restart (only needed after changing listening addresses or port)</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> restart named
+
+<span class="cm"># Verify the zone loaded successfully after reload</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> status               <span class="cm"># shows loaded zones count and version</span>
+<span class="fn">dig</span> SOA matrix.internal @127.0.0.1
+<span class="cm"># Check serial number in the SOA matches the file</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">rndc vs systemctl</div>
+            Use <span class="ic">rndc</span> for DNS-specific operations -- it communicates through named's control channel and returns accurate status. Use <span class="ic">systemctl</span> only for full service start/stop/restart. Never kill <span class="ic">named</span> with SIGKILL -- it may corrupt journal files.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- RNDC COMMAND REFERENCE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">rndc: <span class="accent">Command Reference</span></div>
+        <div class="slide-subtitle">The full set of operational commands for a running BIND9 server.</div>
+
+        <div class="code-block"><span class="cm"># Status and diagnostics</span>
+<span class="fn">rndc</span> status               <span class="cm"># server uptime, version, loaded zones, memory</span>
+<span class="fn">rndc</span> zonestatus matrix.internal  <span class="cm"># detailed status for one zone</span>
+
+<span class="cm"># Zone management</span>
+<span class="fn">rndc</span> reload               <span class="cm"># reload all zones and config</span>
+<span class="fn">rndc</span> reload ZONE          <span class="cm"># reload specific zone</span>
+<span class="fn">rndc</span> reconfig             <span class="cm"># re-read named.conf without zone reload</span>
+<span class="fn">rndc</span> refresh ZONE         <span class="cm"># force secondary to re-check primary (on secondary)</span>
+<span class="fn">rndc</span> retransfer ZONE      <span class="cm"># force full AXFR from primary (on secondary)</span>
+<span class="fn">rndc</span> freeze ZONE          <span class="cm"># suspend dynamic updates (safe for manual editing)</span>
+<span class="fn">rndc</span> thaw ZONE            <span class="cm"># resume dynamic updates after freeze</span>
+
+<span class="cm"># Cache management</span>
+<span class="fn">rndc</span> flush                <span class="cm"># clear the entire resolver cache</span>
+<span class="fn">rndc</span> flushname NAME       <span class="cm"># remove specific name from cache</span>
+<span class="fn">rndc</span> dumpdb               <span class="cm"># dump cache to /var/cache/bind/named_dump.db</span>
+
+<span class="cm"># Logging</span>
+<span class="fn">rndc</span> querylog on          <span class="cm"># enable per-query logging (verbose -- use briefly)</span>
+<span class="fn">rndc</span> querylog off         <span class="cm"># disable query logging</span>
+<span class="fn">rndc</span> trace                <span class="cm"># increase debug logging level</span>
+<span class="fn">rndc</span> notrace              <span class="cm"># return to normal logging level</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- TESTING WITH DIG ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">Testing: <span class="accent">dig Against Your Server</span></div>
+        <div class="slide-subtitle">After every configuration change, verify with dig before declaring success.</div>
+
+        <div class="code-block"><span class="cm"># Always query your server directly -- use @127.0.0.1 not @127.0.0.53</span>
+<span class="cm"># 127.0.0.53 = systemd-resolved stub (may cache old data)</span>
+<span class="cm"># 127.0.0.1  = BIND9 directly (no caching between you and the zone)</span>
+
+<span class="cm"># Test forward lookup</span>
+<span class="fn">dig</span> A ops.matrix.internal @<span class="nb">127.0.0.1</span>
+<span class="cm"># Expect: NOERROR, aa flag (authoritative answer), correct IP</span>
+
+<span class="cm"># Test reverse lookup</span>
+<span class="fn">dig</span> -x <span class="nb">10.0.1.50</span> @<span class="nb">127.0.0.1</span>
+<span class="cm"># Expect: ops.matrix.internal.</span>
+
+<span class="cm"># Test SOA -- verify serial matches your zone file</span>
+<span class="fn">dig</span> SOA matrix.internal @<span class="nb">127.0.0.1</span> +multiline
+
+<span class="cm"># Test NXDOMAIN behavior</span>
+<span class="fn">dig</span> A ghost.matrix.internal @<span class="nb">127.0.0.1</span>
+<span class="cm"># Expect: NXDOMAIN, aa flag, authority section shows SOA</span>
+
+<span class="cm"># Test recursive forwarding (should resolve external names)</span>
+<span class="fn">dig</span> A google.com @<span class="nb">127.0.0.1</span>
+<span class="cm"># Expect: NOERROR, no aa flag (not authoritative for google.com)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- ZONE TRANSFERS CONFIGURATION ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">Zone Transfers: <span class="accent">Primary to Secondary</span></div>
+        <div class="slide-subtitle">Configure ns1 (primary) and ns2 (secondary) for automatic zone synchronization.</div>
+
+        <div class="code-block"><span class="cm">// ns1 (primary) -- named.conf.local</span>
+zone <span class="st">"matrix.internal"</span> {
+    type master;
+    file <span class="st">"/etc/bind/db.matrix.internal"</span>;
+    allow-transfer { <span class="nb">10.0.1.11</span>; };   <span class="cm">// only allow ns2 to transfer</span>
+    notify <span class="kw">yes</span>;                       <span class="cm">// NOTIFY ns2 when serial changes</span>
+    also-notify { <span class="nb">10.0.1.11</span>; };      <span class="cm">// must list explicitly if not in NS records</span>
+};
+
+<span class="cm">// ns2 (secondary) -- named.conf.local</span>
+zone <span class="st">"matrix.internal"</span> {
+    type slave;
+    masters { <span class="nb">10.0.1.10</span>; };          <span class="cm">// ns1 IP</span>
+    file <span class="st">"/var/cache/bind/db.matrix.internal"</span>;
+};
+
+<span class="cm"># Verify zone transfer occurred on ns2</span>
+<span class="fn">dig</span> SOA matrix.internal @<span class="nb">10.0.1.11</span>  <span class="cm"># serial should match ns1</span>
+<span class="fn">ls</span> -la /var/cache/bind/db.matrix.internal  <span class="cm"># file should exist and be recent</span>
+
+<span class="cm"># Force a retransfer on ns2</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> retransfer matrix.internal  <span class="cm"># run this on ns2</span>
+
+<span class="cm"># Watch the transfer in logs</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named -f <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'transfer'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- LOGGING CONFIGURATION ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">BIND9 <span class="accent">Logging</span></div>
+        <div class="slide-subtitle">Configure structured logging to separate query logs, security events, and general errors.</div>
+
+        <div class="code-block"><span class="cm">// Add a logging block to named.conf.options</span>
+logging {
+    channel default_log {
+        file <span class="st">"/var/log/named/named.log"</span> versions <span class="nb">3</span> size <span class="nb">20m</span>;
+        print-time <span class="kw">yes</span>;
+        print-severity <span class="kw">yes</span>;
+        print-category <span class="kw">yes</span>;
+        severity dynamic;             <span class="cm">// controlled by rndc trace</span>
+    };
+
+    channel query_log {
+        file <span class="st">"/var/log/named/queries.log"</span> versions <span class="nb">5</span> size <span class="nb">50m</span>;
+        print-time <span class="kw">yes</span>;
+        severity info;
+    };
+
+    category queries { query_log; };
+    category default { default_log; };
+    category security { default_log; };
+    category config { default_log; };
+    category xfer-in { default_log; };
+    category xfer-out { default_log; };
+};
+
+<span class="cm"># Create log directory (named must own it)</span>
+<span class="fn">sudo</span> <span class="fn">mkdir</span> -p /var/log/named
+<span class="fn">sudo</span> <span class="fn">chown</span> bind:bind /var/log/named
+<span class="fn">sudo</span> <span class="fn">rndc</span> reconfig</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- ACCESS CONTROL LISTS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">Access Control: <span class="accent">ACLs</span></div>
+        <div class="slide-subtitle">Named ACLs let you define client groups once and reference them throughout the configuration.</div>
+
+        <div class="code-block"><span class="cm">// Named ACLs -- define at top of named.conf.options before options block</span>
+
+acl <span class="st">"internal-nets"</span> {
+    <span class="nb">127.0.0.0/8</span>;
+    <span class="nb">10.0.0.0/8</span>;
+    <span class="nb">172.16.0.0/12</span>;
+    <span class="nb">192.168.0.0/16</span>;
+};
+
+acl <span class="st">"ns2-only"</span> {
+    <span class="nb">10.0.1.11</span>;    <span class="cm">// only ns2 may transfer zones</span>
+};
+
+options {
+    allow-query { internal-nets; };
+    allow-recursion { internal-nets; };
+    allow-transfer { ns2-only; };
+
+    <span class="cm">// Blackhole: silently discard queries from these IPs (rate limiters, scanners)</span>
+    blackhole { <span class="nb">203.0.113.99</span>; };
+};
+
+<span class="cm">// Per-zone transfer override (overrides global allow-transfer)</span>
+zone <span class="st">"matrix.internal"</span> {
+    type master;
+    file <span class="st">"/etc/bind/db.matrix.internal"</span>;
+    allow-transfer { ns2-only; };     <span class="cm">// explicit -- belt and suspenders</span>
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- DYNAMIC DNS UPDATES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">Dynamic DNS: <span class="accent">nsupdate</span></div>
+        <div class="slide-subtitle">Update zone records without editing files or reloading -- critical for DHCP and automated environments.</div>
+
+        <div class="code-block"><span class="cm"># nsupdate sends dynamic update packets to a zone's primary server</span>
+<span class="cm"># The zone must have allow-update configured in named.conf</span>
+
+<span class="cm">// In named.conf.local -- allow updates from localhost (for testing)</span>
+zone <span class="st">"matrix.internal"</span> {
+    type master;
+    file <span class="st">"/etc/bind/db.matrix.internal"</span>;
+    allow-update { <span class="nb">127.0.0.1</span>; };     <span class="cm">// ONLY for testing -- use TSIG in prod</span>
+};
+
+<span class="cm"># Interactive nsupdate session</span>
+<span class="fn">nsupdate</span>
+<span class="cm">></span> server <span class="nb">127.0.0.1</span>
+<span class="cm">></span> zone matrix.internal
+<span class="cm">></span> update add temp.matrix.internal <span class="nb">300</span> A <span class="st">10.0.1.99</span>
+<span class="cm">></span> send
+<span class="cm">></span> quit
+
+<span class="cm"># Verify the update</span>
+<span class="fn">dig</span> A temp.matrix.internal @<span class="nb">127.0.0.1</span>
+
+<span class="cm"># Delete a record via nsupdate</span>
+<span class="fn">nsupdate</span> <span class="kw">&lt;&lt;</span><span class="st">EOF</span>
+server 127.0.0.1
+zone matrix.internal
+update delete temp.matrix.internal A
+send
+<span class="st">EOF</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- TSIG AUTHENTICATION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">TSIG: <span class="accent">Transaction Signatures</span></div>
+        <div class="slide-subtitle">Shared-secret authentication for zone transfers and dynamic updates. Required in production.</div>
+
+        <div class="code-block"><span class="cm"># Generate a TSIG key</span>
+<span class="fn">sudo</span> <span class="fn">tsig-keygen</span> -a hmac-sha256 matrix-transfer-key <span class="kw">|</span> <span class="fn">sudo</span> <span class="fn">tee</span> /etc/bind/tsig-keys.conf
+
+<span class="cm"># Output added to tsig-keys.conf:</span>
+<span class="cm"># key "matrix-transfer-key" {</span>
+<span class="cm">#     algorithm hmac-sha256;</span>
+<span class="cm">#     secret "BASE64SECRET==";</span>
+<span class="cm"># };</span>
+
+<span class="cm"># Include the key file in named.conf</span>
+<span class="cm">// named.conf</span>
+include <span class="st">"/etc/bind/tsig-keys.conf"</span>;
+
+<span class="cm">// Use TSIG for zone transfer authentication</span>
+zone <span class="st">"matrix.internal"</span> {
+    type master;
+    file <span class="st">"/etc/bind/db.matrix.internal"</span>;
+    allow-transfer { key <span class="st">"matrix-transfer-key"</span>; };
+};
+
+<span class="cm"># On ns2 (secondary), reference the same key in masters block</span>
+zone <span class="st">"matrix.internal"</span> {
+    type slave;
+    masters { <span class="nb">10.0.1.10</span> key <span class="st">"matrix-transfer-key"</span>; };
+    file <span class="st">"/var/cache/bind/db.matrix.internal"</span>;
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- FORWARDERS VS RECURSION ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34</div>
+        <div class="slide-title">Forwarders vs <span class="accent">Full Recursion</span></div>
+        <div class="slide-subtitle">Two strategies for resolving external names. Each has different performance and privacy tradeoffs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Forward-Only Mode</div>
+                <div class="card-desc">Your BIND9 server forwards all external queries to upstream resolvers (e.g., 8.8.8.8). Simple, low overhead, relies on upstream availability. All query data is visible to the upstream provider. Best for most internal deployments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Full Recursive Mode</div>
+                <div class="card-desc">BIND9 walks the DNS hierarchy itself starting from root servers. No dependency on a third-party resolver. Better privacy (query data stays local). Slightly higher latency on first lookup. Required if you need DNSSEC validation without trusting an upstream.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm">// Forward-only: delegate all external resolution to upstream</span>
+options {
+    forwarders { <span class="nb">8.8.8.8</span>; <span class="nb">1.1.1.1</span>; };
+    forward only;        <span class="cm">// do not fall back to recursion if forwarder fails</span>
+};
+
+<span class="cm">// Full recursive: walk the tree yourself</span>
+options {
+    forwarders { };      <span class="cm">// empty -- no forwarders</span>
+    recursion yes;
+    dnssec-validation auto;
+};
+
+<span class="cm">// Hybrid: forward most queries but recurse for specific zones</span>
+zone <span class="st">"partner.internal"</span> {
+    type forward;
+    forwarders { <span class="nb">10.0.2.10</span>; };    <span class="cm">// forward only this zone to partner DNS</span>
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- RESPONSE RATE LIMITING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Response Rate Limiting: <span class="accent">RRL</span></div>
+        <div class="slide-subtitle">Prevent your authoritative server from being used as an amplifier in DNS-based DDoS attacks.</div>
+
+        <div class="code-block"><span class="cm">// Add rate-limit block inside options { }</span>
+options {
+    rate-limit {
+        responses-per-second  <span class="nb">10</span>;       <span class="cm">// max responses per client IP per second</span>
+        window <span class="nb">5</span>;                        <span class="cm">// sliding window in seconds</span>
+        slip <span class="nb">2</span>;                          <span class="cm">// 1-in-N responses get TC flag (triggers TCP retry)</span>
+        log-only <span class="kw">no</span>;                    <span class="cm">// actually enforce (yes = observe only)</span>
+        exempt-clients { <span class="nb">10.0.0.0/8</span>; }; <span class="cm">// trusted networks are exempt</span>
+    };
+};
+
+<span class="cm"># Monitor RRL in action</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'rate-limit'</span>
+<span class="cm"># Throttled responses are logged with client IP and query type</span>
+
+<span class="cm"># Test RRL (flood queries and see drops)</span>
+<span class="kw">for</span> i in <span class="kw">$(</span><span class="fn">seq</span> 1 20<span class="kw">)</span>; do <span class="fn">dig</span> +short A ops.matrix.internal @<span class="nb">127.0.0.1</span>; done</div>
+
+        <div class="box box-gold">
+            <div class="box-label">DNS Amplification Basics</div>
+            An attacker sends small queries with a spoofed source IP (the victim's IP). Your server sends large responses to the victim. A single query packet can result in a response 50-100x larger. RRL limits the response rate per source IP, dramatically reducing amplification potential.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- TROUBLESHOOTING BIND9 ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">Troubleshooting <span class="accent">BIND9</span></div>
+        <div class="slide-subtitle">Systematic diagnosis when named is not behaving as expected.</div>
+
+        <div class="code-block"><span class="cm"># Is named running and what port is it on?</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> status named
+<span class="fn">sudo</span> <span class="fn">ss</span> -tulnp <span class="kw">|</span> <span class="fn">grep</span> named
+
+<span class="cm"># What does named think of its current state?</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> status
+
+<span class="cm"># Check logs for errors (last 50 lines)</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named -n 50
+
+<span class="cm"># Does the zone load correctly?</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span> -z <span class="nb">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fn">grep</span> -i error
+
+<span class="cm"># Is named listening on the right interface?</span>
+<span class="fn">sudo</span> <span class="fn">ss</span> -unap sport = :53      <span class="cm"># UDP port 53</span>
+<span class="fn">sudo</span> <span class="fn">ss</span> -tnap sport = :53      <span class="cm"># TCP port 53</span>
+
+<span class="cm"># Enable debug logging briefly</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> trace 3               <span class="cm"># level 3 is very verbose</span>
+<span class="fn">dig</span> A ops.matrix.internal @<span class="nb">127.0.0.1</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named -n 100
+<span class="fn">sudo</span> <span class="fn">rndc</span> notrace               <span class="cm"># return to normal -- do not leave trace on</span>
+
+<span class="cm"># AppArmor blocking file access?</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -k <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'apparmor.*named'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- FIREWALL RULES FOR DNS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Firewall Rules for <span class="accent">DNS</span></div>
+        <div class="slide-subtitle">UFW rules to allow DNS queries and zone transfers while blocking everything else.</div>
+
+        <div class="code-block"><span class="cm"># DNS queries arrive on UDP/53 and TCP/53</span>
+<span class="cm"># Zone transfers (AXFR) use TCP/53</span>
+<span class="cm"># Large responses (>512 bytes) fall back to TCP/53 automatically</span>
+
+<span class="cm"># Allow DNS queries from internal network</span>
+<span class="fn">sudo</span> <span class="fn">ufw</span> allow from <span class="nb">10.0.0.0/8</span> to any port <span class="nb">53</span> proto udp
+<span class="fn">sudo</span> <span class="fn">ufw</span> allow from <span class="nb">10.0.0.0/8</span> to any port <span class="nb">53</span> proto tcp
+
+<span class="cm"># Allow rndc from localhost only</span>
+<span class="fn">sudo</span> <span class="fn">ufw</span> allow from <span class="nb">127.0.0.1</span> to any port <span class="nb">953</span> proto tcp
+
+<span class="cm"># Verify firewall status</span>
+<span class="fn">sudo</span> <span class="fn">ufw</span> status numbered
+
+<span class="cm"># Test from a remote host</span>
+<span class="fn">dig</span> A ops.matrix.internal @<span class="nb">10.0.1.10</span>  <span class="cm"># from another machine on 10.0.0.0/8</span>
+
+<span class="cm"># Test TCP fallback explicitly</span>
+<span class="fn">dig</span> +tcp A ops.matrix.internal @<span class="nb">10.0.1.10</span>
+
+<span class="cm"># If AXFR is needed from ns2:</span>
+<span class="fn">sudo</span> <span class="fn">ufw</span> allow from <span class="nb">10.0.1.11</span> to any port <span class="nb">53</span> proto tcp  <span class="cm"># on ns1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- ZONE FILE BEST PRACTICES ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">Zone File <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Conventions that prevent the most common errors in zone file management.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Use $TTL at the Top</div>
+                <div class="card-desc">Always set a global default TTL with the <span class="ic">$TTL</span> directive as the very first line. Without it, BIND uses the SOA minimum, which may be too low for production records. Override per-record when needed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Trailing Dots on FQDNs</div>
+                <div class="card-desc">Any hostname that is not relative to the zone must end with a dot. <span class="ic">mail.partner.com.</span> with the dot is an absolute name. <span class="ic">mail.partner.com</span> without the dot becomes <span class="ic">mail.partner.com.matrix.internal.</span> -- a common misconfiguration.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Increment Serial Every Edit</div>
+                <div class="card-desc">Use the <span class="ic">YYYYMMDDnn</span> format. One increment per deployment. If you make multiple changes in one session, increment once at the end. Never decrement a serial -- secondaries ignore zones with lower serials than their cached copy.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Validate Before Every Reload</div>
+                <div class="card-desc">Running <span class="ic">named-checkzone</span> takes under a second. Loading a broken zone takes your authoritative server offline for that domain. The check is not optional, it is the minimum acceptable standard.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Version Control Your Zone Files</div>
+            Track zone files in git. Every change has an audit trail, a diff, and a way to revert. Pair with a pre-commit hook that runs <span class="ic">named-checkzone</span> automatically.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- COMPLETE DEPLOYMENT CHECKLIST ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">Deployment <span class="accent">Checklist</span></div>
+        <div class="slide-subtitle">Step-by-step verification sequence after bringing up a new BIND9 server.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Package installed and named running: <code>systemctl status named</code> shows active (running).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Port 53 owned by named: <code>ss -tulnp | grep named</code> shows 0.0.0.0:53 or specific IP:53.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Config validates: <code>named-checkconf -z</code> returns zero errors.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Forward zone resolves: <code>dig A ops.matrix.internal @127.0.0.1</code> returns correct IP with aa flag.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Reverse zone resolves: <code>dig -x 10.0.1.50 @127.0.0.1</code> returns correct hostname.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">External resolution works: <code>dig A google.com @127.0.0.1</code> returns answer (forwarders work).</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Zone transfer to secondary: serial on ns2 matches ns1 (<code>dig SOA zone @ns2</code> vs <code>@ns1</code>).</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Firewall allows clients: test from a host on the trusted network, not just localhost.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">AXFR blocked from outside: <code>dig AXFR matrix.internal @ns1-public-ip</code> from internet returns REFUSED.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- SPLIT BRAIN DNS WITH VIEWS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">Views: <span class="accent">Split-Brain DNS</span></div>
+        <div class="slide-subtitle">Serve different zone data to internal clients vs. the internet from a single BIND9 instance.</div>
+
+        <div class="code-block"><span class="cm">// named.conf -- views replace the global zone declarations</span>
+<span class="cm">// All zones must be inside view blocks when views are used</span>
+
+view <span class="st">"internal"</span> {
+    match-clients { <span class="nb">10.0.0.0/8</span>; <span class="nb">127.0.0.0/8</span>; };
+    recursion <span class="kw">yes</span>;
+
+    zone <span class="st">"matrix.internal"</span> {
+        type master;
+        file <span class="st">"/etc/bind/internal/db.matrix.internal"</span>;
+    };
+
+    zone <span class="st">"hexworth.com"</span> {
+        type master;
+        file <span class="st">"/etc/bind/internal/db.hexworth.com"</span>;  <span class="cm">// internal IPs</span>
+    };
+    include <span class="st">"/etc/bind/named.conf.default-zones"</span>;
+};
+
+view <span class="st">"external"</span> {
+    match-clients { any; };
+    recursion <span class="kw">no</span>;
+
+    zone <span class="st">"hexworth.com"</span> {
+        type master;
+        file <span class="st">"/etc/bind/external/db.hexworth.com"</span>;  <span class="cm">// public IPs only</span>
+    };
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- NAMED.CONF INCLUDE PATTERN ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">named.conf: <span class="accent">Include Structure</span></div>
+        <div class="slide-subtitle">The default Ubuntu layout uses includes to keep configuration modular. Understand it before changing it.</div>
+
+        <div class="code-block"><span class="cm">// /etc/bind/named.conf (the root file -- rarely edited directly)</span>
+include <span class="st">"/etc/bind/named.conf.options"</span>;    <span class="cm">// global options, forwarders, ACLs</span>
+include <span class="st">"/etc/bind/named.conf.local"</span>;      <span class="cm">// your zone declarations</span>
+include <span class="st">"/etc/bind/named.conf.default-zones"</span>; <span class="cm">// localhost, root hints</span>
+
+<span class="cm">// /etc/bind/named.conf.default-zones (do not modify)</span>
+<span class="cm">// Contains: root hints zone, localhost forward/reverse, broadcast zones</span>
+zone <span class="st">"."</span> {                                  <span class="cm">// root hints -- how to find root servers</span>
+    type hint;
+    file <span class="st">"/usr/share/dns/root.hints"</span>;
+};
+
+<span class="cm">// You only need to edit two files:</span>
+<span class="cm">//   named.conf.options -- global settings</span>
+<span class="cm">//   named.conf.local   -- your zones</span>
+
+<span class="cm"># Verify the include chain is valid</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span> /etc/bind/named.conf
+<span class="cm"># This recursively validates all included files</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Root Hints</div>
+            The root hints file contains the IP addresses of the 13 root server clusters. When BIND9 is configured for full recursion (not forward-only), it reads these to know where to start. The hints file is updated occasionally -- but root server IPs rarely change in practice.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- ZONE FILE: EDITING WORKFLOW ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">Zone File: <span class="accent">Safe Editing Workflow</span></div>
+        <div class="slide-subtitle">The exact sequence for making zone changes safely in production.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># zone-update.sh -- safe zone update workflow</span>
+
+ZONE=<span class="st">"matrix.internal"</span>
+ZONE_FILE=<span class="st">"/etc/bind/db.matrix.internal"</span>
+
+<span class="cm"># Step 1: Freeze the zone (prevents journal conflicts with dynamic updates)</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> freeze <span class="st">$ZONE</span>
+
+<span class="cm"># Step 2: Back up current zone file</span>
+<span class="fn">sudo</span> <span class="fn">cp</span> <span class="st">$ZONE_FILE</span> <span class="st">${ZONE_FILE}.bak.$(date +%Y%m%d%H%M%S)</span>
+
+<span class="cm"># Step 3: Edit the zone file</span>
+<span class="fn">sudo</span> <span class="fn">nano</span> <span class="st">$ZONE_FILE</span>     <span class="cm"># increment serial, make changes</span>
+
+<span class="cm"># Step 4: Validate</span>
+<span class="fn">sudo</span> <span class="fn">named-checkzone</span> <span class="st">$ZONE</span> <span class="st">$ZONE_FILE</span>
+<span class="kw">if</span> [ <span class="nb">$?</span> -ne <span class="nb">0</span> ]; then
+    <span class="fn">echo</span> <span class="st">"Zone file invalid -- restoring backup"</span>
+    <span class="fn">sudo</span> <span class="fn">cp</span> <span class="st">${ZONE_FILE}.bak.*</span> <span class="st">$ZONE_FILE</span>
+    <span class="fn">sudo</span> <span class="fn">rndc</span> thaw <span class="st">$ZONE</span>
+    <span class="kw">exit</span> 1
+<span class="kw">fi</span>
+
+<span class="cm"># Step 5: Thaw and reload</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> thaw <span class="st">$ZONE</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> reload <span class="st">$ZONE</span>
+
+<span class="cm"># Step 6: Verify</span>
+<span class="fn">dig</span> SOA <span class="st">$ZONE</span> @<span class="nb">127.0.0.1</span> +short</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- SECONDARY NAME SERVER SETUP ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">Secondary Name Server: <span class="accent">Full Setup</span></div>
+        <div class="slide-subtitle">Complete configuration for ns2 as a slave server that auto-syncs from ns1.</div>
+
+        <div class="code-block"><span class="cm"># On ns2 (10.0.1.11): install BIND9</span>
+<span class="fn">sudo</span> <span class="fn">apt</span> install -y bind9 bind9utils
+
+<span class="cm">// /etc/bind/named.conf.options on ns2</span>
+options {
+    directory <span class="st">"/var/cache/bind"</span>;
+    recursion <span class="kw">yes</span>;
+    allow-recursion { <span class="nb">10.0.0.0/8</span>; <span class="nb">127.0.0.0/8</span>; };
+    allow-transfer { <span class="kw">none</span>; };    <span class="cm">// ns2 is not a transfer source</span>
+    forwarders { <span class="nb">8.8.8.8</span>; <span class="nb">1.1.1.1</span>; };
+    forward only;
+};
+
+<span class="cm">// /etc/bind/named.conf.local on ns2</span>
+zone <span class="st">"matrix.internal"</span> {
+    type slave;
+    masters { <span class="nb">10.0.1.10</span>; };
+    file <span class="st">"/var/cache/bind/db.matrix.internal"</span>;
+};
+
+zone <span class="st">"1.0.10.in-addr.arpa"</span> {
+    type slave;
+    masters { <span class="nb">10.0.1.10</span>; };
+    file <span class="st">"/var/cache/bind/db.10.0.1"</span>;
+};
+
+<span class="cm"># Start named on ns2 -- zone transfer happens automatically</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> enable --now named
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named -f   <span class="cm"># watch transfer in real time</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- MONITORING BIND9 ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">Monitoring <span class="accent">BIND9 Health</span></div>
+        <div class="slide-subtitle">Metrics and log patterns to watch in production. Know what normal looks like before something breaks.</div>
+
+        <div class="code-block"><span class="cm"># rndc stats -- dumps detailed counters to /var/cache/bind/named_stats.txt</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> stats
+<span class="fn">cat</span> /var/cache/bind/named_stats.txt <span class="kw">|</span> <span class="fn">head</span> -60
+
+<span class="cm"># Key metrics to watch:</span>
+<span class="cm">#   queries received    -- total incoming query count</span>
+<span class="cm">#   queries answered    -- successful responses</span>
+<span class="cm">#   NXDOMAIN responses  -- high rate = misconfigured clients or enumeration</span>
+<span class="cm">#   SERVFAIL responses  -- high rate = upstream or zone problems</span>
+<span class="cm">#   REFUSED responses   -- potential unauthorized query sources</span>
+
+<span class="cm"># Watch for SERVFAIL spike (forwarder down)</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named --since <span class="st">"10 min ago"</span> <span class="kw">|</span> <span class="fn">grep</span> -i servfail
+
+<span class="cm"># Watch for zone transfer failures</span>
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'transfer.*failed'</span>
+
+<span class="cm"># Check zone loaded times</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> zonestatus matrix.internal
+
+<span class="cm"># Memory usage of named</span>
+<span class="fn">ps</span> aux <span class="kw">|</span> <span class="fn">grep</span> named
+<span class="fn">sudo</span> <span class="fn">rndc</span> status <span class="kw">|</span> <span class="fn">grep</span> -i memory</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- COMMON BIND9 ERRORS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">Common BIND9 <span class="accent">Errors Decoded</span></div>
+        <div class="slide-subtitle">Log messages you will encounter and exactly what they mean.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">E1</span><span class="fact-text"><code>zone matrix.internal/IN: not loaded due to errors</code> -- zone file has a syntax error. Run <code>named-checkzone</code> to identify the line.</span></div>
+            <div class="fact-row"><span class="fact-num">E2</span><span class="fact-text"><code>could not listen on UDP socket: address already in use</code> -- another process owns port 53. Check <code>ss -tulnp | grep :53</code>. Often systemd-resolved stub listener.</span></div>
+            <div class="fact-row"><span class="fact-num">E3</span><span class="fact-text"><code>no valid RRSIG</code> -- DNSSEC validation failure. The zone has DNSSEC but signatures are expired or the chain is broken.</span></div>
+            <div class="fact-row"><span class="fact-num">E4</span><span class="fact-text"><code>Transfer failed. REFUSED</code> -- the primary's <code>allow-transfer</code> does not include your secondary IP. Add it to named.conf.local on the primary.</span></div>
+            <div class="fact-row"><span class="fact-num">E5</span><span class="fact-text"><code>connection refused</code> on rndc -- rndc cannot reach named's control socket. Check that named is running and rndc.key is correct on both sides.</span></div>
+            <div class="fact-row"><span class="fact-num">E6</span><span class="fact-text"><code>permission denied</code> on zone file -- AppArmor or file ownership issue. Zone files must be owned or readable by the <code>bind</code> user and in an allowed directory.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- COMPLETE EXAMPLE: FROM ZERO ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34 &nbsp;|&nbsp; Applied Scenario</div>
+        <div class="slide-title">From Zero: <span class="accent">Complete BIND9 Setup</span></div>
+        <div class="slide-subtitle">The complete command sequence. Copy-paste ready, verified for Ubuntu 22.04.</div>
+
+        <div class="code-block"><span class="cm"># Phase 1: Install</span>
+<span class="fn">sudo</span> <span class="fn">apt</span> update && <span class="fn">sudo</span> <span class="fn">apt</span> install -y bind9 bind9utils
+<span class="fn">sudo</span> <span class="fn">sed</span> -i <span class="st">'s/#DNSStubListener=yes/DNSStubListener=no/'</span> /etc/systemd/resolved.conf
+<span class="fn">sudo</span> <span class="fn">systemctl</span> restart systemd-resolved
+
+<span class="cm"># Phase 2: Configure options</span>
+<span class="fn">sudo</span> <span class="fn">tee</span> /etc/bind/named.conf.options <span class="kw">&lt;&lt;</span><span class="st">'EOF'</span>
+acl "trusted" { 127.0.0.0/8; 10.0.0.0/8; };
+options {
+    directory "/var/cache/bind";
+    recursion yes;
+    allow-recursion { trusted; };
+    allow-query { trusted; };
+    allow-transfer { none; };
+    forwarders { 8.8.8.8; 1.1.1.1; };
+    forward only;
+    dnssec-validation auto;
+};
+<span class="st">EOF</span>
+
+<span class="cm"># Phase 3: Validate and start</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> enable --now named
+<span class="fn">sudo</span> <span class="fn">ss</span> -tulnp <span class="kw">|</span> <span class="fn">grep</span> named</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- DELEGATION VERIFICATION ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">Verifying the Full <span class="accent">Delegation Chain</span></div>
+        <div class="slide-subtitle">Use dig +trace to confirm that delegation from registrar through your zone is correct.</div>
+
+        <div class="code-block"><span class="cm"># +trace shows every step from root through your authoritative server</span>
+<span class="fn">dig</span> +trace A ops.hexworth.com
+
+<span class="cm"># Expected output sequence:</span>
+<span class="cm"># 1. Queries a root server: gets NS records for .com</span>
+<span class="cm">#    . 518400 IN NS a.root-servers.net.</span>
+
+<span class="cm"># 2. Queries a .com TLD server: gets NS records for hexworth.com</span>
+<span class="cm">#    hexworth.com. 172800 IN NS ns1.hexworth.com.</span>
+
+<span class="cm"># 3. Queries ns1.hexworth.com: gets the A record</span>
+<span class="cm">#    ops.hexworth.com. 300 IN A 10.0.1.50</span>
+
+<span class="cm"># If delegation is broken, the trace shows exactly where it stops</span>
+<span class="cm"># Common break points:</span>
+<span class="cm">#   - .com TLD still shows old NS records (registrar not updated)</span>
+<span class="cm">#   - ns1.hexworth.com returns REFUSED (firewall or allow-query)</span>
+<span class="cm">#   - ns1.hexworth.com not reachable (glue record wrong IP)</span>
+
+<span class="cm"># Compare what registrar thinks vs what your server thinks</span>
+<span class="fn">dig</span> NS hexworth.com @a.gtld-servers.net   <span class="cm"># authoritative TLD view</span>
+<span class="fn">dig</span> NS hexworth.com @ns1.hexworth.com      <span class="cm"># your server's view</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- BIND9 SECURITY HARDENING ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">BIND9 <span class="accent">Security Hardening</span></div>
+        <div class="slide-subtitle">Minimum viable hardening for a production BIND9 deployment.</div>
+
+        <div class="code-block"><span class="cm">// named.conf.options -- security settings</span>
+options {
+    <span class="cm">// Prevent version disclosure to anonymous queries</span>
+    version <span class="st">"not disclosed"</span>;
+    hostname <span class="st">"not disclosed"</span>;
+
+    <span class="cm">// Limit recursion to known networks</span>
+    allow-recursion { <span class="nb">10.0.0.0/8</span>; <span class="nb">127.0.0.0/8</span>; };
+
+    <span class="cm">// Block all zone transfers by default</span>
+    allow-transfer { <span class="kw">none</span>; };
+
+    <span class="cm">// Block queries from known bad actors</span>
+    blackhole { badguys; };
+
+    <span class="cm">// Response rate limiting to prevent amplification DDoS</span>
+    rate-limit { responses-per-second <span class="nb">10</span>; };
+
+    <span class="cm">// Validate DNSSEC</span>
+    dnssec-validation auto;
+
+    <span class="cm">// Disable CHAOS class queries (version info leakage)</span>
+    allow-query-cache { <span class="nb">10.0.0.0/8</span>; <span class="nb">127.0.0.0/8</span>; };
+};
+
+<span class="cm"># Verify version is hidden</span>
+<span class="fn">dig</span> CHAOS TXT version.bind @<span class="nb">127.0.0.1</span>   <span class="cm"># should return "not disclosed"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- RNDC AND DIG QUICK REFERENCE ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">BIND9 <span class="accent">Operational Quick Reference</span></div>
+        <div class="slide-subtitle">The commands you will run every time you touch a BIND9 server. In order of frequency.</div>
+
+        <div class="code-block"><span class="cm"># Validate then reload (the standard change workflow)</span>
+<span class="fn">sudo</span> <span class="fn">named-checkconf</span> -z && <span class="fn">sudo</span> <span class="fn">rndc</span> reload ZONE
+
+<span class="cm"># Verify zone loaded correctly</span>
+<span class="fn">dig</span> SOA ZONE @<span class="nb">127.0.0.1</span> +short
+
+<span class="cm"># Check server status</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> status
+
+<span class="cm"># Reload only config (no zone reload)</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> reconfig
+
+<span class="cm"># Flush cache</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> flush
+
+<span class="cm"># Check zone transfer status on secondary</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> zonestatus ZONE
+
+<span class="cm"># Force zone refresh on secondary</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> retransfer ZONE
+
+<span class="cm"># Enable query logging for debugging</span>
+<span class="fn">sudo</span> <span class="fn">rndc</span> querylog on
+<span class="fn">sudo</span> <span class="fn">journalctl</span> -u named -f
+<span class="fn">sudo</span> <span class="fn">rndc</span> querylog off           <span class="cm"># always turn off when done</span>
+
+<span class="cm"># Test TCP fallback</span>
+<span class="fn">dig</span> +tcp A NAME @<span class="nb">127.0.0.1</span>
+
+<span class="cm"># Attempt zone transfer (test allow-transfer)</span>
+<span class="fn">dig</span> AXFR ZONE @<span class="nb">127.0.0.1</span>         <span class="cm"># should return REFUSED from localhost if configured</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- MODULE SUMMARY ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; Module Summary</div>
+        <div class="slide-title">BIND9 Deployment: <span class="accent">Key Takeaways</span></div>
+        <div class="slide-subtitle">What you must be able to execute without reference after this module.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Install: <code>apt install bind9 bind9utils</code>. Disable systemd-resolved stub listener. Verify <code>named</code> owns port 53.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">named.conf structure: root file includes options, local, and default-zones. Edit only <code>named.conf.options</code> and <code>named.conf.local</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Zone files: $TTL first, SOA second, NS records, then A/CNAME/MX records. Serial is <code>YYYYMMDDnn</code> -- increment on every change.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Reverse zones: name is the network written backwards plus <code>.in-addr.arpa.</code>. PTR records use only the last octet.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Change workflow: edit file, increment serial, <code>named-checkconf -z</code>, <code>rndc reload ZONE</code>, verify with <code>dig SOA @127.0.0.1</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Security defaults: <code>allow-transfer { none; }</code> globally, restrict recursion to trusted networks, hide version string, enable RRL.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Secondaries: <code>type slave</code> with <code>masters { PRIMARY-IP; }</code>. Zone files stored in <code>/var/cache/bind/</code>. Monitor with <code>rndc zonestatus</code>.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w3-bind', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

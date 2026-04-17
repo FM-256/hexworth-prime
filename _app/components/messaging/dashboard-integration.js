@@ -85,8 +85,10 @@ const MessagingWidget = (function() {
 
             /* ─── Slide-in Panel ─── */
             .msg-panel-overlay {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
+                position: absolute;
+                top: 0; left: 0;
+                width: 100%;
+                min-height: 100%;
                 background: rgba(0,0,0,0.4);
                 z-index: 9998;
                 opacity: 0;
@@ -100,7 +102,7 @@ const MessagingWidget = (function() {
             }
 
             .msg-panel {
-                position: fixed;
+                position: absolute;
                 top: 0;
                 right: 0;
                 width: 380px;
@@ -279,12 +281,12 @@ const MessagingWidget = (function() {
 
         const btn = document.createElement('button');
         btn.className = 'msg-header-btn';
-        btn.title = 'Messages';
+        btn.title = 'Ansible';
         btn.innerHTML = `
-            <img class="msg-icon" src="/assets/images/icons/icon-mail.webp"
+            <img class="msg-icon" src="/assets/images/icons/icon-email.webp"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"
-                 alt="Messages" />
-            <span style="display:none">[Msg]</span>
+                 alt="Ansible" />
+            <span style="display:none">[ANS]</span>
             <span class="msg-unread-badge" id="msgUnreadBadge">0</span>
         `;
         btn.addEventListener('click', togglePanel);
@@ -310,14 +312,14 @@ const MessagingWidget = (function() {
         panel.id = 'msgPanel';
         panel.innerHTML = `
             <div class="msg-panel-header">
-                <h3>Messages</h3>
+                <h3>Ansible</h3>
                 <button class="msg-panel-close" id="msgPanelClose">x</button>
             </div>
             <div class="msg-panel-body" id="msgPanelBody">
-                <div class="msg-panel-empty">No messages yet.</div>
+                <div class="msg-panel-empty">No transmissions yet.</div>
             </div>
             <div class="msg-panel-footer">
-                <a href="/components/messaging/inbox.html">Open Full Inbox</a>
+                <a href="/components/messaging/inbox.html">Open Ansible</a>
             </div>
         `;
         document.body.appendChild(panel);
@@ -361,8 +363,16 @@ const MessagingWidget = (function() {
     function openPanel() {
         _panelTrigger = document.activeElement;
         panelOpen = true;
-        document.getElementById('msgPanelOverlay').classList.add('open');
-        document.getElementById('msgPanel').classList.add('open');
+        // Position absolute elements at current scroll offset
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        const overlay = document.getElementById('msgPanelOverlay');
+        const panel = document.getElementById('msgPanel');
+        overlay.style.top = scrollY + 'px';
+        overlay.style.height = window.innerHeight + 'px';
+        panel.style.top = scrollY + 'px';
+        panel.style.height = window.innerHeight + 'px';
+        overlay.classList.add('open');
+        panel.classList.add('open');
         loadRecentConversations();
         // Focus the close button for keyboard users
         const closeBtn = document.getElementById('msgPanelClose');
@@ -389,18 +399,22 @@ const MessagingWidget = (function() {
 
         if (unreadListener) unreadListener();
 
-        unreadListener = db.collection('messages')
-            .where('to', '==', currentUid)
-            .where('read', '==', false)
-            .where('deleted', '==', false)
-            .onSnapshot((snapshot) => {
-                const count = snapshot.size;
-                const badge = document.getElementById('msgUnreadBadge');
-                if (badge) {
-                    badge.textContent = count > 99 ? '99+' : count;
-                    badge.classList.toggle('visible', count > 0);
-                }
-            });
+        const { collection, query, where, onSnapshot } = window.firebaseFirestore;
+        const q = query(
+            collection(db, 'messages'),
+            where('to', '==', currentUid),
+            where('read', '==', false),
+            where('deleted', '==', false)
+        );
+
+        unreadListener = onSnapshot(q, (snapshot) => {
+            const count = snapshot.size;
+            const badge = document.getElementById('msgUnreadBadge');
+            if (badge) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.toggle('visible', count > 0);
+            }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -411,13 +425,18 @@ const MessagingWidget = (function() {
         if (!db || !currentUid) return;
 
         const body = document.getElementById('msgPanelBody');
+        const {
+            collection, query, where, orderBy, limit, getDocs, doc, getDoc
+        } = window.firebaseFirestore;
 
         try {
-            const snap = await db.collection('conversations')
-                .where('participants', 'array-contains', currentUid)
-                .orderBy('lastTimestamp', 'desc')
-                .limit(10)
-                .get();
+            const q = query(
+                collection(db, 'conversations'),
+                where('participants', 'array-contains', currentUid),
+                orderBy('lastTimestamp', 'desc'),
+                limit(10)
+            );
+            const snap = await getDocs(q);
 
             if (snap.empty) {
                 body.innerHTML = '<div class="msg-panel-empty">No messages yet.</div>';
@@ -437,27 +456,29 @@ const MessagingWidget = (function() {
                 return;
             }
 
-            for (const doc of visibleDocs) {
-                const conv = doc.data();
+            for (const convDoc of visibleDocs) {
+                const conv = convDoc.data();
                 const otherUid = conv.participants.find(uid => uid !== currentUid);
 
                 // Get user info
                 let displayName = 'Unknown';
                 try {
-                    const userDoc = await db.collection('users').doc(otherUid).get();
-                    if (userDoc.exists) {
-                        const u = userDoc.data();
+                    const userSnap = await getDoc(doc(db, 'users', otherUid));
+                    if (userSnap.exists()) {
+                        const u = userSnap.data();
                         displayName = u.callsign || u.displayName || u.email || 'Unknown';
                     }
                 } catch (_) {}
 
                 // Get unread count for this conv
-                const unreadSnap = await db.collection('messages')
-                    .where('conversationId', '==', doc.id)
-                    .where('to', '==', currentUid)
-                    .where('read', '==', false)
-                    .where('deleted', '==', false)
-                    .get();
+                const unreadQ = query(
+                    collection(db, 'messages'),
+                    where('conversationId', '==', convDoc.id),
+                    where('to', '==', currentUid),
+                    where('read', '==', false),
+                    where('deleted', '==', false)
+                );
+                const unreadSnap = await getDocs(unreadQ);
 
                 const unread = unreadSnap.size > 0;
                 const timeStr = conv.lastTimestamp ? formatTime(conv.lastTimestamp.toDate()) : '';
@@ -474,7 +495,7 @@ const MessagingWidget = (function() {
                     <span class="msg-panel-time">${timeStr}</span>
                 `;
                 item.addEventListener('click', () => {
-                    window.location.href = `/components/messaging/inbox.html#conv=${doc.id}`;
+                    window.location.href = `/components/messaging/inbox.html#conv=${convDoc.id}`;
                 });
                 body.appendChild(item);
             }
@@ -520,18 +541,21 @@ const MessagingWidget = (function() {
             return;
         }
 
-        // Get Firestore instance
+        // Get Firestore instance (modular SDK via FirestoreManager)
         if (window.firebaseFirestore && window.firebaseApp) {
             const { getFirestore } = window.firebaseFirestore;
             const { getApps } = window.firebaseApp;
             if (getApps().length > 0) {
                 db = getFirestore(getApps()[0]);
             }
-        } else if (typeof firebase !== 'undefined' && firebase.firestore) {
-            db = firebase.firestore();
         }
 
-        // Get current user
+        if (!db) {
+            console.warn('[MessagingWidget] Firestore not available — widget disabled');
+            return;
+        }
+
+        // Get current user via FirebaseAuth
         if (typeof FirebaseAuth !== 'undefined') {
             const user = FirebaseAuth.getCurrentUser();
             if (user) {
@@ -539,9 +563,11 @@ const MessagingWidget = (function() {
                 subscribeUnreadCount();
             }
 
-            // Listen for auth changes
-            if (firebase && firebase.auth) {
-                firebase.auth().onAuthStateChanged((user) => {
+            // Listen for auth changes via modular SDK
+            if (window.firebaseAuth) {
+                const { getAuth, onAuthStateChanged } = window.firebaseAuth;
+                const auth = getAuth(window.firebaseApp.getApps()[0]);
+                onAuthStateChanged(auth, (user) => {
                     if (user) {
                         currentUid = user.uid;
                         subscribeUnreadCount();

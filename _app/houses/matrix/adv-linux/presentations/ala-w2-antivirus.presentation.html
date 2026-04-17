@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Sentinel -- ClamAV | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.15); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #00ff41; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Threat Sentinel -- ClamAV</h1>
+
+<div id="progress-bar" style="width:3.03%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 33 &nbsp;|&nbsp; Week 2 &nbsp;|&nbsp; Advanced Linux Administration</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Threat Sentinel<br>
+                <span class="accent">ClamAV Antivirus</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Architecture &nbsp;&bull;&nbsp; Installation &nbsp;&bull;&nbsp; Signatures &nbsp;&bull;&nbsp; On-Access Scanning &nbsp;&bull;&nbsp; Scheduled Scans &nbsp;&bull;&nbsp; Quarantine
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Operational directive: deploy automated threat detection inside your cell. Files transit your server. Users upload content. Malware rides inside archives, documents, and executables. ClamAV is the open-source sentinel that watches for them.
+        </div>
+        <div class="title-meta-row">
+            <span>33 Slides</span>
+            <span>Week 2 Topic 3</span>
+            <span>Ubuntu 22.04</span>
+            <span>ClamAV 0.103+</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHY ANTIVIRUS ON LINUX ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 33</div>
+        <div class="slide-title">Why <span class="accent">Antivirus on Linux?</span></div>
+        <div class="slide-subtitle">Linux systems are not malware-immune. The threat model differs -- the need is real.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Linux Malware Exists</div>
+                <div class="card-desc">Ransomware targeting Linux servers (RansomEXX, HelloKitty). Cryptomining malware (XMRig variants). Rootkits. Web shells dropped after web application exploits. Botnets running on compromised Linux hosts. The threat surface is smaller than Windows but the stakes are higher -- servers hold data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">File Transit Scanning</div>
+                <div class="card-desc">Your Linux mail server, file server, or web upload handler processes files from Windows and macOS clients. A Windows user sends a malware-infected attachment through your mail server. The Linux box is fine -- but every Windows recipient is a victim. Linux AV catches it in transit.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Compliance Requirement</div>
+                <div class="card-desc">PCI DSS Requirement 5: deploy antivirus on all systems. HIPAA, SOC 2, FedRAMP, and most corporate security policies require AV on all hosts. "We run Linux" is not an accepted compliance exemption. ClamAV satisfies the requirement and is free.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">ClamAV Position in Your Stack</div>
+            ClamAV is detection, not prevention. It finds malware that has already arrived. It works with your firewall (which stops unwanted connections), fail2ban (which stops brute force), and file integrity monitoring (which detects file changes) as complementary layers.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- CLAMAV ARCHITECTURE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 33</div>
+        <div class="slide-title">ClamAV <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Two scanning modes, one signature database. Understand the difference before deploying.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">clamscan</div>
+                <div class="card-desc">Command-line scanner. Spawns a new process for each scan job. Loads the entire signature database into memory every run. Simple and scriptable. Suitable for scheduled scans and one-off checks. Resource cost: memory for database load on every invocation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">clamd</div>
+                <div class="card-desc">The ClamAV daemon. Loads signature database once at startup, stays resident in memory. Clients (clamdscan, Milter, fanotify) connect to clamd via socket to request scans. Much faster for repeated scans. Required for on-access scanning and mail gateway integration.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">freshclam</div>
+                <div class="card-desc">The signature update daemon. Downloads new definitions from ClamAV's mirror network. Runs as a daemon or via cron. Checks for updates multiple times per day. Without regular updates, your AV is effectively blind to new threats. This is a critical service.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">clamdscan</div>
+                <div class="card-desc">A client for the clamd daemon. Sends scan requests to the already-running clamd process rather than loading the database itself. Result: near-instant scans because database load already happened at daemon start. Use clamdscan instead of clamscan when clamd is running.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">clamav-milter</div>
+                <div class="card-desc">A mail filter that integrates ClamAV with Postfix or Sendmail via the milter protocol. Every incoming email is scanned before delivery. Infected attachments are rejected at the MTA level. Essential for mail servers -- covered in the Mail Server module.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- INSTALLATION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 33</div>
+        <div class="slide-title">Installation: <span class="accent">ClamAV on Ubuntu 22.04</span></div>
+        <div class="slide-subtitle">Install both the scanner and the daemon, then perform the initial signature download.</div>
+
+        <div class="code-block"><span class="cm"># Install ClamAV packages</span>
+$ <span class="fn">apt</span> <span class="kw">update</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> clamav clamav-daemon
+
+<span class="cm"># Package breakdown:</span>
+<span class="cm"># clamav        -- clamscan CLI scanner + freshclam updater</span>
+<span class="cm"># clamav-daemon -- clamd service + clamdscan client</span>
+
+<span class="cm"># Ubuntu ships ClamAV with freshclam running as a service</span>
+<span class="cm"># Stop freshclam service before doing manual database update</span>
+$ <span class="fn">systemctl</span> <span class="kw">stop</span> clamav-freshclam
+
+<span class="cm"># Download initial signature database manually</span>
+$ <span class="fn">freshclam</span>
+ClamAV update process started at Thu Apr  9 10:00:00 2026
+main.cvd is up-to-date (version: 62, sigs: 6647427)
+Downloading daily.cvd...
+daily.cvd updated (version: 27234, sigs: 2085920)
+bytecode.cvd updated (version: 334, sigs: 89)
+
+<span class="cm"># Restart freshclam daemon (keeps signatures updated automatically)</span>
+$ <span class="fn">systemctl</span> <span class="kw">start</span> clamav-freshclam
+$ <span class="fn">systemctl</span> <span class="kw">enable</span> clamav-freshclam
+
+<span class="cm"># Verify installed version</span>
+$ <span class="fn">clamscan</span> <span class="kw">--version</span>
+ClamAV 0.103.8/27234/Thu Apr  9 08:00:00 2026</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- SIGNATURE DATABASE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 33</div>
+        <div class="slide-title">Signature Database: <span class="accent">main, daily, and bytecode</span></div>
+        <div class="slide-subtitle">Three database files with different update frequencies and detection capabilities.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">main.cvd</div>
+                <div class="card-desc">The core database. Contains the bulk of historical signatures for known malware families. Updated infrequently (major releases). Downloaded as a complete file, roughly 160 MB. This is the baseline detection foundation -- stable, comprehensive, rarely changes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">daily.cvd</div>
+                <div class="card-desc">Updated multiple times per day with new signatures for emerging threats. This is the database you keep current through freshclam. When a new malware campaign hits, signatures appear here within hours. The delta files (.cld) replace the full .cvd after the first full download.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">bytecode.cvd</div>
+                <div class="card-desc">Contains bytecode programs that run inside ClamAV's safe execution engine. Used for heuristic and behavioral detection that signature files cannot express. Enables detection of obfuscated or polymorphic malware. Small file, updates frequently.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Database file locations</span>
+$ <span class="fn">ls</span> <span class="kw">-lh</span> <span class="st">/var/lib/clamav/</span>
+-rw-r--r-- 1 clamav clamav 162M Apr  9 08:00 main.cvd
+-rw-r--r-- 1 clamav clamav  67M Apr  9 08:00 daily.cld
+-rw-r--r-- 1 clamav clamav 243K Apr  9 08:00 bytecode.cld
+
+<span class="cm"># View database statistics</span>
+$ <span class="fn">sigtool</span> <span class="kw">--info</span> <span class="st">/var/lib/clamav/main.cvd</span>
+
+<span class="cm"># Check freshclam configuration</span>
+$ <span class="fn">cat</span> <span class="st">/etc/clamav/freshclam.conf</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- FRESHCLAM CONFIGURATION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 33</div>
+        <div class="slide-title">freshclam: <span class="accent">Signature Update Configuration</span></div>
+        <div class="slide-subtitle">Configure how often signatures update and where they come from.</div>
+
+        <div class="code-block"><span class="cm"># /etc/clamav/freshclam.conf -- key settings</span>
+
+<span class="cm"># Number of update checks per day (default 24 = hourly)</span>
+Checks <span class="nb">12</span>        <span class="cm"># check every 2 hours</span>
+
+<span class="cm"># Mirror to download from (use the official CDN)</span>
+DatabaseMirror database.clamav.net
+
+<span class="cm"># Use DNS to find the best mirror automatically</span>
+DNSDatabaseInfo current.cvd.clamav.net
+
+<span class="cm"># Log freshclam activity</span>
+UpdateLogFile <span class="st">/var/log/clamav/freshclam.log</span>
+LogRotate <span class="kw">true</span>
+
+<span class="cm"># Notify clamd when the database is updated (daemon reloads signatures)</span>
+NotifyClamd <span class="st">/etc/clamav/clamd.conf</span>
+
+<span class="cm"># Run freshclam manually and watch output</span>
+$ <span class="fn">freshclam</span> <span class="kw">--verbose</span>
+
+<span class="cm"># Check freshclam log</span>
+$ <span class="fn">tail</span> <span class="kw">-20</span> <span class="st">/var/log/clamav/freshclam.log</span>
+
+<span class="cm"># freshclam systemd service status</span>
+$ <span class="fn">systemctl</span> status clamav-freshclam</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CLAMSCAN BASIC USAGE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 33</div>
+        <div class="slide-title">clamscan: <span class="accent">Basic Scanning</span></div>
+        <div class="slide-subtitle">Manual scanning from the command line. Know the options before scripting them.</div>
+
+        <div class="code-block"><span class="cm"># Scan a single file</span>
+$ <span class="fn">clamscan</span> <span class="st">/tmp/suspicious-file.zip</span>
+/tmp/suspicious-file.zip: OK
+----------- SCAN SUMMARY -----------
+Known viruses:     8733347
+Scanned files:     1
+Infected files:    0
+
+<span class="cm"># Scan a directory recursively</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="st">/home/ubuntu/uploads</span>
+
+<span class="cm"># Useful flags</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span>          <span class="cm"># recursive (scan subdirectories)</span>
+$ <span class="fn">clamscan</span> <span class="kw">-i</span>          <span class="cm"># only print infected files (suppress clean results)</span>
+$ <span class="fn">clamscan</span> <span class="kw">--remove</span>    <span class="cm"># delete infected files (DESTRUCTIVE -- use with caution)</span>
+$ <span class="fn">clamscan</span> <span class="kw">--move=/quarantine</span>  <span class="cm"># move infected files to quarantine directory</span>
+$ <span class="fn">clamscan</span> <span class="kw">--log=/var/log/clamav/scan.log</span>  <span class="cm"># write results to log file</span>
+
+<span class="cm"># Scan only specific file extensions</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="kw">--include="*.exe"</span> <span class="kw">--include="*.dll"</span> <span class="st">/srv/files</span>
+
+<span class="cm"># Test detection with the EICAR test string (not real malware)</span>
+$ <span class="fn">echo</span> <span class="st">'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'</span> > /tmp/eicar.txt
+$ <span class="fn">clamscan</span> <span class="st">/tmp/eicar.txt</span>
+/tmp/eicar.txt: Eicar-Signature FOUND</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- CLAMD DAEMON SETUP ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 33</div>
+        <div class="slide-title">clamd: <span class="accent">The Resident Daemon</span></div>
+        <div class="slide-subtitle">Configure and start clamd for faster repeated scans and on-access scanning support.</div>
+
+        <div class="code-block"><span class="cm"># /etc/clamav/clamd.conf -- key settings</span>
+
+<span class="cm"># Path to the Unix socket (used by clamdscan and fanotify)</span>
+LocalSocket <span class="st">/var/run/clamav/clamd.ctl</span>
+
+<span class="cm"># Allow connections on a TCP port (for network scanning)</span>
+<span class="cm"># TCPSocket 3310</span>
+<span class="cm"># TCPAddr 127.0.0.1</span>
+
+<span class="cm"># Log file for clamd events</span>
+LogFile <span class="st">/var/log/clamav/clamav.log</span>
+LogRotate <span class="kw">yes</span>
+LogFileMaxSize <span class="nb">10M</span>
+
+<span class="cm"># Run as the clamav user</span>
+User clamav
+
+<span class="cm"># Maximum file size to scan (files larger than this are skipped)</span>
+MaxFileSize <span class="nb">25M</span>
+
+<span class="cm"># Maximum scan size for archives</span>
+MaxScanSize <span class="nb">100M</span>
+
+<span class="cm"># Start and enable clamd</span>
+$ <span class="fn">systemctl</span> <span class="kw">start</span> clamav-daemon
+$ <span class="fn">systemctl</span> <span class="kw">enable</span> clamav-daemon
+$ <span class="fn">systemctl</span> status clamav-daemon
+
+<span class="cm"># Scan using clamdscan (connects to clamd socket)</span>
+$ <span class="fn">clamdscan</span> <span class="st">/home/ubuntu/uploads</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- EICAR TEST FILE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 33</div>
+        <div class="slide-title">EICAR Test File: <span class="accent">Verifying Detection Works</span></div>
+        <div class="slide-subtitle">A standardized test string that all AV products must detect without causing harm.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What EICAR Is</div>
+                <div class="card-desc">The EICAR Standard Anti-Virus Test File is a 68-character ASCII string agreed upon by the AV industry. It is not malware -- it does nothing harmful. Every AV product detects it as a threat. Use it to verify your scanner is working without creating or using real malware samples.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Detection Signature Name</div>
+                <div class="card-desc">ClamAV detects it as <strong>Eicar-Signature</strong>. The exit code when clamscan finds infected files is 1. Exit code 0 means clean. Exit code 2 means error. Your scripts should check exit codes, not just console output.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Create an EICAR test file (these characters are the actual test string)</span>
+$ <span class="fn">printf</span> <span class="st">'X5O!P%%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'</span> > /tmp/eicar.com
+
+<span class="cm"># Test clamscan detection</span>
+$ <span class="fn">clamscan</span> <span class="st">/tmp/eicar.com</span>
+/tmp/eicar.com: Eicar-Signature FOUND
+----------- SCAN SUMMARY -----------
+Infected files: 1
+
+<span class="cm"># Test clamdscan detection (daemon must be running)</span>
+$ <span class="fn">clamdscan</span> <span class="st">/tmp/eicar.com</span>
+/tmp/eicar.com: Eicar-Signature FOUND
+
+<span class="cm"># Test EICAR inside a zip archive (should still detect)</span>
+$ <span class="fn">zip</span> /tmp/eicar.zip /tmp/eicar.com
+$ <span class="fn">clamscan</span> <span class="st">/tmp/eicar.zip</span>
+/tmp/eicar.zip: Eicar-Signature FOUND
+
+<span class="cm"># Clean up test files after verification</span>
+$ <span class="fn">rm</span> /tmp/eicar.com /tmp/eicar.zip</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- SCHEDULED SCAN WITH CRON ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 33</div>
+        <div class="slide-title">Scheduled Scans: <span class="accent">Cron-Based Automation</span></div>
+        <div class="slide-subtitle">Run nightly scans automatically and email results if threats are found.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># /usr/local/bin/clamav-nightly-scan.sh</span>
+<span class="cm"># Run a scheduled ClamAV scan with alerting</span>
+
+SCAN_DIR=<span class="st">"/"</span>
+QUARANTINE=<span class="st">"/var/quarantine"</span>
+LOG_FILE=<span class="st">"/var/log/clamav/nightly-$(date +%Y%m%d).log"</span>
+ALERT_EMAIL=<span class="st">"secops@example.com"</span>
+EXCLUDE_DIRS=<span class="st">"--exclude-dir=/proc --exclude-dir=/sys --exclude-dir=/dev --exclude-dir=/run"</span>
+
+<span class="cm"># Ensure quarantine directory exists</span>
+<span class="fn">mkdir</span> <span class="kw">-p</span> "$QUARANTINE"
+
+<span class="cm"># Run the scan</span>
+<span class="fn">clamscan</span> <span class="kw">-r</span> <span class="kw">-i</span> \
+    <span class="kw">--move="$QUARANTINE"</span> \
+    <span class="kw">--log="$LOG_FILE"</span> \
+    $EXCLUDE_DIRS \
+    "$SCAN_DIR"
+
+RESULT=$?
+
+<span class="cm"># Exit code 1 = infected files found</span>
+<span class="kw">if</span> [ $RESULT <span class="kw">-eq</span> <span class="nb">1</span> ]; then
+    <span class="fn">mail</span> <span class="kw">-s</span> <span class="st">"ALERT: ClamAV found threats on $(hostname)"</span> "$ALERT_EMAIL" < "$LOG_FILE"
+<span class="kw">fi</span></div>
+
+        <div class="code-block"><span class="cm"># Schedule in root's crontab: daily at 02:30</span>
+$ <span class="fn">crontab</span> <span class="kw">-e</span>
+<span class="nb">30 2</span> * * * <span class="st">/usr/local/bin/clamav-nightly-scan.sh</span>
+
+<span class="cm"># Make script executable</span>
+$ <span class="fn">chmod</span> <span class="nb">750</span> <span class="st">/usr/local/bin/clamav-nightly-scan.sh</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SYSTEMD TIMER FOR SCANS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 33</div>
+        <div class="slide-title">Scheduled Scans: <span class="accent">systemd Timer Alternative</span></div>
+        <div class="slide-subtitle">systemd timers are the modern replacement for cron -- better logging and dependency management.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why systemd Timers?</div>
+                <div class="card-desc">Cron has no dependency management, minimal logging, and no resource controls. systemd timers integrate with journald for logging, can depend on network or filesystem mounts, support resource limits via cgroups, and can use calendar expressions or monotonic intervals.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Timer + Service Pair</div>
+                <div class="card-desc">A systemd timer activates a paired service unit. The timer specifies when. The service specifies what to run. Both files go in <span class="ic">/etc/systemd/system/</span>. Enable the timer unit, not the service unit directly.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/system/clamav-scan.service</span>
+[Unit]
+Description=ClamAV nightly filesystem scan
+After=clamav-freshclam.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=<span class="st">/usr/local/bin/clamav-nightly-scan.sh</span>
+StandardOutput=journal
+StandardError=journal
+
+<span class="cm"># /etc/systemd/system/clamav-scan.timer</span>
+[Unit]
+Description=ClamAV nightly scan timer
+
+[Timer]
+OnCalendar=*-*-* 02:30:00   <span class="cm"># daily at 02:30</span>
+Persistent=<span class="kw">true</span>             <span class="cm"># run missed jobs after reboot</span>
+
+[Install]
+WantedBy=timers.target
+
+<span class="cm"># Enable and start the timer</span>
+$ <span class="fn">systemctl</span> <span class="kw">daemon-reload</span>
+$ <span class="fn">systemctl</span> <span class="kw">enable</span> <span class="kw">--now</span> clamav-scan.timer
+$ <span class="fn">systemctl</span> list-timers | <span class="fn">grep</span> clamav</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- ON-ACCESS SCANNING INTRO ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 33</div>
+        <div class="slide-title">On-Access Scanning: <span class="accent">Real-Time Detection</span></div>
+        <div class="slide-subtitle">Scan files the moment they are opened or written -- not just on a schedule.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What On-Access Scanning Does</div>
+                <div class="card-desc">Intercepts file open and close events at the kernel level using the <strong>fanotify</strong> Linux kernel API. Every file access is checked against signatures before the application can read it. Threats are blocked before they can execute -- not detected after the fact in a nightly scan.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Performance Trade-off</div>
+                <div class="card-desc">Every file open on the monitored path triggers a scan. On busy servers with many small file reads (web servers, databases), this adds latency and CPU overhead. Scope on-access scanning carefully -- target high-risk directories (uploads, home directories, /tmp) not the entire filesystem.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">fanotify Requirement</div>
+                <div class="card-desc">On-access scanning requires the fanotify kernel API (Linux 3.8+, Ubuntu 22.04 has 5.15) and clamd running with sufficient permissions. The ClamAV daemon needs access to the directories being watched. The OnAccessExcludePath option prevents recursive loops.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- ON-ACCESS CONFIGURATION ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 33</div>
+        <div class="slide-title">On-Access Configuration: <span class="accent">clamd.conf Settings</span></div>
+        <div class="slide-subtitle">Enable on-access scanning and configure which directories to monitor.</div>
+
+        <div class="code-block"><span class="cm"># /etc/clamav/clamd.conf -- on-access scanning settings</span>
+
+<span class="cm"># Enable on-access scanning</span>
+OnAccessPrevention <span class="kw">yes</span>       <span class="cm"># block (not just alert) on detection</span>
+OnAccessExtraScanning <span class="kw">yes</span>    <span class="cm"># scan file writes as well as opens</span>
+
+<span class="cm"># Directories to monitor (can specify multiple)</span>
+OnAccessIncludePath <span class="st">/var/www/html/uploads</span>
+OnAccessIncludePath <span class="st">/home</span>
+OnAccessIncludePath <span class="st">/tmp</span>
+
+<span class="cm"># Exclude specific paths within monitored directories</span>
+OnAccessExcludePath <span class="st">/home/clamav</span>
+
+<span class="cm"># Exclude certain UIDs from scanning (e.g., backup processes)</span>
+OnAccessExcludeUID <span class="nb">0</span>        <span class="cm"># exclude root (prevents clamd from watching itself)</span>
+
+<span class="cm"># Mount point for on-access monitoring</span>
+OnAccessMountPath <span class="st">/</span>         <span class="cm"># monitor the whole filesystem (use with care)</span>
+
+<span class="cm"># Restart clamd after configuration change</span>
+$ <span class="fn">systemctl</span> <span class="kw">restart</span> clamav-daemon
+$ <span class="fn">systemctl</span> status clamav-daemon
+
+<span class="cm"># Check clamd log for on-access events</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/clamav/clamav.log</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- QUARANTINE PATTERNS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 33</div>
+        <div class="slide-title">Quarantine: <span class="accent">Isolating Detected Threats</span></div>
+        <div class="slide-subtitle">Move infected files to a secured location rather than deleting them immediately.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Quarantine vs Delete?</div>
+                <div class="card-desc">Deleting eliminates evidence needed for forensic analysis. Quarantine preserves the file in an inaccessible location. Security teams can analyze the sample to understand the infection vector. False positives can be recovered from quarantine. Compliance frameworks often require evidence retention.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Quarantine Directory Security</div>
+                <div class="card-desc">The quarantine directory must be owned by root, not executable by other users, and ideally mounted on a separate filesystem. Malware in quarantine is still malware -- restrict permissions aggressively. The directory should not be world-readable or accessible to the web server.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Create a secure quarantine directory</span>
+$ <span class="fn">mkdir</span> <span class="kw">-p</span> <span class="st">/var/quarantine</span>
+$ <span class="fn">chown</span> root:root <span class="st">/var/quarantine</span>
+$ <span class="fn">chmod</span> <span class="nb">700</span> <span class="st">/var/quarantine</span>   <span class="cm"># only root can access</span>
+
+<span class="cm"># Scan and move infected files to quarantine</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="kw">-i</span> <span class="kw">--move=/var/quarantine</span> <span class="st">/var/www/uploads</span>
+
+<span class="cm"># List quarantined files with timestamps</span>
+$ <span class="fn">ls</span> <span class="kw">-lah</span> <span class="st">/var/quarantine/</span>
+
+<span class="cm"># ClamAV renames moved files to prevent accidental execution</span>
+<span class="cm"># Example: malware.exe becomes malware.exe (no execution permission)</span>
+$ <span class="fn">chmod</span> <span class="kw">-x</span> <span class="st">/var/quarantine/*</span>   <span class="cm"># belt-and-suspenders: strip execute</span>
+
+<span class="cm"># Remove quarantined files older than 30 days</span>
+$ <span class="fn">find</span> <span class="st">/var/quarantine</span> <span class="kw">-mtime</span> +<span class="nb">30</span> <span class="kw">-delete</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- ALERT SCRIPTING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 33</div>
+        <div class="slide-title">Alert Scripting: <span class="accent">Automated Threat Notification</span></div>
+        <div class="slide-subtitle">Parse ClamAV output and send alerts through email, Slack, or syslog when threats are found.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># /usr/local/bin/clamav-alert-scan.sh</span>
+<span class="cm"># Scan a directory and alert via multiple channels if threats are found</span>
+
+SCAN_TARGET=<span class="st">"${1:-/var/www/uploads}"</span>
+QUARANTINE=<span class="st">"/var/quarantine"</span>
+LOG=<span class="st">"/var/log/clamav/alert-$(date +%Y%m%d-%H%M).log"</span>
+ALERT_EMAIL=<span class="st">"secops@example.com"</span>
+SLACK_WEBHOOK=<span class="st">"https://hooks.slack.com/services/YOUR/WEBHOOK/URL"</span>
+HOSTNAME=$(<span class="fn">hostname</span> <span class="kw">-f</span>)
+
+<span class="cm"># Run scan, capture exit code</span>
+<span class="fn">clamscan</span> <span class="kw">-r</span> <span class="kw">-i</span> <span class="kw">--move="$QUARANTINE"</span> <span class="kw">--log="$LOG"</span> "$SCAN_TARGET" > /dev/null 2>&1
+EXIT_CODE=$?
+
+<span class="kw">if</span> [ $EXIT_CODE <span class="kw">-eq</span> <span class="nb">1</span> ]; then
+    INFECTED=$(<span class="fn">grep</span> <span class="st">"FOUND"</span> "$LOG")
+    COUNT=$(<span class="fn">grep</span> <span class="kw">-c</span> <span class="st">"FOUND"</span> "$LOG")
+
+    <span class="cm"># Email alert</span>
+    <span class="fn">echo</span> <span class="st">"$INFECTED"</span> | <span class="fn">mail</span> <span class="kw">-s</span> <span class="st">"THREAT: $COUNT malware found on $HOSTNAME"</span> "$ALERT_EMAIL"
+
+    <span class="cm"># Slack webhook alert</span>
+    <span class="fn">curl</span> <span class="kw">-s</span> <span class="kw">-X POST</span> <span class="kw">-H</span> <span class="st">'Content-type: application/json'</span> \
+        <span class="kw">--data</span> <span class="st">"{\"text\":\"THREAT on $HOSTNAME: $COUNT file(s) quarantined\"}"</span> \
+        "$SLACK_WEBHOOK"
+
+    <span class="cm"># Log to syslog</span>
+    <span class="fn">logger</span> <span class="kw">-t</span> clamav <span class="kw">-p</span> security.crit <span class="st">"$COUNT threats quarantined on $HOSTNAME"</span>
+<span class="kw">fi</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- EXCLUDING PATHS AND FILES ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 33</div>
+        <div class="slide-title">Scan Exclusions: <span class="accent">Performance and False Positives</span></div>
+        <div class="slide-subtitle">Exclude paths that produce false positives or that should never be scanned.</div>
+
+        <div class="code-block"><span class="cm"># Exclude virtual filesystems (scanning these causes errors and waste)</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> \
+    <span class="kw">--exclude-dir=^/proc</span> \
+    <span class="kw">--exclude-dir=^/sys</span> \
+    <span class="kw">--exclude-dir=^/dev</span> \
+    <span class="kw">--exclude-dir=^/run</span> \
+    <span class="kw">--exclude-dir=^/snap</span> \
+    <span class="kw">--exclude-dir=^/var/lib/clamav</span> \
+    <span class="kw">--exclude-dir=^/var/quarantine</span> \
+    <span class="st">/</span>
+
+<span class="cm"># Exclude specific file extensions (e.g., database files that trigger false positives)</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="kw">--exclude="\.db$"</span> <span class="kw">--exclude="\.sqlite$"</span> <span class="st">/var/lib</span>
+
+<span class="cm"># clamd.conf -- exclude directories from on-access scanning</span>
+OnAccessExcludePath <span class="st">/proc</span>
+OnAccessExcludePath <span class="st">/sys</span>
+OnAccessExcludePath <span class="st">/var/lib/clamav</span>
+OnAccessExcludePath <span class="st">/var/quarantine</span>
+
+<span class="cm"># Whitelist a false-positive signature (use with extreme care)</span>
+<span class="cm"># Create /etc/clamav/local.ign2</span>
+<span class="fn">echo</span> <span class="st">"PUA.Win.Tool.Packed-7"</span> > <span class="st">/etc/clamav/local.ign2</span>
+<span class="cm"># Reload clamd: systemctl reload clamav-daemon</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- SCAN RESULTS INTERPRETATION ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 33</div>
+        <div class="slide-title">Interpreting <span class="accent">Scan Results</span></div>
+        <div class="slide-subtitle">Read the summary report and understand exit codes before building automation on top of them.</div>
+
+        <div class="code-block"><span class="cm"># Sample clamscan output with a detection</span>
+$ <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="st">/tmp/testdir/</span>
+
+/tmp/testdir/eicar.com: Eicar-Signature FOUND
+/tmp/testdir/clean.txt: OK
+/tmp/testdir/readme.pdf: OK
+
+----------- SCAN SUMMARY -----------
+Known viruses:     8733347
+Engine version:    0.103.8
+Scanned directories: 1
+Scanned files:     3
+Infected files:    <span class="er">1</span>
+Data scanned:      0.01 MB
+Data read:         0.01 MB (ratio 1.00:1)
+Time:              1.234 sec (0 m 1 s)
+Start Date:        2026:04:09 10:00:00
+End Date:          2026:04:09 10:00:01
+
+<span class="cm"># Exit codes</span>
+<span class="cm"># 0 = no infections found, no errors</span>
+<span class="cm"># 1 = virus(es) found</span>
+<span class="cm"># 2 = an error occurred (permissions, corrupt database, etc.)</span>
+
+<span class="cm"># Use exit codes in scripts</span>
+<span class="fn">clamscan</span> <span class="kw">-r</span> /upload; <span class="kw">if</span> [ $? <span class="kw">-eq</span> <span class="nb">1</span> ]; then echo <span class="st">"INFECTED"</span>; fi</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- CLAMD LOG MONITORING ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 33</div>
+        <div class="slide-title">ClamAV Log <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Track detection events, update activity, and errors through the ClamAV log files.</div>
+
+        <div class="code-block"><span class="cm"># Log files</span>
+<span class="cm"># /var/log/clamav/clamav.log   -- clamd daemon events</span>
+<span class="cm"># /var/log/clamav/freshclam.log -- signature update events</span>
+
+<span class="cm"># Watch clamd log for real-time detections</span>
+$ <span class="fn">tail</span> <span class="kw">-f</span> <span class="st">/var/log/clamav/clamav.log</span>
+
+<span class="cm"># Sample log entries</span>
+<span class="cm"># Normal operation:</span>
+<span class="cm"># Thu Apr  9 08:00:01 2026 -> ClamAV 0.103.8 loaded</span>
+<span class="cm"># Thu Apr  9 08:00:05 2026 -> ScanOnAccess: Starting scan thread</span>
+
+<span class="cm"># Detection event:</span>
+<span class="cm"># Thu Apr  9 10:15:03 2026 -> /var/www/uploads/shell.php: Php.Webshell.Generic-1 FOUND</span>
+
+<span class="cm"># Database update event:</span>
+<span class="cm"># Thu Apr  9 10:30:00 2026 -> ClamAV database updated (sigs: 8733347 -> 8733512)</span>
+
+<span class="cm"># Extract all FOUND events from the log</span>
+$ <span class="fn">grep</span> <span class="st">"FOUND"</span> <span class="st">/var/log/clamav/clamav.log</span>
+
+<span class="cm"># Set up logrotate for ClamAV logs</span>
+<span class="cm"># /etc/logrotate.d/clamav-daemon (already provided by package)</span>
+$ <span class="fn">cat</span> <span class="st">/etc/logrotate.d/clamav-daemon</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- WEB UPLOAD SCANNING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 33</div>
+        <div class="slide-title">Web Upload Scanning: <span class="accent">Protecting File Upload Endpoints</span></div>
+        <div class="slide-subtitle">Integrate ClamAV into your web application upload pipeline to scan files before storage.</div>
+
+        <div class="scenario-strip">
+            A user uploads a ZIP file containing a PHP webshell disguised as an image. Your web app stores it in /var/www/uploads. The attacker navigates to the file URL and now has remote code execution. ClamAV scanning on the upload directory catches the webshell before it can be executed.
+        </div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># /usr/local/bin/scan-upload.sh</span>
+<span class="cm"># Called by web app after file upload -- scan before final storage</span>
+
+UPLOAD_FILE="$1"
+FINAL_DIR="$2"
+QUARANTINE="/var/quarantine"
+
+<span class="kw">if</span> [ <span class="kw">-z</span> "$UPLOAD_FILE" ]; then
+    <span class="fn">echo</span> <span class="st">"Usage: scan-upload.sh <file> <dest-dir>"</span>
+    <span class="fn">exit</span> <span class="nb">2</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Scan with clamdscan (fast -- uses running daemon)</span>
+<span class="fn">clamdscan</span> <span class="kw">--quiet</span> "$UPLOAD_FILE"
+SCAN_RESULT=$?
+
+<span class="kw">if</span> [ $SCAN_RESULT <span class="kw">-eq</span> <span class="nb">0</span> ]; then
+    <span class="cm"># Clean -- move to final storage location</span>
+    <span class="fn">mv</span> "$UPLOAD_FILE" "$FINAL_DIR/"
+    <span class="fn">echo</span> <span class="st">"CLEAN: file stored"</span>
+    <span class="fn">exit</span> <span class="nb">0</span>
+<span class="kw">elif</span> [ $SCAN_RESULT <span class="kw">-eq</span> <span class="nb">1</span> ]; then
+    <span class="cm"># Infected -- quarantine and alert</span>
+    <span class="fn">mv</span> "$UPLOAD_FILE" "$QUARANTINE/"
+    <span class="fn">logger</span> <span class="kw">-t</span> clamav <span class="kw">-p</span> security.crit <span class="st">"Infected upload quarantined: $UPLOAD_FILE"</span>
+    <span class="fn">echo</span> <span class="st">"INFECTED: file quarantined"</span>
+    <span class="fn">exit</span> <span class="nb">1</span>
+<span class="kw">fi</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- CUSTOM SIGNATURES ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 33</div>
+        <div class="slide-title">Custom Signatures: <span class="accent">Writing Your Own Detection Rules</span></div>
+        <div class="slide-subtitle">Create signatures for threats specific to your environment that official databases do not cover.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Signature Database Files</div>
+                <div class="card-desc">ClamAV supports several custom database formats: <span class="ic">.ndb</span> (extended signatures, hex patterns), <span class="ic">.hdb</span> (MD5 file hashes), <span class="ic">.ldb</span> (logical signatures with conditions), <span class="ic">.yara</span> (YARA rules -- powerful pattern matching). Place in <span class="ic">/var/lib/clamav/</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">YARA Integration</div>
+                <div class="card-desc">ClamAV natively supports YARA rules (when compiled with YARA support). YARA is the industry standard for malware signature writing. Rules can match on strings, hex patterns, regular expressions, and boolean combinations. The security community publishes extensive YARA rule collections.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Create a simple MD5 hash signature database (.hdb format)</span>
+<span class="cm"># Format: MD5:FileSize:SignatureName</span>
+$ <span class="fn">md5sum</span> /path/to/known-bad-file
+44d88612fea8a8f36de82e1278abb02f  known-bad-file
+
+<span class="fn">echo</span> <span class="st">"44d88612fea8a8f36de82e1278abb02f:68:My-Custom-Sig.EICAR-Test"</span> \
+    >> <span class="st">/var/lib/clamav/custom.hdb</span>
+
+<span class="cm"># Create a simple hex pattern signature (.ndb format)</span>
+<span class="cm"># Detect PHP webshells containing eval(base64_decode(</span>
+<span class="fn">echo</span> <span class="st">"PHP.Webshell.EvalBase64:0:*:6576616c286261736536345f6465636f6465"</span> \
+    >> <span class="st">/var/lib/clamav/custom.ndb</span>
+
+<span class="cm"># Verify the database is valid</span>
+$ <span class="fn">sigtool</span> <span class="kw">--validate</span> <span class="st">/var/lib/clamav/custom.hdb</span>
+
+<span class="cm"># Reload clamd to pick up new signatures</span>
+$ <span class="fn">clamdscan</span> <span class="kw">--reload</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- THIRD-PARTY SIGNATURE DATABASES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 33</div>
+        <div class="slide-title">Third-Party Signatures: <span class="accent">Extending Detection Coverage</span></div>
+        <div class="slide-subtitle">Supplement official ClamAV signatures with community databases for better detection rates.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Securiteinfo</div>
+                <div class="card-desc">Community-maintained signature databases covering phishing, potentially unwanted applications, and malware not yet in the official database. Free and commercial tiers. Add to <span class="ic">/var/lib/clamav/</span> and keep updated with a script or cron job.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">MalwarePatrol</div>
+                <div class="card-desc">Threat intelligence feeds including known malware hashes and C2 indicators. Integrates with ClamAV as a database. Commercial service with a limited free tier. Particularly useful for environments processing user-uploaded content.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">clamav-unofficial-sigs</div>
+                <div class="card-desc">An open-source project and script that automates downloading, verifying, and installing multiple third-party signature databases for ClamAV. Includes databases from Sanesecurity, SecuriteInfo, and others. Available as a package or from GitHub.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install clamav-unofficial-sigs (automates third-party signature management)</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> clamav-unofficial-sigs
+
+<span class="cm"># Configure which databases to download</span>
+$ <span class="fn">nano</span> <span class="st">/etc/clamav-unofficial-sigs/user.conf</span>
+
+<span class="cm"># Run the update script</span>
+$ <span class="fn">clamav-unofficial-sigs.sh</span>
+
+<span class="cm"># Schedule updates in cron</span>
+$ <span class="fn">crontab</span> <span class="kw">-e</span>
+<span class="nb">0 */4</span> * * * <span class="st">/usr/sbin/clamav-unofficial-sigs.sh</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- PERFORMANCE TUNING ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 33</div>
+        <div class="slide-title">Performance Tuning: <span class="accent">Balancing Coverage and Speed</span></div>
+        <div class="slide-subtitle">Configure ClamAV to scan thoroughly without consuming excessive resources.</div>
+
+        <div class="code-block"><span class="cm"># clamd.conf -- performance settings</span>
+
+<span class="cm"># Number of parallel scanning threads (match to CPU cores)</span>
+MaxThreads <span class="nb">4</span>
+
+<span class="cm"># Maximum scan time per file in seconds (prevents hanging on large files)</span>
+MaxScanTime <span class="nb">120000</span>
+
+<span class="cm"># Maximum recursion depth in archives</span>
+MaxRecursion <span class="nb">16</span>
+
+<span class="cm"># Max files in an archive to scan</span>
+MaxFiles <span class="nb">10000</span>
+
+<span class="cm"># Memory for scan buffering (MB)</span>
+StreamMaxLength <span class="nb">25M</span>
+
+<span class="cm"># Disable scanning inside certain archive types (improves speed, reduces coverage)</span>
+<span class="cm"># ScanOLE2 no      -- disable scanning inside MS Office files</span>
+<span class="cm"># ScanMail no      -- disable email scanning</span>
+
+<span class="cm"># Use clamdscan with --multiscan to scan multiple files in parallel</span>
+$ <span class="fn">clamdscan</span> <span class="kw">-r</span> <span class="kw">--multiscan</span> <span class="st">/var/www</span>
+
+<span class="cm"># Run clamscan with ionice to reduce disk I/O priority (avoids impacting other services)</span>
+$ <span class="fn">ionice</span> <span class="kw">-c 3</span> <span class="fn">nice</span> <span class="kw">-n 19</span> <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="st">/</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- INTEGRATING WITH RSYSLOG ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 33</div>
+        <div class="slide-title">Syslog Integration: <span class="accent">Centralized Threat Logging</span></div>
+        <div class="slide-subtitle">Forward ClamAV detection events to syslog for centralized log management and SIEM ingestion.</div>
+
+        <div class="code-block"><span class="cm"># clamd.conf -- enable syslog output</span>
+LogSyslog <span class="kw">yes</span>
+LogFacility LOG_LOCAL6    <span class="cm"># use local6 facility to separate from other apps</span>
+LogVerbose <span class="kw">no</span>            <span class="cm"># verbose logging floods syslog -- keep off in production</span>
+
+<span class="cm"># /etc/rsyslog.d/clamav.conf -- capture LOCAL6 to dedicated file</span>
+local6.*   <span class="st">/var/log/clamav/clamav-syslog.log</span>
+local6.*   @logserver.example.com:514   <span class="cm"># forward to centralized log server (UDP)</span>
+
+<span class="cm"># Restart rsyslog</span>
+$ <span class="fn">systemctl</span> <span class="kw">restart</span> rsyslog
+
+<span class="cm"># Restart clamd</span>
+$ <span class="fn">systemctl</span> <span class="kw">restart</span> clamav-daemon
+
+<span class="cm"># Verify syslog entries appear</span>
+$ <span class="fn">logger</span> <span class="kw">-p</span> local6.info <span class="st">"test message"</span>
+$ <span class="fn">grep</span> <span class="st">"test message"</span> <span class="st">/var/log/clamav/clamav-syslog.log</span>
+
+<span class="cm"># View ClamAV events in journald (Ubuntu 22.04 default)</span>
+$ <span class="fn">journalctl</span> <span class="kw">-u</span> clamav-daemon <span class="kw">-f</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- INOTIFYWAIT SCAN TRIGGER ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 33</div>
+        <div class="slide-title">inotifywait: <span class="accent">Event-Driven Scanning</span></div>
+        <div class="slide-subtitle">Trigger scans immediately when new files appear in monitored directories.</div>
+
+        <div class="scenario-strip">
+            On-access scanning requires clamd with fanotify. An alternative for directories where clamd cannot run with required permissions: use inotifywait to detect file creation events and immediately spawn a clamdscan of the new file. This gives near-real-time detection without the daemon overhead.
+        </div>
+
+        <div class="code-block"><span class="cm"># Install inotify-tools</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> inotify-tools
+
+<span class="cm">#!/bin/bash</span>
+<span class="cm"># /usr/local/bin/watch-uploads.sh</span>
+<span class="cm"># Monitor upload directory and scan new files immediately</span>
+
+WATCH_DIR=<span class="st">"/var/www/uploads"</span>
+QUARANTINE=<span class="st">"/var/quarantine"</span>
+
+<span class="fn">inotifywait</span> <span class="kw">-m -r -e</span> close_write <span class="kw">--format</span> <span class="st">"%w%f"</span> "$WATCH_DIR" \
+| <span class="kw">while</span> <span class="fn">read</span> NEWFILE; do
+    <span class="fn">clamdscan</span> <span class="kw">--quiet</span> "$NEWFILE"
+    <span class="kw">if</span> [ $? <span class="kw">-eq</span> <span class="nb">1</span> ]; then
+        <span class="fn">mv</span> "$NEWFILE" "$QUARANTINE/"
+        <span class="fn">logger</span> <span class="kw">-t</span> clamav <span class="kw">-p</span> security.crit \
+            <span class="st">"Infected file quarantined: $NEWFILE"</span>
+    <span class="kw">fi</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- CLAMONACC SERVICE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 33</div>
+        <div class="slide-title">clamonacc: <span class="accent">The On-Access Scanning Service</span></div>
+        <div class="slide-subtitle">ClamAV 0.102+ ships clamonacc as a separate process for on-access scanning via fanotify.</div>
+
+        <div class="code-block"><span class="cm"># clamonacc requires clamd to be running and configured for on-access</span>
+<span class="cm"># It is a separate process that uses fanotify and communicates with clamd</span>
+
+<span class="cm"># Ensure clamd.conf has required settings:</span>
+<span class="cm"># User root (required for fanotify access)</span>
+<span class="cm"># OnAccessPrevention yes</span>
+<span class="cm"># OnAccessIncludePath /home</span>
+
+<span class="cm"># Start clamonacc (it runs as a separate daemon)</span>
+$ <span class="fn">clamonacc</span> <span class="kw">-F</span>   <span class="cm"># foreground for testing (Ctrl+C to stop)</span>
+$ <span class="fn">clamonacc</span>       <span class="cm"># daemonize</span>
+
+<span class="cm"># Enable via systemd (Ubuntu ships clamonacc as a service)</span>
+$ <span class="fn">systemctl</span> <span class="kw">enable</span> clamav-clamonacc
+$ <span class="fn">systemctl</span> <span class="kw">start</span> clamav-clamonacc
+$ <span class="fn">systemctl</span> status clamav-clamonacc
+
+<span class="cm"># Test: attempt to access the EICAR file in a monitored directory</span>
+$ <span class="fn">cp</span> /tmp/eicar.com /home/ubuntu/
+$ <span class="fn">cat</span> /home/ubuntu/eicar.com
+<span class="cm"># Should be BLOCKED if OnAccessPrevention is enabled</span>
+
+<span class="cm"># Check logs for on-access detection event</span>
+$ <span class="fn">grep</span> <span class="st">"FOUND"</span> <span class="st">/var/log/clamav/clamav.log</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- CLAMDSCAN PERFORMANCE ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 33</div>
+        <div class="slide-title">clamdscan vs clamscan: <span class="accent">When to Use Each</span></div>
+        <div class="slide-subtitle">The right tool based on what you are doing and whether clamd is running.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Use clamscan When...</div>
+                <div class="card-desc">clamd is not running. You want a quick one-off scan without starting the daemon. You are in a minimal environment without the daemon installed. You need to scan from a non-root user that cannot connect to the clamd socket. Incident response on an unknown system.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use clamdscan When...</div>
+                <div class="card-desc">clamd is running (always preferred when available). Repeated scans of many files -- database is already loaded. Triggered by inotify or web app. Integration with mail gateway or file server. Scan time matters -- clamdscan is significantly faster than clamscan for repeated scans.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Timing comparison: clamscan vs clamdscan on the same directory</span>
+
+<span class="cm"># clamscan (loads database from disk every time)</span>
+$ <span class="fn">time</span> <span class="fn">clamscan</span> <span class="kw">-r</span> <span class="st">/var/www</span>
+real    0m8.234s      <span class="cm"># ~8 seconds (mostly database load time)</span>
+
+<span class="cm"># clamdscan (database already in clamd memory)</span>
+$ <span class="fn">time</span> <span class="fn">clamdscan</span> <span class="kw">-r</span> <span class="st">/var/www</span>
+real    0m0.412s      <span class="cm"># ~0.4 seconds (no database load overhead)</span>
+
+<span class="cm"># The difference is entirely database load time (~230 MB loaded fresh vs cached)</span>
+<span class="cm"># For hourly scans of large directories, clamdscan is the only practical choice</span>
+
+<span class="cm"># clamdscan with file list input (efficient for custom target lists)</span>
+$ <span class="fn">find</span> /var/www <span class="kw">-name</span> <span class="st">"*.php"</span> > /tmp/php-files.txt
+$ <span class="fn">clamdscan</span> <span class="kw">--file-list=/tmp/php-files.txt</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- COMMON THREATS CLAMAV DETECTS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 33</div>
+        <div class="slide-title">What ClamAV <span class="accent">Detects</span></div>
+        <div class="slide-subtitle">The threat categories covered by ClamAV signatures -- and what falls outside its scope.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Detects</div>
+                <div class="card-desc">
+                    Known malware (trojans, ransomware, worms)<br>
+                    Web shells (PHP, ASP, JSP variants)<br>
+                    Windows PE executables with malicious code<br>
+                    Office macros with embedded malware<br>
+                    Infected archives (ZIP, RAR, 7z, tar)<br>
+                    PDF files with embedded exploits<br>
+                    Email attachments with known malware
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Does Not Detect</div>
+                <div class="card-desc">
+                    Zero-day malware (no signature yet)<br>
+                    Fileless malware (no file to scan)<br>
+                    Memory-resident code injection<br>
+                    Unknown polymorphic malware<br>
+                    Malicious behavior (only behavioral AV handles this)<br>
+                    Rootkits hiding files from the filesystem
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Partial Coverage</div>
+                <div class="card-desc">
+                    Potentially Unwanted Applications (PUAs) -- needs PUA scanning enabled<br>
+                    Obfuscated scripts -- bytecode engine helps<br>
+                    Encrypted archives -- cannot scan without password<br>
+                    Network traffic -- needs a proxy integration<br>
+                    Kernel rootkits -- use rkhunter or chkrootkit instead
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- RKHUNTER COMPLEMENT ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 33</div>
+        <div class="slide-title">rkhunter: <span class="accent">Rootkit Detection</span></div>
+        <div class="slide-subtitle">ClamAV does not detect kernel rootkits. rkhunter fills that gap.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Is a Rootkit?</div>
+                <div class="card-desc">A rootkit hides an attacker's presence by intercepting and manipulating kernel calls. A hidden process does not appear in <span class="ic">ps</span>. Hidden files do not appear in <span class="ic">ls</span>. Hidden network connections do not appear in <span class="ic">ss</span>. Traditional AV cannot detect what the filesystem claims does not exist.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How rkhunter Works</div>
+                <div class="card-desc">Checks for known rootkit signatures. Compares system binary hashes against a baseline. Detects suspicious SUID files. Checks for hidden files and processes using multiple detection methods (comparing /proc with ps, cross-checking port lists). Runs from a baseline established on a known-clean system.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install rkhunter</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> rkhunter
+
+<span class="cm"># Update the properties database (baseline of system binaries)</span>
+$ <span class="fn">rkhunter</span> <span class="kw">--update</span>
+$ <span class="fn">rkhunter</span> <span class="kw">--propupd</span>   <span class="cm"># establish baseline hashes of system files</span>
+
+<span class="cm"># Run a full check</span>
+$ <span class="fn">rkhunter</span> <span class="kw">--check</span>
+
+<span class="cm"># Check without prompts (for cron)</span>
+$ <span class="fn">rkhunter</span> <span class="kw">--cronjob --report-warnings-only</span>
+
+<span class="cm"># Schedule in cron</span>
+$ <span class="fn">crontab</span> <span class="kw">-e</span>
+<span class="nb">0 3</span> * * * <span class="fn">rkhunter</span> <span class="kw">--cronjob --report-warnings-only</span> | <span class="fn">mail</span> <span class="kw">-s</span> <span class="st">"rkhunter report"</span> admin@example.com
+
+<span class="cm"># View last rkhunter log</span>
+$ <span class="fn">cat</span> <span class="st">/var/log/rkhunter.log</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- AIDE FILE INTEGRITY ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 33</div>
+        <div class="slide-title">AIDE: <span class="accent">File Integrity Monitoring</span></div>
+        <div class="slide-subtitle">Detect unauthorized file modifications -- the complementary layer to AV scanning.</div>
+
+        <div class="scenario-strip">
+            ClamAV catches known malware by signature. But what if the attacker uploads a custom tool that no signature database covers? AIDE (Advanced Intrusion Detection Environment) detects that any file changed -- including files that are not malware in the signature database but should never change.
+        </div>
+
+        <div class="code-block"><span class="cm"># Install AIDE</span>
+$ <span class="fn">apt</span> <span class="kw">install</span> aide
+
+<span class="cm"># /etc/aide/aide.conf -- what to monitor</span>
+<span class="cm"># CONTENT_EX = md5+sha256+size+mtime+ctime+inode+uid+gid+perms</span>
+/etc          CONTENT_EX
+/bin          CONTENT_EX
+/sbin         CONTENT_EX
+/usr/bin      CONTENT_EX
+/var/www/html CONTENT_EX
+!/var/www/html/uploads  <span class="cm"># exclude upload directory (files change legitimately)</span>
+
+<span class="cm"># Initialize the baseline database (on a KNOWN CLEAN system)</span>
+$ <span class="fn">aide</span> <span class="kw">--init</span>
+$ <span class="fn">mv</span> <span class="st">/var/lib/aide/aide.db.new</span> <span class="st">/var/lib/aide/aide.db</span>
+
+<span class="cm"># Check for changes against baseline</span>
+$ <span class="fn">aide</span> <span class="kw">--check</span>
+
+<span class="cm"># Schedule daily check with cron</span>
+<span class="nb">0 4</span> * * * <span class="fn">aide</span> <span class="kw">--check 2>&1</span> | <span class="fn">mail</span> <span class="kw">-s</span> <span class="st">"AIDE report $(hostname)"</span> admin@example.com</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- FULL DEFENSE STACK ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 33</div>
+        <div class="slide-title">Full Defense Stack: <span class="accent">Layered Detection</span></div>
+        <div class="slide-subtitle">How ClamAV, rkhunter, AIDE, and the firewall stack together to cover different threat vectors.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Layer 1: Network (firewall)</div>
+                <div class="card-desc">iptables / UFW. Controls what reaches your services. Stops unauthorized connections before any file can be delivered. Does not inspect file content.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer 2: File Content (ClamAV)</div>
+                <div class="card-desc">Scans files for known malware signatures. Catches malicious uploads and email attachments. Does not detect rootkits or unauthorized modifications to system files.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Layer 3: Integrity (AIDE)</div>
+                <div class="card-desc">Detects any change to monitored files. Catches a compromised binary even if ClamAV has no signature for it. Requires a known-clean baseline to be useful.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Layer 4: Rootkit Detection (rkhunter)</div>
+                <div class="card-desc">Specifically targets kernel and binary-level rootkits. Catches hiding techniques that fool the filesystem layer. Complements AIDE which can be deceived by a sophisticated rootkit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Layer 5: Behavior (auditd)</div>
+                <div class="card-desc">Audit daemon records security-relevant system calls: file opens, privilege escalation, network connections. Post-compromise forensics layer -- everything the attacker did is in the audit log.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- TROUBLESHOOTING CLAMAV ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 33</div>
+        <div class="slide-title">Troubleshooting <span class="accent">ClamAV</span></div>
+        <div class="slide-subtitle">Common issues and their diagnostic procedures.</div>
+
+        <div class="code-block"><span class="cm"># Issue: clamd fails to start</span>
+$ <span class="fn">systemctl</span> status clamav-daemon
+$ <span class="fn">journalctl</span> <span class="kw">-u</span> clamav-daemon <span class="kw">-n</span> <span class="nb">50</span>
+
+<span class="cm"># Common cause: database not yet downloaded</span>
+$ <span class="fn">ls</span> <span class="kw">-la</span> <span class="st">/var/lib/clamav/</span>   <span class="cm"># should have main.cvd, daily.cld, bytecode.cld</span>
+$ <span class="fn">freshclam</span>                  <span class="cm"># download if missing</span>
+
+<span class="cm"># Issue: clamdscan reports "connection refused"</span>
+$ <span class="fn">systemctl</span> status clamav-daemon
+$ <span class="fn">ls</span> <span class="kw">-la</span> <span class="st">/var/run/clamav/</span>   <span class="cm"># check socket file exists</span>
+
+<span class="cm"># Issue: clamscan "LibClamAV Warning: ***** This version outdated!"</span>
+$ <span class="fn">apt</span> <span class="kw">update</span> && <span class="fn">apt</span> <span class="kw">upgrade</span> clamav clamav-daemon
+
+<span class="cm"># Issue: freshclam fails to update</span>
+$ <span class="fn">freshclam</span> <span class="kw">--verbose</span>   <span class="cm"># see exact error</span>
+<span class="cm"># Common causes: network connectivity, DNS resolution, double-running freshclam instances</span>
+$ <span class="fn">systemctl</span> stop clamav-freshclam && <span class="fn">freshclam</span> && <span class="fn">systemctl</span> <span class="kw">start</span> clamav-freshclam
+
+<span class="cm"># Issue: high CPU from clamav during scheduled scan</span>
+$ <span class="fn">nice</span> <span class="kw">-n 19</span> <span class="fn">ionice</span> <span class="kw">-c 3</span> <span class="fn">clamscan</span> <span class="kw">-r</span> /    <span class="cm"># deprioritize the scan process</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- VOCABULARY ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 33</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms from this session used in security documentation, job descriptions, and audits.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">ClamAV Components</div>
+                <div class="card-desc">
+                    <strong>clamscan</strong> -- one-shot command-line scanner, loads database each run.<br>
+                    <strong>clamd</strong> -- resident daemon, keeps database in memory for fast scans.<br>
+                    <strong>clamdscan</strong> -- client that submits scan requests to clamd.<br>
+                    <strong>freshclam</strong> -- signature update daemon, syncs databases from mirrors.<br>
+                    <strong>clamonacc</strong> -- on-access scanning process using fanotify.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Detection and Database</div>
+                <div class="card-desc">
+                    <strong>signature</strong> -- a pattern that identifies known malware.<br>
+                    <strong>main.cvd</strong> -- core signature database.<br>
+                    <strong>daily.cld</strong> -- daily-updated signature delta file.<br>
+                    <strong>EICAR</strong> -- standardized AV test string, not real malware.<br>
+                    <strong>false positive</strong> -- a clean file incorrectly flagged as malware.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Security Concepts</div>
+                <div class="card-desc">
+                    <strong>on-access scanning</strong> -- scanning files as they are opened, using fanotify.<br>
+                    <strong>fanotify</strong> -- Linux kernel API used for on-access file monitoring.<br>
+                    <strong>quarantine</strong> -- isolated storage for detected threats pending analysis.<br>
+                    <strong>YARA</strong> -- industry-standard rule language for malware signature writing.<br>
+                    <strong>rootkit</strong> -- malware that hides itself by manipulating kernel functions.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- SUMMARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 33 &nbsp;|&nbsp; Week 2 Topic 3</div>
+        <div class="slide-title">Threat Sentinel: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            The sentinel is active. ClamAV is scanning. freshclam is keeping signatures current. On-access scanning watches the upload directory. The nightly scan covers the rest of the filesystem. AIDE monitors for unauthorized changes. A threat that slips past the firewall hits four detection layers before it can cause damage.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Session</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">ClamAV has two scanning modes: <code>clamscan</code> (loads database fresh each run) and <code>clamdscan</code> (submits to running clamd). Use clamdscan for repeated or automated scans.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>freshclam</code> must run continuously (or on a schedule) or your signatures become stale. Outdated signatures = missed threats.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Use the EICAR test string to verify ClamAV is working. Never use real malware samples on production systems.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Exit codes: 0 = clean, 1 = infected found, 2 = error. Always check exit codes in scripts -- do not rely on parsing text output.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">On-access scanning uses <code>fanotify</code> + clamonacc. Scope it carefully -- monitoring the entire filesystem on a busy server has significant performance cost.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Quarantine is better than delete. Preserved samples enable forensic analysis. False positives can be recovered. Compliance frameworks often require evidence retention.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">ClamAV does not detect rootkits. Use rkhunter for rootkit detection and AIDE for file integrity monitoring as complementary layers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Exclude virtual filesystems (<code>/proc</code>, <code>/sys</code>, <code>/dev</code>) from all scans. Scanning these causes errors, wastes time, and finds nothing useful.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 33</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 33;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w2-antivirus', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

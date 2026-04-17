@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Interface Configuration | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Grid Interface Configuration | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-03 &nbsp;|&nbsp; Week 1 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Grid Interface Configuration<br>
+                <span class="accent">Linux Network Setup</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                ip link/addr &nbsp;&bull;&nbsp; Static vs DHCP &nbsp;&bull;&nbsp; Netplan &nbsp;&bull;&nbsp; Bonding &nbsp;&bull;&nbsp; VLANs &nbsp;&bull;&nbsp; Routing
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your cell's node arrived with no network configuration. You have the interface name, a static IP assignment from network ops, and a VLAN tag. The grid does not connect itself. This module is how you bring it online correctly and persistently across reboots.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-03</span>
+            <span>Week 1 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — NETWORK STACK OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The Linux <span class="accent">Network Stack</span></div>
+        <div class="slide-subtitle">Layers you control and the tools that manage them.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Layer 2: Link Layer</div>
+                <div class="card-desc">Physical and logical interfaces. Ethernet frames. MAC addresses. Controlled with <span class="ic">ip link</span>. Operations: bring interface up/down, set MTU, rename interface, configure bonding and bridges. No IP addressing at this layer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Layer 3: Network Layer</div>
+                <div class="card-desc">IP addresses and routing. Controlled with <span class="ic">ip addr</span> (addresses) and <span class="ic">ip route</span> (routing table). Operations: assign IP addresses, add/delete routes, configure default gateway. ARP operates between L2 and L3.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Configuration Persistence</div>
+                <div class="card-desc"><span class="ic">ip</span> commands make changes immediately but they do NOT survive reboot. Persistent configuration requires Netplan (Ubuntu 22.04 default), NetworkManager, or systemd-networkd. The tool you use to configure persistence is separate from the tool you use to inspect state.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The Old vs New Toolchain</div>
+            <span class="ic">ifconfig</span>, <span class="ic">route</span>, and <span class="ic">netstat</span> are from the deprecated <span class="ic">net-tools</span> package. They are not installed on Ubuntu 22.04 by default. The modern replacements are: <span class="ic">ip</span> (replaces ifconfig and route), <span class="ic">ss</span> (replaces netstat). Learn the new tools -- they provide more information and are maintained.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — IP LINK ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title"><span class="accent">ip link</span> — Interface Management</div>
+        <div class="slide-subtitle">Inspect and control network interfaces at Layer 2.</div>
+
+        <div class="code-block"><span class="cm"># List all network interfaces with state and MAC address</span>
+<span class="fn">ip</span> link show
+
+<span class="cm"># Short form: same output</span>
+<span class="fn">ip</span> link
+
+<span class="cm"># Show a specific interface</span>
+<span class="fn">ip</span> link show eth0
+
+<span class="cm"># Bring an interface UP</span>
+<span class="fn">ip</span> link set eth0 up
+
+<span class="cm"># Bring an interface DOWN</span>
+<span class="fn">ip</span> link set eth0 down
+
+<span class="cm"># Set MTU (Maximum Transmission Unit)</span>
+<span class="fn">ip</span> link set eth0 mtu <span class="nb">9000</span>           <span class="cm"># jumbo frames (if network supports it)</span>
+
+<span class="cm"># Rename an interface</span>
+<span class="fn">ip</span> link set eth0 name grid-primary
+
+<span class="cm"># Set a specific MAC address</span>
+<span class="fn">ip</span> link set eth0 address <span class="nb">aa:bb:cc:dd:ee:ff</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Reading ip link Output</div>
+            The <span class="ic">state UP</span> or <span class="ic">state DOWN</span> shows the administrative state. <span class="ic">LOWER_UP</span> in the flags means a physical carrier is detected (cable plugged in). A link can be administratively UP but without carrier if no cable is connected.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — IP ADDR ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">ip addr</span> — Address Management</div>
+        <div class="slide-subtitle">Assign, display, and remove IP addresses on interfaces.</div>
+
+        <div class="code-block"><span class="cm"># Show all addresses on all interfaces</span>
+<span class="fn">ip</span> addr show
+
+<span class="cm"># Show only IPv4 addresses</span>
+<span class="fn">ip</span> -4 addr show
+
+<span class="cm"># Show only IPv6 addresses</span>
+<span class="fn">ip</span> -6 addr show
+
+<span class="cm"># Show addresses for a specific interface</span>
+<span class="fn">ip</span> addr show eth0
+
+<span class="cm"># Assign a static IP address (with CIDR prefix length)</span>
+<span class="fn">ip</span> addr add <span class="nb">192.168.10.50/24</span> dev eth0
+
+<span class="cm"># Assign a secondary IP address (two IPs on one interface)</span>
+<span class="fn">ip</span> addr add <span class="nb">192.168.10.51/24</span> dev eth0
+
+<span class="cm"># Remove a specific IP address</span>
+<span class="fn">ip</span> addr del <span class="nb">192.168.10.51/24</span> dev eth0
+
+<span class="cm"># Flush ALL addresses from an interface</span>
+<span class="fn">ip</span> addr flush dev eth0</div>
+
+        <div class="box box-red">
+            <div class="box-label">These Changes Are Not Persistent</div>
+            <span class="ic">ip addr add</span> configures the address in the running kernel. It disappears on reboot. To make addresses permanent, configure them in Netplan or NetworkManager. The <span class="ic">ip</span> command is for immediate changes and verification -- not for permanent configuration.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — INTERFACE NAMING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Interface Naming: <span class="accent">Predictable Names</span></div>
+        <div class="slide-subtitle">Why modern systems do not use eth0/eth1 and how to read the new names.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Old Names (eth0, eth1)</div>
+                <div class="card-desc">Under the legacy naming scheme, interface numbering was assigned during boot in kernel discovery order. On a dual-NIC system, which card became eth0 and which became eth1 could change depending on which was initialized first. This caused silent routing failures after hardware changes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Predictable Network Interface Names</div>
+                <div class="card-desc">Modern systems use names derived from physical location. <span class="ic">en</span> = Ethernet, <span class="ic">wl</span> = wireless. Suffixes: <span class="ic">p</span> = PCI bus, <span class="ic">s</span> = slot. Examples: <span class="ic">enp3s0</span> (PCI bus 3, slot 0), <span class="ic">ens3</span> (slot 3), <span class="ic">eno1</span> (onboard NIC 1). The name is tied to the physical slot, not boot order.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Decode the interface name</span>
+<span class="cm"># enp3s0  = en (ethernet) + p3 (PCI bus 3) + s0 (slot 0)</span>
+<span class="cm"># ens160  = en (ethernet) + s160 (slot 160, common on VMware)</span>
+<span class="cm"># eno1    = en (ethernet) + o1 (onboard, from firmware index)</span>
+<span class="cm"># eth0    = legacy, still used in containers and minimal installs</span>
+
+<span class="cm"># Identify which interface maps to which physical port</span>
+<span class="fn">ethtool</span> enp3s0                        <span class="cm"># detailed NIC info</span>
+<span class="fn">ethtool</span> -p enp3s0                     <span class="cm"># blink the NIC LED for physical ID (if supported)</span>
+<span class="fn">ip</span> link show enp3s0                   <span class="cm"># check link state and MAC</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — NETPLAN OVERVIEW ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Ubuntu's Network Configuration Layer</span></div>
+        <div class="slide-subtitle">Netplan is the abstraction layer. It generates config for the backend renderer.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">What Netplan Is</div>
+                <div class="card-desc">Netplan reads YAML configuration files in <span class="ic">/etc/netplan/</span> and generates configuration for either NetworkManager or systemd-networkd (your choice of renderer). You write one YAML file; Netplan translates it to the backend format.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">File Location</div>
+                <div class="card-desc">Configuration files live in <span class="ic">/etc/netplan/</span>. Files are processed in lexicographic order. Common default file: <span class="ic">00-installer-config.yaml</span>. You can split configuration across multiple files. The highest-numbered file wins on conflicts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Apply Changes</div>
+                <div class="card-desc"><span class="ic">netplan apply</span> applies changes without disconnection (where possible). <span class="ic">netplan try</span> applies changes and automatically reverts after 120 seconds if you do not confirm -- safe for remote configuration. <span class="ic">netplan generate</span> only generates backend files without applying.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Always Use netplan try on Remote Systems</div>
+            If you misconfigure the network on a remote server and run <span class="ic">netplan apply</span>, you may lose access permanently (until someone physically visits the machine). <span class="ic">netplan try</span> gives you 120 seconds to confirm. If you lose connectivity, it automatically reverts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — NETPLAN DHCP ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">DHCP Configuration</span></div>
+        <div class="slide-subtitle">Simplest Netplan file. The interface requests an address from a DHCP server.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/00-installer-config.yaml</span>
+<span class="cm"># Minimal DHCP configuration</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>     <span class="cm"># or: NetworkManager</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">true</span>          <span class="cm"># request IPv4 from DHCP</span>
+      <span class="kw">dhcp6</span>: <span class="st">false</span>         <span class="cm"># no IPv6</span>
+
+<span class="cm">---</span>
+<span class="cm"># Apply the configuration</span>
+<span class="fn">netplan</span> try                    <span class="cm"># safe: auto-reverts after 120s if not confirmed</span>
+<span class="cm"># Press Enter to confirm when prompted</span>
+
+<span class="cm"># Verify the address was assigned</span>
+<span class="fn">ip</span> -4 addr show enp3s0
+
+<span class="cm"># Inspect the generated systemd-networkd file</span>
+<span class="fn">cat</span> /run/systemd/network/10-netplan-enp3s0.network</div>
+
+        <div class="box box-green">
+            <div class="box-label">YAML Indentation</div>
+            Netplan YAML files are whitespace-sensitive. Use exactly 2 spaces per indentation level. No tabs. A misaligned line causes <span class="ic">netplan apply</span> to fail with a parsing error that can be cryptic. Use <span class="ic">netplan generate</span> first to validate syntax without applying.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — NETPLAN STATIC ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Static IP Configuration</span></div>
+        <div class="slide-subtitle">Assign a fixed address, gateway, and DNS servers persistently.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/00-static-config.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="nb">192.168.10.50/24</span>   <span class="cm"># CIDR notation, not subnet mask</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">default</span>          <span class="cm"># default gateway (0.0.0.0/0)</span>
+          <span class="kw">via</span>: <span class="nb">192.168.10.1</span>
+      <span class="kw">nameservers</span>:
+        <span class="kw">addresses</span>:
+          - <span class="nb">8.8.8.8</span>
+          - <span class="nb">8.8.4.4</span>
+        <span class="kw">search</span>:
+          - <span class="st">sector.internal</span>
+          - <span class="st">corp.example.com</span>
+
+<span class="cm">---</span>
+<span class="cm"># Validate syntax, then apply</span>
+<span class="fn">netplan</span> generate              <span class="cm"># check for YAML errors</span>
+<span class="fn">netplan</span> try                    <span class="cm"># apply with auto-revert safety</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — NETPLAN MULTIPLE INTERFACES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Multiple Interfaces</span></div>
+        <div class="slide-subtitle">Configure a management interface (DHCP) and a data interface (static) simultaneously.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/00-multi-interface.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp2s0</span>:
+      <span class="cm"># Management interface: DHCP from corporate network</span>
+      <span class="kw">dhcp4</span>: <span class="st">true</span>
+      <span class="kw">dhcp4-overrides</span>:
+        <span class="kw">use-routes</span>: <span class="st">false</span>       <span class="cm"># do NOT install DHCP-provided default route</span>
+        <span class="kw">use-dns</span>: <span class="st">false</span>           <span class="cm"># do NOT use DHCP-provided DNS</span>
+    <span class="kw">enp3s0</span>:
+      <span class="cm"># Data interface: static address for sector traffic</span>
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="nb">10.0.100.10/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">default</span>
+          <span class="kw">via</span>: <span class="nb">10.0.100.1</span>
+      <span class="kw">nameservers</span>:
+        <span class="kw">addresses</span>:
+          - <span class="nb">10.0.0.53</span>
+          - <span class="nb">10.0.0.54</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">use-routes: false</div>
+            When two interfaces both receive DHCP leases, both will try to install a default route, creating two default gateways with equal metric. Linux will use both in an unpredictable pattern (ECMP). Use <span class="ic">use-routes: false</span> on the secondary interface to prevent this.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — NETWORKMANAGER VS NETWORKD ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">NetworkManager vs <span class="accent">systemd-networkd</span></div>
+        <div class="slide-subtitle">Two backends. Different strengths. Choose based on workload.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">NetworkManager</div>
+                <div class="card-desc">Designed for desktops and laptops with dynamic connectivity. Handles WiFi, VPNs, mobile broadband, and frequent network changes gracefully. GUI tools (nmtui, nmcli) available. Default renderer on Ubuntu Desktop. Heavier resource footprint than networkd.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">systemd-networkd</div>
+                <div class="card-desc">Minimal, fast, systemd-native. Designed for servers with static or predictable network configuration. No daemon running between configuration events. Reads <span class="ic">.network</span> files from <span class="ic">/etc/systemd/network/</span>. Default on Ubuntu Server. Integrates with systemd-resolved for DNS.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check which backend is active</span>
+<span class="fn">systemctl</span> is-active NetworkManager
+<span class="fn">systemctl</span> is-active systemd-networkd
+
+<span class="cm"># Switch Netplan to use NetworkManager (change renderer in YAML)</span>
+<span class="cm"># renderer: NetworkManager  (in /etc/netplan/*.yaml)</span>
+
+<span class="cm"># nmcli: NetworkManager command-line interface</span>
+<span class="fn">nmcli</span> device status                  <span class="cm"># list devices and their status</span>
+<span class="fn">nmcli</span> connection show                 <span class="cm"># list configured connections</span>
+<span class="fn">nmcli</span> device connect enp3s0          <span class="cm"># connect a device</span>
+
+<span class="cm"># nmtui: text-based UI for NetworkManager (useful on headless servers)</span>
+<span class="fn">nmtui</span>                                 <span class="cm"># launches interactive TUI</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — BONDING OVERVIEW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">NIC Bonding: <span class="accent">Redundancy and Throughput</span></div>
+        <div class="slide-subtitle">Combine multiple physical interfaces into one logical interface. Bonding provides failover or aggregated bandwidth.</div>
+
+        <div class="scenario-strip">
+            Your sector node has two 1 Gbps NICs. You can use them independently (1 Gbps each), as an active-backup pair (1 Gbps, automatic failover if one NIC or cable fails), or as an active-active bond (2 Gbps effective throughput). The choice depends on your priority: availability or throughput.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Mode 0: balance-rr</div>
+                <div class="card-desc">Round-robin. Transmits packets in sequence across all member interfaces. Provides load balancing and fault tolerance. Requires switch support (802.3ad or static LAG). Can cause out-of-order packet delivery. Not recommended for TCP-heavy workloads without switch coordination.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mode 1: active-backup</div>
+                <div class="card-desc">One interface is active; the others are standby. On failure, a standby immediately takes over. No switch configuration required. Bandwidth limited to one NIC at a time. The most common production choice for servers where fault tolerance is the priority and switch config is not available.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Mode 4: 802.3ad LACP</div>
+                <div class="card-desc">Link Aggregation Control Protocol (IEEE 802.3ad). The switch and server negotiate the bond dynamically. Provides both fault tolerance and load balancing. Requires switch-side LACP configuration. Most data center environments use this for server uplinks. Best throughput per port count.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — BONDING MODES FULL TABLE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Bonding Mode <span class="accent">Reference</span></div>
+        <div class="slide-subtitle">All 7 modes. Know Mode 1 and Mode 4 deeply. Know the rest exist.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Mode 0: balance-rr</div>
+                <div class="card-desc">Round-robin across all slaves. Load balance + fault tolerance. Requires switch LAG config.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mode 1: active-backup</div>
+                <div class="card-desc">One active, rest standby. Failover only. No switch config needed. Most compatible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Mode 2: balance-xor</div>
+                <div class="card-desc">XOR of src/dst MAC determines slave. Same slave for each destination. Requires switch support.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mode 3: broadcast</div>
+                <div class="card-desc">Send all traffic on all slaves simultaneously. Fault tolerance only. Very high traffic volume.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mode 4: 802.3ad (LACP)</div>
+                <div class="card-desc">Dynamic link aggregation. Requires switch LACP. Best combination of throughput and redundancy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Mode 5: balance-tlb</div>
+                <div class="card-desc">Transmit load balancing without switch support. Receive traffic on the active NIC only.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Mode 6: balance-alb</div>
+            Adaptive load balancing. Includes both transmit and receive load balancing without switch support. Uses ARP negotiation to distribute receive traffic. No special switch configuration needed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — NETPLAN BONDING CONFIG ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Bonding Configuration</span></div>
+        <div class="slide-subtitle">Configure a Mode 4 (LACP) bond in Netplan YAML.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/10-bonding.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+    <span class="kw">enp4s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+  <span class="kw">bonds</span>:
+    <span class="kw">bond0</span>:
+      <span class="kw">interfaces</span>: [<span class="st">enp3s0</span>, <span class="st">enp4s0</span>]
+      <span class="kw">addresses</span>:
+        - <span class="nb">10.0.100.10/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">default</span>
+          <span class="kw">via</span>: <span class="nb">10.0.100.1</span>
+      <span class="kw">nameservers</span>:
+        <span class="kw">addresses</span>: [<span class="nb">10.0.0.53</span>]
+      <span class="kw">parameters</span>:
+        <span class="kw">mode</span>: <span class="nb">802.3ad</span>             <span class="cm"># LACP</span>
+        <span class="kw">lacp-rate</span>: <span class="st">fast</span>           <span class="cm"># PDU every 1s (vs 30s for slow)</span>
+        <span class="kw">mii-monitor-interval</span>: <span class="nb">100</span> <span class="cm"># check link every 100ms</span>
+        <span class="kw">transmit-hash-policy</span>: <span class="st">layer3+4</span> <span class="cm"># use IP + port for load balance</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — ACTIVE-BACKUP BOND ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Active-Backup Bond</span></div>
+        <div class="slide-subtitle">Failover without switch coordination. Works with any switch.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/10-active-backup-bond.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+    <span class="kw">enp4s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+  <span class="kw">bonds</span>:
+    <span class="kw">bond0</span>:
+      <span class="kw">interfaces</span>: [<span class="st">enp3s0</span>, <span class="st">enp4s0</span>]
+      <span class="kw">addresses</span>:
+        - <span class="nb">192.168.1.100/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">default</span>
+          <span class="kw">via</span>: <span class="nb">192.168.1.1</span>
+      <span class="kw">parameters</span>:
+        <span class="kw">mode</span>: <span class="st">active-backup</span>
+        <span class="kw">primary</span>: <span class="st">enp3s0</span>            <span class="cm"># preferred active interface</span>
+        <span class="kw">mii-monitor-interval</span>: <span class="nb">200</span>  <span class="cm"># check every 200ms</span>
+        <span class="kw">fail-over-mac-policy</span>: <span class="st">active</span> <span class="cm"># MAC follows the active port</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Verify Bond Status</div>
+                <div class="card-desc"><span class="ic">cat /proc/net/bonding/bond0</span> shows the current mode, active slave, and state of each member. This is the definitive source of truth for bond status. <span class="ic">ip link show bond0</span> confirms the bond interface is up.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Test Failover</div>
+                <div class="card-desc">With active-backup configured: bring the primary interface down with <span class="ic">ip link set enp3s0 down</span>, then ping the gateway and watch <span class="ic">/proc/net/bonding/bond0</span>. The secondary takes over in under 200ms.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — VLANS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">VLANs: <span class="accent">Layer 2 Segmentation</span></div>
+        <div class="slide-subtitle">Carry multiple logical networks over a single physical interface using 802.1Q tagging.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What a VLAN Is</div>
+                <div class="card-desc">A Virtual LAN (802.1Q) inserts a 4-byte tag into Ethernet frames. The tag contains a VLAN ID (1-4094). Switches use this tag to segregate traffic into separate broadcast domains. The same physical cable carries frames for multiple logical networks simultaneously.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Trunk vs Access Ports</div>
+                <div class="card-desc">An access port carries untagged traffic for one VLAN. A trunk port carries tagged traffic for multiple VLANs. Your Linux server must be connected to a trunk port to use VLAN subinterfaces. The switch configuration must allow the VLAN tags your server will send.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Create a VLAN subinterface with ip link (not persistent)</span>
+<span class="fn">ip</span> link add link enp3s0 name enp3s0.100 type vlan id <span class="nb">100</span>
+<span class="fn">ip</span> link set enp3s0.100 up
+<span class="fn">ip</span> addr add <span class="nb">10.100.0.10/24</span> dev enp3s0.100
+
+<span class="cm"># Add a second VLAN on the same physical interface</span>
+<span class="fn">ip</span> link add link enp3s0 name enp3s0.200 type vlan id <span class="nb">200</span>
+<span class="fn">ip</span> link set enp3s0.200 up
+<span class="fn">ip</span> addr add <span class="nb">10.200.0.10/24</span> dev enp3s0.200
+
+<span class="cm"># Verify VLAN interfaces</span>
+<span class="fn">ip</span> link show type vlan
+<span class="fn">cat</span> /proc/net/vlan/config</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — NETPLAN VLAN CONFIG ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">VLAN Configuration</span></div>
+        <div class="slide-subtitle">Persistent VLAN subinterfaces in Netplan YAML.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/20-vlans.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+  <span class="kw">vlans</span>:
+    <span class="kw">enp3s0.100</span>:                     <span class="cm"># name of the VLAN interface</span>
+      <span class="kw">id</span>: <span class="nb">100</span>                        <span class="cm"># VLAN tag ID</span>
+      <span class="kw">link</span>: <span class="st">enp3s0</span>                  <span class="cm"># parent physical interface</span>
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="nb">10.100.0.10/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">10.100.0.0/24</span>
+          <span class="kw">via</span>: <span class="nb">10.100.0.1</span>
+    <span class="kw">enp3s0.200</span>:
+      <span class="kw">id</span>: <span class="nb">200</span>
+      <span class="kw">link</span>: <span class="st">enp3s0</span>
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="nb">10.200.0.10/24</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">VLAN on a Bond</div>
+            You can combine bonding and VLANs. The VLAN interfaces are created on top of the bond interface: set <span class="ic">link: bond0</span> instead of the physical interface name. This gives you both redundancy (from the bond) and segmentation (from the VLAN).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ROUTING TABLES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Routing Tables: <span class="accent">ip route</span></div>
+        <div class="slide-subtitle">How the kernel decides which interface and gateway to use for each destination.</div>
+
+        <div class="code-block"><span class="cm"># Display the main routing table</span>
+<span class="fn">ip</span> route show
+
+<span class="cm"># Example output:
+# default via 192.168.10.1 dev enp3s0 proto dhcp src 192.168.10.50 metric 100
+# 192.168.10.0/24 dev enp3s0 proto kernel scope link src 192.168.10.50</span>
+
+<span class="cm"># Add a static route: reach 10.0.0.0/8 via gateway 192.168.10.254</span>
+<span class="fn">ip</span> route add <span class="nb">10.0.0.0/8</span> via <span class="nb">192.168.10.254</span> dev enp3s0
+
+<span class="cm"># Add a host route: specific destination via a gateway</span>
+<span class="fn">ip</span> route add <span class="nb">203.0.113.50/32</span> via <span class="nb">192.168.10.1</span>
+
+<span class="cm"># Add default gateway</span>
+<span class="fn">ip</span> route add default via <span class="nb">192.168.10.1</span>
+
+<span class="cm"># Delete a route</span>
+<span class="fn">ip</span> route del <span class="nb">10.0.0.0/8</span>
+
+<span class="cm"># Show which route would be used for a specific destination (route lookup)</span>
+<span class="fn">ip</span> route get <span class="nb">8.8.8.8</span>
+<span class="cm"># 8.8.8.8 via 192.168.10.1 dev enp3s0 src 192.168.10.50 uid 1000</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — ROUTE METRICS AND POLICY ROUTING ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Route Metrics and <span class="accent">Policy Routing</span></div>
+        <div class="slide-subtitle">Multiple routes to the same destination. Control which one the kernel prefers.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Metric</div>
+                <div class="card-desc">When multiple routes match the same destination, the kernel uses the route with the lowest metric. DHCP typically assigns metric 100. You can set metric manually. Routes with the same prefix length and same metric are used in ECMP (equal-cost multipath) -- traffic is distributed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Policy Routing (Multiple Tables)</div>
+                <div class="card-desc">Linux supports multiple routing tables (up to 252). You can route traffic differently based on source IP, incoming interface, or packet marks. Common use: a server with two ISPs where traffic from IP 10.0.1.x must use ISP-A and traffic from 10.0.2.x must use ISP-B.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Add routes with explicit metrics</span>
+<span class="fn">ip</span> route add default via <span class="nb">192.168.1.1</span> metric <span class="nb">100</span>    <span class="cm"># primary default route</span>
+<span class="fn">ip</span> route add default via <span class="nb">192.168.2.1</span> metric <span class="nb">200</span>    <span class="cm"># backup default route</span>
+
+<span class="cm"># In Netplan: set metric on a route</span>
+<span class="cm"># routes:</span>
+<span class="cm">#   - to: default</span>
+<span class="cm">#     via: 192.168.1.1</span>
+<span class="cm">#     metric: 100</span>
+
+<span class="cm"># Policy routing: route table 100 via different gateway</span>
+<span class="fn">ip</span> route add default via <span class="nb">192.168.2.1</span> table <span class="nb">100</span>
+<span class="fn">ip</span> rule add from <span class="nb">192.168.2.0/24</span> table <span class="nb">100</span>       <span class="cm"># traffic from this subnet uses table 100</span>
+<span class="fn">ip</span> rule show                                       <span class="cm"># display routing policy rules</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — NETPLAN PERSISTENT ROUTES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Netplan: <span class="accent">Persistent Static Routes</span></div>
+        <div class="slide-subtitle">Add custom routes that survive reboots and interface restarts.</div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/00-static-config.yaml with custom routes</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+      <span class="kw">addresses</span>:
+        - <span class="nb">192.168.10.50/24</span>
+      <span class="kw">routes</span>:
+        - <span class="kw">to</span>: <span class="nb">default</span>              <span class="cm"># default gateway</span>
+          <span class="kw">via</span>: <span class="nb">192.168.10.1</span>
+          <span class="kw">metric</span>: <span class="nb">100</span>
+        - <span class="kw">to</span>: <span class="nb">10.0.0.0/8</span>          <span class="cm"># reach internal networks via this gateway</span>
+          <span class="kw">via</span>: <span class="nb">192.168.10.254</span>
+          <span class="kw">metric</span>: <span class="nb">50</span>
+        - <span class="kw">to</span>: <span class="nb">172.16.0.0/12</span>       <span class="cm"># DMZ range</span>
+          <span class="kw">via</span>: <span class="nb">192.168.10.200</span>
+
+<span class="cm">---</span>
+<span class="cm"># After applying, verify all routes are present</span>
+<span class="fn">netplan</span> try
+<span class="fn">ip</span> route show</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — DNS RESOLUTION CONFIG ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">DNS Resolution: <span class="accent">systemd-resolved</span></div>
+        <div class="slide-subtitle">The DNS resolver on Ubuntu 22.04 and how to configure and inspect it.</div>
+
+        <div class="code-block"><span class="cm"># systemd-resolved is the local stub resolver on Ubuntu 22.04</span>
+<span class="cm"># It listens on 127.0.0.53:53 and forwards queries to upstream DNS</span>
+
+<span class="cm"># Check the resolver status and configured DNS servers</span>
+<span class="fn">resolvectl</span> status
+
+<span class="cm"># Per-interface DNS -- each interface can have its own DNS</span>
+<span class="fn">resolvectl</span> dns enp3s0                     <span class="cm"># show DNS for this interface</span>
+
+<span class="cm"># Look up a hostname using systemd-resolved</span>
+<span class="fn">resolvectl</span> query sector-db.internal
+
+<span class="cm"># Flush the local DNS cache</span>
+<span class="fn">resolvectl</span> flush-caches
+
+<span class="cm"># Show DNS statistics (queries, cache hits, etc.)</span>
+<span class="fn">resolvectl</span> statistics
+
+<span class="cm"># /etc/resolv.conf is a symlink to the resolved stub</span>
+<span class="fn">ls</span> -la /etc/resolv.conf
+<span class="cm"># lrwxrwxrwx -> /run/systemd/resolve/stub-resolv.conf</span>
+
+<span class="cm"># If you need to bypass resolved and use a direct resolv.conf</span>
+<span class="fn">ln</span> -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — BRIDGES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Bridges: <span class="accent">Layer 2 Switching in Software</span></div>
+        <div class="slide-subtitle">Connect virtual machines or containers to the physical network at Layer 2.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What a Bridge Does</div>
+                <div class="card-desc">A Linux bridge acts as a virtual Ethernet switch. Physical interfaces and virtual interfaces (TAP, veth) can be added as bridge members. Frames are forwarded based on MAC address learning, just like a hardware switch. Used by KVM/QEMU, LXC, and Docker bridge networks.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common Use Case</div>
+                <div class="card-desc">You want VMs on a hypervisor to appear on the same Layer 2 network as physical machines. You bridge the physical NIC (enp3s0) with the TAP interfaces of each VM. The VMs receive their own DHCP addresses from the same server as physical machines.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># /etc/netplan/30-bridge.yaml</span>
+<span class="kw">network</span>:
+  <span class="kw">version</span>: <span class="nb">2</span>
+  <span class="kw">renderer</span>: <span class="st">networkd</span>
+  <span class="kw">ethernets</span>:
+    <span class="kw">enp3s0</span>:
+      <span class="kw">dhcp4</span>: <span class="st">false</span>
+  <span class="kw">bridges</span>:
+    <span class="kw">br0</span>:
+      <span class="kw">interfaces</span>: [<span class="st">enp3s0</span>]
+      <span class="kw">dhcp4</span>: <span class="st">true</span>
+      <span class="kw">parameters</span>:
+        <span class="kw">stp</span>: <span class="st">false</span>               <span class="cm"># disable Spanning Tree (no loops in simple configs)</span>
+        <span class="kw">forward-delay</span>: <span class="nb">0</span>        <span class="cm"># no forwarding delay (useful for VMs)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — MTU AND JUMBO FRAMES ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">MTU and <span class="accent">Jumbo Frames</span></div>
+        <div class="slide-subtitle">Maximum Transmission Unit. Get it wrong and you get silent data corruption or throughput collapse.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Standard MTU: 1500</div>
+                <div class="card-desc">The default MTU for Ethernet is 1500 bytes. Every switch, router, and NIC on the path between two hosts must support the MTU being used. A packet larger than the interface MTU is either fragmented (if the DF bit is not set) or dropped with an ICMP Fragmentation Needed message (if DF is set).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Jumbo Frames: 9000+</div>
+                <div class="card-desc">Large MTU values (typically 9000 bytes) reduce CPU overhead per byte transferred by requiring fewer frames per transfer. Beneficial for storage traffic (iSCSI, NFS) and inter-datacenter traffic. Requires every device on the path to support jumbo frames -- including all switches. A mismatch causes complete connection failures for large transfers.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check current MTU</span>
+<span class="fn">ip</span> link show enp3s0
+<span class="cm"># ...mtu 1500...</span>
+
+<span class="cm"># Set MTU temporarily</span>
+<span class="fn">ip</span> link set enp3s0 mtu <span class="nb">9000</span>
+
+<span class="cm"># Persistent MTU in Netplan</span>
+<span class="cm"># ethernets:</span>
+<span class="cm">#   enp3s0:</span>
+<span class="cm">#     mtu: 9000</span>
+
+<span class="cm"># Test MTU path: send a large packet with DF bit set</span>
+<span class="cm"># If fragmentation is needed and DF is set, you get an ICMP error</span>
+<span class="fn">ping</span> -M do -s <span class="nb">8972</span> <span class="nb">10.0.100.1</span>      <span class="cm"># -M do = DF bit, -s = payload size (8972 + 28 header = 9000)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — IP FORWARDING ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">IP Forwarding: <span class="accent">Routing Between Interfaces</span></div>
+        <div class="slide-subtitle">Enable your Linux host to forward packets between interfaces. Required for routers, firewalls, and VPN gateways.</div>
+
+        <div class="code-block"><span class="cm"># Check current forwarding state (0 = disabled, 1 = enabled)</span>
+<span class="fn">sysctl</span> net.ipv4.ip_forward
+<span class="fn">cat</span> /proc/sys/net/ipv4/ip_forward
+
+<span class="cm"># Enable IP forwarding immediately (not persistent)</span>
+<span class="fn">sysctl</span> -w net.ipv4.ip_forward=<span class="nb">1</span>
+
+<span class="cm"># Enable IPv6 forwarding</span>
+<span class="fn">sysctl</span> -w net.ipv6.conf.all.forwarding=<span class="nb">1</span>
+
+<span class="cm"># Persistent: add to /etc/sysctl.d/ (survives reboots)</span>
+<span class="fn">cat</span> <span class="kw">&gt;</span> /etc/sysctl.d/90-forwarding.conf <span class="kw">&lt;&lt;EOF</span>
+<span class="st">net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1</span>
+<span class="kw">EOF</span>
+
+<span class="cm"># Apply sysctl changes without rebooting</span>
+<span class="fn">sysctl</span> --system
+
+<span class="cm"># Verify iptables / nftables is not blocking forwarded traffic</span>
+<span class="fn">iptables</span> -P FORWARD ACCEPT   <span class="cm"># allow all forwarded packets (adjust for security)</span>
+<span class="fn">iptables</span> -L FORWARD -n -v    <span class="cm"># review current FORWARD chain rules</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — NETWORK NAMESPACES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Network Namespaces: <span class="accent">Isolated Network Stacks</span></div>
+        <div class="slide-subtitle">The foundation of container networking. Each namespace has its own interfaces, routing table, and firewall rules.</div>
+
+        <div class="code-block"><span class="cm"># Create a new network namespace</span>
+<span class="fn">ip</span> netns add sector-ns
+
+<span class="cm"># List network namespaces</span>
+<span class="fn">ip</span> netns list
+
+<span class="cm"># Run a command inside the namespace</span>
+<span class="fn">ip</span> netns exec sector-ns <span class="fn">ip</span> link show
+<span class="cm"># Only loopback (lo) exists -- completely isolated</span>
+
+<span class="cm"># Create a veth pair: a virtual cable with two ends</span>
+<span class="fn">ip</span> link add veth-host type veth peer name veth-ns
+
+<span class="cm"># Move one end into the namespace</span>
+<span class="fn">ip</span> link set veth-ns netns sector-ns
+
+<span class="cm"># Configure the host-side end</span>
+<span class="fn">ip</span> addr add <span class="nb">192.168.100.1/30</span> dev veth-host
+<span class="fn">ip</span> link set veth-host up
+
+<span class="cm"># Configure the namespace-side end</span>
+<span class="fn">ip</span> netns exec sector-ns <span class="fn">ip</span> addr add <span class="nb">192.168.100.2/30</span> dev veth-ns
+<span class="fn">ip</span> netns exec sector-ns <span class="fn">ip</span> link set veth-ns up
+<span class="fn">ip</span> netns exec sector-ns <span class="fn">ip</span> route add default via <span class="nb">192.168.100.1</span>
+
+<span class="cm"># Test connectivity</span>
+<span class="fn">ip</span> netns exec sector-ns <span class="fn">ping</span> -c 2 <span class="nb">192.168.100.1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — ARP MANAGEMENT ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">ARP: <span class="accent">Address Resolution Protocol</span></div>
+        <div class="slide-subtitle">How your system maps IP addresses to MAC addresses on the local network.</div>
+
+        <div class="code-block"><span class="cm"># View the ARP cache (IP to MAC mappings)</span>
+<span class="fn">ip</span> neighbour show
+<span class="cm"># 192.168.10.1 dev enp3s0 lladdr aa:bb:cc:dd:ee:01 REACHABLE</span>
+
+<span class="cm"># Short form</span>
+<span class="fn">ip</span> neigh
+
+<span class="cm"># Flush the ARP cache for an interface (useful when IP-MAC mapping changes)</span>
+<span class="fn">ip</span> neigh flush dev enp3s0
+
+<span class="cm"># Add a static ARP entry (prevent ARP spoofing for critical hosts)</span>
+<span class="fn">ip</span> neigh add <span class="nb">192.168.10.1</span> lladdr aa:bb:cc:dd:ee:01 dev enp3s0 nud permanent
+
+<span class="cm"># Delete a specific ARP entry</span>
+<span class="fn">ip</span> neigh del <span class="nb">192.168.10.50</span> dev enp3s0
+
+<span class="cm"># Send a gratuitous ARP (announce your IP-MAC binding)</span>
+<span class="cm"># Useful after IP address changes or to update switches</span>
+<span class="fn">arping</span> -c 3 -A -I enp3s0 <span class="nb">192.168.10.50</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">ARP States</div>
+            ARP entries cycle through: <span class="ic">INCOMPLETE</span> (ARP request sent, no reply yet), <span class="ic">REACHABLE</span> (confirmed, within reachability time), <span class="ic">STALE</span> (timeout expired, will reverify on next use), <span class="ic">FAILED</span> (host did not reply), <span class="ic">PERMANENT</span> (static, never times out).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — ETHTOOL ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title"><span class="accent">ethtool</span> — NIC Diagnostics</div>
+        <div class="slide-subtitle">Query and control NIC settings below the IP layer: speed, duplex, offloading, ring buffers.</div>
+
+        <div class="code-block"><span class="cm"># Show NIC settings: speed, duplex, auto-negotiation</span>
+<span class="fn">ethtool</span> enp3s0
+<span class="cm"># Speed: 1000Mb/s  Duplex: Full  Auto-negotiation: on  Link: yes</span>
+
+<span class="cm"># Show interface statistics (packet counts, errors)</span>
+<span class="fn">ethtool</span> -S enp3s0 <span class="kw">|</span> <span class="fn">grep</span> -E <span class="st">'(error|drop|miss)'</span>
+
+<span class="cm"># Show driver information</span>
+<span class="fn">ethtool</span> -i enp3s0
+
+<span class="cm"># Show hardware offloading features</span>
+<span class="fn">ethtool</span> -k enp3s0
+
+<span class="cm"># Set speed and duplex manually (force, disable auto-negotiate)</span>
+<span class="fn">ethtool</span> -s enp3s0 speed <span class="nb">1000</span> duplex full autoneg off
+
+<span class="cm"># Wake-on-LAN: check if supported</span>
+<span class="fn">ethtool</span> enp3s0 <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'Wake-on'</span>
+
+<span class="cm"># Enable Wake-on-LAN (if supported)</span>
+<span class="fn">ethtool</span> -s enp3s0 wol g</div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Offloading Tip</div>
+            TCP/UDP checksum offloading to the NIC hardware can be disabled for troubleshooting (packets captured with tcpdump may show incorrect checksums when offloading is enabled, confusing protocol analyzers). Use <span class="ic">ethtool -K enp3s0 rx off tx off</span> to disable for testing, then re-enable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — SYSCTL NETWORK TUNING ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Network Tuning with <span class="accent">sysctl</span></div>
+        <div class="slide-subtitle">Kernel parameters that control TCP behavior, buffer sizes, and security posture.</div>
+
+        <div class="code-block"><span class="cm"># /etc/sysctl.d/90-network-tuning.conf</span>
+
+<span class="cm"># TCP buffer sizes: increase for high-throughput or high-latency links</span>
+net.core.rmem_max = <span class="nb">134217728</span>
+net.core.wmem_max = <span class="nb">134217728</span>
+net.ipv4.tcp_rmem = <span class="nb">4096 87380 134217728</span>
+net.ipv4.tcp_wmem = <span class="nb">4096 65536 134217728</span>
+
+<span class="cm"># TCP congestion control algorithm</span>
+net.ipv4.tcp_congestion_control = <span class="st">bbr</span>    <span class="cm"># Google BBR: better for modern networks</span>
+net.core.default_qdisc = <span class="st">fq</span>             <span class="cm"># required for BBR</span>
+
+<span class="cm"># Security: prevent common network attacks</span>
+net.ipv4.conf.all.rp_filter = <span class="nb">1</span>          <span class="cm"># reverse path filter (anti-spoofing)</span>
+net.ipv4.conf.all.accept_source_route = <span class="nb">0</span> <span class="cm"># reject source-routed packets</span>
+net.ipv4.icmp_echo_ignore_broadcasts = <span class="nb">1</span>  <span class="cm"># ignore broadcast ping (smurf protection)</span>
+net.ipv4.tcp_syncookies = <span class="nb">1</span>              <span class="cm"># SYN flood protection</span>
+
+<span class="cm">---</span>
+<span class="cm"># Apply immediately</span>
+<span class="fn">sysctl</span> --system</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — NETWORKD UNIT FILES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">systemd-networkd: <span class="accent">Direct .network Files</span></div>
+        <div class="slide-subtitle">Configure network interfaces directly without Netplan when you need fine-grained control.</div>
+
+        <div class="code-block"><span class="cm"># /etc/systemd/network/10-enp3s0.network</span>
+[<span class="kw">Match</span>]
+Name=<span class="st">enp3s0</span>
+
+[<span class="kw">Network</span>]
+Address=<span class="nb">10.0.100.10/24</span>
+Gateway=<span class="nb">10.0.100.1</span>
+DNS=<span class="nb">10.0.0.53</span>
+DNS=<span class="nb">10.0.0.54</span>
+Domains=<span class="st">sector.internal</span>
+
+[<span class="kw">Route</span>]
+Destination=<span class="nb">10.0.0.0/8</span>
+Gateway=<span class="nb">10.0.100.254</span>
+
+<span class="cm">---</span>
+<span class="cm"># Apply: restart networkd (or reload if no breaking changes)</span>
+<span class="fn">systemctl</span> restart systemd-networkd
+
+<span class="cm"># Show network status via networkd</span>
+<span class="fn">networkctl</span> status
+<span class="fn">networkctl</span> status enp3s0
+<span class="fn">networkctl</span> list                        <span class="cm"># all managed interfaces</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">When to Use Direct networkd Files</div>
+            Netplan generates networkd files. If you need features that Netplan does not expose (certain networkd-specific options), write networkd files directly and avoid Netplan for those interfaces. Do not mix Netplan and manual networkd files for the same interface.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — IDENTIFYING CONNECTIVITY PROBLEMS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">Configuration Troubleshooting: <span class="accent">Layer by Layer</span></div>
+        <div class="slide-subtitle">A systematic approach to "the network does not work" after a configuration change.</div>
+
+        <div class="scenario-strip">
+            You applied a Netplan change. The new configuration does not work. You cannot reach the gateway. Follow this sequence from Layer 1 up.
+        </div>
+
+        <div class="code-block"><span class="cm"># Layer 1: Is the physical link up?</span>
+<span class="fn">ip</span> link show enp3s0
+<span class="cm"># state UP + LOWER_UP = cable connected and interface up</span>
+
+<span class="cm"># Layer 2: Is the interface up and does it have the right MAC?</span>
+<span class="fn">ip</span> link show enp3s0
+<span class="fn">ethtool</span> enp3s0                     <span class="cm"># check Speed/Duplex</span>
+
+<span class="cm"># Layer 3: Does the interface have the correct IP and prefix?</span>
+<span class="fn">ip</span> addr show enp3s0
+
+<span class="cm"># Layer 3: Is the routing table correct?</span>
+<span class="fn">ip</span> route show
+
+<span class="cm"># Layer 3: Can we reach the default gateway?</span>
+<span class="fn">ping</span> -c 4 192.168.10.1
+
+<span class="cm"># Layer 3: ARP resolution working?</span>
+<span class="fn">ip</span> neigh show                      <span class="cm"># is gateway MAC resolved?</span>
+
+<span class="cm"># Layer 4 and above: DNS working?</span>
+<span class="fn">resolvectl</span> query google.com
+
+<span class="cm"># Check Netplan-generated files for accuracy</span>
+<span class="fn">cat</span> /run/systemd/network/10-netplan-enp3s0.network</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — NETPLAN DEBUGGING ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Debugging <span class="accent">Netplan</span></div>
+        <div class="slide-subtitle">Validate, generate, inspect. Find problems before they disconnect you.</div>
+
+        <div class="code-block"><span class="cm"># Step 1: Check YAML syntax</span>
+<span class="fn">python3</span> -c <span class="st">"import yaml; yaml.safe_load(open('/etc/netplan/00-config.yaml'))"</span>
+
+<span class="cm"># Step 2: Validate with netplan (checks both YAML and semantic validity)</span>
+<span class="fn">netplan</span> generate --debug
+
+<span class="cm"># Step 3: View generated networkd or NetworkManager files</span>
+<span class="fn">ls</span> /run/systemd/network/
+<span class="fn">cat</span> /run/systemd/network/10-netplan-enp3s0.network
+
+<span class="cm"># Step 4: Apply safely</span>
+<span class="fn">netplan</span> try           <span class="cm"># 120 second auto-revert if you don't confirm</span>
+
+<span class="cm"># Step 5: Check networkd journal for errors</span>
+<span class="fn">journalctl</span> -u systemd-networkd -b --no-pager
+
+<span class="cm"># Common YAML mistakes:</span>
+<span class="cm"># - Tabs instead of spaces (YAML does not allow tabs)</span>
+<span class="cm"># - Wrong indentation depth (2 spaces per level)</span>
+<span class="cm"># - IP address as 192.168.1.0/24 instead of 192.168.1.10/24</span>
+<span class="cm"># - routes: without -to and -via properly indented</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — NMCLI QUICK REFERENCE ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">nmcli: <span class="accent">NetworkManager CLI</span></div>
+        <div class="slide-subtitle">When your system uses NetworkManager as the backend, use nmcli for inspection and changes.</div>
+
+        <div class="code-block"><span class="cm"># List all NetworkManager connections</span>
+<span class="fn">nmcli</span> connection show
+
+<span class="cm"># Show details of a specific connection</span>
+<span class="fn">nmcli</span> connection show <span class="st">"Wired connection 1"</span>
+
+<span class="cm"># Show all device statuses</span>
+<span class="fn">nmcli</span> device status
+
+<span class="cm"># Create a new static connection</span>
+<span class="fn">nmcli</span> connection add type ethernet ifname enp3s0 con-name sector-static \
+    ip4 <span class="nb">10.0.100.10/24</span> gw4 <span class="nb">10.0.100.1</span>
+
+<span class="cm"># Modify an existing connection</span>
+<span class="fn">nmcli</span> connection modify sector-static ipv4.dns <span class="st">"10.0.0.53 10.0.0.54"</span>
+
+<span class="cm"># Bring a connection up/down</span>
+<span class="fn">nmcli</span> connection up sector-static
+<span class="fn">nmcli</span> connection down sector-static
+
+<span class="cm"># Set a connection to auto-connect on boot</span>
+<span class="fn">nmcli</span> connection modify sector-static connection.autoconnect yes</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — NETWORK INTERFACE MONITORING ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Real-Time Interface <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Watch traffic counters, bandwidth usage, and error rates live.</div>
+
+        <div class="code-block"><span class="cm"># /proc/net/dev: raw packet and byte counters per interface</span>
+<span class="fn">cat</span> /proc/net/dev
+
+<span class="cm"># watch: refresh counters every second</span>
+<span class="fn">watch</span> -n 1 <span class="st">'cat /proc/net/dev | grep enp3s0'</span>
+
+<span class="cm"># ip -s link: bytes/packets with error stats</span>
+<span class="fn">ip</span> -s link show enp3s0
+
+<span class="cm"># sar: historical and real-time network stats (requires sysstat)</span>
+<span class="fn">sar</span> -n DEV <span class="nb">2</span> <span class="nb">5</span>                          <span class="cm"># sample every 2 seconds, 5 times</span>
+
+<span class="cm"># iftop: bandwidth per connection (must install: apt install iftop)</span>
+<span class="fn">iftop</span> -i enp3s0
+
+<span class="cm"># nethogs: bandwidth per process (must install: apt install nethogs)</span>
+<span class="fn">nethogs</span> enp3s0
+
+<span class="cm"># Check interface error counters with ethtool</span>
+<span class="fn">ethtool</span> -S enp3s0 <span class="kw">|</span> <span class="fn">grep</span> -E <span class="st">'(error|drop|crc|fifo)'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Lab Exercises</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete these on your Ubuntu 22.04 lab VM before the lab session ends.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Configure a static IP on your primary interface using Netplan. Include the address, gateway, and two DNS servers. Use <code>netplan try</code> (not apply). Verify with <code>ip addr</code>, <code>ip route</code>, and <code>resolvectl status</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Add a VLAN subinterface (VLAN ID 100) on your primary interface using Netplan. Assign it a static IP in the 10.100.0.0/24 range. Verify with <code>ip link show type vlan</code> and <code>ip addr show</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Add a custom static route to the 172.16.0.0/12 range via a gateway of your choice. Verify it appears in <code>ip route show</code>. Test with <code>ip route get 172.16.1.1</code>. Remove the route with <code>ip route del</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Enable IP forwarding persistently using <code>/etc/sysctl.d/</code>. Add the anti-spoofing sysctl parameters. Apply with <code>sysctl --system</code> and verify with <code>sysctl net.ipv4.ip_forward</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Create a network namespace, add a veth pair, connect one end to the namespace, configure IP addresses on both ends, and verify connectivity with ping from inside the namespace. Document each step.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — WHAT'S NEXT ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">What's <span class="accent">Next</span></div>
+        <div class="slide-subtitle">Configuration complete. Now you need to verify it works and diagnose when it does not.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">ALA-04: Grid Diagnostics</div>
+                <div class="card-desc">ss, ip route, traceroute, dig, tcpdump, nmap. Every interface you configured in this module can be diagnosed using the tools in ALA-04. Configuration and diagnostics are inseparable in production networking.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Week 2: Firewall and Security</div>
+                <div class="card-desc">nftables, iptables, ufw. The routes you configured here interact directly with firewall rules. A misconfigured FORWARD chain will drop packets on interfaces you correctly configured. Security comes after connectivity.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Week 3: DNS and DHCP Servers</div>
+                <div class="card-desc">Running your own DNS (Bind9/Unbound) and DHCP (ISC-DHCP/Kea) servers. The nameservers and search domains you configured in Netplan this week are the clients. Week 3 builds the servers they connect to.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-03</div>
+        <div class="slide-title">ALA-03 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You can now configure any Linux network interface -- static or DHCP, single or bonded, tagged or untagged -- and make those configurations survive reboots. You understand the difference between transient ip commands and persistent Netplan YAML. This is operational network engineering, not button-clicking.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>ip link</code> = Layer 2 (interfaces). <code>ip addr</code> = Layer 3 (addresses). <code>ip route</code> = routing. All three are transient -- they disappear on reboot without Netplan or networkd config.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Netplan YAML lives in <code>/etc/netplan/</code>. Use 2-space indentation. Always use <code>netplan try</code> on remote systems -- it auto-reverts in 120 seconds if you lose connectivity.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">DHCP <code>use-routes: false</code> prevents multiple default gateways when two interfaces both receive DHCP leases. Missing this causes unpredictable routing behavior.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Bond Mode 1 (active-backup) = fault tolerance, no switch config needed. Mode 4 (802.3ad LACP) = throughput + redundancy, requires switch LACP config.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">VLANs require a trunk port on the switch. VLAN subinterface names follow the pattern <code>interface.vlanid</code> (e.g., <code>enp3s0.100</code>).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">systemd-networkd and NetworkManager are both valid backends. Use networkd for servers, NetworkManager for desktops. Set the renderer in Netplan YAML.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">IP forwarding (<code>net.ipv4.ip_forward=1</code>) must be enabled for the system to route packets between interfaces. Set it persistently in <code>/etc/sysctl.d/</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">MTU mismatches cause silent large-packet failures. Test with <code>ping -M do -s 8972</code>. Set MTU in Netplan with the <code>mtu:</code> key. Every device on the path must support the same MTU.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w1-network-config', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

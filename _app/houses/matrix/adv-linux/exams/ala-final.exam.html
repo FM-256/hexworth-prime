@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side exam grading -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALA Final Exam | Advanced Linux Administration</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0f1a;
+    --card: #1a1a12;
+    --ink: #e8e4d0;
+    --muted: #9a9070;
+    --accent: #c9a83a;
+    --accent2: #e8c040;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(201, 168, 58, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #1a1400 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+  .page-header a:hover { color: var(--accent); }
+
+  .brand { font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; font-family: 'Courier New', Courier, monospace; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .header-meta { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .tag { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; background: rgba(201, 168, 58, 0.12); color: var(--accent); border: 1px solid rgba(201, 168, 58, 0.30); }
+
+  .exam-info { background: rgba(26, 26, 18, 0.9); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 30px; }
+  .exam-info h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 10px; font-family: 'Courier New', Courier, monospace; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: ">> "; color: var(--accent); font-family: 'Courier New', Courier, monospace; }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.96);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer { font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: 'Courier New', Courier, monospace; }
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(26, 26, 18, 0.85);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+
+  .question p { font-weight: 600; color: #fff; font-size: 1.0rem; flex: 1; line-height: 1.6; }
+
+  .question p code { font-family: 'Courier New', Courier, monospace; background: rgba(201, 168, 58, 0.10); border: 1px solid rgba(201, 168, 58, 0.20); padding: 1px 6px; border-radius: 4px; font-size: 0.88em; color: var(--accent2); }
+
+  .q-num { background: rgba(201, 168, 58, 0.15); color: var(--accent); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; margin-right: 12px; white-space: nowrap; font-family: 'Courier New', Courier, monospace; }
+
+  .question label { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 8px 0; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: rgba(255, 255, 255, 0.02); border: 1px solid transparent; font-size: 0.9rem; }
+  .question label:hover { background: rgba(201, 168, 58, 0.08); border-color: rgba(201, 168, 58, 0.25); }
+  .question input[type="radio"] { accent-color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; }
+  .question label.correct { background: rgba(46, 213, 115, 0.15) !important; border-color: var(--ok) !important; }
+  .question label.wrong { background: rgba(255, 71, 87, 0.15) !important; border-color: var(--bad) !important; }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a00;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 8px 30px var(--accent-glow); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  #result {
+    background: rgba(26, 26, 18, 0.96);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); font-family: 'Courier New', Courier, monospace; }
+
+  .score-circle { width: 160px; height: 160px; border-radius: 50%; border: 6px solid; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 20px auto; background: rgba(0, 0, 0, 0.4); }
+  .score-circle.pass { border-color: var(--accent); box-shadow: 0 0 40px var(--accent-glow); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }
+  .score-percent { font-size: 2.5rem; font-weight: 700; font-family: 'Courier New', Courier, monospace; }
+  .score-circle.pass .score-percent { color: var(--accent); }
+  .score-circle.fail .score-percent { color: var(--bad); }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg { font-size: 1.1rem; margin-top: 20px; padding: 16px; border-radius: 10px; }
+  .result-msg.pass { background: rgba(201, 168, 58, 0.10); color: var(--accent2); border: 1px solid rgba(201, 168, 58, 0.35); }
+  .result-msg.fail { background: rgba(255, 71, 87, 0.10); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge { margin-top: 20px; padding: 20px; background: linear-gradient(135deg, rgba(201, 168, 58, 0.12), rgba(232, 192, 64, 0.08)); border: 2px solid var(--accent); border-radius: 12px; }
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; font-family: 'Courier New', Courier, monospace; }
+
+  .btn-continue { display: inline-block; margin-top: 15px; padding: 12px 30px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; color: #0a0a00; font-weight: 700; text-decoration: none; cursor: pointer; font-family: 'Courier New', Courier, monospace; margin: 8px; }
+
+  footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Advanced Linux Hub</a>
+  <span class="brand">Hexworth Prime // Matrix</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/40 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>ALA Final Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CTS4321C</span>
+      <span class="tag">40 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">All 7 Objectives</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Final Exam Information</h2>
+    <ul>
+      <li>Covers all course objectives: CLI, systemd, Networking, Hardening, DNS, Automation, Integrity, and Performance</li>
+      <li>You need 70% (28/40) to pass and earn the Advanced Linux Administration certification</li>
+      <li>Timer starts when the page loads. Answers auto-submit when time expires.</li>
+      <li>This is your final certification exam. One attempt only.</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Advanced Linux Administration // CTS4321C // <a href="../index.html">Matrix House</a>
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function
+// Answer key stored in Firestore quiz_keys/matrix-ala-final
+const QUIZ_ID = 'matrix-ala-final';
+
+/* ── Final exam: all 7 objectives, 40 questions ── */
+const examData = [
+
+  // --- Objective 1: Advanced CLI Operations ---
+  {q: "An operator needs to compare two live command outputs without writing temporary files. Which syntax uses process substitution correctly?", a: ["diff <(sort /etc/passwd) <(sort /etc/shadow)", "diff $(sort /etc/passwd) $(sort /etc/shadow)", "sort /etc/passwd | diff - /etc/shadow", "diff {sort /etc/passwd} {sort /etc/shadow}"]},
+  {q: "Which command appends stdout from a running process to an existing log file while also displaying it on the terminal in real time?", a: ["command 2>&1 | tee -a /var/log/output.log", "command > /var/log/output.log && tail -f /var/log/output.log", "command | tee >> /var/log/output.log", "command | tee -a /var/log/output.log"]},
+  {q: "An operator creates a directory tree with `mkdir -p /ops/{cells,logs,archive}/{2024,2025}`. How many directories are created under /ops?", a: ["6", "8", "12", "18"]},
+  {q: "Which tmux key combination detaches from a session without terminating the running processes inside it?", a: ["Ctrl-b d", "Ctrl-b q", "Ctrl-b x", "Ctrl-b Escape"]},
+  {q: "An operator runs `find /etc -name '*.conf' -newer /etc/passwd -type f`. What does this command find?", a: ["All .conf files in /etc modified before /etc/passwd", "All .conf files in /etc modified more recently than /etc/passwd", "All .conf files in /etc that are newer than 30 days old", "Files named exactly passwd.conf anywhere under /etc"]},
+
+  // --- Objective 2: systemd and Networking ---
+  {q: "Which systemd unit section directive prevents a service from starting until the network is fully online (IP address assigned and reachable)?", a: ["After=network.target", "After=network-online.target\nWants=network-online.target", "Requires=networking.service", "BindsTo=network.target"]},
+  {q: "An operator wants to see the last 50 lines of logs for `nginx.service` with full message lengths and no truncation. Which command is correct?", a: ["journalctl -u nginx.service -n 50 --no-pager", "journalctl -u nginx.service --tail=50 --full", "journalctl -u nginx.service -n 50 -l --no-pager", "journalctl -u nginx.service --last 50 --verbose"]},
+  {q: "A systemd service unit uses `Type=notify`. What does this require the managed process to do?", a: ["Exit with code 0 within the configured TimeoutStartSec", "Send a notification via sd_notify() when it is fully started and ready", "Write its PID to the file specified in PIDFile= before systemd marks it active", "Fork to the background immediately after launch"]},
+  {q: "An operator needs to configure a VLAN interface with VLAN ID 100 on top of `eth0` using the `ip` command. Which two commands achieve this?", a: ["ip link add eth0.100 type vlan id 100 dev eth0 && ip link set eth0.100 up", "vconfig add eth0 100 && ifconfig eth0.100 up", "ip link add vlan100 type vlan parent eth0 id 100 && ip link set vlan100 up", "Both A and C are functionally equivalent ways to create a VLAN interface"]},
+  {q: "An operator runs `ip route add 192.168.10.0/24 via 10.0.1.1 dev eth0`. After a reboot, the route is gone. What is the correct way to make this route persistent on Ubuntu 22.04?", a: ["Add `post-up ip route add 192.168.10.0/24 via 10.0.1.1` to /etc/network/interfaces", "Add a routes block in the Netplan configuration YAML and run netplan apply", "Append the route to /etc/iproute2/rt_tables", "Create a systemd service that runs ip route add at boot with Type=oneshot"]},
+
+  // --- Objective 3: Host Hardening ---
+  {q: "An operator runs `ufw status verbose` and sees the default incoming policy is DENY. A rule exists: `22/tcp ALLOW IN Anywhere`. Outbound connections from the server to port 22 on other hosts are failing. What is the likely cause?", a: ["UFW's DENY default also blocks outbound traffic; an outbound rule for port 22 is needed", "SSH outbound traffic uses port 22 only as the destination; the source port is ephemeral, which UFW blocks by default", "The default outbound policy is also DENY, and no allow rule exists for outbound connections", "UFW cannot manage outbound rules; use iptables directly for outbound policy"]},
+  {q: "What is the function of the `/etc/ssh/sshd_config` directive `MaxAuthTries 3`?", a: ["Limits the total number of failed password attempts before an account is locked by PAM", "Sets the maximum number of authentication attempts allowed per connection before the connection is dropped", "Limits the number of concurrent SSH connections per user", "Requires users to authenticate successfully within 3 seconds"]},
+  {q: "An operator configures SSH to use key-based authentication only and disables password auth. A privileged user still needs emergency console access. Which additional hardening step ensures emergency access without re-enabling password authentication?", a: ["Create a local admin account with a very long password and document it in a secured vault", "Configure `Match Address 127.0.0.1` in sshd_config to allow password auth from localhost only", "Enable `PermitRootLogin yes` as an emergency fallback", "Install and configure out-of-band IPMI or console access independent of SSH"]},
+  {q: "Which command adds a rule to nftables to drop all traffic from the subnet 10.0.99.0/24 on input?", a: ["nft add rule ip filter INPUT ip saddr 10.0.99.0/24 drop", "nftables add INPUT drop src 10.0.99.0/24", "iptables -A INPUT -s 10.0.99.0/24 -j DROP", "nft insert rule ip filter INPUT ip saddr 10.0.99.0/24 drop"]},
+  {q: "After installing ClamAV and running `clamscan -r /home --infected --remove`, the operator sees `Infected files: 0` but a manual hex inspection of a test file reveals malware signatures. What is the most likely cause?", a: ["--infected only reports files with two or more malware signatures", "The virus definition database is outdated; run freshclam and re-scan", "ClamAV cannot scan files owned by root", "The --remove flag deleted the files before the count was reported"]},
+
+  // --- Objective 4: Package Management ---
+  {q: "An operator needs to determine which installed package owns the file `/usr/bin/dig`. Which command provides this information on Ubuntu 22.04?", a: ["apt show /usr/bin/dig", "dpkg -S /usr/bin/dig", "which --owner dig", "apt-file search /usr/bin/dig"]},
+  {q: "An operator uses `apt-mark hold nginx` and later runs `apt upgrade`. What happens to the nginx package?", a: ["nginx is upgraded normally; apt-mark hold only affects apt install, not apt upgrade", "nginx is skipped during the upgrade and remains at its current version", "nginx is removed to prevent version conflicts with held dependencies", "nginx is flagged for manual review but will be upgraded unless explicitly confirmed"]},
+  {q: "During source compilation, `make` completes successfully but `sudo make install` fails with `Permission denied` on `/usr/local/lib/`. What is the correct diagnosis?", a: ["The Makefile has a bug; use checkinstall instead", "/usr/local/lib/ does not exist and must be created manually", "The target installation directory requires root; verify sudo is configured and active", "The compiled binary must be signed before it can be installed to system directories"]},
+  {q: "Which command lists all available versions of the `curl` package in the Ubuntu 22.04 repositories, including versions from all configured sources?", a: ["apt show curl --all-versions", "apt-cache policy curl", "apt list curl --all-versions", "dpkg-query -l curl --all"]},
+  {q: "An operator uses `dpkg -l | grep 'ii'` to list installed packages. What does the `ii` prefix indicate?", a: ["The package was installed interactively by a user (not by a script)", "The desired state is install and the current state is installed", "The package is installed and has been integrity-checked by dpkg", "Two identical copies of the package are installed"]},
+
+  // --- Objective 5: DNS Administration ---
+  {q: "An operator adds an MX record for `sector7.matrix.net` pointing to `mail.sector7.matrix.net` at priority 10. The zone file entry is correct but email is not being delivered. What must also exist in the zone file for this to work?", a: ["A TXT record with SPF policy for sector7.matrix.net", "An A record for mail.sector7.matrix.net resolving to the mail server's IP", "A PTR record for the mail server's IP in the reverse zone", "A CNAME pointing mail.sector7.matrix.net to the primary MX host"]},
+  {q: "An operator runs `named-checkzone sector7.matrix.net /etc/bind/db.sector7.matrix.net` and receives `OK`. Then `rndc reload sector7.matrix.net` succeeds. But `dig @localhost sector7.matrix.net NS` still returns the old nameserver. What is the most likely cause?", a: ["The SOA serial number was not incremented before the reload", "rndc requires a full service restart, not just a reload, for NS record changes", "dig caches results locally and must be run with +norecurse to bypass the cache", "The zone was not loaded because /etc/bind/named.conf was not reloaded first"]},
+  {q: "Which DNS record type is used to define the authoritative name servers for a zone?", a: ["SOA", "A", "NS", "GLUE"]},
+  {q: "An operator sets the TTL on a new zone to 300 seconds before a planned IP change. After the change, what is the maximum time before all resolvers have updated to the new IP?", a: ["Exactly 300 seconds after the zone is updated", "Up to 300 seconds, because resolvers may cache the old value for the remaining TTL before the change", "Immediately, because TTL only applies to negative caching", "Up to 600 seconds due to SOA minimum TTL doubling behavior"]},
+  {q: "A BIND primary server has a zone. A secondary server is configured but zone transfers are failing with `transfer of 'sector7.matrix.net/IN': failed: REFUSED`. What in the primary's `named.conf` zone block is missing?", a: ["type secondary; primaries { 10.0.1.10; };", "allow-transfer { 10.0.1.20; };", "notify yes;", "also-notify { 10.0.1.20; };"]},
+
+  // --- Objective 6: Bash Scripting and Automation ---
+  {q: "A Bash script must exit if a required environment variable `DEPLOY_ENV` is not set. Which single expression handles this most concisely?", a: ["if [ -z \"$DEPLOY_ENV\" ]; then echo \"DEPLOY_ENV required\" && exit 1; fi", ": ${DEPLOY_ENV:?\"DEPLOY_ENV is required but not set\"}", "[ \"$DEPLOY_ENV\" ] || exit 1", "test -n \"$DEPLOY_ENV\" || (echo \"required\" && exit 1)"]},
+  {q: "An operator writes a script that processes a directory of log files and must handle filenames with spaces correctly. Which loop construct is correct?", a: ["for f in $(ls /logs/*.log); do process \"$f\"; done", "for f in /logs/*.log; do process \"$f\"; done", "ls /logs/*.log | while read f; do process $f; done", "find /logs -name '*.log' -exec process {} ;"]},
+  {q: "A cron job runs at 03:00 and writes output to stdout. The operator notices no output in any log. Where does cron send unredirected stdout/stderr by default on Ubuntu 22.04?", a: ["To /var/log/cron.log", "To /dev/null (discarded silently)", "To the local user's mail via sendmail/postfix", "To syslog under the cron facility"]},
+  {q: "Which `systemd timer` unit directive runs a task every 4 hours from the time the unit was last activated, regardless of calendar time?", a: ["OnCalendar=*:0/4:00", "OnUnitActiveSec=4h", "RepeatInterval=4hours", "OnActiveSec=14400"]},
+  {q: "An operator needs to archive all files in `/data/reports/` older than 90 days to `/archive/` and then delete the originals. Which command sequence is correct?", a: ["find /data/reports/ -mtime +90 -type f | xargs mv -t /archive/", "find /data/reports/ -mtime +90 -type f -exec cp {} /archive/ \\; -exec rm {} \\;", "find /data/reports/ -mtime +90 -type f -exec mv {} /archive/ \\;", "rsync --archive --remove-source-files /data/reports/ /archive/ && find /data/reports -mtime +90 -delete"]},
+
+  // --- Objective 7: Filesystem Integrity, Performance, and Logging ---
+  {q: "An operator initializes AIDE on a freshly hardened system, stores the database on a remote read-only NFS share, and then two weeks later runs a check. AIDE reports 200 changed files in `/usr/share/`. What is the most likely benign explanation?", a: ["An attacker has modified system binaries", "A system package update modified files in /usr/share/ and the AIDE database was not updated afterward", "AIDE cannot monitor NFS-mounted paths and is reporting filesystem metadata", "The NFS share became writable and AIDE corrupted its own database"]},
+  {q: "An operator runs `auditd` and wants to search the audit log for all events tagged with the key `passwd-changes`. Which command is correct?", a: ["ausearch -k passwd-changes", "auditctl -l | grep passwd-changes", "grep passwd-changes /var/log/audit/audit.log", "aureport --key passwd-changes"]},
+  {q: "A cell shows 100% CPU utilization in `top` but the top processes only account for 60% combined. The remaining 40% is attributed to `%sy` (system/kernel) time. What does this indicate?", a: ["40% of CPU cycles are being consumed by kernel-mode code, likely from system calls, interrupts, or kernel threads", "The kernel is throttling the CPU to prevent thermal damage", "A rootkit is hiding processes from top by manipulating the /proc filesystem", "The hypervisor is consuming 40% of the vCPU through steal time"]},
+  {q: "An operator uses `sar -n DEV 1 5` to monitor network performance. The output shows `txkB/s` approaching the theoretical limit of the NIC. Which tool provides per-connection bandwidth breakdown to identify which process is consuming bandwidth?", a: ["netstat -s", "ss -tnp", "iftop or nethogs", "tcpdump -i eth0 -c 1000"]},
+  {q: "An operator configures rsyslog to forward logs to a remote server but also wants a local copy in `/var/log/remote-backup.log`. Which rsyslog action syntax achieves both simultaneously?", a: ["*.* @remote:514\n*.* /var/log/remote-backup.log", "*.* action(type=\"omfwd\" target=\"remote\" port=\"514\") action(type=\"omfile\" file=\"/var/log/remote-backup.log\")", "*.* @remote:514 && /var/log/remote-backup.log", "Both A and B are valid syntax for this purpose depending on the rsyslog configuration format"]},
+  {q: "An operator discovers that `/tmp` is 100% full. The `df -h` output shows 0 bytes available. However, `du -sh /tmp/*` only accounts for 2GB of a 10GB partition. What explains the discrepancy?", a: ["du counts hardlinked files once but df counts them for each link", "Files in /tmp are compressed by the kernel and du shows the compressed size", "Deleted files that are still held open by running processes are consuming the space; df includes them, du does not", "The /tmp filesystem has 20% reserved for root, which is subtracted from available space"]},
+  {q: "Which sequence of commands correctly establishes a filesystem integrity baseline, updates it after a known-good package upgrade, and verifies integrity afterward?", a: ["aide --init && apt upgrade && aide --check", "aide --init && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db && apt upgrade && aide --update && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db && aide --check", "aide --create && apt upgrade && aide --verify", "aide --init && apt upgrade && aide --init && aide --compare"]},
+  {q: "A process in state `Z` (zombie) appears in `ps aux`. What does this state mean and how is it resolved?", a: ["The process is consuming no resources; it will be cleaned up automatically by the next OS scheduler cycle", "The process has exited but its parent has not called wait() to collect the exit code; resolution requires fixing or restarting the parent process", "The process is suspended and can be resumed with SIGCONT", "The process is being traced by a debugger; detach the debugger to clear the zombie state"]},
+  {q: "An operator needs to confirm that a configuration file `/etc/app/config.yml` has not been modified since the known-good state was established 30 days ago. Which tool provides the strongest cryptographic assurance of this?", a: ["ls -la /etc/app/config.yml (check modification timestamp)", "md5sum /etc/app/config.yml (compare against stored hash)", "sha256sum /etc/app/config.yml (compare against stored hash on separate trusted storage)", "AIDE with SHA512 checking enabled, with the database stored on tamper-evident external media"]},
+  {q: "An operator finds that a production web server is responding slowly. `top` shows 30% CPU and 40% memory usage. `iostat -xz 2` shows `%util` at 98% on `sda`. `ss -tnp` shows 200 established connections to port 80. What is the most accurate diagnosis?", a: ["Memory pressure is causing swap usage which is saturating the disk", "The web server has a CPU bottleneck caused by inefficient request handling", "The disk is the bottleneck; I/O wait from disk activity is the primary cause of slow response", "200 simultaneous connections exceed the server's connection limit and should be reduced"]}
+];
+
+// Shuffle helper
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Render all questions
+const container = document.getElementById('questions');
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement('div');
+  div.classList.add('question');
+  div.setAttribute('data-q', i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q.replace(/`([^`]+)`/g, '<code>$1</code>')}</p>
+    </div>
+  `;
+
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  container.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 75 minutes
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById('timer');
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 600) timerEl.classList.add('warning');
+  if (timeLeft <= 120) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for the server
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark correct/incorrect selections based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_matrix_ala_final_passed', 'true');
+    localStorage.setItem('hexworth_matrix_ala_final_score', percent);
+    localStorage.setItem('hexworth_matrix_ala_final_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Final Exam: Cleared' : 'Final Exam: Insufficient Score'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Course complete. All 7 objectives verified. You have demonstrated Advanced Linux Administration competency.'
+        : `You need 70% (28/40) to pass. You scored ${score}/40. Review the objectives where you missed questions and reattempt.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>Advanced Linux Administration: Complete</h3>
+        <p>CTS4321C course objectives 1 through 7 have been verified. This record has been submitted to your instructor.</p>
+        <a href="../index.html" class="btn-continue">Return to ALA Hub</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../index.html" class="btn-continue">Review Course Materials</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+  // Record completion via ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.completeQuiz('matrix', 'ala-final', score);
+  }
+}
+</script>
+</body>
+</html>

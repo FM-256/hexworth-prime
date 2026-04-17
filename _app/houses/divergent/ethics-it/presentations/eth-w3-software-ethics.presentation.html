@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software Ethics &amp; Quality | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0010 0%, #0d0018 50%, #0f001e 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ff00ff; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 0, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.12); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #cc00cc; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5b8ff; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.08); border: 1px solid rgba(255, 0, 255, 0.3); color: #f5b8ff; }
+        .box-green   { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red     { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold    { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label   { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ff00ff; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e0030; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ff00ff;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-gold    { border-left-color: #eab308; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-green   { border-left-color: #22c55e; }
+        .card.c-purple  { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ff00ff; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Software Ethics &amp; Quality | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ETH-W3 &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; Chapter 7</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Software Ethics<br>
+                <span class="accent">&amp; Quality</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                How Good Is Good Enough &nbsp;&bull;&nbsp; Safety-Critical Systems &nbsp;&bull;&nbsp; Liability &nbsp;&bull;&nbsp; Therac-25
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A radiation therapy machine delivers a dose 100 times above the prescribed level. The patient dies. The software had a race condition the developers knew about. The question before us is not just what went wrong technically -- it is who was responsible, what obligations were violated, and how professional standards should have prevented it.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ETH-W3</span>
+            <span>Week 3 of 8</span>
+            <span>Chapter 7</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS SOFTWARE QUALITY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">What Is <span class="accent">Software Quality</span>?</div>
+        <div class="slide-subtitle">Quality is not a single property. It is a negotiated set of properties that matter to specific stakeholders in specific contexts.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Functional Correctness</div>
+                <div class="card-desc">The software does what its specification says it should do. Every feature works as described. This is the baseline -- but it is not sufficient for quality. A program can be functionally correct and still be dangerously unreliable in edge cases.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reliability</div>
+                <div class="card-desc">The software behaves consistently over time under varying conditions. It does not crash, freeze, or produce unexpected output when given unusual inputs. Reliability is measured statistically -- a system that fails once per thousand hours is more reliable than one that fails once per hundred.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Safety</div>
+                <div class="card-desc">The software does not cause harm to users, third parties, or infrastructure even when it fails. Safety is not the same as reliability. A system can be highly reliable at doing the wrong thing. Safety means failure modes are bounded and non-catastrophic.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Core Question</div>
+            Every software project involves tradeoffs between quality dimensions and cost. The ethical question is not just "how good is good enough to ship?" -- it is "who bears the cost if we are wrong about that answer?" When the answer is the end user, the obligation shifts dramatically.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- HOW GOOD IS GOOD ENOUGH ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">How Good Is <span class="accent">Good Enough</span>?</div>
+        <div class="slide-subtitle">The central ethical tension in software development: perfect software is impossible, but inadequate software causes harm.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">The Zero-Defect Myth</div>
+                <div class="card-desc">Large software systems cannot be verified to be completely defect-free. Microsoft Windows contains tens of millions of lines of code. Testing all possible execution paths is computationally intractable. The goal is not zero defects but acceptable defect density relative to harm potential.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Context Determines the Standard</div>
+                <div class="card-desc">A mobile game tolerates crashes. A medical device does not. A social network can push a patch in hours. An aviation control system goes through years of certification. Context -- the domain, the user population, the failure consequences -- must determine the quality bar, not schedule or budget alone.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Commercial Pressure Distorts Judgment</div>
+                <div class="card-desc">Ship dates create pressure to declare "good enough" before it is actually true. Feature completeness is visible to management; latent defects are invisible until they materialize. This asymmetry systematically biases toward under-investment in quality, especially in competitive markets.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Professional Obligation</div>
+                <div class="card-desc">The IEEE and ACM codes both state that software engineers must act in the public interest. When a professional believes quality is insufficient for the deployment context, they have an obligation to communicate that clearly -- even when it is unwelcome information for management.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- SAFETY-CRITICAL SYSTEMS DEFINED ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title"><span class="accent">Safety-Critical</span> Systems</div>
+        <div class="slide-subtitle">Systems where software failure can directly cause death, serious injury, or significant property or environmental damage.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Medical Devices</div>
+                <div class="card-desc">Radiation therapy machines, insulin pumps, pacemakers, ventilators. Software errors translate directly into wrong dosages, missed alarms, or device failures. FDA 21 CFR Part 820 requires quality system regulations for medical device software. Post-market surveillance is mandatory.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Aviation and Transportation</div>
+                <div class="card-desc">Flight management systems, air traffic control, railway switching systems, automotive brake control. DO-178C governs avionics software certification. The Boeing 737 MAX MCAS failures -- which killed 346 people -- are a recent case of inadequate software safety practice in a certified system.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Industrial Control and Infrastructure</div>
+                <div class="card-desc">Power grid SCADA systems, nuclear plant control, dam management, water treatment. Failures can have population-scale consequences. ICS security and software quality intersect here -- a compromised or buggy SCADA system is both a safety and security failure simultaneously.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Key Distinction</div>
+            Safety-critical systems require formal methods, independent verification, fault tree analysis, and failure mode analysis that general commercial software does not. The ethical obligation is to apply the appropriate standard for the deployment context -- not to reuse consumer software development practices in safety-critical environments.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- THERAC-25 CASE INTRODUCTION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">Case Study: <span class="accent">Therac-25</span></div>
+        <div class="slide-subtitle">The most-cited software safety failure in the history of computing. 1985-1987.</div>
+
+        <div class="scenario-strip">
+            Between 1985 and 1987, the Therac-25 radiation therapy machine delivered massive overdoses to at least six patients. Three died. The machine was manufactured by Atomic Energy of Canada Limited (AECL). The software was developed without the hardware safety interlocks present in its predecessor. When the software had a race condition, there was nothing to stop it.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What Happened Technically</div>
+                <div class="card-desc">A race condition between the operator's keyboard input and the machine's mode-setting routine. If an operator typed quickly -- specifically, editing a command after first entering it -- the machine could enter a mode where the electron beam fired without the beam-shaping hardware in place. The result was a raw, unfocused beam.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why It Was Not Caught</div>
+                <div class="card-desc">The bug only manifested under specific timing conditions. Standard testing did not reproduce it. Crucially, AECL's software had no formal code review, no independent safety case, and relied entirely on the hardware interlocks of earlier models -- which had been removed in the Therac-25 to reduce cost.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Institutional Failures</div>
+                <div class="card-desc">Operators who reported the machine behaving strangely were told the machine was fine. Patient reports of burning sensations were dismissed. AECL was slow to investigate and initially denied the software could be at fault. The feedback mechanism that should have caught the problem was suppressed by institutional defensiveness.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- THERAC-25 LESSONS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">Therac-25: <span class="accent">Lessons</span></div>
+        <div class="slide-subtitle">Nancy Leveson's analysis identified systemic failures that became foundational to software safety engineering practice.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Software alone cannot be relied upon to guarantee safety in a system where failure has life-or-death consequences. Hardware interlocks must be independent of the software stack.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Reusing code from a previous system does not carry over the safety properties of that system. The Therac-20 was safe partly because of hardware interlocks. Removing them made the Therac-25 dangerous even with the same software base.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">When users report anomalies, those reports must be treated as potential safety signals. Dismissing operator reports was a management failure with fatal consequences.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Overconfidence in software is as dangerous as ignorance of it. AECL engineers believed their software was correct because they had not found a defect -- a failure of epistemology, not just engineering.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Regulatory oversight existed but was insufficient. The FDA did not have software-specific review requirements at the time. The disaster helped prompt the 1987 FDA policy on software in medical devices.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">The engineers who built the machine were not malicious. They were competent people working under real constraints, using the practices available to them. Better systemic practices -- not individual blame -- are the correct response.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PRODUCT LIABILITY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">Software and <span class="accent">Product Liability</span></div>
+        <div class="slide-subtitle">Legal frameworks for holding software producers accountable for harm caused by defective products.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Strict Liability</div>
+                <div class="card-desc">Manufacturers of defective products can be held liable regardless of negligence. In traditional product law, if a toaster electrocutes someone because of a design defect, the manufacturer is liable even if they were not careless. The debate in software is whether this standard applies -- and the legal answer varies by jurisdiction and contract.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Negligence Standard</div>
+                <div class="card-desc">A developer is negligent if they failed to meet the standard of care a reasonable professional would apply. This requires showing: a duty existed, it was breached, the breach caused harm, and damages resulted. The "reasonable professional" standard is where codes of ethics and professional practice become legally relevant.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">End-User License Agreements</div>
+                <div class="card-desc">Most commercial software ships with EULAs that disclaim all warranties, including fitness for a particular purpose. Courts have enforced these broadly for general consumer software. But in safety-critical domains, EULAs cannot disclaim liability for gross negligence, and they cannot override statutory requirements (FDA, FAA regulations).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Liability Gap</div>
+                <div class="card-desc">Currently, software vendors face less liability exposure than manufacturers of physical products. This creates a market incentive to ship faster and invest less in quality. Many legal scholars and IEEE/ACM position papers argue this gap should be closed -- especially as software controls increasingly physical and safety-critical systems.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- WATERFALL ETHICS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">Waterfall <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">The traditional software development lifecycle and its ethical implications for quality and accountability.</div>
+
+        <div class="scenario-strip">
+            Under the waterfall model, requirements are fixed before design begins. Design is complete before coding starts. Code is complete before testing begins. Each phase produces a signed-off document. When a system fails, the paper trail traces responsibility clearly. This accountability structure is deliberate -- and it carries ethical weight.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Clear Accountability Structure</div>
+                <div class="card-desc">Each phase has a defined owner, deliverable, and sign-off. When a requirements engineer signs off on requirements that are later found defective, there is a named person accountable. This traceability is valuable for audits, litigation, and post-incident review -- particularly in regulated industries.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Documentation as Ethical Record</div>
+                <div class="card-desc">Waterfall's paper trail creates an ethical record of decisions. When a safety-critical system fails, investigators can reconstruct what was known, when it was known, and who approved it. This transparency -- imperfect as it is -- is ethically superior to systems where decisions are made without documentation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Late Discovery of Defects</div>
+                <div class="card-desc">The waterfall model's largest ethical risk is discovering critical defects only in the testing phase, after enormous investment. At that point, commercial pressure to ship rather than fix is highest. The ethical tensions are greatest precisely when the stakes are highest, and the model provides no structural relief valve.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- AGILE ETHICS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">Agile <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">The agile movement solved many waterfall problems -- and introduced ethical challenges of its own.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Continuous Feedback Reduces Risk</div>
+                <div class="card-desc">Iterative development with working software delivered every sprint means defects are discovered and corrected earlier. The ethical benefit is proportional: smaller batches, faster feedback, less accumulated technical debt, and more opportunities for stakeholders to redirect before harm materializes.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Velocity as a Distorting Metric</div>
+                <div class="card-desc">Agile teams measured by story points or velocity face pressure to move fast even when moving carefully is appropriate. "Move fast and break things" is an ethos that is acceptable when breaking things means a bad user experience -- it is not acceptable when breaking things means a data breach or a patient harm event.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Diffuse Accountability</div>
+                <div class="card-desc">In agile, the whole team owns the product. This shared ownership model is ethically positive when it means everyone takes quality seriously. It is ethically problematic when it means no individual feels personally accountable for a defect that ships. "The team decided" is not an ethical shield for individual professionals.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Technical Debt as Ethical Debt</div>
+                <div class="card-desc">Agile teams routinely defer known quality problems to future sprints. When those sprints never arrive -- because the backlog always has more features -- technical debt compounds. In safety-critical domains, deferred security and quality work is not just a technical problem. It is an ethical one with identifiable victims.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- WATERFALL VS AGILE COMPARISON ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Waterfall vs. Agile: <span class="accent">Ethical Comparison</span></div>
+        <div class="slide-subtitle">Neither model is inherently more ethical. Context determines which practices are appropriate.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Waterfall: Ethical Strengths</div>
+                <div class="card-desc">Clear traceability of decisions. Defined sign-off responsibility. Suits regulated industries. Explicit requirements against which completeness can be verified. Documentation survives personnel turnover and supports post-incident investigation.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Waterfall: Ethical Risks</div>
+                <div class="card-desc">Late defect discovery under maximum commercial pressure. Requirements written months before deployment may not reflect actual user needs or risks. Resistance to change can mean known problems ship anyway. Bureaucratic process can substitute for genuine quality.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Agile: Ethical Strengths</div>
+                <div class="card-desc">Early and continuous feedback reduces accumulated harm potential. User involvement in development catches mismatched assumptions early. Retrospectives create a culture of reflection on what went wrong. Prioritization of working software over documentation can reduce theater.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Agile: Ethical Risks</div>
+                <div class="card-desc">Velocity metrics incentivize speed over safety. Diffuse accountability makes individual responsibility ambiguous. Continuous delivery of incomplete features creates user-facing quality exposure. "Good enough for this sprint" thinking can mask systemic under-investment in quality.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Underlying Question</div>
+            Regardless of methodology, the ethical question is the same: have the professionals involved applied a standard of care proportional to the harm potential of the system they are building?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SOFTWARE DEFECTS AS HARM ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">Software Defects as <span class="accent">Harm</span></div>
+        <div class="slide-subtitle">The pathway from defect to harm is not always obvious -- but the professional obligation exists regardless of visibility.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Direct Physical Harm</div>
+                <div class="card-desc">Therac-25 (radiation overdose), Toyota unintended acceleration (firmware defect linked to fatalities), Boeing 737 MAX MCAS (software design flaw, 346 deaths). In each case, software defects directly caused or contributed to death. The causal chain is traceable, even if legal liability was contested.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Financial Harm</div>
+                <div class="card-desc">Knight Capital lost $440 million in 45 minutes due to a software defect in automated trading. The 2012 Facebook IPO was impaired by NASDAQ trading software failures. Data breaches cost organizations an average of over $4 million per incident. Financial harm is real harm -- it affects employment, retirement savings, and economic security.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Privacy and Autonomy Harm</div>
+                <div class="card-desc">Systems that expose personal data, enable surveillance, or make incorrect decisions about individuals' lives cause harm that is real but harder to quantify. A criminal justice algorithm that incorrectly flags someone as high-risk affects their bail, sentencing, and parole decisions. The harm is concrete even if it never appears in a court record.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SELF-DRIVING CARS INTRODUCTION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Self-Driving Cars and the <span class="accent">Trolley Problem</span></div>
+        <div class="slide-subtitle">Autonomous vehicles force us to encode ethical decisions into software. This is not a metaphor -- it is a design specification.</div>
+
+        <div class="scenario-strip">
+            A self-driving vehicle's brakes fail at speed. It can continue straight and strike a group of five pedestrians, or swerve and strike a single pedestrian. The software must make a decision in milliseconds. The vehicle's engineers made that decision in advance -- they just called it an algorithm, not an ethical choice. What should they have decided? Who should decide? And who is liable for the outcome?
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Classic Trolley Problem</div>
+                <div class="card-desc">Philosopher Judith Jarvis Thomson introduced the trolley problem to illustrate the tension between consequentialist and deontological ethics. Pull the lever, kill one, save five (consequentialist). Do nothing, and you are not the active killer (deontological). Autonomous vehicles operationalize this tension at scale.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The MIT Moral Machine Experiment</div>
+                <div class="card-desc">MIT researchers surveyed over two million people across 233 countries on how autonomous vehicles should decide in unavoidable crash scenarios. Results showed strong cultural variation -- age, gender, social status all affected preferences. There is no globally agreed ethical algorithm. Yet software must choose one.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Why Software Encoding Is Different</div>
+                <div class="card-desc">A human driver in the same situation acts instinctively. A software algorithm acts according to programmed priorities. The difference is intentionality: the human did not pre-decide; the engineer did. The manufacturer who encodes the algorithm has made a deliberate choice with foreseeable consequences -- and cannot disclaim responsibility for it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- TROLLEY PROBLEM FRAMEWORKS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">Trolley Problem: <span class="accent">Ethical Frameworks Applied</span></div>
+        <div class="slide-subtitle">How different ethical frameworks answer the autonomous vehicle crash scenario differently.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Utilitarianism</div>
+                <div class="card-desc">Maximize welfare. Minimize total harm. A utilitarian algorithm would calculate expected harm outcomes and choose the path with fewer expected deaths or injuries. This sounds rational, but it requires the vehicle to assign value to human lives -- and to act on that valuation in real time. Objection: this turns the vehicle into an active agent of harm against some parties.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deontology (Kant)</div>
+                <div class="card-desc">Do not treat persons merely as means. A Kantian approach would prohibit the vehicle from actively steering to harm anyone -- the driver of the vehicle accepted the risk of riding; pedestrians did not. The vehicle should not be programmed to sacrifice uninvolved third parties. Objection: passive inaction that allows more deaths is not obviously more ethical than active intervention.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Social Contract</div>
+                <div class="card-desc">What rules would all road users agree to in advance? A contractarian approach would seek rules that are acceptable to all parties -- drivers, pedestrians, cyclists -- behind a veil of ignorance. Rawls would ask: if you did not know which role you would play, what distribution of risk would you accept? This may produce more conservative behavior rules than pure optimization.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Governance Question</div>
+            Who decides which ethical framework governs autonomous vehicle behavior? The manufacturer? The regulator? The vehicle owner? Society through democratic process? Currently, it is primarily the manufacturer -- with minimal regulatory oversight of the specific ethical logic. Is that acceptable?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- MARKET AND SAFETY DILEMMA ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">The Market <span class="accent">Safety Dilemma</span></div>
+        <div class="slide-subtitle">Consumer preferences may not align with socially optimal safety choices -- and that creates a policy problem.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Surveys vs. Purchasing Behavior</div>
+                <div class="card-desc">MIT's Moral Machine research found most respondents said vehicles should sacrifice the occupant to save more pedestrians. But when asked if they would purchase a vehicle programmed that way, the majority said no. People hold different ethical beliefs about what society should do and what they personally want their property to do.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Market Failure Problem</div>
+                <div class="card-desc">If manufacturers that program vehicles to protect occupants sell more units than those that sacrifice occupants to save pedestrians, market competition will select for occupant-protection. This is a classic market failure: individually rational choices produce a socially suboptimal outcome. The case for regulatory standards rather than market determination is strong.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Transparency and Consent</div>
+                <div class="card-desc">Currently, autonomous vehicle manufacturers do not publish the specific ethical logic encoded in their collision-avoidance software. Consumers who purchase these vehicles cannot make an informed choice because the information is not available. The argument for mandatory disclosure of algorithmic ethical choices is an extension of informed consent doctrine.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Statistical vs. Identified Lives</div>
+                <div class="card-desc">Human drivers kill approximately 40,000 Americans per year. Autonomous vehicles, if fully deployed, might reduce that significantly. The ethical comparison is not between perfect human driving and imperfect autonomous driving -- it is between two imperfect systems. Even an autonomous system with occasional ethical edge-case failures may be the more ethical deployment choice overall.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- WHAT WOULD YOU DO: AV ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Apply the frameworks. There is no universally correct answer -- but some answers are better justified than others.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Scenario A</div>
+            You are the lead software engineer at an autonomous vehicle company. Your product manager tells you to program the vehicle to always prioritize occupant safety over pedestrian safety, citing consumer preference data. Your personal ethical view is that this is wrong. What do you do? Who do you escalate to? What are your professional obligations under ACM and IEEE codes?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario B</div>
+            You discover that a competitor's autonomous vehicle has a documented edge-case behavior that risks pedestrian harm. The competitor has not disclosed this publicly. You are not employed by the competitor. You have no legal obligation to report. What are your ethical obligations as a professional? Does the severity of the potential harm change your answer?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Scenario C</div>
+            Your company's autonomous vehicle testing data shows the vehicle performs at a 20% lower safety margin in heavy rain than in standard conditions. The product is scheduled to launch in a region with frequent heavy rain. The threshold technically meets the regulatory minimum. Should you ship it? What additional steps, if any, are ethically required?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- BOEING 737 MAX ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">Case: <span class="accent">Boeing 737 MAX</span></div>
+        <div class="slide-subtitle">A contemporary safety-critical software failure with 346 deaths and broad institutional accountability failures.</div>
+
+        <div class="scenario-strip">
+            In October 2018 and March 2019, two Boeing 737 MAX aircraft crashed, killing all 346 people aboard both flights. Investigators identified a flight control system called MCAS -- Maneuvering Characteristics Augmentation System -- as a key contributor. The software was designed to push the nose down automatically. It relied on a single sensor. When that sensor failed, MCAS activated repeatedly. Pilots had not been told MCAS existed.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Software Design Failures</div>
+                <div class="card-desc">MCAS relied on a single angle-of-attack sensor rather than two, making it vulnerable to a single-point sensor failure. The software was designed to activate repeatedly with increasing force, not to disengage after a failed correction. These design choices violated basic safety-critical software principles about redundancy and graceful failure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Organizational and Regulatory Failures</div>
+                <div class="card-desc">Boeing was both developer and, to a significant degree, its own regulator -- the FAA had delegated certification authority. Managers pressured engineers to minimize simulator training requirements for the new system to avoid delays. The FAA did not assess the full MCAS risk because Boeing had not disclosed the system's full authority and design intent.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">The Ethics of Omission</div>
+                <div class="card-desc">Pilots were not told MCAS existed. Airlines were not told. The decision not to disclose was made to reduce retraining costs and preserve the aircraft's certification as a minor variant of the 737, avoiding more rigorous review. This concealment -- not just the technical failure -- is the central ethical violation: stakeholders could not make informed decisions about risk they did not know existed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- PROFESSIONAL OBLIGATIONS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">Professional <span class="accent">Obligations</span> in Software</div>
+        <div class="slide-subtitle">What do codes of professional ethics require of software engineers when safety is at stake?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">ACM Code: Public Interest First</div>
+                <div class="card-desc">ACM Code Principle 1.2 states that computing professionals should "avoid harm." The Code is explicit that when professional and organizational interests conflict with the public interest, the public interest takes precedence. A software engineer ordered to suppress a safety-critical defect is required to resist -- not merely permitted to.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">IEEE Code: Honesty and Transparency</div>
+                <div class="card-desc">IEEE Code Article I requires engineers to "hold paramount the safety, health, and welfare of the public." Article IV requires honesty in technical statements. These two clauses together obligate an engineer who knows of a safety-critical defect to report it accurately -- to management, to regulators, or publicly if necessary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Whistleblowing Question</div>
+                <div class="card-desc">When internal reporting fails, professional codes support external disclosure. This is not comfortable -- it risks employment, relationships, and reputation. But the codes are unambiguous: the professional's primary obligation is to the public, not to the employer. Roger Boisjoly, who warned against launching the Challenger, is the paradigmatic case.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Limits of Individual Obligation</div>
+                <div class="card-desc">Individual professional obligations are real but insufficient. No individual engineer can override a systemic organizational failure through personal virtue. The lesson of Boeing, Therac-25, and Challenger is that professional obligations must be backed by institutional structures: independent review, protected reporting channels, and regulatory enforcement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- SOFTWARE TESTING AS ETHICS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">Testing as an <span class="accent">Ethical Act</span></div>
+        <div class="slide-subtitle">Adequate testing is not merely a technical practice -- it is a moral obligation proportional to the harm potential of the system.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Unit and Integration Testing</div>
+                <div class="card-desc">Individual components and their interactions are verified against specifications. In safety-critical systems, test coverage requirements are formally specified -- DO-178C requires 100% MC/DC (Modified Condition/Decision Coverage) for the highest criticality level. This is not optional. It is a certification requirement backed by regulatory force.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Independent Verification and Validation</div>
+                <div class="card-desc">IV&V separates the testing organization from the development organization. The developers cannot be the sole judges of whether their own code is safe. Independence is not just good practice -- it is a structural ethical requirement to remove the conflict of interest between the people who built the system and the people who certify it safe.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Fault Tree Analysis</div>
+                <div class="card-desc">FTA identifies all combinations of failures that could lead to a hazardous event. It works backward from the unacceptable outcome -- the patient receives a lethal dose, the aircraft pitches uncontrollably -- to identify every causal pathway. This type of analysis was not applied to the Therac-25 or to MCAS. In both cases, single-point failures in predictable scenarios were missed.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Schedule Pressure Problem</div>
+            The most common reason adequate testing does not happen is schedule pressure. A professional who skips required testing to meet a deadline in a safety-critical system is not just making a business tradeoff. They are making an ethical choice with potentially lethal consequences. The professional code does not provide an exception for schedule pressure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- OPEN SOURCE ETHICS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Open Source <span class="accent">Ethics</span></div>
+        <div class="slide-subtitle">Open source software raises distinct ethical questions about accountability, quality obligations, and harm.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Volunteer Labor and Expectations</div>
+                <div class="card-desc">Much critical internet infrastructure runs on open source software maintained by small groups of volunteers. OpenSSL -- which implements HTTPS for most of the internet -- had two full-time developers and a budget of $2,000 per year when Heartbleed was discovered in 2014. The expectation of production-grade reliability on volunteer infrastructure creates a collective action problem.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Supply Chain Problem</div>
+                <div class="card-desc">Commercial software products routinely incorporate hundreds of open source dependencies. When a vulnerability is discovered in an open source library -- Log4Shell in 2021 is the prominent recent example -- it affects every product that depends on it. Companies that benefit from open source have an ethical obligation to contribute to its security, not merely to consume it.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Transparency as Ethical Value</div>
+                <div class="card-desc">Open source code is publicly auditable. Security researchers, academics, and professionals can review it, find defects, and report them. This transparency is an ethical good -- it distributes oversight beyond the original developers. The open source security model relies on many eyes, but those eyes must actually look.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Liability Without Accountability</div>
+                <div class="card-desc">Open source licenses explicitly disclaim warranty. Volunteer maintainers bear no legal liability for defects in software that companies deploy in production. This creates an ethical asymmetry: the risk is borne by end users, the profit is captured by commercial deployers, and the accountability falls to no one in particular. Calls for open source sustainability funding address this gap.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- AI IN SAFETY-CRITICAL SYSTEMS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">AI in <span class="accent">Safety-Critical</span> Systems</div>
+        <div class="slide-subtitle">Machine learning systems create new categories of quality and safety challenges that traditional software engineering does not fully address.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Explainability Problem</div>
+                <div class="card-desc">Traditional software can be reviewed line by line. A neural network's decision process cannot. When a deep learning model recommends a cancer diagnosis or an aircraft flight path adjustment, the basis for that recommendation is not human-interpretable. This makes independent verification of correctness -- a cornerstone of safety-critical practice -- fundamentally more difficult.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Training Data as Specification</div>
+                <div class="card-desc">ML systems are defined by their training data, not by code. Defects in training data -- biases, gaps, incorrect labels -- are defects in the system. But they are far harder to enumerate and audit than code defects. A specification-based safety case is not directly applicable. New frameworks for ML safety are emerging but not yet mature.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Distribution Shift</div>
+                <div class="card-desc">A model trained on one data distribution may fail on another without warning. An autonomous vehicle trained on California highway data may perform poorly in Finnish winter conditions. Unlike traditional software, which fails deterministically, ML systems fail probabilistically -- and the failure boundary is often unknown until it is crossed in the field.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- RESPONSIBLE DISCLOSURE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title"><span class="accent">Responsible Disclosure</span></div>
+        <div class="slide-subtitle">When a researcher or developer discovers a security or safety defect, what are the ethical obligations of disclosure?</div>
+
+        <div class="scenario-strip">
+            A security researcher discovers that a widely deployed medical device has a network vulnerability that could allow remote unauthorized commands. The manufacturer has not responded to private notification in 30 days. Other researchers may find the same vulnerability independently. Patients may currently be at risk. Regulators are slow. What is the ethical path forward?
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Coordinated Disclosure</div>
+                <div class="card-desc">Notify the vendor privately. Give a reasonable timeframe for remediation -- typically 90 days, the Google Project Zero standard. If the vendor does not respond or remediate, disclose publicly. This approach balances giving vendors time to fix with ensuring the public eventually learns of risks they face. It is the dominant professional norm for security researchers.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Full Immediate Disclosure</div>
+                <div class="card-desc">Publish all details immediately, without giving the vendor advance notice. Rationale: users cannot protect themselves against a risk they do not know exists. Critics argue this prioritizes researcher reputation and ignores the harm of publicizing vulnerabilities before patches are available. The argument for immediate disclosure is strongest when vendors have demonstrated bad faith in the past.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Non-Disclosure</div>
+                <div class="card-desc">Say nothing publicly and trust the vendor to fix it. Ethically problematic if the vendor does not fix it and users remain exposed. In safety-critical medical contexts, non-disclosure also raises the question of whether regulatory bodies (FDA) have an independent obligation to be notified -- an obligation the researcher may have irrespective of the vendor's response.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- CERTIFICATION AND STANDARDS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Certification <span class="accent">Standards</span></div>
+        <div class="slide-subtitle">Formal standards translate ethical obligations into verifiable technical requirements.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">DO-178C (Avionics)</div>
+                <div class="card-desc">Software considerations in airborne systems certification. Defines five criticality levels from Level A (catastrophic failure) to Level E (no safety effect). Level A software requires 100% MC/DC test coverage and independent verification. No avionics software ships without regulatory review against this standard. It makes the ethical obligation concrete and auditable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IEC 62304 (Medical Devices)</div>
+                <div class="card-desc">International standard for medical device software lifecycle processes. Classifies software by safety class (A, B, C). Class C -- where failure can cause death or serious injury -- requires the most rigorous development and verification processes. Post-market surveillance requirements ensure that field failures are tracked and responded to systematically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ISO 26262 (Automotive)</div>
+                <div class="card-desc">Functional safety standard for road vehicles. Defines Automotive Safety Integrity Levels (ASIL A through D). ASIL D is the most stringent, applied to components whose failure could directly cause death. The BMW 737 MAX was certified under FAA/DO-178C -- but the certification process was delegated back to Boeing, which is the structural failure analogous to self-certification.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NIST Cybersecurity Framework</div>
+                <div class="card-desc">Voluntary (for most industries) framework for managing cybersecurity risk. Increasingly referenced in government contracts and regulatory guidance. When critical infrastructure software fails a cybersecurity control that NIST specifies and that failure enables harm, the framework's voluntary status does not protect the vendor from negligence claims under common law.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- ENGINEERING ETHICS HISTORICAL CONTEXT ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Historical <span class="accent">Context</span></div>
+        <div class="slide-subtitle">Software engineering is young relative to other engineering disciplines. Older fields provide instructive precedents for ethical maturation.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Tacoma Narrows Bridge (1940)</div>
+                <div class="card-desc">The bridge collapsed four months after opening due to aerodynamic flutter -- a failure mode engineers understood in theory but did not adequately analyze in the design. It became the catalyst for dramatic improvements in bridge engineering standards. Catastrophic failures drive professional maturation. The question is whether software engineering learns from computing's Tacoma Narrows events or waits for more of them.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Challenger Disaster (1986)</div>
+                <div class="card-desc">O-ring failure in cold temperatures caused the Space Shuttle Challenger to break apart 73 seconds after launch. Engineers at Morton Thiokol had warned NASA the night before that conditions were outside the safe launch envelope. Management overruled them. The disaster became the foundational case for professional obligation to resist organizational pressure to compromise safety.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Software Is Different</div>
+                <div class="card-desc">Physical engineering failures are visible and traceable to physical laws. Software failures can be invisible until activated by specific inputs or conditions. Physical structures cannot be patched after deployment. Software can -- which creates the moral hazard of shipping defective software with the intent to fix it later. The patch model is only ethically acceptable when the risk of harm before patching is adequately managed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- THE ETHICS OF PATCHES AND UPDATES ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Ethics of <span class="accent">Patches and Updates</span></div>
+        <div class="slide-subtitle">The ability to patch software after deployment is a powerful capability that can be used ethically or unethically.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Legitimate Post-Deployment Correction</div>
+                <div class="card-desc">Software is complex enough that some defects will only manifest in production. Responsible patching -- notifying users of the issue, providing timely fixes, explaining the risk -- is an ethical response to an unavoidable reality. Vendors that maintain active security patch pipelines and respond to vulnerabilities promptly are meeting their professional obligations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Shipping Known Defects With Intent to Patch</div>
+                <div class="card-desc">Deliberately shipping a product known to have safety-significant defects with the plan to fix them via a future patch is ethically indefensible when the harm potential is high. "We will patch it" is not an acceptable substitute for meeting the safety standard at the time of deployment for systems where users cannot avoid exposure to the defective version.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Silent Updates and Consent</div>
+                <div class="card-desc">Manufacturers of connected devices (cars, medical devices, industrial equipment) increasingly push software updates silently, without user notification or consent. This enables rapid vulnerability remediation -- but it also means behavior of a purchased product can change without the owner's knowledge. In safety-critical systems, changes to operational behavior must be disclosed and in some cases recertified.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">End-of-Life and Abandonment</div>
+                <div class="card-desc">When a vendor stops providing patches -- end-of-life declaration -- users of that software are left exposed to any vulnerabilities that emerge after the cutoff. For consumer software, this is inconvenient. For safety-critical embedded systems -- pacemakers, industrial controllers, building systems -- it creates ongoing harm potential that persists for the life of the physical hardware. The ethical obligation does not end at EOL announcement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- SOFTWARE ENGINEER AS PROFESSIONAL ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">Software Engineer as <span class="accent">Professional</span></div>
+        <div class="slide-subtitle">What does it mean to be a professional rather than merely an employee in a technical role?</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The Professional Standard</div>
+                <div class="card-desc">A professional holds obligations to the public that transcend obligations to the employer. A lawyer cannot suborn perjury because a client requests it. A physician cannot prescribe a dangerous treatment because a patient demands it. A software engineer cannot certify software as safe when they know it is not, because a manager requires it. The professional standard is not optional.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Licensure and the Engineering PE</div>
+                <div class="card-desc">Civil, mechanical, and electrical engineers who stamp designs are licensed professionals who can have their licenses revoked for professional violations. Software engineers in most jurisdictions are not licensed. Some argue software engineering should require licensure for safety-critical work. Others argue the field moves too fast for traditional licensure models. The debate is unresolved -- but the need for accountability structures is not.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Professional Associations</div>
+                <div class="card-desc">ACM and IEEE publish codes of ethics and professional conduct but have no enforcement power over non-members and limited power over members. Unlike the bar association or medical board, they cannot revoke the right to practice. This structural gap means professional ethics in software is currently enforced primarily through employment law, civil liability, and regulatory action -- not professional self-governance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- WHAT WOULD YOU DO: QUALITY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title"><span class="accent">What Would You Do?</span></div>
+        <div class="slide-subtitle">Quality and liability scenarios. Apply the frameworks before you are in the situation.</div>
+
+        <div class="box box-gold">
+            <div class="box-label">What Would You Do? Quality Scenario</div>
+            You are a senior developer on an insulin pump software project. Three weeks before the FDA submission deadline, you discover a timing defect that could, under specific circumstances, cause the pump to deliver a double dose. The probability is estimated at one in ten million uses. Your manager says the deadline cannot move and the probability is too low to matter. Do you sign off? What do you document? Who else needs to know?
+        </div>
+
+        <div class="box box-red" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Liability Scenario</div>
+            A client asks you to build a public-facing web application handling financial transactions. They refuse to budget for security testing. You build it, warn them in writing, and they deploy it. Six months later, the application is breached. Customers lose money. Your written warning is on file. Are you liable? Are you ethically responsible? Is there a difference between those two questions?
+        </div>
+
+        <div class="box box-green" style="margin-top: 8px;">
+            <div class="box-label">What Would You Do? Disclosure Scenario</div>
+            Your team's code review finds a defect in a legacy module that handles personal health data. The defect could allow unauthorized data access under conditions that are rare but possible. The module is scheduled for replacement in the next fiscal year. The cost to fix it now is significant. Management defers to "next year." What, if anything, do you do?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- THE TOYOTA UNINTENDED ACCELERATION CASE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">Case: <span class="accent">Toyota Unintended Acceleration</span></div>
+        <div class="slide-subtitle">Software defects in automotive systems and the intersection of technical, legal, and ethical accountability.</div>
+
+        <div class="scenario-strip">
+            Between 2002 and 2010, Toyota received thousands of complaints about vehicles accelerating uncontrollably. Toyota initially attributed the problem to floor mats and driver error. A NASA investigation and subsequent litigation revealed complex embedded software defects in the electronic throttle control system. Toyota paid over $1.2 billion in settlements. Independent expert witness testimony described the code as having over 11,000 global variables.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Technical Findings</div>
+                <div class="card-desc">Embedded software quality analysis by expert witnesses found: 11,000+ global variables (a recognized risk factor for unpredictable behavior), inadequate task scheduling, insufficient fault detection for stack overflow conditions, and code that did not meet MISRA C standards for safety-critical automotive software. The code was functional in normal conditions -- it failed in specific edge-case scenarios.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Institutional Denial</div>
+                <div class="card-desc">Toyota's initial response was to attribute the problem to physical causes (floor mats, sticky pedals) and driver error. This pattern -- denying software involvement, attributing failures to user behavior -- is a recurring theme in safety-critical software failures. The institutional incentive to avoid a software root cause is powerful because it avoids recall costs and preserves reputation. The ethical cost is delayed user protection.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">What Changed</div>
+                <div class="card-desc">Toyota eventually implemented software updates, introduced brake override systems, and paid substantial civil penalties. The case established a precedent that software quality standards matter in automotive liability. It also demonstrated that independent technical analysis -- not just manufacturer assurance -- is sometimes necessary for accountability to be achieved. Expert witnesses who could read embedded code became essential to justice.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- SOFTWARE ETHICS AND STAKEHOLDERS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Software Ethics and <span class="accent">Stakeholders</span></div>
+        <div class="slide-subtitle">Software systems affect multiple stakeholder groups with different interests, risk exposures, and decision-making power.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-magenta">
+                <div class="card-label">Users</div>
+                <div class="card-desc">The people the software is designed to serve. Often the least powerful stakeholder in product decisions but the group that bears the most direct consequences of quality failures. Users rarely have visibility into software quality, security posture, or defect history. They cannot protect themselves against risks they cannot see -- which is why professional obligations run to users, not just to paying clients.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Developers</div>
+                <div class="card-desc">Bear professional obligations to users and the public, but operate within organizational constraints. Developers who are ordered to meet unreasonable quality compromises face real professional risk -- retaliation is common, protection is limited. The gap between professional ethics and employment reality is a structural problem that professional associations and labor law have not fully resolved.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Organizations</div>
+                <div class="card-desc">Bear legal liability, reputational risk, and contractual obligations for software quality. Face commercial incentives to under-invest in quality. Have the authority to set standards, enforce review processes, and protect engineers who raise safety concerns. The organization's ethical character determines whether professional ethics function -- individual virtue is insufficient in the face of organizational pathology.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Regulators and Society</div>
+                <div class="card-desc">Establish minimum standards, enforce them through audits and penalties, and represent the public interest in domains where market forces fail to produce adequate safety. The Therac-25, Toyota, and Boeing cases all involved regulatory failures as well as developer failures. Effective regulation requires technical expertise and independence -- both of which are resource-intensive and politically contested.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- ETHICS OF AGILE DEPLOYMENT FREQUENCY ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">DevOps, CI/CD, and <span class="accent">Deployment Ethics</span></div>
+        <div class="slide-subtitle">Continuous integration and deployment practices raise ethical questions about the speed of change in systems that affect users' lives.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Speed as Safety Benefit</div>
+                <div class="card-desc">Rapid deployment of security patches protects users. The time between a vulnerability being discovered and a patch being deployed is the window of exposure. Organizations that can deploy in hours rather than months significantly reduce user risk. In this sense, CI/CD is an ethically positive capability when used to respond to security and safety issues rapidly.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Untested Change as Risk</div>
+                <div class="card-desc">The same capability that enables rapid patching enables rapid introduction of new defects. A deployment pipeline that ships code continuously without adequate automated testing is a defect delivery pipeline. The ethical obligation is not to deploy slowly -- it is to deploy with adequate confidence that new changes do not introduce new harm.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Automated Testing as Ethical Infrastructure</div>
+                <div class="card-desc">In a CI/CD environment, automated testing gates are the primary quality control mechanism. A development culture that disables failing tests rather than fixing underlying issues has substituted metrics management for genuine quality assurance. This is not a technical problem -- it is an ethical failure of professional integrity at the individual and team level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- DARK PATTERNS ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title"><span class="accent">Dark Patterns</span> in Software</div>
+        <div class="slide-subtitle">Intentional design choices that manipulate users against their own interests. A software ethics issue distinct from defects.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Roach Motel</div>
+                <div class="card-desc">Easy to get in, nearly impossible to get out. Subscription sign-up takes 30 seconds. Cancellation requires a phone call during business hours, a waiting period, and confirmation of cancellation via a letter mailed to a P.O. box. This pattern is intentional. It exploits friction to retain customers against their expressed preferences. Multiple US states have enacted regulations specifically targeting this pattern.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Confirmshaming</div>
+                <div class="card-desc">Opt-out buttons labeled "No thanks, I prefer to stay ignorant" or "I don't want to save money." These labels are designed to make the user feel foolish for declining. The design intention is to manipulate through shame rather than to inform through clarity. This violates the principle of informed, uncoerced consent that underlies ethical user interface design.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Hidden Costs</div>
+                <div class="card-desc">Adding charges at the final step of a checkout process, after the user has invested time and made a psychological commitment to the purchase. The design exploits the sunk cost bias. The FTC Trade Regulation Rule on Negative Option Marketing and the European Union's Consumer Rights Directive both address this pattern -- recognition that it constitutes unfair or deceptive practice at scale.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Privacy Zuckering</div>
+                <div class="card-desc">Named after Facebook's Mark Zuckerberg. Design patterns that trick users into sharing more personal information than they intend through confusing privacy settings, default-to-share options, and settings that are difficult to find or change. The interface design deliberately exploits cognitive load and default bias to achieve data collection that users would not consent to if fully informed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- QUALITY VS FEATURES TRADEOFF ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Quality vs. Features: <span class="accent">The Tradeoff</span></div>
+        <div class="slide-subtitle">Every software project involves a constrained allocation of engineering time. The ethical question is who bears the cost of prioritization choices.</div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The Iron Triangle</div>
+            Project management identifies three constraints: scope, time, and cost. You can have any two. In software quality terms, this translates to: more features, faster delivery, and higher quality are in tension. Every team makes tradeoffs constantly. The ethical content of those tradeoffs is determined by who bears the risk of the choices made -- and whether they have consented to bear that risk.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">When the User Bears the Risk</div>
+                <div class="card-desc">A team that ships 80 features with 20% defect exposure to meet a holiday sales window has made a choice that shifts risk to users who cannot assess it, did not choose it, and may be harmed by it. The feature count is visible in the marketing. The defect exposure is invisible. This information asymmetry is ethically significant.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When the Team Bears the Risk</div>
+                <div class="card-desc">A team that ships fewer features with higher quality has made a choice that reduces user risk at potential competitive cost to the organization. This is consistent with professional obligation to the public. The difficult reality is that the market may punish the ethical choice and reward the unethical one in the short term -- which is why regulatory standards matter beyond professional self-governance.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Transparency as Partial Solution</div>
+                <div class="card-desc">Clear disclosure of known limitations, known defects, and risk factors at the time of deployment does not eliminate harm but does restore informed consent. A user who knows that version 1.0 has documented limitations in certain conditions can make an informed choice. A user who is told "version 1.0 is ready" when the team knows it is not has been deceived. Honest disclosure is an ethical minimum.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- COMPARATIVE CASE ANALYSIS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Comparative <span class="accent">Case Analysis</span></div>
+        <div class="slide-subtitle">Therac-25, Boeing 737 MAX, and Toyota: common failure patterns across three decades of safety-critical software failures.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">All three involved known risks that were not adequately communicated to stakeholders who needed that information to make safety decisions. Concealment -- whether intentional or structural -- was a common factor.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">All three relied on overly optimistic failure probability assessments. "One in a million" estimates were used to justify not addressing failure modes that turned out to be practically reachable under foreseeable conditions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">All three had user-reported anomalies that were dismissed or minimized before the fatal failures occurred. Feedback mechanisms existed. The institutional culture suppressed them.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">All three involved schedule and commercial pressure that compressed safety validation. In none of the cases were the engineers who raised concerns protected or heeded in time.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">All three resulted in regulatory action that strengthened formal requirements. Catastrophic failure drove professional and regulatory maturation -- at the cost of human lives that better systemic practice would have prevented.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">In none of the three cases were individual software engineers criminally prosecuted, despite clear evidence of professional failures. Liability was borne primarily by organizations and their shareholders.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- PRACTICE QUESTIONS ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Discussion Questions</div>
+        <div class="slide-title">Discussion <span class="accent">Questions</span></div>
+        <div class="slide-subtitle">Prepare written or oral responses before moving to the quiz. These questions will appear in the final exam.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Define "safety-critical software" and explain why the standard of "good enough" differs between a consumer mobile app and a radiation therapy machine. What specific practices distinguish the two contexts?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Analyze the Therac-25 case using two ethical frameworks (e.g., utilitarian and deontological). Does the ethical analysis change depending on which framework you apply? Why or why not?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Compare the ethical implications of waterfall and agile development methodologies for a hospital management system. Which methodology better supports the ethical obligations of software engineers in that context?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Explain how the autonomous vehicle trolley problem illustrates the difference between encoding ethics in software and leaving ethical decisions to human judgment. Who should decide what the algorithm does?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A developer discovers a defect that could cause data loss in a deployed application used by 100,000 people. The defect is non-trivial to fix and management deprioritizes it. Identify the developer's ethical obligations under both the ACM Code and the IEEE Code of Ethics.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Exercises</div>
+        <div class="slide-title">Chapter 7 <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Complete before the next class session. Written responses required for exercises 3 and 4.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Research the Boeing 737 MAX MCAS failure. Identify three specific software engineering practices that, if applied, could have prevented or detected the failure before deployment. Cite the specific practice and explain how it would have helped.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Select one dark pattern from the four discussed in this module. Find a real-world example (name the company and product) and analyze why it is ethically problematic. What ethical principle does it violate? What regulation, if any, currently addresses it?</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Write a one-page memo from the perspective of a senior software engineer to the product manager arguing against shipping a known safety defect in a medical device to meet a quarterly deadline. Apply at least two specific principles from a professional code of ethics.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Design a three-paragraph responsible disclosure policy for a medium-sized software company. Specify: who receives reports, what the response timeline is, how severity is assessed, what happens at each severity level, and how researchers are acknowledged. Justify each design choice ethically.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Compare two certification standards (DO-178C and IEC 62304 or ISO 26262). How do their different criticality classifications reflect different ethical judgments about acceptable risk in their respective domains?</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Module <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Software quality is not a technical metric -- it is a moral commitment proportional to the harm potential of the systems we build.</div>
+
+        <div class="box box-magenta" style="margin-bottom: 4px;">
+            The question "how good is good enough?" does not have a universal answer. It has a contextual answer that is determined by who bears the risk of the answer being wrong. The professional's obligation is to ask that question honestly -- and to ensure the people who bear the risk have enough information to make an informed judgment.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Software quality has multiple dimensions: correctness, reliability, safety, usability, maintainability. Context determines which dimensions matter most -- and the harm potential determines the standard required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Therac-25 (1985-87): at least 6 radiation overdoses, 3 deaths, caused by a race condition in software that replaced hardware safety interlocks. The canonical safety-critical software failure case.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Product liability for software is weaker than for physical products. EULAs disclaim warranty broadly. In safety-critical domains, regulatory requirements (FDA, FAA) override contractual disclaimers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Waterfall provides clear accountability but late defect discovery. Agile enables early feedback but diffuses accountability and creates technical debt risks. Neither is inherently more ethical -- context determines appropriateness.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">The autonomous vehicle trolley problem shows that algorithmic design encodes ethical choices. The engineer who programs the algorithm -- not the vehicle in the moment -- makes the moral decision. Transparency and democratic governance of those choices are ethically required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Boeing 737 MAX: 346 deaths, MCAS relied on a single sensor, pilots were not informed the system existed. Organizational pressure suppressed both technical concerns and disclosure. Commercial incentives drove regulatory capture.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Professional codes (ACM, IEEE) place public safety above organizational loyalty. When they conflict, the public interest takes precedence. This obligation is real, uncomfortable, and structurally unsupported by employment law in most jurisdictions.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Dark patterns are intentional design choices that manipulate users. They are ethically distinct from defects -- they are not bugs, they are features designed to cause harm to users for organizational benefit.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Certification standards (DO-178C, IEC 62304, ISO 26262) translate ethical obligations into auditable technical requirements. They exist because professional ethics alone is insufficient to ensure safety in the presence of organizational commercial pressure.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w3-software', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

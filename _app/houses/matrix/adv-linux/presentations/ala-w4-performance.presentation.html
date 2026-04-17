@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Performance Analysis | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Linux Performance Analysis | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:2.86%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; ALA-08 &nbsp;|&nbsp; Week 4 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Linux Performance<br>
+                <span class="accent">Analysis</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                top &nbsp;&bull;&nbsp; htop &nbsp;&bull;&nbsp; iostat &nbsp;&bull;&nbsp; vmstat &nbsp;&bull;&nbsp; sar &nbsp;&bull;&nbsp; free &nbsp;&bull;&nbsp; /proc &amp; /sys &nbsp;&bull;&nbsp; Load Average
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A sector node is running slow. Response times are up, users are complaining, and the on-call page just fired. You have sixty seconds to determine whether the bottleneck is CPU, memory, disk I/O, or network before the incident commander asks you for an initial assessment. This lecture gives you the tools and the mental model.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>ALA-08</span>
+            <span>Week 4 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — PERFORMANCE INVESTIGATION METHODOLOGY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">The Performance <span class="accent">Investigation Model</span></div>
+        <div class="slide-subtitle">Start broad, narrow fast. Do not tune before you have measured.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Step 1: Observe the Whole System</div>
+                <div class="card-desc"><span class="ic">top</span> or <span class="ic">htop</span> for a 30-second snapshot. What is CPU doing? Is memory full? What is the load average? What processes are consuming the most? This takes 30 seconds and often identifies the bottleneck category immediately.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Step 2: Isolate the Subsystem</div>
+                <div class="card-desc">Based on Step 1: high CPU leads to <span class="ic">perf</span> and <span class="ic">mpstat</span>. High I/O wait leads to <span class="ic">iostat</span> and <span class="ic">iotop</span>. Memory exhaustion leads to <span class="ic">free</span>, <span class="ic">vmstat</span>, and <span class="ic">/proc/meminfo</span>. Network saturation leads to <span class="ic">sar -n DEV</span> and <span class="ic">ss</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Step 3: Quantify and Act</div>
+                <div class="card-desc">Every measurement needs a baseline to be meaningful. A load average of 8 on a 4-core machine is different from a load of 8 on a 64-core machine. Know your system's normal before diagnosing abnormal. <span class="ic">sar</span> provides historical baselines.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Brendan Gregg's USE Method</div>
+            For every resource (CPU, memory, disk, network): check Utilization, Saturation, and Errors. A resource at 90% utilization with a saturated queue and error counters ticking is a clear bottleneck. Resources with low utilization and no saturation are not your problem.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — LOAD AVERAGE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">Load Average: <span class="accent">The Most Misread Metric</span></div>
+        <div class="slide-subtitle">Load average measures the demand on the CPU scheduler. Understanding it requires knowing your CPU count.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">What It Measures</div>
+                <div class="card-desc">Linux load average = running processes + processes waiting in the run queue + processes in uninterruptible sleep (D state, usually I/O wait). A load of 1.0 on a single-core system means the CPU is exactly saturated. The same load on an 8-core system means it is 12.5% utilized.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Three Numbers</div>
+                <div class="card-desc">Load average is reported over three periods: 1 minute, 5 minutes, and 15 minutes. <span class="ic">1.23 0.87 0.54</span> means load increased recently (1-min is highest). <span class="ic">0.54 0.87 1.23</span> means load is decreasing. Compare the three to understand the trend direction.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When Is Load Too High?</div>
+                <div class="card-desc">Rule of thumb: sustained load average above the number of CPU cores indicates saturation. <span class="ic">nproc</span> gives you the core count. A load of 4.0 on a 4-core machine is worth investigating. A load of 4.0 on a 32-core machine is very light. Always normalize.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Read load average</span>
+<span class="fn">cat</span> /proc/loadavg
+<span class="cm"># 2.34 1.87 1.42 3/287 14823</span>
+<span class="cm"># 2.34 = 1-min avg  1.87 = 5-min avg  1.42 = 15-min avg</span>
+<span class="cm"># 3/287 = 3 running / 287 total threads  14823 = last created PID</span>
+
+<span class="fn">nproc</span>     <span class="cm"># number of logical CPUs available</span>
+<span class="fn">uptime</span>    <span class="cm"># uptime + load averages in one line</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — TOP ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">top: <span class="accent">Real-Time Process Monitor</span></div>
+        <div class="slide-subtitle">The universal first-response tool. Learn the header fields and interactive controls cold.</div>
+
+        <div class="code-block"><span class="cm"># top header breakdown:</span>
+top - 14:32:01 up 12 days, 3:14  2 users  load average: 2.34, 1.87, 1.42
+Tasks: 287 total   3 running  284 sleeping  0 stopped  0 zombie
+%Cpu(s): 23.4 us  5.1 sy  0.0 ni  68.2 id  3.3 wa  0.0 hi  0.0 si  0.0 st
+MiB Mem:  32768.0 total   1024.0 free  18432.0 used  13312.0 buff/cache
+MiB Swap:  8192.0 total   7680.0 free    512.0 used  14336.0 avail Mem
+
+<span class="cm"># CPU line fields:
+# us = user space  sy = kernel  ni = nice  id = idle
+# wa = I/O wait    hi = hardware interrupts  si = software interrupts
+# st = steal (VM hypervisor taking CPU time from this VM)
+
+# High wa% = I/O bottleneck
+# High sy% = excessive system calls or kernel work
+# High st% = noisy neighbor on hypervisor -- contact cloud provider</span>
+
+<span class="cm"># Interactive keys (while top is running):</span>
+<span class="cm"># 1 — toggle per-CPU breakdown</span>
+<span class="cm"># M — sort by memory usage (RES)</span>
+<span class="cm"># P — sort by CPU usage (default)</span>
+<span class="cm"># k — kill a process by PID</span>
+<span class="cm"># u — filter by username</span>
+<span class="cm"># f — manage column fields</span>
+<span class="cm"># W — write current settings to ~/.toprc</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — TOP PROCESS COLUMNS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">top Process Fields: <span class="accent">Reading the Table</span></div>
+        <div class="slide-subtitle">Every column in top has a specific meaning. These are the ones you must know in an incident.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">VIRT vs RES vs SHR</div>
+                <div class="card-desc"><span class="ic">VIRT</span> total virtual memory requested (includes mapped but unused). <span class="ic">RES</span> resident set size -- physical RAM actually used. <span class="ic">SHR</span> shared memory (shared libraries, etc.). For memory pressure, focus on RES. VIRT is usually misleadingly large.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">%CPU</div>
+                <div class="card-desc">Percentage of a single CPU core. On an 8-core system, a process can show 800% if it uses all 8 cores. Values above 100% are normal for multithreaded processes. Divide by core count to get normalized utilization.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">S (Process State)</div>
+                <div class="card-desc"><span class="ic">R</span> running or runnable (in run queue). <span class="ic">S</span> sleeping (waiting for event, normal). <span class="ic">D</span> uninterruptible sleep (I/O wait -- cannot be killed). <span class="ic">Z</span> zombie (exited but not reaped). <span class="ic">T</span> stopped (SIGSTOP or trace). Many D-state processes = I/O saturation.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Useful top command-line options</span>
+<span class="fn">top</span> -bn1          <span class="cm"># batch mode, 1 iteration: non-interactive output (for scripts)</span>
+<span class="fn">top</span> -p <span class="nb">14823</span>      <span class="cm"># monitor specific PID only</span>
+<span class="fn">top</span> -u nginx      <span class="cm"># show only processes for user 'nginx'</span>
+<span class="fn">top</span> -d 0.5        <span class="cm"># update every 0.5 seconds (faster refresh)</span>
+
+<span class="cm"># Script-friendly: top 5 CPU consumers</span>
+<span class="fn">top</span> -bn1 | <span class="fn">awk</span> <span class="st">'NR&gt;7{print}'</span> | <span class="fn">head</span> -5</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — HTOP ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">htop: <span class="accent">The Ergonomic Alternative</span></div>
+        <div class="slide-subtitle">htop provides color-coded meters, tree views, and mouse support while showing the same data as top.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Key Advantages Over top</div>
+                <div class="card-desc">Per-CPU bars shown graphically. Memory bar distinguishes used/buffers/cache. Process tree view (<span class="ic">t</span> key) shows parent-child relationships. <span class="ic">F5</span> sorts by tree structure. <span class="ic">F6</span> sort by any column. <span class="ic">F4</span> filter by string. Mouse click to select and kill.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">htop Color Coding</div>
+                <div class="card-desc">CPU bar: green = user, blue = low-priority, red = kernel, yellow = IRQ. Memory bar: green = used, blue = buffers, yellow = cache. High blue on memory bar is healthy -- it means the OS is using available RAM for disk caching, which is normal and desirable.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install if not present</span>
+<span class="fn">apt</span> install htop
+
+<span class="cm"># Launch htop</span>
+<span class="fn">htop</span>
+
+<span class="cm"># Key bindings to know:</span>
+<span class="cm"># F2        — setup: configure columns, meters, color schemes</span>
+<span class="cm"># F3 or /   — search for process by name</span>
+<span class="cm"># F4        — filter: show only matching processes</span>
+<span class="cm"># F5 or t   — toggle tree view (parent-child relationships)</span>
+<span class="cm"># F6        — sort by selected column</span>
+<span class="cm"># u         — show processes for a specific user</span>
+<span class="cm"># k         — send signal to selected process</span>
+<span class="cm"># l         — show open files for selected process (lsof)</span>
+<span class="cm"># s         — strace selected process</span>
+<span class="cm"># i         — show I/O rates for selected process (iotop-style)</span>
+<span class="cm"># H         — toggle showing user/kernel threads separately</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — VMSTAT ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">vmstat: <span class="accent">Virtual Memory and CPU Scheduler Statistics</span></div>
+        <div class="slide-subtitle">vmstat provides a dense, time-series view of memory, swap, I/O, and CPU in a single compact table.</div>
+
+        <div class="code-block"><span class="cm"># vmstat 1 5: 1-second intervals, 5 samples</span>
+<span class="fn">vmstat</span> <span class="nb">1</span> <span class="nb">5</span>
+<span class="cm"># procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+# r  b   swpd   free  buff  cache   si   so    bi    bo   in   cs us sy id wa st
+# 2  0      0  98304  2048 524288    0    0     12    48  420  890  8  2 89  1  0
+# 1  0      0  97280  2048 524288    0    0      0   144  380  750  6  1 92  1  0</span>
+
+<span class="cm"># Column breakdown:
+# r  = processes in run queue (number waiting for CPU)
+# b  = processes in uninterruptible sleep (I/O wait)
+# swpd = virtual memory in swap (should be near 0)
+# si/so = swap in/out per second (non-zero = memory pressure)
+# bi/bo = blocks in/out per second (disk reads/writes)
+# in = hardware interrupts per second
+# cs = context switches per second (high cs = scheduler overhead)
+# us/sy/id/wa = same as top CPU percentages</span>
+
+<span class="cm"># Warning signs:
+# r consistently > CPU count = CPU saturation
+# b consistently > 0 = I/O bottleneck
+# si/so non-zero = swapping (memory exhaustion)
+# wa consistently > 20% = disk I/O bottleneck</span>
+
+<span class="cm"># Disk statistics mode</span>
+<span class="fn">vmstat</span> -d <span class="nb">1</span> <span class="nb">3</span>     <span class="cm"># per-disk read/write stats</span>
+<span class="fn">vmstat</span> -s         <span class="cm"># event summary (total context switches, interrupts, etc.)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — FREE AND MEMORY ANALYSIS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">free: <span class="accent">Memory Usage Analysis</span></div>
+        <div class="slide-subtitle">The most important column in free is "available" -- not "free". Linux uses all available RAM for caching, which is correct behavior.</div>
+
+        <div class="code-block"><span class="fn">free</span> -h
+<span class="cm">#               total        used        free      shared  buff/cache   available
+# Mem:           31Gi        18Gi       1.0Gi       512Mi        12Gi        13Gi
+# Swap:          8.0Gi       500Mi       7.5Gi</span>
+
+<span class="cm"># Field meanings:
+# total     — installed physical RAM
+# used      — RAM used by applications (not including cache)
+# free      — completely unused RAM (almost always small -- this is fine)
+# shared    — tmpfs, shared memory segments
+# buff/cache — OS disk cache + buffer cache (this is good: can be reclaimed)
+# available — how much RAM a new process can actually use (free + reclaimable cache)
+
+# DO NOT PANIC about "free" being small.
+# The OS fills free RAM with disk cache to speed up reads.
+# "available" is the real answer to "how much memory can I use?"
+
+# Swap analysis:
+# If Swap: used > 0, applications are being paged out.
+# If Swap: used is growing over time, you have a memory leak or undersized RAM.</span>
+
+<span class="cm"># Monitor memory every 2 seconds</span>
+<span class="fn">watch</span> -n2 <span class="st">'free -h'</span>
+
+<span class="cm"># Detailed memory breakdown</span>
+<span class="fn">cat</span> /proc/meminfo | <span class="fn">head</span> -20</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — /PROC/MEMINFO ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">/proc/meminfo: <span class="accent">Kernel Memory Accounting</span></div>
+        <div class="slide-subtitle">The raw source of all memory statistics. Understanding the key fields lets you diagnose OOM conditions before they happen.</div>
+
+        <div class="code-block"><span class="cm"># Key fields from /proc/meminfo</span>
+<span class="fn">cat</span> /proc/meminfo
+<span class="cm"># MemTotal:       33554432 kB   — installed RAM
+# MemFree:         1048576 kB   — completely unused
+# MemAvailable:   13631488 kB   — available for new allocations
+# Buffers:          204800 kB   — kernel I/O buffer cache (block devices)
+# Cached:         12582912 kB   — page cache (files read from disk)
+# SwapCached:          0 kB   — swap content also in RAM (double counted)
+# Active:         18350080 kB   — recently used, not easily reclaimed
+# Inactive:        9175040 kB   — not recently used, can be reclaimed
+# Slab:            2097152 kB   — kernel slab allocator (dentry/inode cache)
+# SReclaimable:    1572864 kB   — slab that can be freed under pressure
+# SUnreclaim:       524288 kB   — slab that cannot be freed
+# VmallocTotal:  very large    — virtual address space for kernel
+# HugePages_Total:       0     — 2MB huge pages configured
+# DirectMap2M:    32505856 kB   — direct mapped memory using 2MB pages</span>
+
+<span class="cm"># Script: check if OOM is imminent</span>
+AVAIL=<span class="st">$(awk '/MemAvailable/{print $2}' /proc/meminfo)</span>
+TOTAL=<span class="st">$(awk '/MemTotal/{print $2}'     /proc/meminfo)</span>
+PCT=$(( 100 - (AVAIL * 100 / TOTAL) ))
+(( PCT &gt; 90 )) <span class="kw">&amp;&amp;</span> <span class="fn">echo</span> <span class="er">"CRITICAL: Memory ${PCT}% used -- OOM risk"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — IOSTAT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">iostat: <span class="accent">Disk I/O Statistics</span></div>
+        <div class="slide-subtitle">iostat measures disk throughput, I/O operations per second, and wait times. The first tool to reach for when top shows high wa%.</div>
+
+        <div class="code-block"><span class="cm"># iostat with extended statistics, 2-second intervals, 5 samples</span>
+<span class="fn">iostat</span> -xz <span class="nb">2</span> <span class="nb">5</span>
+
+<span class="cm"># Device:  r/s   w/s  rkB/s  wkB/s  rrqm/s  wrqm/s  %util  await  r_await w_await svctm aqu-sz
+# sda:     10.2  45.3  4096.0 18432.0   0.5    12.3    68.4   8.23    2.10   9.50  1.82   0.37</span>
+
+<span class="cm"># Key fields:
+# r/s    — read operations per second
+# w/s    — write operations per second
+# rkB/s  — read throughput (KB/s)
+# wkB/s  — write throughput (KB/s)
+# await  — average wait time per I/O request (ms) -- KEY METRIC
+# r_await / w_await — separate read and write latencies
+# %util  — how busy the device is (100% = saturated)
+# aqu-sz — average queue depth (>1 = requests piling up)
+
+# Warning signs:
+# %util > 80% consistently = disk saturation
+# await > 10ms for HDD, > 1ms for NVMe SSD = slow I/O
+# aqu-sz > 1 = queue building up (worse than util alone)</span>
+
+<span class="cm"># CPU I/O wait from iostat</span>
+<span class="fn">iostat</span> -c <span class="nb">1</span>     <span class="cm"># CPU stats only: us sy ni id wa steal</span>
+<span class="fn">iostat</span> -d sda <span class="nb">1</span>  <span class="cm"># single device: sda</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — IOTOP ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">iotop: <span class="accent">Per-Process I/O Monitor</span></div>
+        <div class="slide-subtitle">iostat shows disk totals. iotop shows which specific process is responsible for the I/O load.</div>
+
+        <div class="code-block"><span class="cm"># Install iotop</span>
+<span class="fn">apt</span> install iotop
+
+<span class="cm"># Run iotop (requires root or CAP_NET_ADMIN)</span>
+<span class="fn">iotop</span>               <span class="cm"># interactive, sorted by I/O rate</span>
+<span class="fn">iotop</span> -o            <span class="cm"># --only: show only processes with active I/O (cleaner)</span>
+<span class="fn">iotop</span> -b -n5        <span class="cm"># batch mode, 5 iterations (scriptable)</span>
+
+<span class="cm"># Output format:
+# TID   PRIO  USER  DISK READ  DISK WRITE  SWAPIN  IO  COMMAND
+# 8342  be/4  mysql  0.00 B/s  18.42 M/s    0.00%  12.3%  mysqld</span>
+
+<span class="cm"># Script: find top I/O consumer and log it</span>
+<span class="fn">iotop</span> -b -n2 -q 2<span class="kw">&gt;&amp;</span>1 | \
+    <span class="fn">awk</span> <span class="st">'NR&gt;2 &amp;&amp; ($4+0 &gt; 1000 || $6+0 &gt; 1000) {print $0}'</span> | \
+    <span class="fn">head</span> -5 | \
+    <span class="fn">logger</span> -t iotop-alert
+
+<span class="cm"># Alternative: /proc/PID/io (per-process I/O without iotop)</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/io
+<span class="cm"># rchar: 1048576      (bytes read via read() calls)
+# wchar: 524288       (bytes written via write() calls)
+# syscr: 256          (number of read() syscalls)
+# syscw: 128          (number of write() syscalls)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SAR INTRODUCTION ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">sar: <span class="accent">System Activity Reporter</span></div>
+        <div class="slide-subtitle">sar collects and reports historical system performance data. The only tool that lets you investigate a performance issue that happened last night.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Historical Analysis</div>
+                <div class="card-desc">sar records CPU, memory, I/O, and network statistics every 10 minutes by default (via a cron job that calls <span class="ic">sa1</span>). This data is stored in <span class="ic">/var/log/sysstat/</span> for 28 days. When an incident happens at 03:00, sar has the data you need at 08:00.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Real-Time Mode</div>
+                <div class="card-desc">sar also works like vmstat: <span class="ic">sar -u 1 10</span> shows CPU utilization every second for 10 samples. This makes sar a single tool that covers both real-time investigation and historical review.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Installation</div>
+                <div class="card-desc">Part of the <span class="ic">sysstat</span> package. On Ubuntu, after installing, enable collection in <span class="ic">/etc/default/sysstat</span> by setting <span class="ic">ENABLED="true"</span>. The collection cron job then starts recording automatically.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Install and enable sysstat</span>
+<span class="fn">apt</span> install sysstat
+<span class="fn">sed</span> -i <span class="st">'s/ENABLED="false"/ENABLED="true"/'</span> /etc/default/sysstat
+<span class="fn">systemctl</span> enable --now sysstat
+
+<span class="cm"># Verify data collection is running</span>
+<span class="fn">ls</span> -la /var/log/sysstat/</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — SAR CPU ANALYSIS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35</div>
+        <div class="slide-title">sar: <span class="accent">CPU and Load History</span></div>
+        <div class="slide-subtitle">Pull yesterday's CPU utilization graph to determine when the performance problem began.</div>
+
+        <div class="code-block"><span class="cm"># CPU utilization from today's data file</span>
+<span class="fn">sar</span> -u                   <span class="cm"># today's CPU history (10-min intervals)</span>
+<span class="fn">sar</span> -u <span class="nb">1</span> <span class="nb">5</span>              <span class="cm"># live: 1-second intervals, 5 samples</span>
+<span class="fn">sar</span> -u -f /var/log/sysstat/sa08   <span class="cm"># April 8 data file</span>
+
+<span class="cm"># Per-CPU breakdown</span>
+<span class="fn">sar</span> -P ALL <span class="nb">1</span> <span class="nb">5</span>          <span class="cm"># all CPUs individually</span>
+<span class="fn">sar</span> -P <span class="nb">0,1,2,3</span> <span class="nb">1</span> <span class="nb">3</span>     <span class="cm"># specific CPUs 0-3</span>
+
+<span class="cm"># Context switches and interrupts</span>
+<span class="fn">sar</span> -w <span class="nb">1</span> <span class="nb">5</span>              <span class="cm"># context switches per second</span>
+<span class="fn">sar</span> -I ALL <span class="nb">1</span> <span class="nb">3</span>          <span class="cm"># interrupt rates by interrupt number</span>
+
+<span class="cm"># Load average history</span>
+<span class="fn">sar</span> -q                   <span class="cm"># run queue and load average</span>
+
+<span class="cm"># Find the peak load window in yesterday's data</span>
+<span class="fn">sar</span> -q -f /var/log/sysstat/sa08 | <span class="fn">sort</span> -k5 -rn | <span class="fn">head</span> -5
+<span class="cm"># Sort by runq-sz (column 5), highest first</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — SAR MEMORY AND DISK ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">sar: <span class="accent">Memory and Disk History</span></div>
+        <div class="slide-subtitle">Correlate the memory utilization timeline with the CPU timeline to pinpoint when the system started under stress.</div>
+
+        <div class="code-block"><span class="cm"># Memory utilization history</span>
+<span class="fn">sar</span> -r                   <span class="cm"># memory: free, used, cached, swpd</span>
+<span class="fn">sar</span> -r ALL               <span class="cm"># extended: includes huge pages, slab, etc.</span>
+
+<span class="cm"># Swap usage history</span>
+<span class="fn">sar</span> -S                   <span class="cm"># swap: total, used, free</span>
+
+<span class="cm"># Disk I/O history</span>
+<span class="fn">sar</span> -b                   <span class="cm"># I/O: tps, rtps, wtps, bread/s, bwrtn/s</span>
+<span class="fn">sar</span> -d                   <span class="cm"># per-device: %util, await, tps</span>
+<span class="fn">sar</span> -d -f /var/log/sysstat/sa08 | <span class="fn">grep</span> sda
+
+<span class="cm"># Network history</span>
+<span class="fn">sar</span> -n DEV               <span class="cm"># per-interface: rx/tx packets and bytes</span>
+<span class="fn">sar</span> -n EDEV              <span class="cm"># network errors</span>
+<span class="fn">sar</span> -n TCP               <span class="cm"># TCP segments, connection rates</span>
+
+<span class="cm"># Complete incident review: all subsystems yesterday 02:00 to 04:00</span>
+<span class="kw">for</span> flag <span class="kw">in</span> -u -r -b -n DEV; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"=== sar $flag ==="</span>
+    <span class="fn">sar</span> <span class="st">$flag</span> -f /var/log/sysstat/sa08 -s 02:00:00 -e 04:00:00
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — /PROC FILESYSTEM ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">/proc: <span class="accent">The Kernel's Live Data Export</span></div>
+        <div class="slide-subtitle">/proc is a virtual filesystem. Every file in it is a live view into kernel state. Most performance tools read from it.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">System-Wide /proc Files</div>
+                <div class="card-desc"><span class="ic">/proc/loadavg</span> load averages. <span class="ic">/proc/meminfo</span> detailed memory. <span class="ic">/proc/stat</span> CPU stats since boot. <span class="ic">/proc/diskstats</span> disk I/O counters. <span class="ic">/proc/net/dev</span> network interface stats. <span class="ic">/proc/sys/</span> tunable kernel parameters.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Per-Process /proc/PID/</div>
+                <div class="card-desc"><span class="ic">status</span> name, state, memory. <span class="ic">cmdline</span> full command. <span class="ic">fd/</span> open file descriptors. <span class="ic">maps</span> memory map. <span class="ic">io</span> I/O counters. <span class="ic">net/</span> network sockets. <span class="ic">cgroup</span> cgroup membership. <span class="ic">oom_score</span> OOM killer priority.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">/proc/sys Tunables</div>
+                <div class="card-desc">Read and write kernel parameters in real time. Changes take effect immediately but reset on reboot. Make permanent via <span class="ic">/etc/sysctl.conf</span> or files in <span class="ic">/etc/sysctl.d/</span>. Apply without reboot: <span class="ic">sysctl -p</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Examples of reading /proc directly</span>
+<span class="fn">cat</span> /proc/stat | <span class="fn">head</span> -5       <span class="cm"># raw CPU tick counters per CPU</span>
+<span class="fn">cat</span> /proc/diskstats            <span class="cm"># raw disk I/O counters (basis for iostat)</span>
+<span class="fn">cat</span> /proc/net/dev              <span class="cm"># raw network packet/byte counters</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/status         <span class="cm"># specific process memory and state</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/cmdline | <span class="fn">tr</span> <span class="st">'\0'</span> <span class="st">' '</span>  <span class="cm"># full command line (null-separated)</span>
+<span class="fn">ls</span> -la /proc/<span class="nb">14823</span>/fd/         <span class="cm"># all open file descriptors</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/oom_score      <span class="cm"># OOM killer score (higher = killed first)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — /SYS FILESYSTEM ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">/sys: <span class="accent">Hardware and Driver Interface</span></div>
+        <div class="slide-subtitle">/sys exposes hardware topology, device configuration, and kernel driver settings as a filesystem.</div>
+
+        <div class="code-block"><span class="cm"># CPU frequency and power</span>
+<span class="fn">cat</span> /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
+<span class="fn">cat</span> /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+<span class="cm"># governors: performance, powersave, ondemand, conservative, schedutil</span>
+
+<span class="cm"># Set CPU governor to performance for maximum throughput</span>
+<span class="kw">for</span> cpu <span class="kw">in</span> /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; <span class="kw">do</span>
+    <span class="fn">echo</span> <span class="st">"performance"</span> <span class="kw">&gt;</span> <span class="st">"$cpu"</span>
+<span class="kw">done</span>
+
+<span class="cm"># Block device queue tuning</span>
+<span class="fn">cat</span> /sys/block/sda/queue/scheduler      <span class="cm"># current I/O scheduler</span>
+<span class="fn">cat</span> /sys/block/sda/queue/nr_requests    <span class="cm"># queue depth</span>
+<span class="fn">cat</span> /sys/block/sda/queue/rotational     <span class="cm"># 0 = SSD, 1 = HDD</span>
+
+<span class="cm"># Set optimal scheduler (mq-deadline for SSD, bfq for HDD)</span>
+<span class="fn">echo</span> <span class="st">"mq-deadline"</span> <span class="kw">&gt;</span> /sys/block/sda/queue/scheduler
+
+<span class="cm"># Network device statistics and tuning</span>
+<span class="fn">cat</span> /sys/class/net/eth0/statistics/rx_bytes
+<span class="fn">cat</span> /sys/class/net/eth0/statistics/rx_dropped
+<span class="fn">cat</span> /sys/class/net/eth0/speed    <span class="cm"># link speed in Mbps</span>
+
+<span class="cm"># NUMA topology</span>
+<span class="fn">cat</span> /sys/devices/system/node/possible
+<span class="fn">cat</span> /sys/devices/system/node/node0/meminfo</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — SYSCTL TUNING ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title">sysctl: <span class="accent">Kernel Parameter Tuning</span></div>
+        <div class="slide-subtitle">sysctl provides a clean interface to read and set kernel parameters that live in /proc/sys/.</div>
+
+        <div class="code-block"><span class="cm"># Read a parameter</span>
+<span class="fn">sysctl</span> vm.swappiness          <span class="cm"># vm.swappiness = 60</span>
+<span class="fn">sysctl</span> net.core.somaxconn
+
+<span class="cm"># Set a parameter (takes effect immediately)</span>
+<span class="fn">sysctl</span> -w vm.swappiness=10
+<span class="fn">sysctl</span> -w net.core.somaxconn=65536
+
+<span class="cm"># List all kernel parameters</span>
+<span class="fn">sysctl</span> -a | <span class="fn">grep</span> vm.
+
+<span class="cm"># Persist in /etc/sysctl.d/99-sector.conf</span>
+<span class="cm"># vm.swappiness = 10</span>
+<span class="cm"># net.core.somaxconn = 65536</span>
+<span class="cm"># net.ipv4.tcp_max_syn_backlog = 8192</span>
+<span class="cm"># vm.dirty_ratio = 15</span>
+<span class="cm"># vm.dirty_background_ratio = 5</span>
+
+<span class="cm"># Apply without reboot</span>
+<span class="fn">sysctl</span> -p /etc/sysctl.d/99-sector.conf
+
+<span class="cm"># Key parameters explained:
+# vm.swappiness=10    — prefer RAM over swap (0=never swap, 100=swap aggressively)
+# vm.dirty_ratio=15   — % RAM that can hold dirty pages before writes are forced
+# net.core.somaxconn  — max listen() backlog (connections pending accept())
+# net.ipv4.tcp_fin_timeout — how long to hold TCP FIN sockets (reduce for busy servers)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — CPU PROFILING WITH PERF ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">perf: <span class="accent">CPU Profiling and Event Counting</span></div>
+        <div class="slide-subtitle">perf uses hardware performance counters to profile CPU usage at the function level, revealing where exactly time is being spent.</div>
+
+        <div class="code-block"><span class="cm"># Install</span>
+<span class="fn">apt</span> install linux-perf linux-tools-generic
+
+<span class="cm"># perf stat: count hardware events for a command</span>
+<span class="fn">perf</span> stat ls /var/log
+<span class="cm"># Performance counter stats for 'ls /var/log':
+#   124,832  cache-misses
+# 3,284,110  cache-references    (3.80% of all refs)
+#       822  page-faults
+# 12,834,782 instructions        (1.12 insn per cycle)
+#  1,432,440 branch-misses       (4.23% of all branches)</span>
+
+<span class="cm"># perf top: live sampling profiler (like top, but shows function names)</span>
+<span class="fn">perf</span> top                     <span class="cm"># system-wide function-level profiling</span>
+<span class="fn">perf</span> top -p <span class="nb">14823</span>            <span class="cm"># profile specific process</span>
+
+<span class="cm"># Record a profile and analyze it</span>
+<span class="fn">perf</span> record -g -p <span class="nb">14823</span> -- sleep <span class="nb">10</span>   <span class="cm"># record with call graphs for 10 seconds</span>
+<span class="fn">perf</span> report                            <span class="cm"># interactive analysis</span>
+<span class="fn">perf</span> report --stdio                    <span class="cm"># text output (for logging)</span>
+
+<span class="cm"># Flame graph: perf + FlameGraph for visual profiling</span>
+<span class="fn">perf</span> record -g -p <span class="nb">14823</span> -- sleep <span class="nb">30</span>
+<span class="fn">perf</span> script | /opt/FlameGraph/stackcollapse-perf.pl | \
+    /opt/FlameGraph/flamegraph.pl <span class="kw">&gt;</span> /tmp/flame.svg</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — MPSTAT ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">mpstat: <span class="accent">Per-CPU Statistics</span></div>
+        <div class="slide-subtitle">mpstat shows per-CPU utilization. Single-core saturation while others sit idle indicates a single-threaded bottleneck.</div>
+
+        <div class="code-block"><span class="cm"># All CPUs, 1-second intervals, 5 samples</span>
+<span class="fn">mpstat</span> -P ALL <span class="nb">1</span> <span class="nb">5</span>
+
+<span class="cm"># Sample output:
+# CPU  %usr  %sys  %iowait  %irq  %soft  %idle
+# all  18.4   3.2      8.1   0.2    0.4   69.7
+#   0  72.0   4.1      0.0   0.0    0.0   23.9   &lt;-- saturated
+#   1   2.1   3.0     32.1   0.0    0.0   62.8   &lt;-- I/O wait
+#   2   3.2   2.8      0.0   0.0    0.0   94.0
+#   3   1.2   2.8      0.0   0.0    0.0   96.0</span>
+
+<span class="cm"># Interpretation:
+# CPU 0 at 72% user = single-threaded bottleneck (offload to more threads)
+# CPU 1 at 32% iowait = I/O bound process on that CPU
+# Check which PID is pinned to CPU 0: taskset -p PID</span>
+
+<span class="cm"># Single CPU (CPU 0 only)</span>
+<span class="fn">mpstat</span> -P <span class="nb">0</span> <span class="nb">1</span> <span class="nb">5</span>
+
+<span class="cm"># Check CPU affinity of a process</span>
+<span class="fn">taskset</span> -pc <span class="nb">14823</span>            <span class="cm"># current affinity mask</span>
+
+<span class="cm"># Set CPU affinity to CPUs 2 and 3 only</span>
+<span class="fn">taskset</span> -pc <span class="nb">2,3</span> <span class="nb">14823</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — DF AND DU ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">df and du: <span class="accent">Filesystem and Directory Space</span></div>
+        <div class="slide-subtitle">df shows filesystem-level usage. du shows directory-level usage. Together they find what is consuming disk space.</div>
+
+        <div class="code-block"><span class="cm"># df: filesystem usage</span>
+<span class="fn">df</span> -h                          <span class="cm"># human-readable: GiB, MiB</span>
+<span class="fn">df</span> -hT                         <span class="cm"># include filesystem type (ext4, xfs, tmpfs)</span>
+<span class="fn">df</span> -i                          <span class="cm"># inode usage (can be full even if bytes are free)</span>
+<span class="fn">df</span> -h /var/log                 <span class="cm"># only the filesystem containing /var/log</span>
+
+<span class="cm"># Disk full but df shows space: check inode exhaustion</span>
+<span class="fn">df</span> -i /var/log
+<span class="cm"># Filesystem     Inodes IUsed  IFree IUse% Mounted on
+# /dev/sda1      524288 524288     0  100% /var/log    &lt;-- inodes exhausted</span>
+
+<span class="cm"># du: directory usage</span>
+<span class="fn">du</span> -sh /var/log/*               <span class="cm"># size of each item directly under /var/log</span>
+<span class="fn">du</span> -sh /* 2&gt;/dev/null           <span class="cm"># top-level directory sizes</span>
+<span class="fn">du</span> -sh /var/log/* | <span class="fn">sort</span> -rh   <span class="cm"># sorted by size, largest first</span>
+
+<span class="cm"># Find top 20 largest files under /var</span>
+<span class="fn">find</span> /var -type f -printf <span class="st">'%s %p\n'</span> <span class="nb">2&gt;</span>/dev/null | \
+    <span class="fn">sort</span> -rn | \
+    <span class="fn">head</span> -20 | \
+    <span class="fn">awk</span> <span class="st">'{printf "%.1f MB\t%s\n", $1/1048576, $2}'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — NETWORK PERFORMANCE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Network Performance: <span class="accent">ss, nethogs, and sar -n</span></div>
+        <div class="slide-subtitle">Identify network saturation, connection storms, and which processes are consuming bandwidth.</div>
+
+        <div class="code-block"><span class="cm"># ss: socket statistics (replacement for netstat)</span>
+<span class="fn">ss</span> -s                          <span class="cm"># summary: total sockets by state</span>
+<span class="fn">ss</span> -tunapl                     <span class="cm"># TCP/UDP, numeric, all, processes, listening</span>
+<span class="fn">ss</span> -tp state established       <span class="cm"># established TCP connections with process</span>
+<span class="fn">ss</span> -tp state time-wait | <span class="fn">wc</span> -l  <span class="cm"># count TIME_WAIT (high = connection churn)</span>
+
+<span class="cm"># nethogs: per-process bandwidth (like iotop for network)</span>
+<span class="fn">apt</span> install nethogs
+<span class="fn">nethogs</span> eth0
+
+<span class="cm"># sar network history</span>
+<span class="fn">sar</span> -n DEV <span class="nb">1</span> <span class="nb">5</span>                <span class="cm"># per-interface rx/tx rates live</span>
+<span class="fn">sar</span> -n TCP <span class="nb">1</span> <span class="nb">5</span>                <span class="cm"># TCP segments and connection rates</span>
+<span class="fn">sar</span> -n SOCK                    <span class="cm"># socket counts: TCP, UDP, raw</span>
+
+<span class="cm"># Check interface for errors and drops</span>
+<span class="fn">ip</span> -s link show eth0
+<span class="fn">ethtool</span> -S eth0 | <span class="fn">grep</span> -i <span class="st">'drop\|error\|miss'</span>
+
+<span class="cm"># Real-time bandwidth with ifstat (simple, useful)</span>
+<span class="fn">apt</span> install ifstat
+<span class="fn">ifstat</span> -i eth0 <span class="nb">1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — MEMORY LEAK DETECTION ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">Memory Leaks: <span class="accent">Detecting Growing Processes</span></div>
+        <div class="slide-subtitle">A process with a memory leak grows its RES footprint continuously until OOM kills it or you restart it.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# memory-trend.sh -- track process RES growth over time</span>
+<span class="fn">set</span> -euo pipefail
+PID=<span class="st">"${1:?'Usage: $0 &lt;PID&gt;'}"</span>
+INTERVAL=<span class="nb">10</span>
+
+<span class="fn">echo</span> <span class="st">"Tracking PID $PID every ${INTERVAL}s (Ctrl+C to stop)"</span>
+<span class="kw">while</span> <span class="kw">true</span>; <span class="kw">do</span>
+    [[ ! -d /proc/<span class="st">"$PID"</span> ]] <span class="kw">&amp;&amp;</span> { <span class="fn">echo</span> <span class="st">"PID $PID no longer exists"</span>; <span class="kw">break</span>; }
+    RES=<span class="st">"$(awk '/VmRSS/{print $2}' /proc/"${PID}"/status)"</span>
+    TS=<span class="st">"$(date +%T)"</span>
+    <span class="fn">echo</span> <span class="st">"${TS} PID=${PID} RES=${RES}kB ($(( RES / 1024 ))MiB)"</span>
+    <span class="fn">sleep</span> <span class="st">"$INTERVAL"</span>
+<span class="kw">done</span></div>
+
+        <div class="code-block"><span class="cm"># smem: memory usage breakdown with shared memory accounting</span>
+<span class="fn">apt</span> install smem
+<span class="fn">smem</span> -p -s rss                  <span class="cm"># sort by RSS</span>
+<span class="fn">smem</span> --pie=rss                  <span class="cm"># pie chart by RSS</span>
+
+<span class="cm"># valgrind: find memory leaks in a program (development/testing)</span>
+<span class="fn">valgrind</span> --leak-check=full --track-origins=yes ./myapp
+
+<span class="cm"># Check OOM killer history (who got killed)</span>
+<span class="fn">journalctl</span> -k | <span class="fn">grep</span> -i <span class="st">'killed process\|oom'</span>
+<span class="fn">dmesg</span> | <span class="fn">grep</span> -i oom</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — OOM KILLER ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">OOM Killer: <span class="accent">The Last Line of Defense</span></div>
+        <div class="slide-subtitle">When memory is truly exhausted, the Linux OOM killer selects a process to terminate. Understand and control this mechanism.</div>
+
+        <div class="code-block"><span class="cm"># OOM score: higher score = more likely to be killed</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/oom_score         <span class="cm"># current OOM score (0-1000)</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/oom_score_adj      <span class="cm"># adjustment (-1000 to +1000)</span>
+
+<span class="cm"># Make a critical process immune to OOM kill (score adjustment -1000)</span>
+<span class="fn">echo</span> -1000 <span class="kw">&gt;</span> /proc/<span class="nb">14823</span>/oom_score_adj
+<span class="cm"># WARNING: use sparingly -- if this process leaks memory, the OOM killer</span>
+<span class="cm"># cannot reclaim it and the system will panic instead</span>
+
+<span class="cm"># Make a dispensable process a preferred OOM target (+1000)</span>
+<span class="fn">echo</span> 1000 <span class="kw">&gt;</span> /proc/<span class="nb">14823</span>/oom_score_adj
+
+<span class="cm"># Via systemd service unit: set OOM adjustment for the service</span>
+<span class="cm"># [Service]</span>
+<span class="cm"># OOMScoreAdjust=-500    # protect, but not immune</span>
+
+<span class="cm"># See what the OOM killer chose last time</span>
+<span class="fn">journalctl</span> -k | <span class="fn">grep</span> <span class="st">'Out of memory\|killed process'</span> | <span class="fn">tail</span> -20
+
+<span class="cm"># Tune OOM behavior: 0=kill process, 1=panic kernel (for embedded/critical systems)</span>
+<span class="fn">sysctl</span> -w vm.panic_on_oom=<span class="nb">0</span>
+<span class="cm"># For production servers, 0 is almost always correct</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — PROCESS SCHEDULING ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Process Priority: <span class="accent">nice, renice, and chrt</span></div>
+        <div class="slide-subtitle">Control how the kernel's CPU scheduler allocates CPU time to competing processes.</div>
+
+        <div class="code-block"><span class="cm"># nice: start a process with adjusted priority</span>
+<span class="cm"># Range: -20 (highest priority) to +19 (lowest priority)</span>
+<span class="cm"># Default: 0. Only root can use negative (higher priority) values.</span>
+
+<span class="fn">nice</span> -n <span class="nb">19</span> <span class="fn">backup.sh</span>         <span class="cm"># run backup at lowest priority (won't starve production)</span>
+<span class="fn">nice</span> -n -5 <span class="fn">critical.sh</span>     <span class="cm"># higher than default (root only)</span>
+
+<span class="cm"># renice: change priority of a running process</span>
+<span class="fn">renice</span> -n <span class="nb">10</span> -p <span class="nb">14823</span>        <span class="cm"># lower priority of PID 14823</span>
+<span class="fn">renice</span> -n <span class="nb">10</span> -u backup       <span class="cm"># lower all processes for user 'backup'</span>
+
+<span class="cm"># ionice: I/O scheduling priority</span>
+<span class="fn">ionice</span> -c3 -p <span class="nb">14823</span>          <span class="cm"># class 3 = idle (only gets I/O when no one else wants it)</span>
+<span class="fn">ionice</span> -c2 -n0 -p <span class="nb">14823</span>     <span class="cm"># best-effort, highest priority within class</span>
+<span class="cm"># -c1 = realtime (exclusive, dangerous)
+# -c2 = best-effort (default, -n 0-7 = within-class priority)
+# -c3 = idle (only when disk is completely free)</span>
+
+<span class="cm"># chrt: real-time scheduling policies (for latency-sensitive workloads)</span>
+<span class="fn">chrt</span> -f -p <span class="nb">50</span> <span class="nb">14823</span>          <span class="cm"># SCHED_FIFO at priority 50 (root only)</span>
+<span class="fn">chrt</span> -p <span class="nb">14823</span>                <span class="cm"># show current scheduling policy and priority</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — CGROUPS AND RESOURCE LIMITS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35</div>
+        <div class="slide-title">cgroups: <span class="accent">Guaranteed Resource Allocation</span></div>
+        <div class="slide-subtitle">cgroups enforce hard resource limits: CPU, memory, I/O, and network. systemd uses them for every service.</div>
+
+        <div class="code-block"><span class="cm"># View the cgroup a process belongs to</span>
+<span class="fn">cat</span> /proc/<span class="nb">14823</span>/cgroup
+
+<span class="cm"># View resource limits for a systemd service via cgroups</span>
+<span class="fn">systemctl</span> show nginx | <span class="fn">grep</span> -E <span class="st">'CPU|Memory|IO|Tasks'</span>
+
+<span class="cm"># Set resource limits in a service unit</span>
+<span class="cm"># /etc/systemd/system/nginx.service.d/limits.conf</span>
+[Service]
+<span class="cm"># CPU: maximum 200% (2 cores worth)</span>
+CPUQuota=200%
+<span class="cm"># Memory: hard kill at 2GB</span>
+MemoryMax=2G
+<span class="cm"># Memory: start throttling at 1.5GB</span>
+MemoryHigh=1500M
+<span class="cm"># Tasks (threads): limit to 512</span>
+TasksMax=512
+<span class="cm"># I/O: limit read to 100MB/s</span>
+IOReadBandwidthMax=/dev/sda 100M
+
+<span class="fn">systemctl</span> daemon-reload
+<span class="fn">systemctl</span> restart nginx
+
+<span class="cm"># View current cgroup resource usage</span>
+<span class="fn">systemd-cgtop</span>               <span class="cm"># top-like view of cgroup resource usage</span>
+<span class="fn">cat</span> /sys/fs/cgroup/system.slice/nginx.service/memory.current</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — STRACE AND SYSTEM CALL PROFILING ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35</div>
+        <div class="slide-title">strace Performance: <span class="accent">Finding Syscall Overhead</span></div>
+        <div class="slide-subtitle">A process spending excessive time in system calls is either doing excessive I/O or poorly batching operations.</div>
+
+        <div class="code-block"><span class="cm"># Count and summarize syscalls with timing (-c)</span>
+<span class="fn">strace</span> -cp <span class="nb">14823</span>             <span class="cm"># attach and summarize until Ctrl+C</span>
+<span class="cm"># % time     seconds  usecs/call     calls    errors syscall
+# 68.23      1.234567        1234      1000       50 read
+# 21.14      0.382940         382      1002        2 write
+#  8.91      0.161234         161      1000        0 epoll_wait</span>
+
+<span class="cm"># Top syscall by time = your optimization target</span>
+
+<span class="cm"># Trace only specific syscalls that matter for performance</span>
+<span class="fn">strace</span> -e trace=read,write,fsync -p <span class="nb">14823</span>
+
+<span class="cm"># Find files opened repeatedly (inefficient caching)</span>
+<span class="fn">strace</span> -e trace=open,openat -p <span class="nb">14823</span> <span class="nb">2&gt;&amp;1</span> | \
+    <span class="fn">grep</span> <span class="st">'^openat'</span> | <span class="fn">awk</span> -F<span class="st">'"'</span> <span class="st">'{print $2}'</span> | \
+    <span class="fn">sort</span> | <span class="fn">uniq</span> -c | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10
+
+<span class="cm"># Trace a command and capture all timing data</span>
+<span class="fn">strace</span> -T -o /tmp/strace.log ./my-slow-command
+<span class="cm"># -T adds per-syscall time; analyze with:</span>
+<span class="fn">sort</span> -t= -k2 -rn /tmp/strace.log | <span class="fn">head</span> -20</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — LSOF AND OPEN FILES ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35</div>
+        <div class="slide-title">lsof: <span class="accent">Open Files and File Descriptor Leaks</span></div>
+        <div class="slide-subtitle">A process that opens files without closing them will eventually hit system file descriptor limits, causing EMFILE errors.</div>
+
+        <div class="code-block"><span class="cm"># List all open files for a process</span>
+<span class="fn">lsof</span> -p <span class="nb">14823</span>
+
+<span class="cm"># Count open file descriptors for a process</span>
+<span class="fn">ls</span> /proc/<span class="nb">14823</span>/fd | <span class="fn">wc</span> -l
+
+<span class="cm"># System-wide fd limit</span>
+<span class="fn">cat</span> /proc/sys/fs/file-max        <span class="cm"># max total open fds across all processes</span>
+<span class="fn">cat</span> /proc/sys/fs/file-nr         <span class="cm"># allocated, freed, max</span>
+
+<span class="cm"># Per-process limit (ulimit)</span>
+<span class="fn">ulimit</span> -n                        <span class="cm"># current process fd limit (soft)</span>
+<span class="fn">ulimit</span> -Hn                       <span class="cm"># hard limit</span>
+
+<span class="cm"># Find the process with the most open fds</span>
+<span class="kw">for</span> pid <span class="kw">in</span> /proc/[0-9]*/fd; <span class="kw">do</span>
+    COUNT=<span class="st">"$(ls "$pid" 2&gt;/dev/null | wc -l)"</span>
+    NAME=<span class="st">"$(cat "${pid%/fd}/comm" 2&gt;/dev/null || echo unknown)"</span>
+    <span class="fn">echo</span> <span class="st">"$COUNT $NAME ${pid%/fd}"</span>
+<span class="kw">done</span> 2<span class="kw">&gt;</span>/dev/null | <span class="fn">sort</span> -rn | <span class="fn">head</span> -10
+
+<span class="cm"># Increase fd limit for a service in systemd unit</span>
+<span class="cm"># [Service]</span>
+<span class="cm"># LimitNOFILE=65536</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — PRACTICAL: INCIDENT WORKFLOW ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35 &nbsp;|&nbsp; Applied Workflow</div>
+        <div class="slide-title">Incident Workflow: <span class="accent">60-Second Triage</span></div>
+        <div class="slide-subtitle">A repeatable command sequence that produces a complete system health snapshot in under 60 seconds.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# triage.sh -- 60-second system health snapshot</span>
+<span class="fn">set</span> -euo pipefail
+
+<span class="fn">echo</span> <span class="st">"=== SYSTEM OVERVIEW ==="</span>
+<span class="fn">uptime</span>; <span class="fn">hostname</span>; <span class="fn">date</span>; <span class="fn">nproc</span>
+
+<span class="fn">echo</span> <span class="st">"=== CPU (top 5 consumers) ==="</span>
+<span class="fn">ps</span> aux --sort=-%cpu | <span class="fn">head</span> -6
+
+<span class="fn">echo</span> <span class="st">"=== MEMORY ==="</span>
+<span class="fn">free</span> -h
+<span class="fn">ps</span> aux --sort=-%mem | <span class="fn">head</span> -6
+
+<span class="fn">echo</span> <span class="st">"=== DISK ==="</span>
+<span class="fn">df</span> -h | <span class="fn">grep</span> -v tmpfs
+<span class="fn">iostat</span> -xz <span class="nb">1</span> <span class="nb">2</span> 2<span class="kw">&gt;</span>/dev/null | <span class="fn">tail</span> -10
+
+<span class="fn">echo</span> <span class="st">"=== NETWORK ==="</span>
+<span class="fn">ss</span> -s
+<span class="fn">ss</span> -tp state established | <span class="fn">wc</span> -l | xargs -I{} <span class="fn">echo</span> "Established TCP: {}"
+
+<span class="fn">echo</span> <span class="st">"=== LOAD AVERAGE TREND ==="</span>
+<span class="fn">sar</span> -q --start -30min 2<span class="kw">&gt;</span>/dev/null | <span class="fn">head</span> -15 <span class="kw">||</span> <span class="fn">cat</span> /proc/loadavg
+
+<span class="fn">echo</span> <span class="st">"=== RECENT ERRORS ==="</span>
+<span class="fn">journalctl</span> -p err..alert --since <span class="st">"1 hour ago"</span> -n 10 --no-pager</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — NUMACTL AND MEMORY TOPOLOGY ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">NUMA: <span class="accent">Non-Uniform Memory Access</span></div>
+        <div class="slide-subtitle">On multi-socket systems, memory access latency depends on which NUMA node holds the data. NUMA-aware allocation is a significant performance factor.</div>
+
+        <div class="code-block"><span class="cm"># Check if system has NUMA topology</span>
+<span class="fn">numactl</span> --hardware
+<span class="cm"># available: 2 nodes (0-1)
+# node 0 cpus: 0 1 2 3 4 5 6 7
+# node 0 size: 16384 MB
+# node 0 free: 4096 MB
+# node 1 cpus: 8 9 10 11 12 13 14 15
+# node 1 size: 16384 MB
+# node 1 free: 6144 MB
+# node distances: node 0  1
+#                 node 0: 10 21    &lt;-- node 0 to node 1 is 2.1x slower</span>
+
+<span class="cm"># Run a process with memory bound to node 0</span>
+<span class="fn">numactl</span> --membind=0 --cpunodebind=0 ./database-server
+
+<span class="cm"># Check NUMA statistics for memory allocation patterns</span>
+<span class="fn">numastat</span>
+<span class="fn">numastat</span> -p <span class="nb">14823</span>    <span class="cm"># NUMA memory usage for specific process</span>
+
+<span class="cm"># NUMA memory pressure: check for local vs remote allocation ratio</span>
+<span class="fn">numastat</span> | <span class="fn">awk</span> <span class="st">'/numa_miss|numa_foreign/{print $0}'</span>
+<span class="cm"># High numa_miss = process is allocating from wrong NUMA node</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — HUGE PAGES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35</div>
+        <div class="slide-title">Huge Pages: <span class="accent">Reducing TLB Pressure</span></div>
+        <div class="slide-subtitle">For processes with large working sets (databases, JVMs), huge pages reduce TLB misses and improve throughput.</div>
+
+        <div class="code-block"><span class="cm"># Check current huge page configuration</span>
+<span class="fn">cat</span> /proc/meminfo | <span class="fn">grep</span> -i huge
+<span class="cm"># HugePages_Total:     128
+# HugePages_Free:       64
+# HugePages_Rsvd:       32
+# HugePages_Surp:        0
+# Hugepagesize:       2048 kB    (2MB per page)
+# AnonHugePages:    524288 kB    (Transparent Huge Pages in use)</span>
+
+<span class="cm"># Transparent Huge Pages (THP) -- automatic, no config needed</span>
+<span class="fn">cat</span> /sys/kernel/mm/transparent_hugepage/enabled
+<span class="cm"># [always] madvise never   &lt;-- "always" means THP is active</span>
+
+<span class="cm"># For databases (postgres, mongodb): THP 'always' causes latency spikes</span>
+<span class="cm"># Switch to 'madvise' so only explicitly-requesting processes get huge pages</span>
+<span class="fn">echo</span> madvise <span class="kw">&gt;</span> /sys/kernel/mm/transparent_hugepage/enabled
+
+<span class="cm"># Static huge pages for performance-critical applications</span>
+<span class="fn">sysctl</span> -w vm.nr_hugepages=<span class="nb">256</span>    <span class="cm"># allocate 256 x 2MB = 512MB of huge pages</span>
+
+<span class="cm"># Verify allocation (some may fail if memory is fragmented)</span>
+<span class="fn">grep</span> HugePages_Free /proc/meminfo</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — PERFORMANCE BASELINE COLLECTION ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35</div>
+        <div class="slide-title">Baseline Collection: <span class="accent">Know Normal Before Investigating Abnormal</span></div>
+        <div class="slide-subtitle">Without a baseline, you cannot distinguish a performance problem from normal operation. Collect baselines continuously.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# baseline-snapshot.sh -- collect 5-minute performance snapshot</span>
+<span class="fn">set</span> -euo pipefail
+
+TS=<span class="st">"$(date +%Y%m%d-%H%M)"</span>
+OUT=<span class="st">"/var/lib/perf-baseline/${TS}"</span>
+<span class="fn">mkdir</span> -p <span class="st">"$OUT"</span>
+
+<span class="fn">uptime</span>                      <span class="kw">&gt;</span> <span class="st">"${OUT}/uptime.txt"</span>
+<span class="fn">free</span> -m                     <span class="kw">&gt;</span> <span class="st">"${OUT}/memory.txt"</span>
+<span class="fn">vmstat</span> -s                   <span class="kw">&gt;</span> <span class="st">"${OUT}/vmstat-s.txt"</span>
+<span class="fn">iostat</span> -xz <span class="nb">1</span> <span class="nb">5</span>              <span class="kw">&gt;</span> <span class="st">"${OUT}/iostat.txt"</span>
+<span class="fn">sar</span> -u -r -b -q <span class="nb">1</span> <span class="nb">5</span>         <span class="kw">&gt;</span> <span class="st">"${OUT}/sar.txt"</span>
+<span class="fn">ss</span> -s                       <span class="kw">&gt;</span> <span class="st">"${OUT}/ss-summary.txt"</span>
+<span class="fn">ps</span> aux --sort=-%cpu         <span class="kw">&gt;</span> <span class="st">"${OUT}/ps-cpu.txt"</span>
+<span class="fn">df</span> -h                       <span class="kw">&gt;</span> <span class="st">"${OUT}/df.txt"</span>
+
+<span class="cm"># Retain 7 days of snapshots</span>
+<span class="fn">find</span> /var/lib/perf-baseline -maxdepth <span class="nb">1</span> -type d -mtime +<span class="nb">7</span> -exec <span class="fn">rm</span> -rf {} +
+<span class="fn">echo</span> <span class="st">"Snapshot saved to $OUT"</span>
+
+<span class="cm"># Schedule this every 15 minutes via systemd timer or cron</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — BENCHMARKING ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Benchmarking: <span class="accent">Measuring Subsystem Capacity</span></div>
+        <div class="slide-subtitle">Knowing the maximum throughput of each subsystem lets you predict bottlenecks before they appear in production.</div>
+
+        <div class="code-block"><span class="cm"># CPU: simple POSIX benchmark with time</span>
+<span class="fn">time</span> dd if=/dev/zero bs=<span class="nb">1M</span> count=<span class="nb">1024</span> | md5sum
+
+<span class="cm"># Disk sequential write throughput</span>
+<span class="fn">dd</span> if=/dev/zero of=/tmp/benchmark.bin bs=<span class="nb">1M</span> count=<span class="nb">4096</span> oflag=direct
+<span class="cm"># direct = bypass page cache (raw disk speed)</span>
+
+<span class="cm"># Disk sequential read throughput</span>
+<span class="fn">dd</span> if=/tmp/benchmark.bin of=/dev/null bs=<span class="nb">1M</span> iflag=direct
+
+<span class="cm"># Random I/O with fio (install: apt install fio)</span>
+<span class="fn">fio</span> --name=randread --ioengine=libaio --iodepth=32 \
+    --rw=randread --bs=4k --size=1G --numjobs=4 \
+    --runtime=30 --time_based --filename=/tmp/fio-test
+
+<span class="cm"># Network throughput between two nodes (install iperf3)</span>
+<span class="cm"># Server: iperf3 -s</span>
+<span class="cm"># Client:</span>
+<span class="fn">iperf3</span> -c backup-node -t 10 -P 4    <span class="cm"># 4 parallel streams, 10 seconds</span>
+
+<span class="cm"># Memory bandwidth with mbw (install: apt install mbw)</span>
+<span class="fn">mbw</span> 512    <span class="cm"># test with 512MB array</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — CAPACITY PLANNING ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35</div>
+        <div class="slide-title">Capacity Planning: <span class="accent">Trending Toward Failure</span></div>
+        <div class="slide-subtitle">React to problems as they develop, not after they cause incidents. Trend analysis from sar data provides the lead time.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# capacity-trend.sh -- extract weekly averages from sysstat data</span>
+<span class="fn">set</span> -euo pipefail
+
+<span class="fn">echo</span> <span class="st">"Weekly averages from sar data"</span>
+<span class="fn">echo</span> <span class="st">"CPU Average Utilization (last 7 days):"</span>
+<span class="kw">for</span> day <span class="kw">in</span> <span class="st">$(seq 0 6)</span>; <span class="kw">do</span>
+    DATE=<span class="st">"$(date -d "$day days ago" +%d)"</span>
+    FILE=<span class="st">"/var/log/sysstat/sa${DATE}"</span>
+    [[ -f <span class="st">"$FILE"</span> ]] <span class="kw">||</span> <span class="kw">continue</span>
+    AVG=<span class="st">"$(sar -u -f "$FILE" | awk '/Average/{print 100-$8"%"}')"</span>
+    <span class="fn">echo</span> <span class="st">"  $(date -d "$day days ago" +%Y-%m-%d): CPU used $AVG"</span>
+<span class="kw">done</span>
+
+<span class="fn">echo</span> <span class="st">"Memory high-water mark (last 7 days):"</span>
+<span class="kw">for</span> day <span class="kw">in</span> <span class="st">$(seq 0 6)</span>; <span class="kw">do</span>
+    DATE=<span class="st">"$(date -d "$day days ago" +%d)"</span>
+    FILE=<span class="st">"/var/log/sysstat/sa${DATE}"</span>
+    [[ -f <span class="st">"$FILE"</span> ]] <span class="kw">||</span> <span class="kw">continue</span>
+    PEAK=<span class="st">"$(sar -r -f "$FILE" | awk 'NR&gt;3{pct=100*$3/($3+$2+0.001); if(pct&gt;max){max=pct}} END{printf "%.1f%%", max}')"</span>
+    <span class="fn">echo</span> <span class="st">"  $(date -d "$day days ago" +%Y-%m-%d): peak RAM used $PEAK"</span>
+<span class="kw">done</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICAL PERFORMANCE SCRIPT ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35 &nbsp;|&nbsp; Applied Script</div>
+        <div class="slide-title">Applied Script: <span class="accent">Automated Performance Report</span></div>
+        <div class="slide-subtitle">A weekly automated performance summary emailed to ops -- no manual review required for normal operation.</div>
+
+        <div class="code-block"><span class="cm">#!/usr/bin/env bash
+# perf-weekly-report.sh -- weekly summary for ops team</span>
+<span class="fn">set</span> -euo pipefail; PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+NODE=<span class="st">"$(hostname -f)"</span>; REPORT=<span class="st">"/tmp/perf-report-$(date +%F).txt"</span>
+
+{
+    <span class="fn">echo</span> <span class="st">"WEEKLY PERFORMANCE REPORT: $NODE"</span>
+    <span class="fn">echo</span> <span class="st">"Generated: $(date)"</span>
+    <span class="fn">echo</span>
+    <span class="fn">echo</span> <span class="st">"=== CPU (7-day avg/peak) ==="</span>
+    <span class="fn">sar</span> -u -f /var/log/sysstat/sa<span class="st">$(date -d '1 day ago' +%d)</span> | \
+        <span class="fn">awk</span> <span class="st">'/Average/{printf "Avg user: %.1f%%  Avg system: %.1f%%  Avg iowait: %.1f%%\n", $3, $5, $7}'</span>
+    <span class="fn">echo</span> <span class="st">"=== Memory ==="</span>
+    <span class="fn">free</span> -h
+    <span class="fn">echo</span> <span class="st">"=== Disk Utilization (top devices) ==="</span>
+    <span class="fn">sar</span> -d | <span class="fn">awk</span> <span class="st">'NR&gt;3 &amp;&amp; $NF!="DEV" {if($NF+0&gt;5) print $0}'</span> | <span class="fn">head</span> -5
+    <span class="fn">echo</span> <span class="st">"=== Disk Space ==="</span>
+    <span class="fn">df</span> -h | <span class="fn">grep</span> -v tmpfs | <span class="fn">awk</span> <span class="st">'NR==1||int($5)&gt;70'</span>
+    <span class="fn">echo</span> <span class="st">"=== Network (24h total) ==="</span>
+    <span class="fn">sar</span> -n DEV | <span class="fn">awk</span> <span class="st">'/Average.*eth0/{printf "eth0: %.1fMB rx  %.1fMB tx\n", $5*1024/1e6, $6*1024/1e6}'</span>
+} <span class="kw">&gt;</span> <span class="st">"$REPORT"</span>
+
+<span class="fn">mail</span> -s <span class="st">"[Perf Report] $NODE $(date +%Y-%m-%d)"</span> ops@sector.local <span class="kw">&lt;</span> <span class="st">"$REPORT"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — SUMMARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; ALA-08 Summary</div>
+        <div class="slide-title">Performance Analysis: <span class="accent">What You Now Know</span></div>
+
+        <div class="scenario-strip">
+            You are no longer guessing when a system runs slow. You have a methodology, a toolkit, and the mental model to identify whether the bottleneck is CPU, memory, I/O, or network -- and the commands to quantify it in under 60 seconds.
+        </div>
+
+        <div class="section-label">9 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Load average above your core count is worth investigating. <code>nproc</code> tells you the count. Always normalize load to core count before interpreting it.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><code>free</code>: the "available" column is what matters -- not "free". Linux fills free RAM with disk cache. High "used" + high "buff/cache" is normal and desirable.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><code>vmstat</code>: watch "b" column (D-state processes) and "si/so" (swap in/out). Non-zero si/so means you are swapping and need more RAM.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><code>iostat -xz</code>: <code>%util &gt; 80%</code> and <code>await &gt; 10ms</code> (HDD) indicates disk saturation. Use <code>iotop</code> to find which process is responsible.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><code>sar</code> is the only tool that covers the past. Enable sysstat and let it collect data continuously. You will need it at 08:00 for a 03:00 incident.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><code>/proc</code> and <code>/sys</code> are the source of truth. Every performance tool reads from them. Reading them directly is always an option when tools are unavailable.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><code>sysctl vm.swappiness=10</code> for servers. Reduces swap usage, keeps working sets in RAM. Persist in <code>/etc/sysctl.d/</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><code>nice -n 19</code> for background jobs. They will not starve interactive or production workloads. Combined with <code>ionice -c3</code> for I/O isolation.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text">Measure before tuning. A tuning change that improves a metric you do not have a baseline for may be making things worse. Capture baselines first, then compare.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w4-performance', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

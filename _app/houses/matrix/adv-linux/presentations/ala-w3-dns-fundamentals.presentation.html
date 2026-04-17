@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Fundamentals | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020a02 0%, #040d04 50%, #061006 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Matrix green progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #00ff41; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom nav */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(2, 10, 2, 0.95);
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.12); color: #00ff41; border-color: #00ff41;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Scenario strip */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.06); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bbf7d0; font-style: italic;
+        }
+
+        /* Colored boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title hero */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #00ff41;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #00ff41; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #eab308; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #00ff41; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 255, 65, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #00ff41; }
+        .code-block .fn { color: #06b6d4; }
+        .code-block .st { color: #3ab577; }
+        .code-block .cm { color: #475569; }
+        .code-block .nb { color: #f472b6; }
+        .code-block .er { color: #ef4444; }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #00ff41;
+            background: rgba(0, 255, 65, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">DNS Fundamentals | Advanced Linux Administration</h1>
+
+<!-- Matrix green progress bar -->
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; ALA-W3-DNS &nbsp;|&nbsp; Week 3 of 8</div>
+        <div class="title-hero">
+            <div class="big-title">
+                DNS Fundamentals<br>
+                <span class="accent">Hierarchy, Records &amp; Resolution</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                DNS Hierarchy &nbsp;&bull;&nbsp; Record Types &nbsp;&bull;&nbsp; Resolution Process &nbsp;&bull;&nbsp; Caching &amp; TTL
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A sector node is reporting resolution failures. Half the cell cannot reach external services. You have no GUI, no NOC ticket, and thirty minutes before the operation resumes. Understanding DNS from the ground up is not optional -- it is the prerequisite to fixing anything in this stack.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>ALA-W3-DNS</span>
+            <span>Week 3 of 8</span>
+            <span>Ubuntu 22.04 LTS</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT DNS DOES ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">What DNS <span class="accent">Actually Does</span></div>
+        <div class="slide-subtitle">A distributed, hierarchical, globally consistent database that maps names to data.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">The Core Problem It Solves</div>
+                <div class="card-desc">Humans use names. Computers route on IP addresses. DNS is the translator. Without it, every application would require hardcoded IPs, and moving a server would break every client that pointed to it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Distributed by Design</div>
+                <div class="card-desc">No single server holds all DNS data. Responsibility is delegated down a hierarchy. The root servers know who is authoritative for <span class="ic">.com</span>. The <span class="ic">.com</span> servers know who runs <span class="ic">example.com</span>. Delegation is the core architectural principle.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Not Just Hostname to IP</div>
+                <div class="card-desc">DNS stores mail routing (MX), name server delegation (NS), IPv6 addresses (AAAA), text verification tokens (TXT), service discovery (SRV), and reverse lookups (PTR). It is a general-purpose record database, not just an address book.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Operational Reality</div>
+            DNS is involved in almost every network operation your systems perform. Authentication, software updates, log shipping, API calls, email delivery -- all of them resolve names first. A misconfigured DNS server is a silent killer that makes everything appear broken for unrelated reasons.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- THE HIERARCHY ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">The DNS <span class="accent">Hierarchy</span></div>
+        <div class="slide-subtitle">A tree of authority rooted at the 13 root server clusters. Delegation flows downward.</div>
+
+        <div class="code-block"><span class="cm"># The fully qualified domain name (FQDN) reads right-to-left through the hierarchy</span>
+<span class="cm">#   mail.ops.hexworth.com.</span>
+<span class="cm">#        |    |        |  |</span>
+<span class="cm">#      host  sub    domain root (trailing dot = explicit root)</span>
+<span class="cm">#</span>
+<span class="cm"># Hierarchy levels:</span>
+<span class="cm">#   Root (.)  -->  TLD (.com, .org, .net, .io)  -->  SLD (hexworth.com)  -->  subdomains</span>
+
+<span class="cm"># Root zone: 13 logical root server addresses (operated by 12 organizations)</span>
+<span class="cm"># a.root-servers.net through m.root-servers.net</span>
+<span class="cm"># Each is actually an anycast cluster -- hundreds of physical servers worldwide</span>
+
+<span class="cm"># Verify root servers from the command line</span>
+<span class="fn">dig</span> <span class="st">NS .</span>            <span class="cm"># query root zone NS records</span>
+<span class="fn">dig</span> <span class="st">NS com.</span>         <span class="cm"># who is authoritative for .com TLD?</span>
+<span class="fn">dig</span> <span class="st">NS hexworth.com</span> <span class="cm"># who is authoritative for hexworth.com?</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Delegation</div>
+                <div class="card-desc">Each level delegates authority downward via NS records. The root delegates <span class="ic">.com</span> to Verisign. Verisign delegates <span class="ic">hexworth.com</span> to your name servers. You control everything below that cut.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Trailing Dot</div>
+                <div class="card-desc">A fully qualified domain name ends with a dot representing the root zone: <span class="ic">hexworth.com.</span>. Zone files require it. When you omit it in a zone file, BIND appends the zone origin. Getting this wrong causes silent misdelegation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- RESOLUTION PROCESS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">The Resolution <span class="accent">Process</span></div>
+        <div class="slide-subtitle">How your system gets from a hostname to an IP address. Eight steps, all transparent.</div>
+
+        <div class="scenario-strip">
+            You type <span class="ic">ssh ops.hexworth.com</span>. Before the TCP connection begins, your system walks through this entire resolution chain -- usually in under 50 milliseconds.
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Your application calls <code>getaddrinfo()</code> (libc). The OS checks its local cache. Cache hit -- done in microseconds.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Cache miss: OS checks <code>/etc/hosts</code>. Any matching entry short-circuits DNS entirely.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">No local match: OS sends a recursive query to the resolver configured in <code>/etc/resolv.conf</code> (your ISP, corporate DNS, or 8.8.8.8).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Recursive resolver checks its own cache. Cache hit -- answer returned immediately with remaining TTL.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Cache miss: resolver queries a root server. Root returns NS records for the TLD (e.g., <code>.com</code>). Not the answer -- a referral.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Resolver queries the TLD server. TLD returns NS records for <code>hexworth.com</code>. Another referral.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Resolver queries the authoritative server for <code>hexworth.com</code>. That server holds the actual A record. Answer returned.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Resolver caches the answer for the record's TTL duration, then returns it to the client. Your SSH connection begins.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- RECURSIVE VS AUTHORITATIVE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">Recursive vs <span class="accent">Authoritative</span></div>
+        <div class="slide-subtitle">Two fundamentally different server roles. Many admins confuse them. Do not be one of them.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Recursive Resolver</div>
+                <div class="card-desc">A resolver that does the work of walking the hierarchy on behalf of clients. It queries root, TLD, and authoritative servers. It caches results. Clients only talk to the resolver -- they never talk to root servers directly. Examples: unbound, systemd-resolved, 8.8.8.8, 1.1.1.1.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authoritative Server</div>
+                <div class="card-desc">A server that holds the actual zone data and answers with authority. It does not recurse. When queried for a zone it owns, it answers definitively. When queried for a zone it does not own, it returns REFUSED or NXDOMAIN. Examples: BIND9, NSD, PowerDNS.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># See the difference in dig output</span>
+
+<span class="cm"># Query a recursive resolver -- it will go find the answer for you</span>
+<span class="fn">dig</span> @8.8.8.8 A ops.hexworth.com
+<span class="cm"># Look for "RECURSION AVAILABLE" in the flags section: ra</span>
+
+<span class="cm"># Query an authoritative server directly -- ask for its zone</span>
+<span class="fn">dig</span> @ns1.hexworth.com A ops.hexworth.com
+<span class="cm"># Look for "AUTHORITATIVE ANSWER" flag: aa</span>
+
+<span class="cm"># Ask a recursive resolver for something outside its zones</span>
+<span class="fn">dig</span> @ns1.hexworth.com A google.com
+<span class="cm"># Result: REFUSED -- authoritative servers don't recurse for external queries</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">Security Implication</div>
+            Running an open recursive resolver (one that recurses for any client on the internet) is a security liability. It enables DNS amplification DDoS attacks. BIND9 restricts recursion to defined networks by default in modern versions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- THE A RECORD ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">A and AAAA</span></div>
+        <div class="slide-subtitle">The most fundamental records. A maps name to IPv4. AAAA maps name to IPv6.</div>
+
+        <div class="code-block"><span class="cm"># Zone file syntax for A and AAAA records</span>
+<span class="cm"># Format: [name] [ttl] [class] [type] [data]</span>
+
+<span class="cm"># A record -- name to IPv4 address</span>
+ops         <span class="nb">300</span>   IN  A     <span class="st">10.0.1.50</span>
+www         <span class="nb">3600</span>  IN  A     <span class="st">203.0.113.10</span>
+<span class="kw">@</span>           <span class="nb">3600</span>  IN  A     <span class="st">203.0.113.10</span>   <span class="cm"># @ means the zone apex (hexworth.com itself)</span>
+
+<span class="cm"># AAAA record -- name to IPv6 address</span>
+ops         <span class="nb">300</span>   IN  AAAA  <span class="st">2001:db8::50</span>
+www         <span class="nb">3600</span>  IN  AAAA  <span class="st">2001:db8::10</span>
+
+<span class="cm"># Query with dig</span>
+<span class="fn">dig</span> A ops.hexworth.com
+<span class="fn">dig</span> AAAA ops.hexworth.com
+<span class="fn">dig</span> +short A www.hexworth.com     <span class="cm"># +short returns just the answer data</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Multiple A Records = Round-Robin</div>
+                <div class="card-desc">You can publish multiple A records for the same name. Resolvers return them in rotation. This is primitive load balancing with no health checking. If one server goes down, clients still receive its IP and fail. Use a proper load balancer for production.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TTL Strategy</div>
+                <div class="card-desc">High TTL (3600+) reduces resolver load and query latency for stable records. Low TTL (60-300) allows faster failover. Lower your TTL 24 hours before planned IP changes so clients are not serving stale records during the migration window.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CNAME ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">CNAME</span></div>
+        <div class="slide-subtitle">Canonical Name -- an alias that points one name to another name, not an IP address.</div>
+
+        <div class="code-block"><span class="cm"># CNAME maps an alias name to its canonical (true) name</span>
+<span class="cm"># The resolver follows the chain until it reaches an A record</span>
+
+www         IN  CNAME   ops.hexworth.com.       <span class="cm"># www is an alias for ops</span>
+ftp         IN  CNAME   ops.hexworth.com.       <span class="cm"># ftp also aliases ops</span>
+blog        IN  CNAME   hexworth.github.io.     <span class="cm"># alias to an external canonical name</span>
+
+<span class="cm"># Dig shows the full chain</span>
+<span class="fn">dig</span> www.hexworth.com
+<span class="cm"># ANSWER SECTION:</span>
+<span class="cm"># www.hexworth.com.   3600  IN  CNAME  ops.hexworth.com.</span>
+<span class="cm"># ops.hexworth.com.   300   IN  A      10.0.1.50</span></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">CNAME at Zone Apex: Forbidden</div>
+                <div class="card-desc">You cannot put a CNAME at the zone apex (<span class="ic">@</span>, the domain root). The apex must have an SOA and NS record -- a CNAME would conflict. Use an A record there, or use your DNS provider's ALIAS/ANAME extension if you need apex aliasing.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CNAME Cannot Coexist</div>
+                <div class="card-desc">A name with a CNAME record cannot have any other record type at that name. You cannot add an MX or TXT to a name that is already a CNAME. This is one of the most common zone configuration errors.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Chained CNAMEs</div>
+                <div class="card-desc">CNAMEs can chain (A CNAME to B which CNAMEs to C). Resolvers follow the chain. However, deep chains add resolution latency and extra queries. Keep chains to one hop where possible. Some resolvers cap chain depth at 8.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- MX RECORDS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">MX</span></div>
+        <div class="slide-subtitle">Mail Exchanger records route email for a domain to the correct mail servers.</div>
+
+        <div class="code-block"><span class="cm"># MX format: [name] [ttl] IN MX [priority] [mail-server-hostname]</span>
+<span class="cm"># Lower priority number = higher preference</span>
+
+<span class="kw">@</span>   IN  MX  <span class="nb">10</span>   mail1.hexworth.com.    <span class="cm"># primary mail server</span>
+<span class="kw">@</span>   IN  MX  <span class="nb">20</span>   mail2.hexworth.com.    <span class="cm"># secondary (used if mail1 is down)</span>
+<span class="kw">@</span>   IN  MX  <span class="nb">30</span>   mail3.hexworth.com.    <span class="cm"># tertiary fallback</span>
+
+<span class="cm"># The mail server names must resolve to A records -- NOT CNAMEs</span>
+<span class="cm"># RFC 2181 explicitly prohibits CNAME targets in MX records</span>
+mail1       IN  A    <span class="st">10.0.2.10</span>
+mail2       IN  A    <span class="st">10.0.2.11</span>
+
+<span class="cm"># Query MX records</span>
+<span class="fn">dig</span> MX hexworth.com
+<span class="fn">dig</span> +short MX hexworth.com    <span class="cm"># concise output: priority hostname</span></div>
+
+        <div class="box box-gold">
+            <div class="box-label">Priority Tie</div>
+            When two MX records have equal priority, the sending MTA selects one at random. This provides primitive load balancing across mail servers at the same preference level. Different priority values create explicit primary/backup ordering.
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Mistake</div>
+            MX records must point to hostnames, not IP addresses. Publishing an MX record like <span class="ic">@ IN MX 10 10.0.2.10</span> is an RFC violation. The MTA will attempt to resolve <span class="ic">10.0.2.10</span> as a hostname, fail, and either skip delivery or bounce the message.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- NS AND SOA ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">NS and SOA</span></div>
+        <div class="slide-subtitle">NS delegates authority. SOA defines the zone itself. Both are required in every zone.</div>
+
+        <div class="code-block"><span class="cm"># SOA -- Start of Authority: defines zone parameters</span>
+<span class="cm"># Format: [name] IN SOA [primary-ns] [admin-email] (serial refresh retry expire minimum)</span>
+
+<span class="kw">@</span>   IN  SOA  ns1.hexworth.com.  admin.hexworth.com. (
+                <span class="nb">2026040901</span>  <span class="cm">; serial: YYYYMMDDnn -- increment on every change</span>
+                <span class="nb">3600</span>        <span class="cm">; refresh: seconds before secondary re-checks primary</span>
+                <span class="nb">900</span>         <span class="cm">; retry: if refresh fails, retry after this many seconds</span>
+                <span class="nb">604800</span>      <span class="cm">; expire: secondary stops answering after this many seconds without refresh</span>
+                <span class="nb">300</span>         <span class="cm">; minimum TTL: used for negative caching (NXDOMAIN)</span>
+            )
+
+<span class="cm"># NS records -- which servers are authoritative for this zone</span>
+<span class="kw">@</span>   IN  NS   ns1.hexworth.com.
+<span class="kw">@</span>   IN  NS   ns2.hexworth.com.
+
+<span class="cm"># NS targets need glue A records if they are IN the zone</span>
+ns1         IN  A   <span class="st">10.0.1.10</span>
+ns2         IN  A   <span class="st">10.0.1.11</span></div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Serial Number Convention</div>
+            The serial <span class="ic">YYYYMMDDNN</span> format (year, month, day, two-digit sequence) is the industry standard. Incrementing by 1 each edit within a day: <span class="ic">2026040901</span>, <span class="ic">2026040902</span>. The secondary server only triggers a zone transfer when the serial increases. If you forget to increment, secondaries stay stale.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- PTR AND TXT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">PTR and TXT</span></div>
+        <div class="slide-subtitle">PTR enables reverse DNS. TXT carries arbitrary text data used for verification and security policies.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">PTR -- Reverse DNS</div>
+                <div class="card-desc">A PTR record maps an IP address back to a hostname. They live in the special <span class="ic">in-addr.arpa</span> zone. Mail servers check PTR records to fight spam. Server logs show hostnames instead of raw IPs. ISPs or hosting providers must delegate the arpa zone to you.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">TXT -- Text Records</div>
+                <div class="card-desc">TXT records hold arbitrary quoted strings. Modern uses: SPF (email authorization), DKIM (email signing key), DMARC (email policy), domain ownership verification (Google, Let's Encrypt), and DNSBL policy data.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># PTR record in a reverse zone file for the 10.0.1.0/24 network</span>
+<span class="cm"># Zone name: 1.0.10.in-addr.arpa.</span>
+<span class="cm"># Format: last-octet of IP  IN  PTR  hostname.</span>
+
+<span class="nb">50</span>     IN  PTR  ops.hexworth.com.
+<span class="nb">10</span>     IN  PTR  ns1.hexworth.com.
+
+<span class="cm"># Query a PTR record with dig -x (reverse lookup)</span>
+<span class="fn">dig</span> -x <span class="st">10.0.1.50</span>
+<span class="fn">dig</span> PTR <span class="st">50.1.0.10.in-addr.arpa.</span>  <span class="cm"># equivalent explicit form</span>
+
+<span class="cm"># TXT records in a forward zone</span>
+<span class="kw">@</span>   IN  TXT  <span class="st">"v=spf1 mx a:mail1.hexworth.com -all"</span>
+<span class="kw">@</span>   IN  TXT  <span class="st">"v=DMARC1; p=quarantine; rua=mailto:dmarc@hexworth.com"</span>
+
+<span class="cm"># Query TXT records</span>
+<span class="fn">dig</span> +short TXT hexworth.com</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CACHING AND TTL ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">Caching and <span class="accent">TTL</span></div>
+        <div class="slide-subtitle">TTL controls how long records are cached. It is the primary lever for DNS propagation speed vs. server load.</div>
+
+        <div class="code-block"><span class="cm"># TTL is set per record in zone files, or globally with $TTL directive</span>
+<span class="fn">$TTL</span> <span class="nb">3600</span>    <span class="cm">; default TTL for all records unless overridden</span>
+
+ops         <span class="nb">300</span>    IN  A     <span class="st">10.0.1.50</span>    <span class="cm">; this record caches for 5 minutes</span>
+stable      <span class="nb">86400</span>  IN  A     <span class="st">10.0.1.20</span>    <span class="cm">; this record caches for 24 hours</span>
+
+<span class="cm"># Check current TTL of a cached record (dig shows remaining TTL)</span>
+<span class="fn">dig</span> A ops.hexworth.com
+<span class="cm"># First query:   ;; ANSWER SECTION: ops... 300 IN A 10.0.1.50</span>
+<span class="cm"># After 60 sec:  ;; ANSWER SECTION: ops... 240 IN A 10.0.1.50 (countdown visible)</span>
+
+<span class="cm"># Flush local resolver cache</span>
+<span class="fn">resolvectl</span> flush-caches                 <span class="cm"># systemd-resolved</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> restart systemd-resolved  <span class="cm"># restart if flush fails</span></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">High TTL (3600-86400)</div>
+                <div class="card-desc">Appropriate for stable records that never change: NS records, mail server A records, CDN origins. Reduces query load on authoritative servers and speeds up client resolution. Risk: slow propagation on change.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Low TTL (60-300)</div>
+                <div class="card-desc">Appropriate for records that might change: load-balanced app servers, records before a planned migration. Allows rapid failover. Cost: higher query volume, every client re-queries more frequently.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Negative TTL</div>
+                <div class="card-desc">NXDOMAIN responses (name does not exist) are also cached for the SOA minimum TTL. If your application generates many lookups for nonexistent names, these negative cache entries still count against resolver memory.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- DIG FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">dig: <span class="accent">Your Primary DNS Tool</span></div>
+        <div class="slide-subtitle">dig is the authoritative CLI for DNS queries. Learn it thoroughly. nslookup is obsolete.</div>
+
+        <div class="code-block"><span class="cm"># Basic query: dig [type] [name] [@server]</span>
+<span class="fn">dig</span> A ops.hexworth.com                   <span class="cm"># A record, use /etc/resolv.conf resolver</span>
+<span class="fn">dig</span> A ops.hexworth.com @8.8.8.8          <span class="cm"># use Google Public DNS</span>
+<span class="fn">dig</span> MX hexworth.com                      <span class="cm"># MX records for the domain</span>
+<span class="fn">dig</span> ANY hexworth.com                     <span class="cm"># all records (may be rate-limited)</span>
+
+<span class="cm"># Output control</span>
+<span class="fn">dig</span> +short A ops.hexworth.com            <span class="cm"># only the answer data</span>
+<span class="fn">dig</span> +noall +answer A ops.hexworth.com    <span class="cm"># suppress all sections except ANSWER</span>
+<span class="fn">dig</span> +stats A ops.hexworth.com            <span class="cm"># include query timing statistics</span>
+
+<span class="cm"># Trace the full resolution chain from root</span>
+<span class="fn">dig</span> +trace A ops.hexworth.com            <span class="cm"># shows every delegation step</span>
+
+<span class="cm"># Batch queries from a file</span>
+<span class="fn">dig</span> -f /tmp/hostnames.txt +short         <span class="cm"># query each name in the file</span>
+
+<span class="cm"># Reverse lookup</span>
+<span class="fn">dig</span> -x <span class="st">10.0.1.50</span>                        <span class="cm"># PTR lookup for 10.0.1.50</span>
+
+<span class="cm"># Check if a resolver returns the same answer as another</span>
+<span class="fn">diff</span> <span class="kw">&lt;(</span><span class="fn">dig</span> +short A ops.hexworth.com @8.8.8.8<span class="kw">)</span> \
+     <span class="kw">&lt;(</span><span class="fn">dig</span> +short A ops.hexworth.com @1.1.1.1<span class="kw">)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- DIG OUTPUT ANATOMY ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">Reading dig <span class="accent">Output</span></div>
+        <div class="slide-subtitle">Every section of dig output carries diagnostic information. Learn to read all of it.</div>
+
+        <div class="code-block"><span class="cm">; &lt;&lt;&gt;&gt; DiG 9.18.1 &lt;&lt;&gt;&gt; A ops.hexworth.com</span>
+<span class="cm">;; global options: +cmd</span>
+
+<span class="cm">;; Got answer:</span>
+<span class="cm">;; ->>HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 12345</span>
+<span class="cm">;; flags: qr rd ra ; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1</span>
+<span class="cm">;;   qr = query response   rd = recursion desired   ra = recursion available</span>
+<span class="cm">;;   aa = authoritative answer (not set here -- came from cache)</span>
+
+<span class="cm">;; QUESTION SECTION:</span>
+<span class="cm">;ops.hexworth.com.   IN   A</span>
+
+<span class="cm">;; ANSWER SECTION:</span>
+<span class="st">ops.hexworth.com.  240  IN  A  10.0.1.50</span>
+<span class="cm">;;                  ^TTL -- 240 seconds remain in cache, not the original 300</span>
+
+<span class="cm">;; Query time: 8 msec</span>
+<span class="cm">;; SERVER: 127.0.0.53#53(127.0.0.53)   &lt;-- systemd-resolved</span>
+<span class="cm">;; WHEN: Wed Apr 09 10:00:00 UTC 2026</span>
+<span class="cm">;; MSG SIZE  rcvd: 62</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Status Codes to Know</div>
+            <span class="ic">NOERROR</span> = query succeeded. <span class="ic">NXDOMAIN</span> = name does not exist. <span class="ic">SERVFAIL</span> = server could not complete query (misconfiguration or upstream failure). <span class="ic">REFUSED</span> = server declines to answer (policy or recursion restriction). <span class="ic">FORMERR</span> = malformed query.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- /etc/resolv.conf ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">/etc/resolv.conf and <span class="accent">systemd-resolved</span></div>
+        <div class="slide-subtitle">How Ubuntu 22.04 manages DNS configuration. The symlink matters.</div>
+
+        <div class="code-block"><span class="cm"># On Ubuntu 22.04, /etc/resolv.conf is a symlink managed by systemd-resolved</span>
+<span class="fn">ls</span> -la /etc/resolv.conf
+<span class="cm"># lrwxrwxrwx -> ../run/systemd/resolve/stub-resolv.conf</span>
+
+<span class="cm"># The stub resolver listens on 127.0.0.53:53</span>
+<span class="cm"># All DNS queries go through systemd-resolved first</span>
+
+<span class="cm"># View current DNS configuration</span>
+<span class="fn">resolvectl</span> status                   <span class="cm"># per-interface DNS servers and settings</span>
+<span class="fn">resolvectl</span> dns                      <span class="cm"># DNS servers currently in use</span>
+<span class="fn">resolvectl</span> statistics               <span class="cm"># cache hits, misses, queries sent</span>
+
+<span class="cm"># Override DNS for a specific interface (not persistent)</span>
+<span class="fn">resolvectl</span> dns eth0 8.8.8.8 1.1.1.1
+
+<span class="cm"># Persistent configuration via netplan</span>
+<span class="cm"># /etc/netplan/00-installer-config.yaml</span>
+<span class="cm"># nameservers:</span>
+<span class="cm">#   addresses: [10.0.1.10, 10.0.1.11]</span>
+<span class="fn">sudo</span> <span class="fn">netplan</span> apply</div>
+
+        <div class="box box-gold">
+            <div class="box-label">Do Not Edit resolv.conf Directly</div>
+            On Ubuntu 22.04, direct edits to <span class="ic">/etc/resolv.conf</span> are overwritten on reboot or network restart. Use <span class="ic">netplan</span> for persistent changes or configure <span class="ic">/etc/systemd/resolved.conf</span> for system-wide resolver settings.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- /etc/hosts ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">/etc/hosts: <span class="accent">Local Override</span></div>
+        <div class="slide-subtitle">The hosts file short-circuits DNS for specific names. Checked before any DNS query is made.</div>
+
+        <div class="code-block"><span class="cm"># /etc/hosts format: IP  canonical-hostname  [aliases...]</span>
+<span class="cm"># Lines beginning with # are comments</span>
+
+<span class="nb">127.0.0.1</span>       localhost
+<span class="nb">127.0.1.1</span>       sector-node-01
+<span class="nb">::1</span>             localhost ip6-localhost ip6-loopback
+
+<span class="cm"># Lab/dev overrides -- force a name to a specific IP</span>
+<span class="nb">10.0.1.50</span>       ops.hexworth.com  ops
+<span class="nb">10.0.1.10</span>       ns1.hexworth.com  ns1
+
+<span class="cm"># Test the hosts file lookup</span>
+<span class="fn">getent</span> hosts ops.hexworth.com      <span class="cm"># uses NSS order: hosts file then DNS</span>
+<span class="fn">ping</span> -c 1 ops                      <span class="cm"># uses alias defined on the same line</span>
+
+<span class="cm"># NSS (Name Service Switch) order is in /etc/nsswitch.conf</span>
+<span class="fn">grep</span> <span class="st">'^hosts'</span> /etc/nsswitch.conf
+<span class="cm"># hosts: files mdns4_minimal [NOTFOUND=return] dns</span>
+<span class="cm"># "files" = /etc/hosts  checked FIRST</span></div>
+
+        <div class="box box-red">
+            <div class="box-label">Operational Warning</div>
+            Hosts file entries are invisible to DNS. A misconfigured hosts entry on a server will cause that server to behave differently from every other host on the network. This creates intermittent, hard-to-diagnose failures. Document all non-standard entries. Always check hosts files when debugging resolution anomalies.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- NEGATIVE CACHING AND NXDOMAIN ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">Negative Caching and <span class="accent">NXDOMAIN</span></div>
+        <div class="slide-subtitle">What happens when a name does not exist -- and why that result is also cached.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">NXDOMAIN</div>
+                <div class="card-desc">Non-Existent Domain. The authoritative server confirms the name does not exist in that zone. This is a definitive negative answer -- different from SERVFAIL (server could not answer) or a timeout (server unreachable).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Negative Cache TTL</div>
+                <div class="card-desc">NXDOMAIN responses are cached for the SOA minimum TTL (the last field in the SOA record). If you create a new DNS record, existing resolvers will not see it until their negative cache for that name expires. This is why new records appear to not propagate immediately.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Demonstrate negative caching</span>
+<span class="fn">dig</span> A ghost.hexworth.com             <span class="cm"># returns NXDOMAIN</span>
+<span class="cm"># ;; status: NXDOMAIN</span>
+<span class="cm"># ;; AUTHORITY SECTION shows SOA with minimum TTL</span>
+<span class="cm"># hexworth.com.  300  IN  SOA  ns1... (300 = negative cache TTL)</span>
+
+<span class="cm"># After adding ghost.hexworth.com to the zone, wait 300 seconds</span>
+<span class="cm"># OR flush the resolver cache</span>
+<span class="fn">resolvectl</span> flush-caches
+
+<span class="cm"># Verify the flush worked</span>
+<span class="fn">resolvectl</span> statistics               <span class="cm"># cache size should drop to near zero</span>
+<span class="fn">dig</span> A ghost.hexworth.com             <span class="cm"># should now return the new A record</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- ZONE TRANSFERS (AXFR) ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">Zone Transfers: <span class="accent">AXFR</span></div>
+        <div class="slide-subtitle">The mechanism by which secondary name servers get a full copy of the zone from the primary.</div>
+
+        <div class="code-block"><span class="cm"># AXFR (Asynchronous Full Transfer) -- full zone copy</span>
+<span class="cm"># The secondary polls the primary when the SOA serial is higher than its own</span>
+
+<span class="cm"># Request a full zone transfer from a name server</span>
+<span class="fn">dig</span> AXFR hexworth.com @ns1.hexworth.com
+
+<span class="cm"># On a properly secured server this will be REFUSED unless:</span>
+<span class="cm"># - you are listed in allow-transfer in named.conf</span>
+<span class="cm"># - you are the configured secondary for that zone</span>
+
+<span class="cm"># IXFR (Incremental Zone Transfer) -- only changed records since a serial</span>
+<span class="fn">dig</span> IXFR=<span class="nb">2026040801</span> hexworth.com @ns1.hexworth.com
+<span class="cm"># If serial difference is too large, server falls back to full AXFR</span>
+
+<span class="cm"># Force an immediate zone check from secondary</span>
+<span class="fn">rndc</span> refresh hexworth.com            <span class="cm"># on the secondary server</span></div>
+
+        <div class="box box-red">
+            <div class="box-label">Security -- Restrict Zone Transfers</div>
+            An open AXFR reveals your entire zone to any requester -- every hostname, IP, mail server, and internal structure. This is a reconnaissance goldmine. BIND9 should have <span class="ic">allow-transfer { none; };</span> as a global default, with per-zone exceptions only for your secondaries by IP.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- DNS LOOKUP TOOLS COMPARISON ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34</div>
+        <div class="slide-title">DNS Tools: <span class="accent">dig vs host vs nslookup</span></div>
+        <div class="slide-subtitle">Know all three. Use dig for anything serious. Understand why nslookup is legacy.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">dig (preferred)</div>
+                <div class="card-desc">Full control over query type, server, flags, output format. Shows all response sections. Supports tracing, batch queries, and timing. Standard tool for diagnostic work. Part of <span class="ic">bind9-dnsutils</span> package.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">host (quick lookups)</div>
+                <div class="card-desc">Concise output, good for quick scripting. <span class="ic">host ops.hexworth.com</span> returns A, AAAA, and MX in human-readable form. Less control than dig but faster to type for quick checks. Also in <span class="ic">bind9-dnsutils</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">nslookup (avoid)</div>
+                <div class="card-desc">Interactive mode is confusing, output format inconsistent across platforms, deprecated in BIND. Present on all systems for compatibility. Use it only when dig is not installed. Never write nslookup into scripts.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Equivalent queries in each tool</span>
+<span class="fn">dig</span> +short A ops.hexworth.com        <span class="cm"># dig: just the IP</span>
+<span class="fn">host</span> ops.hexworth.com                 <span class="cm"># host: "ops.hexworth.com has address 10.0.1.50"</span>
+<span class="fn">nslookup</span> ops.hexworth.com            <span class="cm"># nslookup: verbose, old-style output</span>
+
+<span class="cm"># host: reverse lookup</span>
+<span class="fn">host</span> <span class="st">10.0.1.50</span>                        <span class="cm"># "50.1.0.10.in-addr.arpa domain name pointer ops.hexworth.com."</span>
+
+<span class="cm"># Install if missing</span>
+<span class="fn">sudo</span> <span class="fn">apt</span> install -y bind9-dnsutils   <span class="cm"># provides dig, host, nslookup, nsupdate</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- SPLIT-HORIZON DNS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Split-Horizon <span class="accent">DNS</span></div>
+        <div class="slide-subtitle">Serve different answers for the same name depending on the client's network location.</div>
+
+        <div class="scenario-strip">
+            Internal systems must resolve <span class="ic">ops.hexworth.com</span> to the internal IP <span class="ic">10.0.1.50</span>. External clients must resolve the same name to the public IP <span class="ic">203.0.113.10</span>. Same name, two different answers, based on where the query originates.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Internal View</div>
+                <div class="card-desc">Internal resolvers are configured to use an internal authoritative server. That server holds the zone with private IP addresses. Internal clients get direct RFC 1918 addresses and bypass NAT entirely. Reduces latency and load on firewall/NAT.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">External View</div>
+                <div class="card-desc">External resolvers (internet) query your public authoritative servers. Those zones contain only public-facing IP addresses. Internal hostnames and RFC 1918 addresses are never exposed to the internet. Separation is a security requirement.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># BIND9 split-horizon using views in named.conf</span>
+view <span class="st">"internal"</span> {
+    match-clients { <span class="nb">10.0.0.0/8</span>; <span class="nb">192.168.0.0/16</span>; };
+    recursion yes;
+    zone <span class="st">"hexworth.com"</span> {
+        type master;
+        file <span class="st">"/etc/bind/internal/db.hexworth.com"</span>;  <span class="cm">; internal zone data</span>
+    };
+};
+view <span class="st">"external"</span> {
+    match-clients { any; };
+    recursion no;
+    zone <span class="st">"hexworth.com"</span> {
+        type master;
+        file <span class="st">"/etc/bind/external/db.hexworth.com"</span>;  <span class="cm">; external zone data</span>
+    };
+};</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- DNSSEC OVERVIEW ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">DNSSEC: <span class="accent">DNS Security Extensions</span></div>
+        <div class="slide-subtitle">Cryptographic signatures that prove DNS responses are authentic and unmodified.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">What DNSSEC Provides</div>
+                <div class="card-desc">Cryptographic proof that a DNS response came from the authoritative server and was not tampered with in transit. Protects against cache poisoning attacks (Kaminsky attack). Does not encrypt DNS traffic -- use DNS-over-TLS (DoT) or DNS-over-HTTPS (DoH) for that.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What DNSSEC Does NOT Provide</div>
+                <div class="card-desc">DNSSEC does not prevent DDoS against DNS servers, does not encrypt queries (an observer can still see what you looked up), and does not protect against a compromised authoritative server. It is one layer of defense, not the whole stack.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Check if a domain has DNSSEC enabled</span>
+<span class="fn">dig</span> +dnssec A ops.hexworth.com        <span class="cm"># request DNSSEC records in response</span>
+<span class="fn">dig</span> DNSKEY hexworth.com               <span class="cm"># show the zone signing keys</span>
+<span class="fn">dig</span> DS hexworth.com @parent-ns        <span class="cm"># delegation signer record at parent</span>
+
+<span class="cm"># Validate a DNSSEC chain with delv (installed with bind9-dnsutils)</span>
+<span class="fn">delv</span> @8.8.8.8 A ops.hexworth.com +multiline
+<span class="cm"># Look for "fully validated" in output</span>
+
+<span class="cm"># Check DNSSEC validation status via systemd-resolved</span>
+<span class="fn">resolvectl</span> query ops.hexworth.com    <span class="cm"># shows validation status</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- DNS TROUBLESHOOTING WORKFLOW ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34 &nbsp;|&nbsp; Diagnostic Pattern</div>
+        <div class="slide-title">DNS Troubleshooting <span class="accent">Workflow</span></div>
+        <div class="slide-subtitle">A systematic approach. Start local and work outward. Never guess.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Check <code>/etc/hosts</code> first. Is the name hardcoded? <code>getent hosts TARGET</code> shows which source wins.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Check your resolver: <code>resolvectl status</code>. Is it running? Is it using the right upstream DNS server?</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Query the resolver directly: <code>dig TARGET @127.0.0.53</code>. Does it answer? What status code?</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Bypass the local resolver: <code>dig TARGET @8.8.8.8</code>. If this works but @127.0.0.53 fails, the local resolver is the problem.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Query the authoritative server directly: <code>dig TARGET @ns1.hexworth.com</code>. Does it return the right answer?</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Trace from root: <code>dig +trace TARGET</code>. Where does the chain break? Which delegation returns unexpected data?</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Check for stale cache: flush with <code>resolvectl flush-caches</code>, then retry. Negative cache entries (NXDOMAIN) block new records.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text">Verify zone file serial: if the primary was updated but the secondary did not refresh, check <code>dig SOA hexworth.com @ns2</code> vs <code>@ns1</code>.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- REVERSE DNS ZONES ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">Reverse DNS <span class="accent">Zones</span></div>
+        <div class="slide-subtitle">The in-addr.arpa zone maps IP addresses back to hostnames. Required for mail and logging.</div>
+
+        <div class="code-block"><span class="cm"># Reverse zone naming: network address written BACKWARDS + .in-addr.arpa.</span>
+<span class="cm"># Network 10.0.1.0/24 --> reverse zone name: 1.0.10.in-addr.arpa.</span>
+
+<span class="cm"># Reverse zone file: /etc/bind/db.10.0.1</span>
+<span class="fn">$TTL</span> <span class="nb">3600</span>
+<span class="kw">@</span>  IN  SOA  ns1.hexworth.com.  admin.hexworth.com. (
+            <span class="nb">2026040901</span>  <span class="cm">; serial</span>
+            <span class="nb">3600</span>        <span class="cm">; refresh</span>
+            <span class="nb">900</span>         <span class="cm">; retry</span>
+            <span class="nb">604800</span>      <span class="cm">; expire</span>
+            <span class="nb">300</span>         <span class="cm">; minimum</span>
+        )
+<span class="kw">@</span>  IN  NS   ns1.hexworth.com.
+<span class="kw">@</span>  IN  NS   ns2.hexworth.com.
+
+<span class="cm">; PTR records: last octet only (zone provides the rest)</span>
+<span class="nb">10</span>  IN  PTR  ns1.hexworth.com.
+<span class="nb">11</span>  IN  PTR  ns2.hexworth.com.
+<span class="nb">50</span>  IN  PTR  ops.hexworth.com.
+<span class="nb">51</span>  IN  PTR  db1.hexworth.com.
+
+<span class="cm"># Test reverse lookup</span>
+<span class="fn">dig</span> -x <span class="st">10.0.1.50</span>              <span class="cm"># should return ops.hexworth.com.</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- COMMON DNS RECORD ERRORS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">Common DNS <span class="accent">Configuration Errors</span></div>
+        <div class="slide-subtitle">The mistakes that appear in every real environment. Know them before you make them.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Missing Trailing Dot</div>
+                <div class="card-desc">In zone files, a hostname without a trailing dot is relative to the zone origin. <span class="ic">mail1 IN MX 10 mailhost</span> becomes <span class="ic">mailhost.hexworth.com.</span> -- not what you intended if <span class="ic">mailhost</span> is external. Always use trailing dots for external names.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Stale Serial Number</div>
+                <div class="card-desc">Editing the zone file without incrementing the serial means secondaries never pull the update. The primary serves new data; secondaries serve old data. Clients get different answers depending on which server they hit.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CNAME at Zone Apex</div>
+                <div class="card-desc"><span class="ic">@ IN CNAME something.else.com.</span> is illegal. The apex must have SOA and NS records. RFC 1912 prohibits a CNAME at the apex. BIND will reject this zone configuration entirely.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">MX Pointing to CNAME</div>
+                <div class="card-desc">RFC 2181 prohibits MX (and NS) records from pointing to names that are themselves CNAMEs. Some mail servers will silently refuse to deliver. Always point MX to A records.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Validate Before Reload</div>
+            Always run <span class="ic">named-checkzone hexworth.com /etc/bind/db.hexworth.com</span> before reloading BIND. A syntax error in a zone file can cause BIND to stop serving that zone entirely.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- DNS CACHE POISONING ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">DNS Cache <span class="accent">Poisoning</span></div>
+        <div class="slide-subtitle">The attack that DNSSEC was designed to defeat. Understand the mechanism first.</div>
+
+        <div class="scenario-strip">
+            An attacker races a legitimate DNS response. If they can guess the transaction ID and source port, they can inject a forged response into a resolver's cache. Every client using that resolver is then misdirected -- transparently -- to the attacker's server.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Kaminsky Attack (2008)</div>
+                <div class="card-desc">Dan Kaminsky discovered that DNS was structurally vulnerable. By flooding a resolver with forged responses for subdomains, an attacker could poison the cached NS delegation for an entire domain, not just one record. All resolvers worldwide were affected simultaneously.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mitigations</div>
+                <div class="card-desc">Source port randomization (now standard). 0x20 encoding (randomize case in queries). DNSSEC (cryptographic proof). DNS-over-TLS (prevents observation of queries). Rate limiting on resolvers. Using modern resolver software with all mitigations enabled.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Verify your resolver uses source port randomization</span>
+<span class="fn">ss</span> -unap <span class="kw">|</span> <span class="fn">grep</span> <span class="st">':53'</span>           <span class="cm"># should see many different source ports, not just one</span>
+
+<span class="cm"># Check if DNSSEC validation is enabled in systemd-resolved</span>
+<span class="fn">grep</span> DNSSEC /etc/systemd/resolved.conf
+<span class="cm"># DNSSEC=yes  or  DNSSEC=allow-downgrade</span>
+
+<span class="cm"># Test DNSSEC validation (a known broken DNSSEC zone)</span>
+<span class="fn">dig</span> A dnssec-failed.org            <span class="cm"># should return SERVFAIL if validation is on</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- DNS-OVER-TLS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">DNS-over-TLS and <span class="accent">DNS-over-HTTPS</span></div>
+        <div class="slide-subtitle">Encrypting DNS queries to prevent observation and interception. Increasingly standard.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">DNS-over-TLS (DoT)</div>
+                <div class="card-desc">Wraps DNS queries in TLS. Uses port 853. Designed for full-path encryption. Supported natively by systemd-resolved. Firewalls can detect and block DoT on port 853 if needed, which is sometimes desirable in enterprise environments.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DNS-over-HTTPS (DoH)</div>
+                <div class="card-desc">Wraps DNS queries in HTTPS on port 443. Designed to be censorship-resistant -- nearly impossible to block without blocking all HTTPS traffic. Used primarily by browsers. Harder to inspect in enterprise environments. Conflicts with some proxy configurations.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Enable DoT in systemd-resolved</span>
+<span class="cm"># /etc/systemd/resolved.conf</span>
+
+[Resolve]
+DNS=<span class="st">1.1.1.1#cloudflare-dns.com 9.9.9.9#dns.quad9.net</span>
+DNSOverTLS=<span class="st">yes</span>
+DNSSEC=<span class="st">yes</span>
+
+<span class="fn">sudo</span> <span class="fn">systemctl</span> restart systemd-resolved
+
+<span class="cm"># Verify DoT is working</span>
+<span class="fn">resolvectl</span> status                   <span class="cm"># shows "DNS over TLS: yes" per server</span>
+
+<span class="cm"># Test with kdig (knot-dnsutils package) -- explicit DoT query</span>
+<span class="fn">kdig</span> -d @1.1.1.1 +tls-ca +tls-hostname=cloudflare-dns.com A ops.hexworth.com</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- SRV RECORDS ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">Record Types: <span class="accent">SRV</span></div>
+        <div class="slide-subtitle">Service records enable automatic discovery of services without hardcoded hostnames or ports.</div>
+
+        <div class="code-block"><span class="cm"># SRV format: _service._proto.name  TTL  IN  SRV  priority weight port target</span>
+
+_sip._tcp.hexworth.com.     IN  SRV  <span class="nb">10</span>  <span class="nb">20</span>  <span class="nb">5060</span>  sip1.hexworth.com.
+_sip._tcp.hexworth.com.     IN  SRV  <span class="nb">10</span>  <span class="nb">20</span>  <span class="nb">5060</span>  sip2.hexworth.com.
+_ldap._tcp.hexworth.com.    IN  SRV  <span class="nb">0</span>   <span class="nb">100</span> <span class="nb">389</span>   ldap.hexworth.com.
+_xmpp-client._tcp.hex...    IN  SRV  <span class="nb">5</span>   <span class="nb">0</span>   <span class="nb">5222</span>  xmpp.hexworth.com.
+
+<span class="cm"># Fields: priority (lower = preferred), weight (load distribution at same priority),</span>
+<span class="cm"># port (TCP/UDP port of the service), target (hostname serving the service)</span>
+
+<span class="cm"># Query SRV records</span>
+<span class="fn">dig</span> SRV _sip._tcp.hexworth.com
+<span class="fn">dig</span> +short SRV _ldap._tcp.hexworth.com   <span class="cm"># returns: priority weight port target</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">Real-World Usage</div>
+            SRV records are used by Kerberos, SIP, XMPP, LDAP, Minecraft server discovery, and Kubernetes service DNS. When you join a Windows domain, the client finds domain controllers via SRV lookups for <span class="ic">_ldap._tcp.dc._msdcs.DOMAIN</span>. This is why DNS must be healthy before Active Directory functions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- HOSTS FILE MANAGEMENT AT SCALE ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">Operational DNS: <span class="accent">Lab and Test Environments</span></div>
+        <div class="slide-subtitle">How to set up DNS for internal lab networks without a public domain.</div>
+
+        <div class="code-block"><span class="cm"># Use a private domain that does not conflict with public DNS</span>
+<span class="cm"># Recommended: .internal, .lab, .local (avoid .local -- conflicts with mDNS)</span>
+
+<span class="cm"># Option 1: /etc/hosts on each machine (small labs only)</span>
+<span class="nb">10.0.1.10</span>   ns1.matrix.internal   ns1
+<span class="nb">10.0.1.50</span>   ops.matrix.internal   ops
+<span class="nb">10.0.1.60</span>   db1.matrix.internal   db1
+
+<span class="cm"># Option 2: Run a local resolver with forwarding</span>
+<span class="cm"># systemd-resolved with a DNS stub and upstream forwarders</span>
+<span class="cm"># /etc/systemd/resolved.conf</span>
+[Resolve]
+DNS=<span class="nb">10.0.1.10</span>                <span class="cm">; internal DNS for .internal queries</span>
+Domains=<span class="st">~matrix.internal</span>     <span class="cm">; only route this domain to internal server</span>
+FallbackDNS=<span class="nb">8.8.8.8</span>          <span class="cm">; use public DNS for everything else</span>
+
+<span class="cm"># Option 3: Full BIND9 server (next module)</span>
+<span class="cm"># Deploy ns1 with authoritative zones for matrix.internal</span>
+<span class="cm"># Point all lab hosts to ns1 as their resolver</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- TIME TO LIVE MATH ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">TTL Math: <span class="accent">Planning DNS Changes</span></div>
+        <div class="slide-subtitle">Practical TTL management for migrations, failovers, and zero-downtime deployments.</div>
+
+        <div class="scenario-strip">
+            You are migrating <span class="ic">ops.hexworth.com</span> from 10.0.1.50 to 10.0.1.55 in 48 hours. The current TTL is 3600. Here is the correct procedure to minimize client impact.
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">48h</span><span class="fact-text">Before migration: lower TTL from 3600 to 60. Wait 3600 seconds for all resolvers to expire the high-TTL cached record and pick up the new low TTL.</span></div>
+            <div class="fact-row"><span class="fact-num">0h</span><span class="fact-text">Migration window: change the A record from 10.0.1.50 to 10.0.1.55. Increment serial. Reload BIND: <code>rndc reload hexworth.com</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">+1m</span><span class="fact-text">Within 60 seconds, all resolvers expire the old cached record. New queries get the updated IP. Verify with <code>dig +short A ops.hexworth.com @8.8.8.8</code>.</span></div>
+            <div class="fact-row"><span class="fact-num">+24h</span><span class="fact-text">After migration is confirmed stable: raise TTL back to 3600. This reduces query load and improves resolution speed for clients.</span></div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Cost of Skipping Step 1</div>
+            If you change the IP without first lowering the TTL and waiting, some resolvers will serve the old IP for up to another 3600 seconds (1 hour) after the change. Users will experience intermittent failures as some hit the new IP and some hit the old one. This is not a propagation mystery -- it is expected TTL behavior.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- DNSMASQ FOR LOCAL RESOLUTION ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">dnsmasq: <span class="accent">Lightweight Local DNS</span></div>
+        <div class="slide-subtitle">A lightweight DHCP and DNS server ideal for lab environments and small networks.</div>
+
+        <div class="code-block"><span class="cm"># Install dnsmasq (conflicts with systemd-resolved -- disable stub first)</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> disable --now systemd-resolved
+<span class="fn">sudo</span> <span class="fn">apt</span> install -y dnsmasq
+
+<span class="cm"># /etc/dnsmasq.conf -- minimal configuration</span>
+domain=matrix.internal
+local=<span class="st">/matrix.internal/</span>         <span class="cm">; don't forward .internal queries upstream</span>
+address=<span class="st">/ops.matrix.internal/10.0.1.50</span>     <span class="cm">; serve this record locally</span>
+address=<span class="st">/ns1.matrix.internal/10.0.1.10</span>
+server=<span class="st">8.8.8.8</span>                   <span class="cm">; upstream for everything else</span>
+server=<span class="st">1.1.1.1</span>
+cache-size=<span class="nb">1000</span>                  <span class="cm">; cache up to 1000 records</span>
+log-queries                      <span class="cm">; log all queries (useful for debugging)</span>
+
+<span class="cm"># Start and verify</span>
+<span class="fn">sudo</span> <span class="fn">systemctl</span> enable --now dnsmasq
+<span class="fn">dig</span> A ops.matrix.internal @127.0.0.1    <span class="cm"># should return 10.0.1.50</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- QUERYING SPECIFIC RECORD CLASSES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34</div>
+        <div class="slide-title">Verification: <span class="accent">Record-by-Record Audit</span></div>
+        <div class="slide-subtitle">A systematic checklist for auditing a zone's DNS records after any change.</div>
+
+        <div class="code-block"><span class="cm">#!/bin/bash</span>
+<span class="cm"># dns-audit.sh -- verify all critical records for hexworth.com</span>
+DOMAIN=<span class="st">"hexworth.com"</span>
+NS=<span class="st">"ns1.hexworth.com"</span>
+
+<span class="fn">echo</span> <span class="st">"=== SOA ==="</span>
+<span class="fn">dig</span> +short SOA <span class="st">$DOMAIN</span> @<span class="nb">$NS</span>
+
+<span class="fn">echo</span> <span class="st">"=== NS ==="</span>
+<span class="fn">dig</span> +short NS <span class="st">$DOMAIN</span> @<span class="nb">$NS</span>
+
+<span class="fn">echo</span> <span class="st">"=== MX ==="</span>
+<span class="fn">dig</span> +short MX <span class="st">$DOMAIN</span> @<span class="nb">$NS</span>
+
+<span class="fn">echo</span> <span class="st">"=== A records ==="</span>
+<span class="kw">for</span> host in ops www mail1 mail2 ns1 ns2; do
+    <span class="fn">echo</span> -n <span class="st">"  $host: "</span>
+    <span class="fn">dig</span> +short A <span class="st">${host}.${DOMAIN}</span> @<span class="nb">$NS</span>
+<span class="kw">done</span>
+
+<span class="fn">echo</span> <span class="st">"=== TXT (SPF) ==="</span>
+<span class="fn">dig</span> +short TXT <span class="st">$DOMAIN</span> @<span class="nb">$NS</span> <span class="kw">|</span> <span class="fn">grep</span> <span class="st">'v=spf1'</span>
+
+<span class="fn">echo</span> <span class="st">"=== Reverse for ops ==="</span>
+<span class="fn">dig</span> +short -x <span class="st">10.0.1.50</span> @<span class="nb">$NS</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- PRACTICAL: DIAGNOSING MAIL DELIVERY ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34 &nbsp;|&nbsp; Applied Scenario</div>
+        <div class="slide-title">Applied: <span class="accent">Diagnosing Email Delivery Failures</span></div>
+        <div class="slide-subtitle">DNS is the first thing to check when email stops flowing. Here is the procedure.</div>
+
+        <div class="scenario-strip">
+            Users report outbound email is bouncing. Remote servers are rejecting delivery from <span class="ic">mail1.hexworth.com</span>. The error message references DNS. You have five minutes to diagnose.
+        </div>
+
+        <div class="code-block"><span class="cm"># Step 1: Verify MX records are published correctly</span>
+<span class="fn">dig</span> +short MX hexworth.com
+<span class="cm"># Expected: 10 mail1.hexworth.com.  20 mail2.hexworth.com.</span>
+
+<span class="cm"># Step 2: Verify MX targets resolve to A records (not CNAMEs)</span>
+<span class="fn">dig</span> A mail1.hexworth.com
+<span class="fn">dig</span> CNAME mail1.hexworth.com    <span class="cm"># should return nothing</span>
+
+<span class="cm"># Step 3: Verify PTR record exists for the sending IP</span>
+<span class="fn">dig</span> -x <span class="st">203.0.113.20</span>              <span class="cm"># should resolve to mail1.hexworth.com.</span>
+
+<span class="cm"># Step 4: Verify SPF record covers the sending IP</span>
+<span class="fn">dig</span> +short TXT hexworth.com <span class="kw">|</span> <span class="fn">grep</span> spf
+
+<span class="cm"># Step 5: Check if PTR matches the forward A record (FCrDNS)</span>
+<span class="cm"># Forward-confirmed reverse DNS: PTR --> hostname --> same IP</span>
+IP=<span class="st">"203.0.113.20"</span>
+HOSTNAME=<span class="kw">$(</span><span class="fn">dig</span> +short -x <span class="st">$IP</span><span class="kw">)</span>
+<span class="fn">dig</span> +short A <span class="st">${HOSTNAME%.}</span>        <span class="cm"># should return $IP</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- ZONE DELEGATION ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">Subdomain <span class="accent">Delegation</span></div>
+        <div class="slide-subtitle">Delegate authority for a subdomain to a separate set of name servers.</div>
+
+        <div class="code-block"><span class="cm"># Delegating ops.hexworth.com to its own name servers</span>
+<span class="cm"># In the hexworth.com zone file, add NS records for the subdomain</span>
+
+<span class="cm">; Delegation for ops subdomain</span>
+ops             IN  NS  ns1.ops.hexworth.com.
+ops             IN  NS  ns2.ops.hexworth.com.
+
+<span class="cm">; Glue records -- required because the NS targets are IN the delegated zone</span>
+ns1.ops         IN  A   10.0.2.10
+ns2.ops         IN  A   10.0.2.11
+
+<span class="cm"># Now the ops.hexworth.com zone file (on ns1.ops) is authoritative</span>
+<span class="cm"># for everything under ops.hexworth.com</span>
+
+<span class="cm"># Verify delegation</span>
+<span class="fn">dig</span> NS ops.hexworth.com            <span class="cm"># should show ns1.ops, ns2.ops</span>
+<span class="fn">dig</span> +trace A web.ops.hexworth.com  <span class="cm"># trace shows delegation at ops level</span></div>
+
+        <div class="box box-green">
+            <div class="box-label">When to Delegate</div>
+            Delegate when a team or department needs autonomous control over their subdomain, when the subdomain has different availability requirements, or when you are segmenting large internal namespaces. The parent zone only needs NS and glue records -- the delegated team manages all content records independently.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- DIG CHEATSHEET ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">dig <span class="accent">Operational Cheatsheet</span></div>
+        <div class="slide-subtitle">The commands you will use in the field every day. Commit these to muscle memory.</div>
+
+        <div class="code-block"><span class="cm"># Query types</span>
+<span class="fn">dig</span> A|AAAA|MX|NS|TXT|SOA|PTR|SRV|CNAME|ANY NAME
+
+<span class="cm"># Output modifiers</span>
+<span class="fn">dig</span> +short          <span class="cm"># just the answer data</span>
+<span class="fn">dig</span> +noall +answer  <span class="cm"># only the ANSWER section</span>
+<span class="fn">dig</span> +multiline      <span class="cm"># expand SOA/DNSKEY to readable multiline format</span>
+<span class="fn">dig</span> +trace          <span class="cm"># trace full resolution from root</span>
+<span class="fn">dig</span> +stats          <span class="cm"># show query timing at end</span>
+<span class="fn">dig</span> +dnssec         <span class="cm"># request DNSSEC records</span>
+<span class="fn">dig</span> +tcp            <span class="cm"># force query over TCP (test if UDP is blocked)</span>
+
+<span class="cm"># Targeting</span>
+<span class="fn">dig</span> NAME @SERVER    <span class="cm"># query a specific server</span>
+<span class="fn">dig</span> -p PORT         <span class="cm"># non-standard port</span>
+<span class="fn">dig</span> -x IP           <span class="cm"># reverse lookup</span>
+<span class="fn">dig</span> -f FILE         <span class="cm"># batch from file</span>
+
+<span class="cm"># Common diagnostics</span>
+<span class="fn">dig</span> +short A NAME @127.0.0.53   <span class="cm"># test local resolver</span>
+<span class="fn">dig</span> +short A NAME @8.8.8.8      <span class="cm"># bypass local, use Google</span>
+<span class="fn">dig</span> AXFR ZONE @NS               <span class="cm"># attempt zone transfer</span>
+<span class="fn">dig</span> SOA ZONE @NS1 && <span class="fn">dig</span> SOA ZONE @NS2  <span class="cm"># compare serials</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- MODULE SUMMARY ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; Module Summary</div>
+        <div class="slide-title">DNS Fundamentals: <span class="accent">Key Takeaways</span></div>
+        <div class="slide-subtitle">What you must be able to do without hesitation from this module.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">DNS is a delegated hierarchy. Authority flows from root to TLD to domain. Zone transfers propagate data between primary and secondary servers when the serial increments.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Record types: <code>A</code> (IPv4), <code>AAAA</code> (IPv6), <code>CNAME</code> (alias), <code>MX</code> (mail), <code>NS</code> (delegation), <code>SOA</code> (zone definition), <code>PTR</code> (reverse), <code>TXT</code> (policy/verification), <code>SRV</code> (service discovery).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">TTL controls cache lifetime. Lower before migrations. Higher for stable records. NXDOMAIN responses are also cached for the SOA minimum TTL.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Recursive resolvers walk the hierarchy for clients. Authoritative servers hold zone data and answer with authority. Both roles are distinct. Running both on the same server is valid but requires careful configuration.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><code>dig</code> is your primary diagnostic tool. Use <code>+trace</code> to find where the chain breaks. Compare <code>@127.0.0.53</code> vs <code>@8.8.8.8</code> to isolate local vs. upstream resolution failures.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Zone file rules: increment the serial on every change, trailing dots on absolute names, no CNAME at apex, no CNAME as MX or NS target. Validate with <code>named-checkzone</code> before reloading.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Security: restrict AXFR to known secondaries, enable DNSSEC validation, consider DoT for privacy, never run an open recursive resolver on a public IP.</span></div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Adv Linux Admin</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update Matrix green progress bar */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w3-dns', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

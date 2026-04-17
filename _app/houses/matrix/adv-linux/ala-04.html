@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA-04: Grid Diagnostics | Adv Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #060d08;
+            --bg-card: #0a130c;
+            --accent: #00ff41;
+            --accent-dim: rgba(0, 255, 65, 0.12);
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b9e8f;
+            --border: rgba(0, 255, 65, 0.12);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .ne-content { max-width: 1100px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .comment { color: #4a6650; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: var(--accent-dim); }
+        .ne-callout { background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.25); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--accent); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(0, 255, 65, 0.08), rgba(0, 255, 65, 0.03)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { opacity: 0.88; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        .ne-quiz { background: var(--bg-card); border: 1px solid rgba(0, 255, 65, 0.22); border-radius: 8px; padding: 24px; margin-top: 30px; }
+        .ne-quiz-title { color: var(--accent); font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+        .ne-quiz-sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px; }
+        .quiz-question { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+        .quiz-question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .quiz-question p { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 10px; line-height: 1.6; }
+        .quiz-question .q-num { color: var(--accent); font-weight: 700; }
+        .quiz-option { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: background 0.15s; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; }
+        .quiz-option:hover { background: var(--accent-dim); color: var(--text-primary); }
+        .quiz-option input[type="radio"] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+        .quiz-submit { display: inline-block; background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 10px 28px; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 20px; }
+        .quiz-submit:hover:not(:disabled) { background: var(--accent-dim); }
+        .quiz-submit:disabled { opacity: 0.4; cursor: default; }
+        .quiz-result { margin-top: 16px; padding: 14px 18px; border-radius: 8px; font-size: 0.875rem; display: none; }
+        .quiz-result.pass { background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.35); color: var(--accent); display: block; }
+        .quiz-result.fail { background: rgba(255, 100, 0, 0.06); border: 1px solid rgba(255, 100, 0, 0.30); color: #ff9955; display: block; }
+        .quiz-result .score-line { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+        .ne-complete { text-align: center; padding: 28px 0 8px; }
+        #completeBtn { background: transparent; border: 2px solid var(--accent); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 36px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        #completeBtn:hover:not(:disabled) { background: var(--accent-dim); }
+        #completeBtn:disabled { cursor: default; opacity: 0.85; }
+        @media (max-width: 700px) { .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">ALA-04</span>
+            <h1>Grid Diagnostics</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="index.html">Adv Linux</a> / ALA-04
+        </div>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="ne-content">
+
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Use ss to analyze TCP socket states and identify connection exhaustion</li>
+                <li>Apply traceroute, tracepath, and mtr to identify path failures</li>
+                <li>Use dig to diagnose DNS resolution at every layer of the hierarchy</li>
+                <li>Capture and interpret network packets with tcpdump</li>
+                <li>Diagnose MTU mismatches that cause large-packet failures</li>
+            </ul>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Course Objective 2:</strong>
+            <p>Configure and troubleshoot Linux network interfaces, routing, and DNS client settings on Ubuntu 22.04 using current tools.</p>
+        </div>
+
+        <div class="ne-callout">
+            <strong>Operational Context:</strong>
+            <p>A degraded cell reports symptoms. The operator's job is to find root cause, not treat symptoms. Each diagnostic tool in this module answers a specific class of question. Know which tool to reach for before you need it. When a cell goes down, every second of confusion is downtime.</p>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Socket and Connection State Analysis with ss</h2>
+            <p class="ne-text"><span class="ne-inline-code">ss</span> replaces <span class="ne-inline-code">netstat</span> on modern Linux systems. It queries the kernel socket structures directly and is significantly faster on systems with many connections. The TCP state summary is the quickest way to detect connection exhaustion.</p>
+            <div class="ne-code"><span class="comment"># List all listening TCP and UDP ports (no DNS resolution)</span>
+ss -tuln
+
+<span class="comment"># Same, but include the process name and PID</span>
+ss -tulnp
+
+<span class="comment"># Socket summary: counts by state (LISTEN, ESTABLISHED, TIME_WAIT, etc.)</span>
+ss -s
+
+<span class="comment"># Show all established TCP connections with process names</span>
+ss -tnp state established
+
+<span class="comment"># Show only sockets in TIME_WAIT state</span>
+ss -o state time-wait</div>
+            <p class="ne-text">TCP states to recognize: <span class="ne-inline-code">LISTEN</span> (waiting for incoming connections), <span class="ne-inline-code">ESTABLISHED</span> (active connection), <span class="ne-inline-code">TIME_WAIT</span> (connection closed, waiting for timeout -- normal, but high counts indicate connection churn), <span class="ne-inline-code">CLOSE_WAIT</span> (remote side closed, local application has not -- indicates an application bug), <span class="ne-inline-code">SYN_SENT</span> (connection attempt in progress). A cell with hundreds of <span class="ne-inline-code">CLOSE_WAIT</span> sockets has an application that is not closing connections properly.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>When a cell reports degraded performance, ss -s shows TCP state counts. An excess of TIME_WAIT or CLOSE_WAIT indicates connection exhaustion.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Routing Diagnostics</h2>
+            <p class="ne-text">When a cell cannot reach a grid node, routing tools determine where the path breaks. Use <span class="ne-inline-code">traceroute</span> to identify the hop, then correlate with the routing table to understand why.</p>
+            <div class="ne-code"><span class="comment"># Classic hop-by-hop path trace (numeric, no reverse DNS)</span>
+traceroute -n 10.0.2.1
+
+<span class="comment"># tracepath: similar, also reports MTU per hop (no root required)</span>
+tracepath 10.0.2.1
+
+<span class="comment"># mtr: continuous real-time trace with packet loss per hop</span>
+mtr 10.0.2.1 --report -c 20
+
+<span class="comment"># Show the ARP cache (which MACs are associated with which IPs)</span>
+ip neigh show
+
+<span class="comment"># Full routing table</span>
+ip route show</div>
+            <p class="ne-text">Interpreting traceroute output: each line is a router hop. Three round-trip times are shown per hop. <span class="ne-inline-code">* * *</span> means the router filtered the ICMP TTL-exceeded reply -- this does not always mean the path is broken. If packets stop at a specific hop and the destination remains unreachable, that hop is the likely point of failure. <span class="ne-inline-code">mtr</span> is superior to <span class="ne-inline-code">traceroute</span> for diagnosing intermittent packet loss because it shows per-hop loss percentages over many packets.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>When a cell cannot reach a grid node, traceroute pinpoints where the path breaks -- your perimeter shield, the upstream router, or the destination cell's firewall.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">dig and DNS Troubleshooting</h2>
+            <p class="ne-text">DNS failures make a cell unable to reach any grid service by name. <span class="ne-inline-code">dig</span> provides authoritative, unambiguous DNS query results and is the standard tool for DNS diagnosis.</p>
+            <div class="ne-code"><span class="comment"># Query A record for a grid hostname</span>
+dig A cell-071.sector7.matrix.net
+
+<span class="comment"># Query using a specific DNS server (bypasses /etc/resolv.conf)</span>
+dig @10.0.1.1 A cell-071.sector7.matrix.net
+
+<span class="comment"># Trace the full resolution path from root to answer</span>
+dig +trace cell-071.sector7.matrix.net
+
+<span class="comment"># Reverse DNS lookup (PTR record)</span>
+dig -x 10.0.1.50
+
+<span class="comment"># Query the Start of Authority for a zone</span>
+dig SOA sector7.matrix.net
+
+<span class="comment"># Attempt a zone transfer (diagnostic only, usually blocked)</span>
+dig AXFR sector7.matrix.net @10.0.1.1</div>
+            <p class="ne-text">DNS response status codes: <span class="ne-inline-code">NOERROR</span> (query succeeded, even if answer is empty), <span class="ne-inline-code">NXDOMAIN</span> (name does not exist in the zone), <span class="ne-inline-code">SERVFAIL</span> (server failed to complete query -- often a misconfigured zone or unreachable upstream resolver), <span class="ne-inline-code">REFUSED</span> (server refused the query -- check client access controls). The ANSWER SECTION contains the actual records. The AUTHORITY SECTION identifies who is authoritative for the zone.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>A cell that resolves names correctly connects to the grid. A cell that gets NXDOMAIN or SERVFAIL is navigating blind. dig +trace shows exactly where in the hierarchy the failure occurs.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">tcpdump -- Network Packet Analysis</h2>
+            <p class="ne-text"><span class="ne-inline-code">tcpdump</span> captures actual network packets. It is the ground truth tool for network diagnostics -- it cannot be fooled by application-layer claims about what is happening. Requires root or <span class="ne-inline-code">CAP_NET_RAW</span> capability.</p>
+            <div class="ne-code"><span class="comment"># Capture all packets to/from a specific host (no DNS)</span>
+tcpdump -i eth0 -n host 10.0.1.1
+
+<span class="comment"># Capture only DNS traffic (port 53)</span>
+tcpdump -i eth0 port 53
+
+<span class="comment"># Capture to a file for later analysis in Wireshark</span>
+tcpdump -i eth0 -w /tmp/capture.pcap
+
+<span class="comment"># Read a saved capture and filter for TCP SYN packets only</span>
+tcpdump -r /tmp/capture.pcap 'tcp[tcpflags] &amp; tcp-syn != 0 and not tcp-ack'
+
+<span class="comment"># Capture HTTP traffic (port 80) and print payload ASCII</span>
+tcpdump -i eth0 -A port 80</div>
+            <p class="ne-text">Output format: <span class="ne-inline-code">timestamp src-ip.port &gt; dst-ip.port: flags [S], seq N, length N</span>. TCP flag letters: <span class="ne-inline-code">S</span> (SYN), <span class="ne-inline-code">A</span> (ACK), <span class="ne-inline-code">F</span> (FIN), <span class="ne-inline-code">R</span> (RST), <span class="ne-inline-code">P</span> (PSH). A <span class="ne-inline-code">RST</span> from the destination means the port is closed or the connection was rejected. A <span class="ne-inline-code">SYN</span> with no response means the packet was dropped (firewall) or the host is unreachable.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>In ALA-L03, a rogue process is exfiltrating data. tcpdump captures the packets that prove it.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">nmap -- Service and Port Discovery</h2>
+            <p class="ne-text"><span class="ne-inline-code">nmap</span> scans networks and hosts to identify open ports, services, and versions. Operators run it against their own cells before hardening to know their attack surface. Unauthorized scanning of networks you do not own is illegal.</p>
+            <div class="ne-code"><span class="comment"># Scan a subnet for live hosts with service version detection</span>
+nmap -sV 10.0.1.0/24
+
+<span class="comment"># Scan specific ports on a single host</span>
+nmap -p 22,53,443,8443 10.0.1.50
+
+<span class="comment"># UDP scan (slower, requires root)</span>
+sudo nmap -sU -p 53,161 10.0.1.50
+
+<span class="comment"># Run vulnerability detection scripts against a host</span>
+nmap --script vuln 10.0.1.50
+
+<span class="comment"># OS fingerprinting (requires root)</span>
+sudo nmap -O 10.0.1.50</div>
+            <p class="ne-text">Scan types: SYN scan (<span class="ne-inline-code">-sS</span>, default when root, sends SYN and waits for SYN-ACK without completing the handshake -- stealthy), connect scan (<span class="ne-inline-code">-sT</span>, full TCP handshake, no root required), UDP scan (<span class="ne-inline-code">-sU</span>, slow, unreliable due to firewall behavior). Service version detection (<span class="ne-inline-code">-sV</span>) sends probe packets to open ports to identify what software is running.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>Operators run nmap against their own cells before Week 2 hardening to identify what is exposed. Know your attack surface before an adversary does.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">MTU and Performance Diagnostics</h2>
+            <p class="ne-text">MTU (Maximum Transmission Unit) mismatches cause a specific and confusing failure mode: small packets succeed while large packets fail. TCP connections hang mid-transfer. File transfers stall after the first few kilobytes. This is diagnosable with a single <span class="ne-inline-code">ping</span> command.</p>
+            <div class="ne-code"><span class="comment"># Test path MTU: send a 1500-byte packet with Don't Fragment set</span>
+<span class="comment"># 1472 payload + 28 bytes headers = 1500 byte packet</span>
+ping -M do -s 1472 10.0.2.1
+
+<span class="comment"># If 1472 fails, try smaller sizes to find the actual path MTU</span>
+ping -M do -s 1400 10.0.2.1
+ping -M do -s 1200 10.0.2.1
+
+<span class="comment"># Set interface MTU (e.g., for VPN tunnels that need smaller MTU)</span>
+ip link set eth0 mtu 1400
+
+<span class="comment"># Show detailed interface statistics (errors, drops, collisions)</span>
+ethtool eth0</div>
+            <p class="ne-text">Standard Ethernet MTU is 1500 bytes. VPN tunnels add overhead (IPsec adds 50-90 bytes, WireGuard adds ~60 bytes), reducing the effective MTU for inner traffic. When the path MTU is smaller than the packet, and the "don't fragment" bit is set, the router drops the packet and sends an ICMP "fragmentation needed" message back. If that ICMP is blocked by a firewall (a common misconfiguration), the sender never gets the signal to reduce packet size -- connections hang silently.</p>
+            <div class="ne-callout">
+                <strong>Operational Note:</strong>
+                <p>The Charlie node in ALA-L02 fails because of MTU mismatch. This is one of the most common "works for small data, breaks for large" network problems operators encounter.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Tool Selection Quick Reference</h2>
+            <p class="ne-text">Each diagnostic tool answers a specific class of question. Reaching for the wrong tool wastes time.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Question It Answers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>ss -s</td><td>How many connections exist, and what state are they in?</td></tr>
+                    <tr><td>ss -tulnp</td><td>Which ports are listening, and which process owns each?</td></tr>
+                    <tr><td>traceroute / mtr</td><td>Where does the path to a destination break?</td></tr>
+                    <tr><td>dig @server</td><td>Does a specific DNS server have the record I expect?</td></tr>
+                    <tr><td>dig +trace</td><td>Where in the DNS hierarchy does resolution fail?</td></tr>
+                    <tr><td>tcpdump</td><td>What packets are actually being sent and received?</td></tr>
+                    <tr><td>nmap -sV</td><td>What services are exposed on this host from the outside?</td></tr>
+                    <tr><td>ping -M do -s N</td><td>What is the path MTU to a destination?</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>ss replaces netstat; ss -s gives TCP state counts for connection exhaustion diagnosis</li>
+                <li>mtr is superior to traceroute for intermittent packet loss -- it shows per-hop loss over many packets</li>
+                <li>dig @server bypasses /etc/resolv.conf; dig +trace walks the full hierarchy from root</li>
+                <li>tcpdump is ground truth -- application-layer claims cannot contradict packet captures</li>
+                <li>ping -M do -s 1472 is the standard MTU path test -- if it fails, find the actual MTU by reducing size</li>
+                <li>nmap -sV reveals attack surface; run it against your own cell before hardening</li>
+            </ul>
+        </div>
+
+        <div class="ne-quiz">
+            <div class="ne-quiz-title">Knowledge Check</div>
+            <div class="ne-quiz-sub">All questions must be answered before submission. Server-graded.</div>
+            <div id="quizContainer"></div>
+            <button class="quiz-submit" id="quizSubmit" disabled>Submit Answers</button>
+            <div class="quiz-result" id="quizResult"></div>
+        </div>
+
+        <div class="ne-complete">
+            <button id="completeBtn">Mark Complete</button>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="ala-03.html" class="ne-nav-btn">&lt; ALA-03</a>
+            <a href="ala-05.html" class="ne-nav-btn primary">Next: Week 1 Checkpoint &gt;</a>
+        </nav>
+
+    </div>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script>
+        /* Correct answers are NOT stored here. Server-graded via gradeQuiz Cloud Function. */
+        const QUIZ_ID = 'ala-04';
+        const QUESTIONS = [
+            {
+                q: 'An operator runs `dig A cell-web.sector7.matrix.net @10.0.1.1` and receives `status: NXDOMAIN`. What does this mean?',
+                options: [
+                    'A) The DNS server at 10.0.1.1 is down',
+                    'B) The A record for `cell-web.sector7.matrix.net` does not exist in the DNS server\'s zone data',
+                    'C) The query timed out and the server returned an error',
+                    'D) The operator\'s cell does not have permission to query that DNS server'
+                ]
+            },
+            {
+                q: 'An operator is troubleshooting why large file transfers fail between cells while small transfers work. Which command is most likely to identify the issue?',
+                options: [
+                    'A) `traceroute -n 10.0.2.1`',
+                    'B) `ping -M do -s 1472 10.0.2.1`',
+                    'C) `dig A 10.0.2.1`',
+                    'D) `ss -tnp state established`'
+                ]
+            },
+            {
+                q: 'What does `tcpdump -i eth0 \'tcp[tcpflags] & tcp-syn != 0 and not tcp-ack\'` capture?',
+                options: [
+                    'A) All TCP packets on eth0',
+                    'B) TCP SYN-ACK packets only (second step of the handshake)',
+                    'C) TCP SYN packets only (initial connection requests, not acknowledgements)',
+                    'D) TCP packets with both SYN and ACK flags set'
+                ]
+            },
+            {
+                q: 'An operator needs to verify which DNS server is actually receiving queries from the cell. Which command provides the most direct evidence?',
+                options: [
+                    'A) `cat /etc/resolv.conf`',
+                    'B) `tcpdump -i eth0 port 53`',
+                    'C) `ss -tuln | grep 53`',
+                    'D) `dig @localhost cell-071.sector7.matrix.net`'
+                ]
+            },
+            {
+                q: 'A cell\'s `ss -s` output shows 847 sockets in TIME_WAIT state. What does this indicate?',
+                options: [
+                    'A) 847 active connections to the cell',
+                    'B) A high volume of short-lived TCP connections that have finished but are waiting for the timeout period to expire',
+                    'C) 847 connections that have been dropped by the firewall',
+                    'D) The cell\'s TCP stack is misconfigured and needs a restart'
+                ]
+            }
+        ];
+
+        (function buildQuiz() {
+            const container = document.getElementById('quizContainer');
+            QUESTIONS.forEach(function(question, qIndex) {
+                const block = document.createElement('div');
+                block.className = 'quiz-question';
+                const qText = document.createElement('p');
+                qText.innerHTML = '<span class="q-num">Q' + (qIndex + 1) + '.</span> ' +
+                    question.q.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+                block.appendChild(qText);
+                question.options.forEach(function(option, oIndex) {
+                    const label = document.createElement('label');
+                    label.className = 'quiz-option';
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'q' + qIndex;
+                    radio.value = oIndex;
+                    radio.addEventListener('change', checkAllAnswered);
+                    const text = document.createElement('span');
+                    text.innerHTML = option.replace(/`([^`]+)`/g, '<span class="ne-inline-code">$1</span>');
+                    label.appendChild(radio);
+                    label.appendChild(text);
+                    block.appendChild(label);
+                });
+                container.appendChild(block);
+            });
+        })();
+
+        function checkAllAnswered() {
+            const answered = QUESTIONS.every(function(_, i) {
+                return document.querySelector('input[name="q' + i + '"]:checked');
+            });
+            document.getElementById('quizSubmit').disabled = !answered;
+        }
+
+        document.getElementById('quizSubmit').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Grading...';
+            const selectedAnswers = QUESTIONS.map(function(_, i) {
+                const checked = document.querySelector('input[name="q' + i + '"]:checked');
+                return checked ? parseInt(checked.value, 10) : -1;
+            });
+            try {
+                const result = await FirebaseAuth.callFunction('gradeQuiz', {
+                    quizId: QUIZ_ID,
+                    answers: selectedAnswers
+                });
+                const data = result.data;
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'quiz-result ' + (data.passed ? 'pass' : 'fail');
+                resultEl.innerHTML =
+                    '<div class="score-line">' +
+                        (data.passed ? 'PASSED' : 'NOT PASSED') + ' -- ' +
+                        data.score + '% (' + data.correct + '/' + data.total + ' correct)' +
+                    '</div>' +
+                    (data.passed
+                        ? '<div>All required concepts verified. Module marked complete.</div>'
+                        : '<div>Review the sections above and retry. Focus on the questions you missed.</div>');
+                if (data.passed) {
+                    lastQuizScore = data.score;
+                    markComplete();
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Retry Quiz';
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Submit Answers';
+                const resultEl = document.getElementById('quizResult');
+                resultEl.className = 'quiz-result fail';
+                resultEl.innerHTML = '<div>Submission error. Check your connection and try again.</div>';
+            }
+        });
+
+        const MODULE_HOUSE = 'matrix';
+        let lastQuizScore = null;
+        const MODULE_ID = 'ala-04';
+
+        function markComplete() {
+            if (typeof ModuleProgress !== 'undefined') {
+                if (lastQuizScore !== null) {
+                    ModuleProgress.completeQuiz(MODULE_HOUSE, MODULE_ID, lastQuizScore);
+                } else {
+                    ModuleProgress.complete(MODULE_HOUSE, MODULE_ID);
+                }
+            }
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            btn.style.background = '#00ff41';
+            btn.style.color = '#000';
+        }
+
+        document.getElementById('completeBtn').addEventListener('click', markComplete);
+
+        (function() {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) {
+                var btn = document.getElementById('completeBtn');
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+                btn.style.background = '#00ff41';
+                btn.style.color = '#000';
+            }
+        })();
+    </script>
+</body>
+</html>
