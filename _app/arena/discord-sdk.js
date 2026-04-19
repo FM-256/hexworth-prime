@@ -1,0 +1,1 @@
+Not found: /@discord/embedded-app-sdk@2.4.1/output/index.global.js

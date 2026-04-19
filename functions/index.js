@@ -6195,6 +6195,65 @@ exports.postPatchNote = onCall(cfOptions, async (request) => {
 });
 
 
+// ─── Discord Activity OAuth2 Token Exchange ──────────────────────
+// Called by the Panopticon Discord Activity to exchange an auth code for a token.
+// This runs as an HTTP endpoint (not callable) since the Activity iframe
+// doesn't have Firebase Auth context.
+
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
+
+exports.discordActivityAuth = onRequest({ region: 'us-central1', cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method not allowed');
+    }
+
+    const { code } = req.body || {};
+    if (!code) {
+        return res.status(400).json({ error: 'code is required' });
+    }
+
+    try {
+        // Exchange the authorization code for an access token
+        const tokenResp = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: '1494405567593054389',
+                client_secret: DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code: code
+            }).toString()
+        });
+
+        if (!tokenResp.ok) {
+            const err = await tokenResp.text();
+            console.error('[Activity Auth] Token exchange failed:', err);
+            return res.status(tokenResp.status).json({ error: 'Token exchange failed' });
+        }
+
+        const tokenData = await tokenResp.json();
+
+        // Fetch user info
+        const userResp = await fetch('https://discord.com/api/v10/users/@me', {
+            headers: { 'Authorization': 'Bearer ' + tokenData.access_token }
+        });
+        const userData = userResp.ok ? await userResp.json() : {};
+
+        return res.json({
+            access_token: tokenData.access_token,
+            user: {
+                id: userData.id,
+                username: userData.username,
+                avatar: userData.avatar
+            }
+        });
+    } catch (err) {
+        console.error('[Activity Auth] Error:', err);
+        return res.status(500).json({ error: 'Internal error' });
+    }
+});
+
+
 // ─── Discord Account Linking ─────────────────────────────────────
 
 /**
