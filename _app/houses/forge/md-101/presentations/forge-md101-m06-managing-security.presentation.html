@@ -8,1120 +8,919 @@
     <!-- Progress & Achievements -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Managing Security - MD-101 | House of the Forge</title>
+    <title>Managing Security &mdash; MD-101 Module 6 | House of the Forge</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1510 50%, #0a0a0f 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #d4c4b0;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .presentation-header {
-            padding: 18px 40px;
-            background: rgba(10, 10, 15, 0.95);
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .header-left { display: flex; align-items: center; gap: 15px; }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(234, 88, 12, 0.1);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 6px;
-            color: #f97316;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .back-btn:hover { background: rgba(234, 88, 12, 0.2); border-color: rgba(234, 88, 12, 0.5); }
-
-        .house-badge { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #a07850; letter-spacing: 0.1em; }
-        .progress-indicator { display: flex; align-items: center; gap: 10px; }
-
-        .progress-bar { width: 150px; height: 4px; background: rgba(234, 88, 12, 0.2); border-radius: 2px; overflow: hidden; }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ea580c, #f97316);
-            border-radius: 2px;
-            transition: width 0.5s ease;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .progress-text { font-size: 0.75rem; color: #7a5c40; }
-
-        .slides-container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-
-        .slide { display: none; animation: fadeIn 0.5s ease; }
-        .slide.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-title { font-size: 2.4rem; font-weight: 300; color: #f5e8d8; margin-bottom: 10px; text-align: center; }
-        .slide-subtitle { font-size: 1.05rem; color: #a07850; text-align: center; margin-bottom: 40px; }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-            gap: 22px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover { border-color: rgba(234, 88, 12, 0.4); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
-
-        .threat-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .threat-card:hover { border-color: rgba(234, 88, 12, 0.35); transform: translateY(-2px); }
-        .threat-card.efs { border-top: 3px solid #4ade80; }
-        .threat-card.bitlocker { border-top: 3px solid #60a5fa; }
-        .threat-card.defender { border-top: 3px solid #f97316; }
-        .threat-card.appguard { border-top: 3px solid #a78bfa; }
-        .threat-card.exploit { border-top: 3px solid #f87171; }
-        .threat-card.atp { border-top: 3px solid #fbbf24; }
-
-        .threat-name { font-size: 1rem; color: #f5e8d8; margin-bottom: 6px; font-weight: 500; }
-        .threat-desc { font-size: 0.83rem; color: #a07850; line-height: 1.55; }
-
-        .card-icon { font-size: 2.2rem; margin-bottom: 14px; }
-        .card-title { font-size: 1.15rem; color: #f5e8d8; margin-bottom: 10px; }
-        .card-description { font-size: 0.88rem; color: #a07850; line-height: 1.65; }
-
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 28px; }
-        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 24px; }
-
-        .key-points {
-            background: rgba(20, 14, 8, 0.65);
-            border-left: 3px solid #ea580c;
-            padding: 18px 24px;
-            margin: 24px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 { color: #f97316; margin-bottom: 10px; font-size: 0.85rem; letter-spacing: 0.06em; }
-        .key-points ul { list-style: none; }
-
-        .key-points li {
-            padding: 7px 0 7px 24px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.88rem;
-        }
-
-        .key-points li::before { content: '\2192'; position: absolute; left: 0; color: #ea580c; }
-
-        .exam-tip {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.05));
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 10px;
-            padding: 18px 22px;
-            margin: 22px 0;
-        }
-
-        .exam-tip-label { font-size: 0.78rem; color: #f97316; font-weight: 600; letter-spacing: 0.08em; margin-bottom: 8px; }
-        .exam-tip p { font-size: 0.9rem; color: #d4c4b0; line-height: 1.6; }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(180, 60, 8, 0.06));
-            border: 1px solid rgba(234, 88, 12, 0.25);
-            border-radius: 12px;
-            padding: 26px;
-            margin: 26px 0;
-        }
-
-        .scenario-title { font-size: 1.05rem; color: #f97316; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
-        .scenario-content { font-size: 0.92rem; color: #d4c4b0; line-height: 1.7; }
-
-        .compare-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .compare-table th {
-            background: rgba(234, 88, 12, 0.15);
-            color: #f97316;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 0.82rem;
-            letter-spacing: 0.04em;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-        }
-
-        .compare-table td {
-            padding: 10px 16px;
-            font-size: 0.85rem;
-            color: #d4c4b0;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .compare-table tr:hover td { background: rgba(234, 88, 12, 0.04); }
-
-        .bl-item {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 8px;
-            padding: 14px;
-            text-align: center;
-        }
-
-        .bl-icon { font-size: 1.6rem; margin-bottom: 6px; }
-        .bl-label { font-size: 0.82rem; color: #f5e8d8; margin-bottom: 4px; font-weight: 500; }
-        .bl-detail { font-size: 0.78rem; color: #a07850; }
-
-        .profile-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 22px;
-        }
-
-        .profile-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 10px;
-            padding: 18px;
-            text-align: center;
-        }
-
-        .profile-card.green { border-top: 3px solid #4ade80; }
-        .profile-card.blue { border-top: 3px solid #60a5fa; }
-        .profile-card.orange { border-top: 3px solid #f97316; }
-        .profile-card.red { border-top: 3px solid #f87171; }
-
-        .profile-icon { font-size: 1.8rem; margin-bottom: 8px; }
-        .profile-name { font-size: 0.95rem; color: #f5e8d8; margin-bottom: 6px; font-weight: 500; }
-        .profile-detail { font-size: 0.82rem; color: #a07850; line-height: 1.5; }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 14px 18px;
-            margin: 9px 0;
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            color: #d4c4b0;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.92rem;
-        }
-
-        .quiz-option:hover { border-color: rgba(234, 88, 12, 0.5); background: rgba(234, 88, 12, 0.08); }
-        .quiz-option.correct { border-color: #4ade80; background: rgba(74,222,128,0.08); color: #4ade80; }
-        .quiz-option.incorrect { border-color: #f87171; background: rgba(248,113,113,0.08); color: #f87171; }
-
-        .feedback {
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            display: none;
-            line-height: 1.6;
-        }
-
-        .feedback.correct { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; display: block; }
-        .feedback.incorrect { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: #f87171; display: block; }
-
-        .summary-list { list-style: none; margin-top: 20px; }
-
-        .summary-list li {
-            padding: 10px 0 10px 30px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.92rem;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .summary-list li::before { content: '\2713'; position: absolute; left: 0; color: #4ade80; font-weight: bold; }
-
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 28px;
-            border-top: 1px solid rgba(234, 88, 12, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 28px;
-            background: rgba(234, 88, 12, 0.12);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 8px;
-            color: #f97316;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-purple { border-left-color: #a78bfa; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover { background: rgba(234, 88, 12, 0.22); border-color: rgba(234, 88, 12, 0.5); }
-        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
-            border: none;
-            color: white;
-            font-weight: 500;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn.primary:hover { box-shadow: 0 5px 20px rgba(234, 88, 12, 0.35); transform: translateY(-1px); }
-
-        .slide-dots { display: flex; gap: 8px; }
-
-        .slide-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(234, 88, 12, 0.3); cursor: pointer; transition: all 0.3s ease; }
-        .slide-dot.active { background: #f97316; transform: scale(1.2); }
-
-        @media (max-width: 768px) {
-            .presentation-header { flex-direction: column; gap: 14px; padding: 14px 18px; }
-            .slide-title { font-size: 1.7rem; }
-            .content-grid, .two-col, .three-col, .profile-grid { grid-template-columns: 1fr; }
-            .compare-table { font-size: 0.78rem; }
-            .slide-nav { flex-direction: column; gap: 18px; }
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        /* ── QUIZ ── */
+        .quiz-option {
+            display: block; width: 100%; padding: 10px 14px; margin: 6px 0;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px; color: #cbd5e1; text-align: left; cursor: pointer;
+            transition: background 0.2s, border-color 0.2s; font-size: 0.85rem; font-family: inherit;
+        }
+        .quiz-option:hover { background: rgba(201,168,58,0.1); border-color: #c9a83a; }
+        .quiz-option.correct  { border-color: #3ab577; background: rgba(58,181,119,0.1); color: #3ab577; }
+        .quiz-option.incorrect { border-color: #ef4444; background: rgba(239,68,68,0.08); color: #ef4444; }
+        .quiz-feedback { margin-top: 8px; padding: 10px 14px; border-radius: 6px; font-size: 0.83rem; display: none; line-height: 1.5; }
+        .quiz-feedback.correct  { display: block; background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.3); color: #86efac; }
+        .quiz-feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2,1fr); } .slide-title { font-size: 1.3rem; } }
+
+        /* ── SVG DIAGRAM HELPERS ── */
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">&larr; Back to MD-101</a>
-            <div class="house-badge">
-                <span>&#x1F528;</span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Managing Security &mdash; MD-101 Module 6</h1>
+
+<!-- Gold progress bar -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">MD-101 &mdash; Module 6 &nbsp;|&nbsp; Managing Security</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Module 6:<br>
+                <span class="accent">Managing Security</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:640px; margin-top:4px;">
+                Microsoft Defender for Endpoint, threat and vulnerability management, attack surface reduction, security baselines, and BitLocker &mdash; the full endpoint security stack.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 12</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>MDE &bull; TVM &bull; ASR &bull; Baselines &bull; BitLocker</span>
+            <span>MD-101 Exam Domain</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
-
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Managing Security</h1>
-            <p class="slide-subtitle">MD-101 Module 6 &mdash; Data protection, encryption, Defender for Endpoint, and advanced threat management</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon">&#x1F512;</div>
-                    <h2 class="card-title">Device Data Protection</h2>
-                    <p class="card-description">Implement data protection strategies using EFS file-level encryption, BitLocker full-disk encryption, and organizational policies to safeguard data at rest on Windows endpoints.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F6E1;&#xFE0F;</div>
-                    <h3 class="card-title">Microsoft Defender for Endpoint</h3>
-                    <p class="card-description">Enterprise-grade endpoint detection and response (EDR) platform that provides behavioral analytics, threat intelligence, automated investigation, and advanced hunting capabilities.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F50D;</div>
-                    <h3 class="card-title">Windows Defender Features</h3>
-                    <p class="card-description">Built-in security suite including Credential Guard, Application Guard, Exploit Guard, and Application Control (WDAC) to reduce attack surface and protect enterprise environments.</p>
-                </div>
+<!-- ==================== SLIDE 2 — MDE OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">Microsoft Defender for <span class="accent">Endpoint</span></div>
+        <div class="slide-subtitle">Enterprise endpoint detection, response, and automated investigation platform.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What Is MDE?</div>
+                <div class="card-desc">Microsoft Defender for Endpoint (MDE) is an enterprise-grade EDR (Endpoint Detection and Response) platform. It provides behavioral sensors, cloud-powered threat intelligence, automated investigation and remediation, and threat hunting capabilities. Formerly known as Microsoft Defender ATP.</div>
             </div>
-
-            <div class="key-points">
-                <h4>MODULE OVERVIEW</h4>
-                <ul>
-                    <li>EFS vs. BitLocker distinctions are core exam material &mdash; know when each applies</li>
-                    <li>Microsoft Defender for Endpoint onboarding and capabilities are heavily tested</li>
-                    <li>Windows Defender Application Guard, Credential Guard, and WDAC are enterprise features the exam loves</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">MDE Plan 1 vs. Plan 2</div>
+                <div class="card-desc"><strong>Plan 1:</strong> Next-gen antivirus, ASR rules, device control, web content filtering, manual response actions. <strong>Plan 2:</strong> Everything in P1 plus EDR, automated investigation, threat &amp; vulnerability management, threat analytics, sandbox analysis, and 6-month data retention.</td></div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: EFS Encryption -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">Encrypting File System (EFS)</h2>
-            <p class="slide-subtitle">File-level encryption built into NTFS for protecting individual files and folders</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">How EFS Works</h3>
-                        <p class="card-description">EFS uses asymmetric cryptography to encrypt individual files and folders on NTFS volumes. Each file is encrypted with a unique symmetric File Encryption Key (FEK), which is then encrypted with the user's public key.</p>
-                        <div style="margin-top: 14px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Key characteristics:</strong></p>
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Transparent encryption</strong> &mdash; files decrypt automatically for the authorized user</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Per-user encryption</strong> &mdash; only the encrypting user can decrypt by default</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">NTFS only</strong> &mdash; does not work on FAT32 or exFAT volumes</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Certificate-based</strong> &mdash; requires a user certificate (auto-generated or domain-issued)</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">EFS Recovery Agent</h3>
-                        <p class="card-description">The Data Recovery Agent (DRA) is a designated account that can decrypt any EFS-encrypted file. In domain environments, the domain administrator is the default DRA.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Configure DRA via Group Policy: Computer Config &gt; Windows Settings &gt; Security Settings &gt; Public Key Policies</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Export and back up the DRA certificate &mdash; loss means no recovery option</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Use <strong style="color:#f97316;">cipher /r</strong> to generate a recovery agent certificate</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Use <strong style="color:#f97316;">cipher /u</strong> to update encrypted files with new recovery keys</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Onboarding Methods</div>
+                <div class="card-desc">Windows: via Intune, Group Policy, Configuration Manager, or local script. macOS/Linux: via Intune, script, or manual install. Mobile: via Intune MDM. Onboarding deploys the Defender sensor that streams signals to Microsoft 365 Defender portal.</div>
             </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            MDE is included in M365 E5 and Microsoft Defender for Endpoint standalone. M365 E3 includes Defender Plan 1 only. Plan 2 (EDR, TVM) requires E5 or a separate Plan 2 license. Know which plan provides which capability.
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>EFS encrypts files, not volumes. BitLocker encrypts volumes, not individual files. Copying an EFS-encrypted file to a non-NTFS volume removes encryption. If a user's profile is lost or certificate is deleted without backup, the encrypted files become permanently inaccessible unless a DRA is configured.</p>
+<!-- ==================== SLIDE 3 — MDE ARCHITECTURE SVG ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">MDE <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">How endpoint sensors, cloud intelligence, and the Defender portal connect.</div>
+        <!-- SVG: Microsoft Defender for Endpoint architecture -->
+        <div class="diagram-center">
+            <svg width="820" height="220" viewBox="0 0 820 220" aria-label="Microsoft Defender for Endpoint architecture" role="img">
+                <!-- Endpoints row -->
+                <rect x="10"  y="10" width="100" height="50" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="60"  y="32" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">Windows</text>
+                <text x="60"  y="48" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">10/11 / Server</text>
+                <rect x="120" y="10" width="100" height="50" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="170" y="32" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">macOS</text>
+                <text x="170" y="48" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Linux</text>
+                <rect x="230" y="10" width="100" height="50" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="280" y="32" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">iOS</text>
+                <text x="280" y="48" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Android</text>
+
+                <!-- Section label -->
+                <text x="170" y="75" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">ENDPOINTS (SENSORS ONBOARDED)</text>
+
+                <!-- Arrows up to cloud -->
+                <line x1="60"  y1="60" x2="60"  y2="100" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle r="3" fill="#c9a83a"><animateMotion dur="2s" repeatCount="indefinite" path="M60,60 L60,100"/></circle>
+                <line x1="170" y1="60" x2="170" y2="100" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle r="3" fill="#c9a83a"><animateMotion dur="2s" begin="0.4s" repeatCount="indefinite" path="M170,60 L170,100"/></circle>
+                <line x1="280" y1="60" x2="280" y2="100" stroke="#c9a83a" stroke-width="1.5"/>
+                <circle r="3" fill="#c9a83a"><animateMotion dur="2s" begin="0.8s" repeatCount="indefinite" path="M280,60 L280,100"/></circle>
+
+                <!-- Cloud / MDE Backend -->
+                <rect x="10" y="100" width="320" height="70" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="170" y="125" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#06b6d4">MDE Cloud Backend</text>
+                <text x="170" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Behavioral sensors &bull; Threat intelligence &bull; AI analysis</text>
+                <text x="170" y="158" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Automated investigation &bull; 6-month data retention (P2)</text>
+
+                <!-- Arrow to portal -->
+                <line x1="330" y1="135" x2="395" y2="135" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="395,130 405,135 395,140" fill="#475569"/>
+                <circle r="4" fill="#06b6d4"><animateMotion dur="3s" repeatCount="indefinite" path="M330,135 L405,135"/></circle>
+
+                <!-- M365 Defender Portal -->
+                <rect x="405" y="100" width="195" height="70" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="502" y="125" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">M365 Defender</text>
+                <text x="502" y="141" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Portal: security.microsoft.com</text>
+                <text x="502" y="157" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Alerts &bull; Incidents &bull; TVM &bull; Reports</text>
+
+                <!-- Intune integration -->
+                <rect x="620" y="100" width="185" height="70" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="712" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#a78bfa">Intune + MDE</text>
+                <text x="712" y="138" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">MDE connector in Intune</text>
+                <text x="712" y="153" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Compliance: device threat level</text>
+                <text x="712" y="168" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Conditional Access integration</text>
+                <line x1="600" y1="135" x2="618" y2="135" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="618,130 628,135 618,140" fill="#475569"/>
+
+                <!-- Remediation arrow back to endpoints -->
+                <line x1="170" y1="170" x2="170" y2="210" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <text x="250" y="205" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Automated remediation / response actions pushed back to devices</text>
+            </svg>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">MDE + Intune Integration</div>
+            Enable the MDE connector in Intune to feed device threat level into compliance policies. A device with an "High" threat level can be marked non-compliant, which Conditional Access then blocks from accessing corporate resources.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — THREAT & VULNERABILITY MANAGEMENT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Threat &amp; Vulnerability <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Continuous discovery, prioritization, and remediation of endpoint vulnerabilities.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Discovery</div>
+                <div class="card-desc">MDE continuously inventories all software installed on onboarded endpoints, discovers missing patches, misconfigurations, and known CVEs. No additional scanning agent required. Discovery runs passively using the same Defender sensor used for threat detection.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: BitLocker in MD-101 Context -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">BitLocker Drive Encryption</h2>
-            <p class="slide-subtitle">Full-volume encryption with enterprise management and Intune integration</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">BitLocker Fundamentals</h3>
-                        <p class="card-description">BitLocker protects entire volumes against offline attacks. In the MD-101 context, focus is on enterprise deployment and management through Intune and Configuration Manager.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">TPM + PIN</strong> &mdash; recommended enterprise configuration for maximum security</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Silent encryption</strong> &mdash; Intune can enable BitLocker without user interaction</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Recovery key escrow</strong> &mdash; keys stored in Azure AD or on-prem AD DS</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Used space only</strong> vs. <strong style="color:#f5e8d8;">full encryption</strong> &mdash; used space is faster for new deployments</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Managing BitLocker with Intune</h3>
-                        <p class="card-description">Microsoft Intune provides centralized BitLocker policy management for modern-managed devices.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Endpoint Security &gt; Disk Encryption &gt; BitLocker profile</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Configure encryption method: XTS-AES 128 or XTS-AES 256</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Rotate recovery keys from the Intune portal</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>View encryption status per device in Intune compliance reports</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Prioritization (Exposure Score)</div>
+                <div class="card-desc">TVM calculates an <strong>Exposure Score</strong> (0-100) for your organization based on vulnerability criticality, exploitability in the wild, and the number of affected devices. Higher score = more exposed. Also generates a <strong>Microsoft Secure Score for Devices</strong>.</div>
             </div>
-
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Feature</th>
-                        <th scope="col">EFS</th>
-                        <th scope="col">BitLocker</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Encryption scope</td><td>Individual files/folders</td><td>Entire volume</td></tr>
-                    <tr><td>File system</td><td>NTFS only</td><td>NTFS, FAT32, exFAT</td></tr>
-                    <tr><td>Authentication</td><td>User certificate</td><td>TPM, PIN, USB key, password</td></tr>
-                    <tr><td>Protection type</td><td>Data confidentiality per user</td><td>Offline attack protection</td></tr>
-                    <tr><td>Recovery</td><td>Data Recovery Agent</td><td>48-digit recovery key</td></tr>
-                    <tr><td>Enterprise management</td><td>Group Policy, certificates</td><td>Intune, SCCM, Group Policy</td></tr>
-                </tbody>
-            </table>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: Microsoft Defender for Endpoint -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">Microsoft Defender for Endpoint</h2>
-            <p class="slide-subtitle">Enterprise EDR platform for prevention, detection, investigation, and response</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon">&#x1F50E;</div>
-                    <h3 class="card-title">Endpoint Detection &amp; Response</h3>
-                    <p class="card-description">Continuously monitors endpoint behavior to detect advanced threats. Provides rich investigation tools, timeline views, and automated remediation. Security analysts can pivot across alerts, machines, and files.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F9E0;</div>
-                    <h3 class="card-title">Threat &amp; Vulnerability Management</h3>
-                    <p class="card-description">Real-time discovery of software vulnerabilities and misconfigurations on endpoints. Provides risk-based prioritization and remediation recommendations integrated into the security operations workflow.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x2699;&#xFE0F;</div>
-                    <h3 class="card-title">Automated Investigation</h3>
-                    <p class="card-description">AI-driven automation examines alerts and determines remediation actions. Reduces alert fatigue by automatically resolving common incidents. Configurable automation levels from semi to fully automated.</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Remediation Workflow</div>
+                <div class="card-desc">Recommendations can be submitted as remediation activities to Intune. Admins review, approve, and deploy patches or configuration changes through the existing Intune workflow. Provides an audit trail from vulnerability discovery to remediation completion.</div>
             </div>
-
-            <div class="key-points">
-                <h4>ONBOARDING METHODS</h4>
-                <ul>
-                    <li><strong>Microsoft Intune</strong> &mdash; preferred for cloud-managed devices; deploy onboarding configuration package via device configuration profile</li>
-                    <li><strong>Group Policy</strong> &mdash; domain-joined devices; deploy onboarding script via GPO</li>
-                    <li><strong>Local script</strong> &mdash; up to 10 devices for testing; download from Microsoft 365 Defender portal</li>
-                    <li><strong>SCCM / Configuration Manager</strong> &mdash; large-scale on-premises deployment with client settings</li>
-                    <li><strong>VDI onboarding</strong> &mdash; special configuration for non-persistent virtual desktop infrastructure</li>
-                </ul>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Security Recommendations</div>
+                <div class="card-desc">TVM generates prioritized security recommendations: enable BitLocker, update software version X, disable legacy protocol Y. Each recommendation shows affected devices, exposure level, and the remediation action required. Filter by category: software, OS, network.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Microsoft Defender for Endpoint requires a separate license (Plan 1 or Plan 2). It is not the same as the built-in Microsoft Defender Antivirus. Know the onboarding methods and that Intune is the recommended approach for modern-managed devices. The Microsoft 365 Defender portal (security.microsoft.com) is the central management console.</p>
+            <div class="card c-red">
+                <div class="card-label">Software Inventory</div>
+                <div class="card-desc">Complete catalog of all software across all onboarded devices. Shows version, vendor, number of installed instances, and any known CVEs. Filter for vulnerable software versions. Click through to see exactly which devices have each vulnerability.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 5 — TVM FLOW SVG ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">TVM Remediation <span class="accent">Flow</span></div>
+        <div class="slide-subtitle">From vulnerability discovery to closed remediation ticket via Intune integration.</div>
+        <!-- SVG: Threat & vulnerability management flow -->
+        <div class="diagram-center">
+            <svg width="840" height="175" viewBox="0 0 840 175" aria-label="TVM remediation flow diagram" role="img">
+                <!-- Stage 1 -->
+                <rect x="10" y="45" width="145" height="80" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="82" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#ef4444">Discover</text>
+                <text x="82" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">MDE sensor scans</text>
+                <text x="82" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">installed SW &amp; CVEs</text>
+                <!-- Arrow -->
+                <line x1="155" y1="85" x2="190" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="190,80 200,85 190,90" fill="#475569"/>
+                <circle r="4" fill="#ef4444"><animateMotion dur="5s" repeatCount="indefinite" path="M155,85 L200,85"/></circle>
 
-        <!-- Slide 5: Defender for Endpoint Capabilities -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Defender for Endpoint Capabilities</h2>
-            <p class="slide-subtitle">Attack surface reduction, next-gen protection, and advanced hunting</p>
+                <!-- Stage 2 -->
+                <rect x="200" y="45" width="145" height="80" rx="8" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="272" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Prioritize</text>
+                <text x="272" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Exposure Score</text>
+                <text x="272" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">CVSS + exploitability</text>
+                <!-- Arrow -->
+                <line x1="345" y1="85" x2="380" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="380,80 390,85 380,90" fill="#475569"/>
+                <circle r="4" fill="#c9a83a"><animateMotion dur="5s" begin="1s" repeatCount="indefinite" path="M345,85 L390,85"/></circle>
 
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Attack Surface Reduction</h3>
-                        <p class="card-description">A collection of capabilities that reduce the ways attacks can penetrate your environment:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">ASR rules</strong> &mdash; block Office macro abuse, script execution, credential theft from LSASS</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Controlled folder access</strong> &mdash; anti-ransomware protection for critical directories</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Network protection</strong> &mdash; blocks connections to malicious domains and IPs</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Web protection</strong> &mdash; web threat and content filtering integration</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Exploit protection</strong> &mdash; system and app-level mitigations (DEP, ASLR, CFG)</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Next-Generation Protection</h3>
-                        <p class="card-description">Advanced antimalware capabilities beyond traditional signature-based detection:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Behavior-based detection</strong> &mdash; identifies threats by analyzing process behavior patterns</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Cloud-delivered protection</strong> &mdash; millisecond verdicts from the Microsoft Intelligent Security Graph</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Machine learning models</strong> &mdash; client-side and cloud-based ML classifiers</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Tamper protection</strong> &mdash; prevents unauthorized changes to security settings</li>
-                        </ul>
-                    </div>
-                </div>
+                <!-- Stage 3 -->
+                <rect x="390" y="45" width="145" height="80" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="462" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Recommend</text>
+                <text x="462" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Security recs</text>
+                <text x="462" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">submit to Intune</text>
+                <!-- Arrow -->
+                <line x1="535" y1="85" x2="570" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="570,80 580,85 570,90" fill="#475569"/>
+                <circle r="4" fill="#06b6d4"><animateMotion dur="5s" begin="2s" repeatCount="indefinite" path="M535,85 L580,85"/></circle>
+
+                <!-- Stage 4 -->
+                <rect x="580" y="45" width="145" height="80" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="652" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#a78bfa">Remediate</text>
+                <text x="652" y="94" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Intune deploys patch</text>
+                <text x="652" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">or config change</text>
+                <!-- Arrow -->
+                <line x1="725" y1="85" x2="760" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="760,80 770,85 760,90" fill="#475569"/>
+                <circle r="4" fill="#a78bfa"><animateMotion dur="5s" begin="3s" repeatCount="indefinite" path="M725,85 L770,85"/></circle>
+
+                <!-- Stage 5 -->
+                <rect x="770" y="58" width="62" height="54" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="801" y="82" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Verify</text>
+                <text x="801" y="98" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Score</text>
+                <text x="801" y="111" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">improves</text>
+
+                <!-- Labels -->
+                <text x="82"  y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">STEP 1</text>
+                <text x="272" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">STEP 2</text>
+                <text x="462" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">STEP 3</text>
+                <text x="652" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">STEP 4</text>
+                <text x="801" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">STEP 5</text>
+            </svg>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            TVM is a Plan 2 feature. The Exposure Score and Microsoft Secure Score for Devices are the two key metrics. Lower Exposure Score = better. Higher Secure Score for Devices = better. Both improve as you remediate vulnerabilities and apply configurations.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — ATTACK SURFACE REDUCTION ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Attack Surface <span class="accent">Reduction</span></div>
+        <div class="slide-subtitle">Eliminate attack vectors before they are exploited &mdash; proactive versus reactive defense.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">ASR Rules</div>
+                <div class="card-desc">Attack Surface Reduction rules block specific malicious behaviors at the OS level: block Office apps from creating child processes, block Office from injecting into other processes, block executable content from email, block credential theft from LSASS, block untrusted USB execution, block obfuscated script execution.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title">Advanced Hunting</div>
-                <div class="scenario-content">
-                    Advanced hunting in Microsoft 365 Defender uses Kusto Query Language (KQL) to proactively search for threats across endpoint data. Security analysts write queries against tables like <strong style="color:#f97316;">DeviceProcessEvents</strong>, <strong style="color:#f97316;">DeviceNetworkEvents</strong>, and <strong style="color:#f97316;">DeviceFileEvents</strong> to find suspicious patterns that automated detection may miss. This is a Plan 2 feature.
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">ASR Rule Modes</div>
+                <div class="card-desc"><strong>Block:</strong> Rule is enforced, action is blocked. <strong>Audit:</strong> Rule evaluates but does not block. Logs what would have been blocked in Windows Event Viewer. Use Audit mode before switching to Block to understand impact. <strong>Warn:</strong> Blocks and shows a user notification.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Windows Defender Application Guard -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Windows Defender Application Guard</h2>
-            <p class="slide-subtitle">Hardware-based browser isolation using Hyper-V containers</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">How Application Guard Works</h3>
-                        <p class="card-description">WDAG opens untrusted websites and Office documents in an isolated Hyper-V container. Even if malicious code executes, it is confined to the disposable container and cannot access the host OS, local network, or enterprise data.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Enterprise-managed mode</strong> &mdash; IT defines trusted sites; all others open in container</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Standalone mode</strong> &mdash; user manually launches isolated browsing sessions</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Requires Hyper-V, 64-bit CPU with virtualization extensions</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Available on Enterprise and Education editions</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Configuration Options</h3>
-                        <p class="card-description">Configure via Group Policy or Intune:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Clipboard behavior</strong> &mdash; allow/block copy-paste between container and host</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Print settings</strong> &mdash; control printing from isolated sessions</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Camera and microphone</strong> &mdash; enable/disable device access in container</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Data persistence</strong> &mdash; retain or discard user data between sessions</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Network isolation</strong> &mdash; define enterprise cloud resources and network boundaries</li>
-                        </ul>
-                    </div>
-                </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Controlled Folder Access</div>
+                <div class="card-desc">Protects specified folders (Documents, Pictures, etc.) from unauthorized writes by non-whitelisted apps. Blocks ransomware from encrypting files in protected folders. Can add custom protected folders and whitelist specific trusted applications.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Application Guard uses hardware-based isolation (Hyper-V), making it fundamentally different from sandboxing. It requires Windows 10/11 Enterprise or Education and Hyper-V capability. Know the difference between enterprise-managed mode (IT controls trusted site list) and standalone mode (user-initiated).</p>
+            <div class="card c-red">
+                <div class="card-label">Device Control</div>
+                <div class="card-desc">Controls which removable storage devices (USB drives, external drives) can be used and what operations are permitted (read, write, execute). Policy can block all USB storage, allow only approved USB device IDs, or allow read-only access. Prevents data exfiltration via USB.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Credential Guard & System Guard -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Credential Guard &amp; System Guard</h2>
-            <p class="slide-subtitle">Virtualization-based security for credential isolation and measured boot</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Windows Defender Credential Guard</h3>
-                        <p class="card-description">Uses virtualization-based security (VBS) to isolate NTLM hashes, Kerberos tickets, and other credentials in a secure container that even kernel-level malware cannot access.</p>
-                        <div style="margin-top: 14px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Requirements:</strong></p>
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>UEFI firmware with Secure Boot</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Virtualization extensions (Intel VT-x / AMD-V)</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>TPM 2.0 (recommended)</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Windows Enterprise or Education</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>64-bit operating system</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">System Guard (Measured Boot)</h3>
-                        <p class="card-description">Ensures the integrity of the boot process by measuring each component and storing the measurements in the TPM. If tampering is detected, the system can prevent access to enterprise resources.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">DRTM</strong> &mdash; Dynamic Root of Trust for Measurement ensures secure launch</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Runtime attestation</strong> &mdash; validates system integrity after boot</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">SMM protection</strong> &mdash; guards against System Management Mode attacks</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-purple">
+                <div class="card-label">Network Protection</div>
+                <div class="card-desc">Extends SmartScreen protection to the network level. Blocks outbound connections to low-reputation IP addresses and domains (known C2 servers, phishing domains). Works for all traffic on the device, not just browser traffic. Audit or Block mode.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box">
-                <div class="scenario-title">Why Credential Guard Matters</div>
-                <div class="scenario-content">
-                    Without Credential Guard, tools like Mimikatz can extract NTLM hashes and Kerberos tickets directly from the LSASS process memory. With Credential Guard enabled, credentials are stored in an isolated virtual container using VBS &mdash; even a compromised kernel cannot reach them. This is the primary defense against Pass-the-Hash and Pass-the-Ticket attacks in enterprise environments.
-                </div>
+<!-- ==================== SLIDE 7 — ASR LAYERS SVG ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">Attack Surface Reduction <span class="accent">Layers</span></div>
+        <div class="slide-subtitle">Multiple overlapping defense layers that eliminate common attack vectors.</div>
+        <!-- SVG: Attack surface reduction layers -->
+        <div class="diagram-center">
+            <svg width="760" height="220" viewBox="0 0 760 220" aria-label="Attack surface reduction defense layers" role="img">
+                <!-- Layer bars stacked -->
+                <!-- Layer 1: Network Protection (outer) -->
+                <rect x="10" y="10" width="740" height="36" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="380" y="25" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#ef4444">Network Protection</text>
+                <text x="380" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Block outbound to malicious IPs/domains &bull; SmartScreen extended to all traffic</text>
+
+                <!-- Layer 2: Email / Web -->
+                <rect x="40" y="55" width="680" height="36" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="380" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Email &amp; Web Threat Protection</text>
+                <text x="380" y="85" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Block executable content from email &bull; Block untrusted / unsigned executables</text>
+
+                <!-- Layer 3: Application -->
+                <rect x="80" y="100" width="600" height="36" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="380" y="115" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Application Controls (ASR Rules)</text>
+                <text x="380" y="130" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Block Office child processes &bull; Block script injection &bull; Block LSASS access</text>
+
+                <!-- Layer 4: Storage -->
+                <rect x="120" y="145" width="520" height="36" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="380" y="160" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#a78bfa">Device Control &amp; Controlled Folder Access</text>
+                <text x="380" y="175" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Block unauthorized USB &bull; Protect folders from ransomware writes</text>
+
+                <!-- Layer 5: Core (innermost) -->
+                <rect x="200" y="190" width="360" height="25" rx="6" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="380" y="207" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Core: Next-Gen AV &bull; Behavioral Sensors &bull; Cloud Protection</text>
+
+                <!-- Left shrink indicators -->
+                <text x="5" y="30" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">1</text>
+                <text x="35" y="75" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">2</text>
+                <text x="72" y="120" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">3</text>
+                <text x="112" y="165" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">4</text>
+                <text x="190" y="205" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">5</text>
+            </svg>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Deployment via Intune</div>
+            ASR rules are deployed using Intune Endpoint Security policies (Attack surface reduction profile) or via Configuration Manager / Group Policy. Always start in Audit mode, monitor Windows Defender logs for false positives, then switch to Block mode.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — SECURITY BASELINES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Security <span class="accent">Baselines</span></div>
+        <div class="slide-subtitle">Microsoft-recommended security configuration templates deployed through Intune.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What Are Security Baselines?</div>
+                <div class="card-desc">Pre-configured groups of Windows settings that represent the security posture recommended by Microsoft security teams. Based on best practices from Microsoft, NIST, and CIS benchmarks. Baselines are versioned and updated as the threat landscape evolves. Available for Windows 10/11, Microsoft Edge, Microsoft 365 Apps, and Defender for Endpoint.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Windows Defender Application Control -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Application Control (WDAC)</h2>
-            <p class="slide-subtitle">Windows Defender Application Control &mdash; whitelisting for enterprise security</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WDAC Overview</h3>
-                        <p class="card-description">Windows Defender Application Control replaces AppLocker as Microsoft's recommended application whitelisting solution. It controls which drivers and applications are allowed to run.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Kernel-mode enforcement</strong> &mdash; controls which drivers can load</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">User-mode enforcement</strong> &mdash; controls which applications can execute</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Managed Installer</strong> &mdash; auto-trusts apps deployed via SCCM or Intune</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Intelligent Security Graph</strong> &mdash; reputation-based trust decisions</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WDAC vs. AppLocker</h3>
-                        <p class="card-description">While both control application execution, WDAC operates at a lower level and provides stronger security guarantees:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">WDAC</strong> &mdash; enforced by the kernel; cannot be bypassed by admin users</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">AppLocker</strong> &mdash; runs as a service; local admins can modify or disable it</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>WDAC supports both audit and enforce modes for policy testing</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>WDAC policies deploy via Intune, Group Policy, or MDM</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Available Baselines</div>
+                <div class="card-desc"><strong>Windows Security Baseline:</strong> 150+ settings covering firewall, BitLocker, credential guard, account lockout, UAC, Windows Defender. <strong>Edge Security Baseline:</strong> Browser security settings. <strong>M365 Apps Baseline:</strong> Office macro settings, Trust Center config. <strong>MDE Baseline:</strong> Defender-specific hardening.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>WDAC is Microsoft's recommended application control solution going forward. It is more secure than AppLocker because it operates at the kernel level. AppLocker is still supported but primarily used alongside WDAC for user-mode rules. The exam tests the differences between the two and when to use each.</p>
+            <div class="card c-green">
+                <div class="card-label">Deployment in Intune</div>
+                <div class="card-desc">Endpoint Security &gt; Security Baselines &gt; Select baseline type &gt; Create profile &gt; Customize settings if needed &gt; Assign to device groups. Baseline settings merge with other configuration profiles. In conflicts, last-write wins unless the baseline uses a higher-priority CSP.</div>
             </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Security Baselines are the fastest path to a hardened configuration. They ship pre-configured and only need an assignment to take effect. Unlike Compliance policies (which evaluate and report), baselines actively configure device settings. Think of baselines as "configuration" and compliance policies as "evaluation."
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 9 — SECURITY BASELINE PIPELINE SVG ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Security Baseline <span class="accent">Deployment Pipeline</span></div>
+        <div class="slide-subtitle">How Microsoft baseline recommendations flow from Intune to endpoint configuration.</div>
+        <!-- SVG: Security baseline deployment pipeline -->
+        <div class="diagram-center">
+            <svg width="800" height="180" viewBox="0 0 800 180" aria-label="Security baseline deployment pipeline" role="img">
+                <!-- Source -->
+                <rect x="10" y="45" width="140" height="80" rx="8" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="80" y="75" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Microsoft</text>
+                <text x="80" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Security Team</text>
+                <text x="80" y="107" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">NIST / CIS / best practice</text>
+                <!-- Arrow -->
+                <line x1="150" y1="85" x2="188" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="188,80 198,85 188,90" fill="#475569"/>
+                <circle r="4" fill="#c9a83a"><animateMotion dur="4s" repeatCount="indefinite" path="M150,85 L198,85"/></circle>
 
-        <!-- Slide 9: Exploit Guard & ASR Rules -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">Exploit Guard &amp; ASR Rules</h2>
-            <p class="slide-subtitle">Behavioral-based attack mitigation and surface reduction</p>
+                <!-- Intune Portal -->
+                <rect x="198" y="45" width="150" height="80" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="273" y="73" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">Intune Portal</text>
+                <text x="273" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Select baseline version</text>
+                <text x="273" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Customize (optional)</text>
+                <text x="273" y="118" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Assign to groups</text>
+                <!-- Arrow -->
+                <line x1="348" y1="85" x2="386" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="386,80 396,85 386,90" fill="#475569"/>
+                <circle r="4" fill="#06b6d4"><animateMotion dur="4s" begin="1s" repeatCount="indefinite" path="M348,85 L396,85"/></circle>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px;">
-                <div class="threat-card exploit">
-                    <div class="threat-name">Exploit Protection</div>
-                    <div class="threat-desc">System and app-level exploit mitigations replacing EMET. Includes DEP, ASLR, SEHOP, CFG, and heap integrity. Configure per-system defaults and per-application overrides.</div>
-                </div>
-                <div class="threat-card atp">
-                    <div class="threat-name">ASR Rules</div>
-                    <div class="threat-desc">Block common attack techniques: Office macros creating child processes, credential theft from LSASS, script obfuscation, untrusted USB processes. Deploy via Intune or Group Policy.</div>
-                </div>
-                <div class="threat-card defender">
-                    <div class="threat-name">Network Protection</div>
-                    <div class="threat-desc">Extends SmartScreen to block outbound connections to low-reputation hosts. Prevents connections to phishing sites, exploit servers, and C2 infrastructure at the network layer.</div>
-                </div>
-                <div class="threat-card efs">
-                    <div class="threat-name">Controlled Folder Access</div>
-                    <div class="threat-desc">Anti-ransomware: blocks untrusted processes from writing to protected folders (Documents, Pictures, etc.). Trusted apps can be whitelisted. Requires real-time protection enabled.</div>
-                </div>
-                <div class="threat-card bitlocker">
-                    <div class="threat-name">SmartScreen</div>
-                    <div class="threat-desc">Reputation-based protection checking downloaded files and URLs against Microsoft's cloud intelligence. Integrated into Edge, Windows Explorer, and Microsoft Store app installs.</div>
-                </div>
-                <div class="threat-card appguard">
-                    <div class="threat-name">Device Guard</div>
-                    <div class="threat-desc">Combines WDAC with VBS and HVCI (Hypervisor-protected Code Integrity) to lock down devices so only trusted applications run. Enterprise-grade protection against unknown code.</div>
-                </div>
+                <!-- MDM Channel -->
+                <rect x="396" y="45" width="150" height="80" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="471" y="73" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">MDM Channel</text>
+                <text x="471" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">OMA-URI / CSP</text>
+                <text x="471" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Settings catalog</text>
+                <!-- Arrow -->
+                <line x1="546" y1="85" x2="584" y2="85" stroke="#475569" stroke-width="1.5"/>
+                <polygon points="584,80 594,85 584,90" fill="#475569"/>
+                <circle r="4" fill="#3ab577"><animateMotion dur="4s" begin="2s" repeatCount="indefinite" path="M546,85 L594,85"/></circle>
+
+                <!-- Endpoint -->
+                <rect x="594" y="45" width="190" height="80" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="689" y="73" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#a78bfa">Endpoint Applied</text>
+                <text x="689" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">150+ hardened settings</text>
+                <text x="689" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">BitLocker, Defender, Firewall</text>
+                <text x="689" y="118" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Credential Guard, UAC</text>
+
+                <!-- Labels -->
+                <text x="80"  y="143" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">SOURCE</text>
+                <text x="273" y="143" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">CONFIGURE</text>
+                <text x="471" y="143" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">DELIVER</text>
+                <text x="689" y="143" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#475569">ENFORCE</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Baseline Versioning</div>
+                <div class="card-desc">Security baselines are versioned (e.g., Windows Security Baseline for Windows 10 v21H2). When a new version is released you choose to update your assigned profile or remain on the current version. Updating a baseline version does not automatically apply &mdash; you must accept the update.</div>
             </div>
-
-            <div class="key-points">
-                <h3>ASR RULE DEPLOYMENT MODES</h3>
-                <ul>
-                    <li><strong>Not configured</strong> &mdash; rule is disabled (default for most rules)</li>
-                    <li><strong>Block</strong> &mdash; rule actively blocks the behavior and generates an alert</li>
-                    <li><strong>Audit</strong> &mdash; rule logs the behavior without blocking &mdash; use first to assess impact</li>
-                    <li><strong>Warn</strong> &mdash; shows a warning dialog to the user but allows override</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Conflict Resolution</div>
+                <div class="card-desc">When a baseline setting conflicts with a manually configured Configuration Profile or Endpoint Security policy, a conflict is reported in Intune. Conflicts must be resolved manually. Intune does not automatically pick a winner for conflicting settings.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 10: Security Baselines & Compliance -->
-        <section class="slide" data-slide="10">
-            <h2 class="slide-title">Security Baselines &amp; Compliance</h2>
-            <p class="slide-subtitle">Standardized security configurations and compliance monitoring</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Microsoft Security Baselines</h3>
-                        <p class="card-description">Pre-configured sets of Windows settings recommended by Microsoft security teams. Based on feedback from Microsoft security engineering, product groups, partners, and customers.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Deploy via <strong style="color:#f5e8d8;">Intune security baselines</strong> or Group Policy</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Baselines available for Windows 10/11, Microsoft Edge, Microsoft 365 Apps</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Microsoft Security Compliance Toolkit (SCT) for on-prem analysis</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Customizable &mdash; adjust settings to match organizational requirements</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Intune Compliance Policies</h3>
-                        <p class="card-description">Define the minimum security requirements devices must meet to access corporate resources. Non-compliant devices can be blocked via Conditional Access.</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">BitLocker required</strong> &mdash; device must have encryption enabled</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Minimum OS version</strong> &mdash; enforce patch currency</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Defender status</strong> &mdash; real-time protection must be active</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Risk score</strong> &mdash; integration with Defender for Endpoint threat level</li>
-                        </ul>
-                    </div>
-                </div>
+<!-- ==================== SLIDE 10 — BITLOCKER ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">BitLocker <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">Full-volume encryption for Windows devices &mdash; deployed and managed via Intune.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What BitLocker Protects</div>
+                <div class="card-desc">BitLocker encrypts the entire OS drive and any additional drives. Without the encryption key, data on a stolen or lost device is unreadable. Uses AES-128 or AES-256. TPM chip stores the key and validates the pre-boot environment before unlocking the drive.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Security baselines in Intune provide a quick way to apply Microsoft-recommended settings without building custom profiles from scratch. Compliance policies combined with Conditional Access create a Zero Trust enforcement loop: only compliant, healthy devices can access corporate resources. Know the distinction between configuration profiles (push settings) and compliance policies (evaluate state).</p>
+            <div class="card c-cyan">
+                <div class="card-label">TPM + BitLocker</div>
+                <div class="card-desc">TPM 1.2 or 2.0 required for silent/automatic encryption. TPM validates the boot chain: if the system has been tampered with (bootkit, different hardware), TPM withholds the key and prompts for the recovery key. TPM + PIN = adds a second authentication factor at pre-boot.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 11: Knowledge Check -->
-        <section class="slide" data-slide="11">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Apply what you know &mdash; two scenario-based questions</p>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title">Scenario 1</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">Your organization needs to protect against Pass-the-Hash attacks on enterprise endpoints. The solution must prevent credential theft even if an attacker gains kernel-level access. Which feature should you implement?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">A) Windows Defender Application Guard &mdash; isolates browsing in Hyper-V containers</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1', 'q1')">B) Windows Defender Credential Guard &mdash; isolates credentials using VBS</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">C) BitLocker Drive Encryption &mdash; encrypts the entire volume</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">D) Attack Surface Reduction rules &mdash; blocks common attack behaviors</button>
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Recovery Keys</div>
+                <div class="card-desc">48-digit recovery key is escrowed to Azure AD automatically when BitLocker is configured via Intune with "Back up BitLocker recovery information to Azure AD." Admins retrieve keys from Intune device details. Required when: TPM fails, forgotten PIN, hardware change, firmware update.</div>
             </div>
+        </div>
+        <table class="slide-table">
+            <thead><tr><th>Configuration Option</th><th>What It Does</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Require encryption for drives</strong></td><td>Marks unencrypted devices as non-compliant via compliance policy</td></tr>
+                <tr><td><strong>Silent enablement</strong></td><td>Silently encrypts with TPM only &mdash; no user prompt required</td></tr>
+                <tr><td><strong>Recovery key escrowed to AAD</strong></td><td>48-digit key stored in Azure AD, accessible by admin in Intune</td></tr>
+                <tr><td><strong>XTS-AES 256</strong></td><td>Strongest encryption algorithm, recommended for OS drives</td></tr>
+                <tr><td><strong>Pre-boot PIN</strong></td><td>Adds a PIN that must be entered before Windows loads &mdash; hardens against cold boot attacks</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
 
-            <div class="scenario-box" id="quiz2" style="margin-top: 24px;">
-                <div class="scenario-title">Scenario 2</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">A user encrypted files with EFS on their domain-joined workstation. The user's profile becomes corrupted and cannot be restored. The files are still on the disk but inaccessible. What is the best way to recover the data?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">A) Use BitLocker recovery to decrypt the volume and access the files</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">B) Log in as a local administrator &mdash; admins can access all EFS-encrypted files</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2', 'q2')">C) Use the Data Recovery Agent (DRA) account to decrypt the files</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">D) Reformat the drive &mdash; EFS-encrypted files cannot be recovered without the original profile</button>
-                    <div class="feedback" id="feedback-quiz2"></div>
-                </div>
+<!-- ==================== SLIDE 11 — WINDOWS ENCRYPTION FEATURES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">Windows Encryption &amp; <span class="accent">Protection Features</span></div>
+        <div class="slide-subtitle">The full suite of Windows security features beyond BitLocker.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Credential Guard</div>
+                <div class="card-desc">Uses virtualization-based security (VBS) to isolate the LSASS process that stores credentials. Credentials are stored in an isolated container that even the OS kernel cannot directly access. Prevents Pass-the-Hash and Pass-the-Ticket attacks. Requires VBS-capable CPU and UEFI.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 12: Summary -->
-        <section class="slide" data-slide="12">
-            <h2 class="slide-title">Module 6 Summary</h2>
-            <p class="slide-subtitle">Managing Security &mdash; key takeaways</p>
-
-            <ul class="summary-list">
-                <li>EFS encrypts individual files using per-user certificates; BitLocker encrypts entire volumes using TPM</li>
-                <li>EFS requires NTFS; copying encrypted files to non-NTFS removes encryption</li>
-                <li>Data Recovery Agent (DRA) is the enterprise fail-safe for EFS &mdash; configure and back up the DRA certificate</li>
-                <li>BitLocker can be silently deployed via Intune with recovery key escrow to Azure AD</li>
-                <li>Microsoft Defender for Endpoint is a separate licensed EDR platform &mdash; not the built-in Defender Antivirus</li>
-                <li>Onboard devices to Defender for Endpoint via Intune, Group Policy, local script, or SCCM</li>
-                <li>Application Guard isolates untrusted sites in Hyper-V containers &mdash; requires Enterprise/Education</li>
-                <li>Credential Guard uses VBS to isolate credentials and prevent Pass-the-Hash attacks</li>
-                <li>WDAC is the recommended application control solution; operates at kernel level, stronger than AppLocker</li>
-                <li>ASR rules block common attack techniques &mdash; deploy in Audit mode first, then switch to Block</li>
-                <li>Security baselines in Intune provide Microsoft-recommended settings as a deployment starting point</li>
-                <li>Compliance policies combined with Conditional Access enforce Zero Trust endpoint security</li>
-            </ul>
-
-            <div class="exam-tip" style="margin-top: 28px;">
-                <div class="exam-tip-label">EXAM FOCUS AREAS</div>
-                <p>EFS vs. BitLocker scope and requirements. Defender for Endpoint onboarding methods and licensing. Credential Guard vs. Application Guard purposes and requirements. WDAC vs. AppLocker enforcement levels. Security baselines vs. compliance policies in Intune.</p>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Defender Application Guard</div>
+                <div class="card-desc">Opens untrusted websites or Office files in an isolated Hyper-V container. If a malicious site compromises the browser inside the container, it cannot reach the actual host OS. Container is destroyed after the session. Requires Hyper-V capable hardware and Windows 10/11 Enterprise.</div>
             </div>
-
-            <div class="scenario-box" style="text-align: center; margin-top: 24px;">
-                <div class="scenario-title" style="justify-content: center;">Module Complete</div>
-                <div class="scenario-content">
-                    <p>You have covered all security management topics for the MD-101 exam. Mark this module complete to track your progress.</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Exploit Protection</div>
+                <div class="card-desc">System-level and per-app mitigations against memory-based exploits: DEP (Data Execution Prevention), ASLR (Address Space Layout Randomization), Control Flow Guard, Stack randomization. Replaces EMET (Enhanced Mitigation Experience Toolkit). Configurable via Intune or Group Policy.</div>
             </div>
+            <div class="card c-red">
+                <div class="card-label">Secure Boot</div>
+                <div class="card-desc">UEFI firmware validates that the boot loader and OS kernel are signed by trusted keys before loading. Prevents bootkit malware from loading before Windows. Required by compliance policies in MDE onboarding. Cannot be bypassed without physical access and disabling UEFI secure boot.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module &#x2713;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 12 — ENDPOINT SECURITY PROFILES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Endpoint Security <span class="accent">Profiles in Intune</span></div>
+        <div class="slide-subtitle">Intune Endpoint Security is the admin hub for deploying all security configurations.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Antivirus</div>
+                <div class="card-desc">Configure Microsoft Defender Antivirus settings: real-time protection, cloud-delivered protection, sample submission, behavior monitoring, exclusion paths, scheduled scan settings. Separate profile for Windows Security app UI (show/hide to end users).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Disk Encryption</div>
+                <div class="card-desc">BitLocker for Windows (OS drive, fixed drives, removable drives). FileVault for macOS. Configure encryption algorithm (XTS-AES 128/256), recovery key escrowing, silent enablement, startup authentication (TPM, PIN, USB key), and recovery message on unlock screen.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Firewall</div>
+                <div class="card-desc">Configure Windows Defender Firewall: enable/disable per network profile (Domain, Private, Public), default allow/block inbound, logging configuration, custom firewall rules (allow specific ports/applications). Deploy consistent firewall policy across the fleet regardless of GPO.</div>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Endpoint Detection &amp; Response</div>
+                <div class="card-desc">Onboard devices to MDE via Intune. Configure sample sharing, telemetry reporting frequency, and the MDE onboarding blob. Manage offboarding (remove device from MDE monitoring). EDR profile is the primary onboarding method for Intune-managed devices.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Attack Surface Reduction</div>
+                <div class="card-desc">Deploy ASR rules by GUID with Block/Audit/Warn mode. Configure Controlled Folder Access protected folders and allowed apps. Device control: USB block/allow rules. Network protection mode. Web content filtering categories (block adult content, social media, etc.).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Account Protection</div>
+                <div class="card-desc">Windows Hello for Business deployment: enable, configure PIN complexity (length, characters), require biometrics. Local Administrator Password Solution (LAPS) configuration: rotate local admin passwords, store in AAD, expiry settings. Prevents credential reuse attacks.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-    </main>
+<!-- ==================== SLIDE 13 — MICROSOFT DEFENDER ANTIVIRUS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Microsoft Defender <span class="accent">Antivirus</span></div>
+        <div class="slide-subtitle">The built-in real-time protection engine &mdash; configurable at scale through Intune.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Cloud-Delivered Protection</div>
+                <div class="card-desc">Sends file hash and behavioral telemetry to Microsoft cloud for near-instant threat intelligence. Cloud protection can block files within seconds of detection by any device in the Microsoft network &mdash; before signatures are distributed to all endpoints. Strongly recommended to enable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Potentially Unwanted Applications (PUA)</div>
+                <div class="card-desc">Blocks software that is not technically malware but is unwanted: adware, browser hijackers, coin miners, bundled software. PUA protection has Audit and Block modes. Separate from virus/malware detection. Reduces the noise from legitimate-but-unwanted software installs.</div>
+            </div>
+        </div>
+        <table class="slide-table">
+            <thead><tr><th>Setting</th><th>Recommended Value</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Real-time protection</strong></td><td>Enabled</td><td>Scan files at access, not on schedule only</td></tr>
+                <tr><td><strong>Cloud protection</strong></td><td>Enabled (High block)</td><td>Near-real-time threat intelligence from Microsoft</td></tr>
+                <tr><td><strong>Automatic sample submission</strong></td><td>Send safe samples automatically</td><td>Feed unknown files to Microsoft for analysis</td></tr>
+                <tr><td><strong>Behavior monitoring</strong></td><td>Enabled</td><td>Detect threats by behavior, not just signature</td></tr>
+                <tr><td><strong>PUA protection</strong></td><td>Block</td><td>Prevent adware and bundled unwanted software</td></tr>
+                <tr><td><strong>Tamper protection</strong></td><td>Enabled</td><td>Prevent non-admin processes from disabling Defender</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 12;
+<!-- ==================== SLIDE 14 — KNOWLEDGE CHECK 1 ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Knowledge <span class="accent">Check</span></div>
+        <div class="slide-subtitle">Apply security management concepts to exam scenarios.</div>
+        <div class="box box-gold" style="margin-bottom:10px;" id="q1">
+            <div class="box-label">Scenario 1</div>
+            <p style="font-size:0.875rem;color:#f1f5f9;margin-bottom:8px;">An org wants to prevent users from encrypting their documents folder with ransomware. Which MDE feature provides this protection?</p>
+            <button class="quiz-option" onclick="checkQ('q1',this,false)">A) BitLocker</button>
+            <button class="quiz-option" onclick="checkQ('q1',this,true)">B) Controlled Folder Access</button>
+            <button class="quiz-option" onclick="checkQ('q1',this,false)">C) Credential Guard</button>
+            <button class="quiz-option" onclick="checkQ('q1',this,false)">D) ASR rule: block LSASS access</button>
+            <div class="quiz-feedback" id="q1-fb"></div>
+        </div>
+        <div class="box box-cyan" id="q2">
+            <div class="box-label">Scenario 2</div>
+            <p style="font-size:0.875rem;color:#f1f5f9;margin-bottom:8px;">You need to deploy hardened Windows security settings to 2,000 devices quickly using Microsoft-recommended best practices. What is the fastest approach?</p>
+            <button class="quiz-option" onclick="checkQ('q2',this,false)">A) Create 150 individual OMA-URI Configuration Profiles</button>
+            <button class="quiz-option" onclick="checkQ('q2',this,true)">B) Deploy the Windows Security Baseline from Intune Endpoint Security and assign it to a device group</button>
+            <button class="quiz-option" onclick="checkQ('q2',this,false)">C) Create a Compliance Policy with all required settings</button>
+            <button class="quiz-option" onclick="checkQ('q2',this,false)">D) Run a PowerShell script that applies GPO settings</button>
+            <div class="quiz-feedback" id="q2-fb"></div>
+        </div>
+    </div>
+</section>
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = 'Slide ' + currentSlide + ' of ' + totalSlides;
+<!-- ==================== SLIDE 15 — KNOWLEDGE CHECK 2 ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">Knowledge Check <span class="accent">(Continued)</span></div>
+        <div class="slide-subtitle">TVM and BitLocker recovery scenarios.</div>
+        <div class="box box-gold" style="margin-bottom:10px;" id="q3">
+            <div class="box-label">Scenario 3</div>
+            <p style="font-size:0.875rem;color:#f1f5f9;margin-bottom:8px;">A device has a vulnerability detected by TVM. The admin wants to remediate it via Intune. What is the correct workflow?</p>
+            <button class="quiz-option" onclick="checkQ('q3',this,false)">A) Export the TVM report and create a manual Intune policy</button>
+            <button class="quiz-option" onclick="checkQ('q3',this,true)">B) From TVM security recommendation, click "Request remediation" to submit a remediation activity to Intune</button>
+            <button class="quiz-option" onclick="checkQ('q3',this,false)">C) Open a support ticket with Microsoft to patch the device</button>
+            <button class="quiz-option" onclick="checkQ('q3',this,false)">D) Retire and re-enroll the device</button>
+            <div class="quiz-feedback" id="q3-fb"></div>
+        </div>
+        <div class="box box-cyan" id="q4">
+            <div class="box-label">Scenario 4</div>
+            <p style="font-size:0.875rem;color:#f1f5f9;margin-bottom:8px;">A user's laptop prompts for a BitLocker recovery key after a BIOS update. Where does the admin find the recovery key?</p>
+            <button class="quiz-option" onclick="checkQ('q4',this,false)">A) The user's local administrator account</button>
+            <button class="quiz-option" onclick="checkQ('q4',this,true)">B) Intune device details &gt; Recovery keys (escrowed to Azure AD during BitLocker setup)</button>
+            <button class="quiz-option" onclick="checkQ('q4',this,false)">C) The device's TPM chip, accessible via TPM management console</button>
+            <button class="quiz-option" onclick="checkQ('q4',this,false)">D) The Windows Event Viewer BitLocker log</button>
+            <div class="quiz-feedback" id="q4-fb"></div>
+        </div>
+    </div>
+</section>
 
-            document.querySelectorAll('.slide-dot').forEach(function(dot, index) {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+<!-- ==================== SLIDE 16 — KNOWLEDGE CHECK 3 ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Knowledge Check <span class="accent">(Continued)</span></div>
+        <div class="slide-subtitle">ASR modes and MDE plans.</div>
+        <div class="box box-gold" id="q5">
+            <div class="box-label">Scenario 5</div>
+            <p style="font-size:0.875rem;color:#f1f5f9;margin-bottom:8px;">Before enabling an ASR rule to block Office apps from spawning child processes in production, what should you do first?</p>
+            <button class="quiz-option" onclick="checkQ('q5',this,false)">A) Deploy in Block mode and monitor helpdesk tickets for 30 days</button>
+            <button class="quiz-option" onclick="checkQ('q5',this,true)">B) Deploy in Audit mode first, review Windows Event logs for false positives, then switch to Block mode after validation</button>
+            <button class="quiz-option" onclick="checkQ('q5',this,false)">C) Test on a virtual machine only &mdash; ASR cannot be tested on real hardware</button>
+            <button class="quiz-option" onclick="checkQ('q5',this,false)">D) Enable the rule for non-admin users only</button>
+            <div class="quiz-feedback" id="q5-fb"></div>
+        </div>
+    </div>
+</section>
 
-            document.querySelectorAll('.slide').forEach(function(slide, index) {
-                slide.classList.toggle('active', index + 1 === currentSlide);
+<!-- ==================== SLIDE 17 — DEFENDER FOR ENDPOINT ALERTS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">MDE Alerts &amp; <span class="accent">Incidents</span></div>
+        <div class="slide-subtitle">Alert triage, incident correlation, and automated investigation in the M365 Defender portal.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Alerts</div>
+                <div class="card-desc">An alert is generated when MDE detects suspicious behavior on a device. Alert severity: Informational, Low, Medium, High. Alerts include: timeline of events, file/process involved, MITRE ATT&amp;CK technique, and recommended response actions. Multiple related alerts are grouped into an Incident.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Incidents</div>
+                <div class="card-desc">An incident is a collection of correlated alerts that represent an attack chain. The M365 Defender portal automatically correlates alerts across endpoints, identities, email, and cloud apps into a single incident view. Provides a full attack story from initial compromise to impact.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Automated Investigation</div>
+                <div class="card-desc">MDE Plan 2 automatically investigates alerts and takes remediation actions: quarantine malware, kill malicious processes, remove persistence mechanisms, isolate the device. The admin reviews the investigation tree and approves or rejects pending remediation actions. Reduces analyst triage time.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Response Actions</div>
+            Manual response actions available in MDE: Isolate device (cut all network except Defender communication), run antivirus scan, collect investigation package, restrict app execution (block non-Microsoft-signed binaries), initiate automated investigation, live response (remote shell session).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — CRITICAL EXAM FACTS ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Critical <span class="accent">Exam Facts</span></div>
+        <div class="slide-subtitle">High-probability test points for Module 6.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>MDE Plan 1</strong> = AV + ASR + device control. <strong>Plan 2</strong> = Plan 1 + EDR + TVM + automated investigation. M365 E5 includes Plan 2.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>TVM</strong> is Plan 2 only. Exposure Score + Microsoft Secure Score for Devices are the key metrics. Lower exposure = better.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>ASR rules</strong> must use Audit mode before Block mode in production. Block mode without testing causes legitimate app breakage.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Controlled Folder Access</strong> = ransomware protection for specified folders. Blocks unauthorized writes by non-whitelisted apps.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Security Baselines</strong> configure device settings. Compliance policies evaluate and report. They are complementary, not substitutes.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>BitLocker recovery keys</strong> are escrowed to Azure AD via Intune. Admins retrieve from Intune device details, not from the device itself.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Credential Guard</strong> uses VBS to isolate LSASS. Prevents Pass-the-Hash. Requires VBS-capable CPU and UEFI Secure Boot.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>MDE onboarding via Intune</strong> deploys via the Endpoint Security &gt; Endpoint Detection &amp; Response profile. Not via a Configuration Profile.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text"><strong>Device isolation</strong> in MDE cuts all network connections except Defender communication. Used for active incident containment.</span></div>
+            <div class="fact-row"><span class="fact-num">10</span><span class="fact-text"><strong>Tamper protection</strong> prevents users and non-admin processes from disabling Microsoft Defender. Must be enabled in AV policy.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19</div>
+        <div class="slide-title">Module 6 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Managing security mastery consolidated.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">MDE &amp; TVM</div>
+                <div class="card-desc">MDE Plan 1 = AV + ASR. Plan 2 adds EDR, TVM, automated investigation. Onboard via Intune EDR profile. TVM: Discover CVEs, prioritize via Exposure Score, submit to Intune for remediation. Secure Score for Devices improves as you fix issues.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Attack Surface Reduction</div>
+                <div class="card-desc">ASR rules block malicious behaviors (Office child processes, LSASS access, email executables). Always audit before blocking. Controlled Folder Access stops ransomware. Device Control blocks USB exfiltration. Network Protection extends SmartScreen to all traffic.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Security Baselines &amp; Encryption</div>
+                <div class="card-desc">Security Baselines deploy 150+ Microsoft-recommended settings in one profile assignment. BitLocker encrypts OS drives with TPM. Recovery keys escrowed to Azure AD. Credential Guard protects LSASS via VBS. Exploit Protection replaces EMET.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Endpoint Security Profiles</div>
+                <div class="card-desc">Intune Endpoint Security hub: Antivirus, Disk Encryption, Firewall, EDR (onboarding), ASR, Account Protection (WHfB + LAPS). Each profile targets specific security concerns. Security Baselines cover most settings; individual profiles allow fine-grained control.</div>
+            </div>
+        </div>
+        <div class="box box-green" style="margin-top:4px;">
+            <div class="box-label">Module 6 Complete</div>
+            You can now deploy and manage MDE, configure TVM remediation workflows, implement ASR rules, deploy security baselines, manage BitLocker, and respond to incidents &mdash; covering the full endpoint security domain of the MD-101 exam.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== NAV BAR ==================== -->
+<nav id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">&larr; MD-101</a>
+    <button class="nav-btn" id="prev-btn" onclick="prevSlide()" disabled>&larr; Prev</button>
+    <span id="slide-counter">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="nextSlide()">Next &rarr;</button>
+    <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+</nav>
+
+<script>
+    /* ── State ── */
+    var current = 1;
+    var total   = 19;
+    var MODULE_ID = 'forge-md101-m06';
+
+    /* ── Navigation ── */
+    function goToSlide(n) {
+        /* Restart SVG animations on the incoming slide */
+        var incoming = document.getElementById('slide-' + n);
+        if (incoming) {
+            incoming.querySelectorAll('animate, animateMotion, animateTransform').forEach(function(a) {
+                try { a.beginElement(); } catch(e) {}
             });
         }
+        document.getElementById('slide-' + current).classList.remove('active');
+        current = n;
+        document.getElementById('slide-' + current).classList.add('active');
+        document.getElementById('progress-bar').style.width = ((current / total) * 100) + '%';
+        document.getElementById('slide-counter').textContent = current + ' / ' + total;
+        document.getElementById('prev-btn').disabled = (current === 1);
+        document.getElementById('next-btn').disabled = (current === total);
+        document.getElementById('complete-btn').style.display = (current === total) ? 'inline-block' : 'none';
+        document.getElementById('next-btn').style.display     = (current === total) ? 'none' : 'inline-block';
+    }
+    function nextSlide() { if (current < total) goToSlide(current + 1); }
+    function prevSlide() { if (current > 1)    goToSlide(current - 1); }
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+    /* ── Keyboard navigation ── */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  nextSlide();
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    prevSlide();
+    });
+
+    /* ── Module completion ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(MODULE_ID);
         }
+        document.getElementById('complete-btn').textContent = 'Completed';
+        document.getElementById('complete-btn').style.background = '#3ab577';
+        document.getElementById('complete-btn').disabled = true;
+    }
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+    /* ── Quiz handler ── */
+    var answered = {};
+    var fbText = {
+        q1: { t: 'Correct. Controlled Folder Access protects designated folders from unauthorized writes by non-whitelisted apps. Ransomware cannot encrypt files in protected folders even if it runs on the device. BitLocker encrypts the whole drive but does not stop ransomware running as the user.', f: 'Incorrect. BitLocker prevents data theft from a lost/stolen device but does not block a running ransomware process from encrypting accessible files. Controlled Folder Access is the anti-ransomware feature.' },
+        q2: { t: 'Correct. Security Baselines in Intune Endpoint Security are Microsoft-curated, versioned profiles with 150+ settings. Deploy one profile to a device group for immediate hardening. No manual OMA-URI work required.', f: 'Incorrect. Compliance policies evaluate settings but do not configure them. Individual OMA-URI profiles work but are far slower than a pre-built Security Baseline.' },
+        q3: { t: 'Correct. TVM has a built-in "Request remediation" workflow that creates a remediation activity in Intune directly from the security recommendation. The Intune admin can then review, approve, and track the remediation through completion.', f: 'Incorrect. TVM integrates directly with Intune via the remediation workflow. No manual policy export or support tickets are needed.' },
+        q4: { t: 'Correct. When BitLocker is deployed via Intune with Azure AD key escrow enabled, the 48-digit recovery key is stored in Azure AD and accessible through Intune device details under Recovery keys. This is the standard admin recovery path.', f: 'Incorrect. The recovery key is not accessible from the device itself after encryption. Intune/Azure AD escrow is the admin recovery mechanism.' },
+        q5: { t: 'Correct. Audit mode logs what would be blocked without actually blocking anything. Review the audit logs for 1-2 weeks to identify false positives (legitimate apps that trigger the rule), add exclusions if needed, then switch to Block mode. Skipping audit mode in production causes immediate app breakage.', f: 'Incorrect. Deploying directly in Block mode without auditing frequently breaks legitimate software. Audit mode is a required step before production enforcement.' }
+    };
 
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function checkAnswer(button, isCorrect, quizId, qKey) {
-            var feedbackEl = document.getElementById('feedback-' + quizId);
-            var options = button.parentElement.querySelectorAll('.quiz-option');
-
-            options.forEach(function(opt) { opt.style.pointerEvents = 'none'; });
-
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Correct. Windows Defender Credential Guard uses virtualization-based security (VBS) to isolate NTLM hashes and Kerberos tickets in a secure container. Even kernel-level malware cannot access credentials stored in the VBS enclave. This is the primary defense against Pass-the-Hash and Pass-the-Ticket attacks.';
-                } else {
-                    feedbackEl.textContent = 'Correct. The Data Recovery Agent (DRA) is specifically designed for this scenario. In domain environments, the domain administrator is typically configured as the DRA and can decrypt any EFS-encrypted file. This is why configuring and backing up the DRA certificate is critical enterprise practice.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Incorrect. The correct answer is Credential Guard. Application Guard protects browsing, not credentials. BitLocker protects data at rest on disk. ASR rules block common attack patterns but do not isolate credentials. Credential Guard specifically uses VBS to create an isolated container for credential storage.';
-                } else {
-                    feedbackEl.textContent = 'Incorrect. The correct answer is to use the Data Recovery Agent. Local administrators do not automatically have access to EFS files. BitLocker and EFS are separate encryption systems. The DRA is the enterprise mechanism for recovering EFS files when the original user certificate is unavailable.';
-                }
-                options.forEach(function(opt) {
-                    if (opt.getAttribute('onclick').includes('true')) { opt.classList.add('correct'); }
-                });
-            }
-        }
-
-        function completeModule() {
-            ModuleProgress.complete('forge', 'forge-md101-m06', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
-        });
-
-        updateProgress();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../components/PresentationA11y.js"></script>
+    function checkQ(id, btn, isCorrect) {
+        if (answered[id]) return;
+        answered[id] = true;
+        var box = document.getElementById(id);
+        box.querySelectorAll('.quiz-option').forEach(function(o) { o.style.pointerEvents = 'none'; });
+        btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+        var fb = document.getElementById(id + '-fb');
+        fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'incorrect');
+        fb.textContent = isCorrect ? fbText[id].t : fbText[id].f;
+    }
+</script>
 </body>
 </html>

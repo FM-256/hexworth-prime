@@ -8,1122 +8,906 @@
     <!-- Progress & Achievements -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Managing Updates for Windows - MD-101 | House of the Forge</title>
+    <title>Managing Updates for Windows &mdash; MD-101 | House of the Forge</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1510 50%, #0a0a0f 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #d4c4b0;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .presentation-header {
-            padding: 18px 40px;
-            background: rgba(10, 10, 15, 0.95);
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        /* ── SLIDE SYSTEM ── */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .header-left { display: flex; align-items: center; gap: 15px; }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(234, 88, 12, 0.1);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 6px;
-            color: #f97316;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .back-btn:hover { background: rgba(234, 88, 12, 0.2); border-color: rgba(234, 88, 12, 0.5); }
-
-        .house-badge { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #a07850; letter-spacing: 0.1em; }
-        .progress-indicator { display: flex; align-items: center; gap: 10px; }
-
-        .progress-bar { width: 150px; height: 4px; background: rgba(234, 88, 12, 0.2); border-radius: 2px; overflow: hidden; }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ea580c, #f97316);
-            border-radius: 2px;
-            transition: width 0.5s ease;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .progress-text { font-size: 0.75rem; color: #7a5c40; }
-
-        .slides-container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-
-        .slide { display: none; animation: fadeIn 0.5s ease; }
-        .slide.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-title { font-size: 2.4rem; font-weight: 300; color: #f5e8d8; margin-bottom: 10px; text-align: center; }
-        .slide-subtitle { font-size: 1.05rem; color: #a07850; text-align: center; margin-bottom: 40px; }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-            gap: 22px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover { border-color: rgba(234, 88, 12, 0.4); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
-
-        .threat-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .threat-card:hover { border-color: rgba(234, 88, 12, 0.35); transform: translateY(-2px); }
-        .threat-card.feature { border-top: 3px solid #60a5fa; }
-        .threat-card.quality { border-top: 3px solid #4ade80; }
-        .threat-card.driver { border-top: 3px solid #fbbf24; }
-        .threat-card.firmware { border-top: 3px solid #a78bfa; }
-        .threat-card.def { border-top: 3px solid #f87171; }
-        .threat-card.servicing { border-top: 3px solid #f97316; }
-
-        .threat-name { font-size: 1rem; color: #f5e8d8; margin-bottom: 6px; font-weight: 500; }
-        .threat-desc { font-size: 0.83rem; color: #a07850; line-height: 1.55; }
-
-        .card-icon { font-size: 2.2rem; margin-bottom: 14px; }
-        .card-title { font-size: 1.15rem; color: #f5e8d8; margin-bottom: 10px; }
-        .card-description { font-size: 0.88rem; color: #a07850; line-height: 1.65; }
-
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 28px; }
-        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 24px; }
-
-        .key-points {
-            background: rgba(20, 14, 8, 0.65);
-            border-left: 3px solid #ea580c;
-            padding: 18px 24px;
-            margin: 24px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 { color: #f97316; margin-bottom: 10px; font-size: 0.85rem; letter-spacing: 0.06em; }
-        .key-points ul { list-style: none; }
-
-        .key-points li {
-            padding: 7px 0 7px 24px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.88rem;
-        }
-
-        .key-points li::before { content: '\2192'; position: absolute; left: 0; color: #ea580c; }
-
-        .exam-tip {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.05));
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 10px;
-            padding: 18px 22px;
-            margin: 22px 0;
-        }
-
-        .exam-tip-label { font-size: 0.78rem; color: #f97316; font-weight: 600; letter-spacing: 0.08em; margin-bottom: 8px; }
-        .exam-tip p { font-size: 0.9rem; color: #d4c4b0; line-height: 1.6; }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(180, 60, 8, 0.06));
-            border: 1px solid rgba(234, 88, 12, 0.25);
-            border-radius: 12px;
-            padding: 26px;
-            margin: 26px 0;
-        }
-
-        .scenario-title { font-size: 1.05rem; color: #f97316; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
-        .scenario-content { font-size: 0.92rem; color: #d4c4b0; line-height: 1.7; }
-
-        .compare-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .compare-table th {
-            background: rgba(234, 88, 12, 0.15);
-            color: #f97316;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 0.82rem;
-            letter-spacing: 0.04em;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-        }
-
-        .compare-table td {
-            padding: 10px 16px;
-            font-size: 0.85rem;
-            color: #d4c4b0;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .compare-table tr:hover td { background: rgba(234, 88, 12, 0.04); }
-
-        .profile-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 22px;
-        }
-
-        .profile-card {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 10px;
-            padding: 18px;
-            text-align: center;
-        }
-
-        .profile-card.green { border-top: 3px solid #4ade80; }
-        .profile-card.blue { border-top: 3px solid #60a5fa; }
-        .profile-card.orange { border-top: 3px solid #f97316; }
-        .profile-card.purple { border-top: 3px solid #a78bfa; }
-
-        .profile-icon { font-size: 1.8rem; margin-bottom: 8px; }
-        .profile-name { font-size: 0.95rem; color: #f5e8d8; margin-bottom: 6px; font-weight: 500; }
-        .profile-detail { font-size: 0.82rem; color: #a07850; line-height: 1.5; }
-
-        .bl-item {
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 8px;
-            padding: 14px;
-            text-align: center;
-        }
-
-        .bl-icon { font-size: 1.6rem; margin-bottom: 6px; }
-        .bl-label { font-size: 0.82rem; color: #f5e8d8; margin-bottom: 4px; font-weight: 500; }
-        .bl-detail { font-size: 0.78rem; color: #a07850; }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 14px 18px;
-            margin: 9px 0;
-            background: rgba(20, 14, 8, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            color: #d4c4b0;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.92rem;
-        }
-
-        .quiz-option:hover { border-color: rgba(234, 88, 12, 0.5); background: rgba(234, 88, 12, 0.08); }
-        .quiz-option.correct { border-color: #4ade80; background: rgba(74,222,128,0.08); color: #4ade80; }
-        .quiz-option.incorrect { border-color: #f87171; background: rgba(248,113,113,0.08); color: #f87171; }
-
-        .feedback {
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            display: none;
-            line-height: 1.6;
-        }
-
-        .feedback.correct { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; display: block; }
-        .feedback.incorrect { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: #f87171; display: block; }
-
-        .summary-list { list-style: none; margin-top: 20px; }
-
-        .summary-list li {
-            padding: 10px 0 10px 30px;
-            position: relative;
-            color: #d4c4b0;
-            font-size: 0.92rem;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .summary-list li::before { content: '\2713'; position: absolute; left: 0; color: #4ade80; font-weight: bold; }
-
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 28px;
-            border-top: 1px solid rgba(234, 88, 12, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 28px;
-            background: rgba(234, 88, 12, 0.12);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 8px;
-            color: #f97316;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-blue   { border-left-color: #60a5fa; }
+        .card.c-purple { border-left-color: #a78bfa; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover { background: rgba(234, 88, 12, 0.22); border-color: rgba(234, 88, 12, 0.5); }
-        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
 
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
-            border: none;
-            color: white;
-            font-weight: 500;
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn.primary:hover { box-shadow: 0 5px 20px rgba(234, 88, 12, 0.35); transform: translateY(-1px); }
-
-        .slide-dots { display: flex; gap: 8px; }
-
-        .slide-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(234, 88, 12, 0.3); cursor: pointer; transition: all 0.3s ease; }
-        .slide-dot.active { background: #f97316; transform: scale(1.2); }
-
-        @media (max-width: 768px) {
-            .presentation-header { flex-direction: column; gap: 14px; padding: 14px 18px; }
-            .slide-title { font-size: 1.7rem; }
-            .content-grid, .two-col, .three-col, .profile-grid { grid-template-columns: 1fr; }
-            .compare-table { font-size: 0.78rem; }
-            .slide-nav { flex-direction: column; gap: 18px; }
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: repeat(2,1fr); } .slide-title { font-size: 1.3rem; } }
+
+        /* ── SVG HELPERS ── */
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">&larr; Back to MD-101</a>
-            <div class="house-badge">
-                <span>&#x1F528;</span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Managing Updates for Windows &mdash; MD-101</h1>
+
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">MD-101 &mdash; Module 9</div>
+        <div class="title-hero">
+            <div class="big-title">Managing <span class="accent">Updates for Windows</span></div>
+            <div class="slide-subtitle" style="max-width:640px; margin-top:4px;">
+                Windows as a Service, servicing channels, WUfB rings, WSUS, Intune update policies, and compliance monitoring.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 12</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>WaaS &bull; GAC &bull; LTSC</span>
+            <span>WUfB &bull; WSUS &bull; Intune Rings</span>
+            <span>MD-101 Exam</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
-
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <h1 class="slide-title">Managing Updates for Windows</h1>
-            <p class="slide-subtitle">MD-101 Module 9 &mdash; Windows servicing model, WUfB, update rings, WSUS, and compliance monitoring</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon">&#x1F504;</div>
-                    <h2 class="card-title">Windows Servicing Model</h2>
-                    <p class="card-description">Windows as a Service (WaaS) replaces the traditional major-release model. Understand the difference between feature updates and quality updates, servicing channels, and lifecycle policies.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x2601;&#xFE0F;</div>
-                    <h3 class="card-title">Windows Update for Business</h3>
-                    <p class="card-description">Cloud-managed update policies via Intune or Group Policy. Configure deferral periods, update rings, and delivery optimization to control update rollout across your organization.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F4CA;</div>
-                    <h3 class="card-title">Update Compliance &amp; Monitoring</h3>
-                    <p class="card-description">Monitor update deployment status, identify devices that are not compliant, and use reporting tools like Windows Update for Business reports and Desktop Analytics to track progress.</p>
-                </div>
+<!-- ==================== SLIDE 2 — WINDOWS AS A SERVICE ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">Windows as a <span class="accent">Service (WaaS)</span></div>
+        <div class="slide-subtitle">Continuous delivery replaces the 3-5 year major release cycle.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The WaaS Model</div>
+                <div class="card-desc">Windows 10 introduced "Windows as a Service" in 2015. Instead of waiting years between versions, Microsoft delivers incremental improvements continuously. Two types of updates: feature updates (new capabilities, released annually) and quality updates (cumulative security and reliability patches, monthly). Devices stay current without major migrations.</div>
             </div>
-
-            <div class="key-points">
-                <h4>MODULE OVERVIEW</h4>
-                <ul>
-                    <li>Feature updates vs. quality updates is foundational &mdash; know frequency, content, and deferral limits</li>
-                    <li>Windows Update for Business (WUfB) via Intune is the modern approach the exam emphasizes</li>
-                    <li>Update rings and staged deployment reduce risk across the organization</li>
-                    <li>WSUS still appears on the exam for on-premises scenarios</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Core WaaS Principles</div>
+                <div class="card-desc"><strong>Continuous delivery</strong> of features and patches. <strong>Cumulative updates</strong> simplify patch management (install the latest = have all previous). <strong>Deployment rings</strong> stagger rollout to reduce risk. <strong>Servicing channels</strong> control the pace of feature adoption by device role. <strong>Telemetry</strong> enables data-driven deployment planning.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: Windows as a Service -->
-        <section class="slide" data-slide="2">
-            <h2 class="slide-title">Windows as a Service (WaaS)</h2>
-            <p class="slide-subtitle">The modern servicing model that delivers continuous improvements</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">The Servicing Model</h3>
-                        <p class="card-description">Windows as a Service replaces the traditional 3-5 year major release cycle with continuous, incremental updates. This keeps devices current with the latest features and security patches.</p>
-                        <div style="margin-top: 14px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Key principles:</strong></p>
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Continuous updates</strong> &mdash; no more waiting years for the next version</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Smaller, frequent changes</strong> &mdash; reduces deployment risk vs. massive upgrades</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Deployment rings</strong> &mdash; staged rollout to minimize impact</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Servicing channels</strong> &mdash; control the pace of feature adoption</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Servicing Channels</h3>
-                        <p class="card-description">Windows provides different servicing channels for controlling when feature updates are received:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">General Availability Channel</strong> &mdash; standard release for all devices (formerly Semi-Annual Channel)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Long-Term Servicing Channel (LTSC)</strong> &mdash; for specialized devices (ATMs, medical, factory) that need maximum stability; no feature updates, security only; 5-year support</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Windows Insider</strong> &mdash; pre-release builds for testing; Dev, Beta, and Release Preview rings</li>
-                        </ul>
-                    </div>
-                </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Feature Updates</div>
+                <div class="card-desc">Released annually (e.g., 22H2, 23H2, 24H2). Include new OS capabilities, UI changes, and sometimes architecture changes. Larger download than quality updates. Can be deferred up to 365 days on Enterprise/Education. Supported for 24 months on Home/Pro, 36 months on Enterprise/Education.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>LTSC is for special-purpose devices only &mdash; it does not receive feature updates, only security patches. It is NOT recommended for general-purpose workstations. The exam tests whether you can identify appropriate LTSC use cases (medical devices, kiosks, factory equipment) vs. devices that should be on the General Availability Channel.</p>
+            <div class="card c-blue">
+                <div class="card-label">Quality Updates</div>
+                <div class="card-desc">Released on Patch Tuesday (second Tuesday each month). Cumulative &mdash; includes all previous patches. Security fixes, reliability improvements, and out-of-band emergency patches between Patch Tuesdays. Can be deferred up to 30 days. Critical for maintaining security posture.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 3: Update Types -->
-        <section class="slide" data-slide="3">
-            <h2 class="slide-title">Update Types</h2>
-            <p class="slide-subtitle">Feature updates, quality updates, drivers, firmware, and definition updates</p>
-
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px;">
-                <div class="threat-card feature">
-                    <div class="threat-name">Feature Updates</div>
-                    <div class="threat-desc">Major version upgrades delivered annually (e.g., 22H2, 23H2). Include new features, capabilities, and sometimes UI changes. Larger download. Can be deferred up to 365 days. 24 months support (Home/Pro) or 36 months (Enterprise/Education).</div>
-                </div>
-                <div class="threat-card quality">
-                    <div class="threat-name">Quality Updates</div>
-                    <div class="threat-desc">Monthly cumulative security and reliability patches released on Patch Tuesday (second Tuesday of each month). Cumulative means each update includes all previous patches. Can be deferred up to 30 days. Critical for security posture.</div>
-                </div>
-                <div class="threat-card driver">
-                    <div class="threat-name">Driver Updates</div>
-                    <div class="threat-desc">Hardware driver updates delivered through Windows Update. Classified as automatic (install without approval) or manual (require explicit approval). Can be managed via WUfB or WSUS policies.</div>
-                </div>
-                <div class="threat-card firmware">
-                    <div class="threat-name">Firmware Updates</div>
-                    <div class="threat-desc">UEFI firmware updates delivered through Windows Update on supported hardware. Uses the UEFI Capsule update mechanism. Critical for security (Secure Boot, TPM). Less frequent than other update types.</div>
-                </div>
-                <div class="threat-card def">
-                    <div class="threat-name">Definition Updates</div>
-                    <div class="threat-desc">Microsoft Defender antivirus signature updates. Released multiple times daily. Not deferrable &mdash; these are critical for real-time threat protection. Delivered automatically via Windows Update, WSUS, or SCCM.</div>
-                </div>
-                <div class="threat-card servicing">
-                    <div class="threat-name">Servicing Stack Updates</div>
-                    <div class="threat-desc">Updates to the update engine itself. Must be installed before other updates can be applied. Delivered separately to ensure the update mechanism works correctly. Critical prerequisite for quality and feature updates.</div>
-                </div>
+            <div class="card c-purple">
+                <div class="card-label">Definition Updates</div>
+                <div class="card-desc">Microsoft Defender antivirus signature updates. Released multiple times daily. Not deferrable. Critical for real-time threat protection. Delivered via Windows Update, WSUS, SCCM, or Intune. Even devices in restricted update rings must receive definition updates without delay.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Quality updates are cumulative &mdash; installing the latest monthly update includes all previous patches. Feature updates can be deferred up to 365 days; quality updates can be deferred up to 30 days. Definition updates cannot be deferred. Know these deferral limits for the exam.</p>
+<!-- ==================== SLIDE 3 — SERVICING CHANNELS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">Servicing <span class="accent">Channels</span></div>
+        <div class="slide-subtitle">Control when a device receives feature updates based on its role and stability requirements.</div>
+
+        <!-- SVG: Servicing channel timeline -->
+        <div class="diagram-center">
+            <svg width="760" height="140" viewBox="0 0 760 140" role="img" aria-label="Servicing channel timeline: Insider to GA to LTSC">
+                <defs>
+                    <animate/>
+                </defs>
+                <!-- Timeline base -->
+                <line x1="20" y1="70" x2="740" y2="70" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+
+                <!-- Insider: Dev/Beta/Release Preview -->
+                <rect x="20" y="30" width="160" height="80" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+                <text x="100" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#a78bfa">Windows Insider</text>
+                <text x="100" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Dev / Beta / Release Preview</text>
+                <text x="100" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Pre-release testing</text>
+                <text x="100" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#a78bfa">Not for production</text>
+
+                <!-- GA Channel -->
+                <rect x="210" y="30" width="200" height="80" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="310" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#c9a83a">General Availability Channel</text>
+                <text x="310" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Standard production channel</text>
+                <text x="310" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Feature + quality updates</text>
+                <text x="310" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">For all general-purpose devices</text>
+
+                <!-- LTSC -->
+                <rect x="440" y="30" width="300" height="80" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="590" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#3ab577">LTSC</text>
+                <text x="590" y="76" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Long-Term Servicing Channel</text>
+                <text x="590" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">No feature updates &mdash; security only</text>
+                <text x="590" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">ATMs, medical, factory equipment</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">General Availability Channel</div>
+                <div class="card-desc">The standard channel for production devices. Formerly called the Semi-Annual Channel (SAC). Receives both feature and quality updates. Organizations use WUfB or WSUS to control when the feature update is applied using deferral policies. Default for all Windows 10/11 devices unless configured otherwise.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: Windows Update for Business -->
-        <section class="slide" data-slide="4">
-            <h2 class="slide-title">Windows Update for Business (WUfB)</h2>
-            <p class="slide-subtitle">Cloud-based update management &mdash; the modern approach to patching</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WUfB Overview</h3>
-                        <p class="card-description">Windows Update for Business provides policies to control when and how devices receive updates directly from the Windows Update service. No on-premises infrastructure required.</p>
-                        <div style="margin-top: 14px;">
-                            <p style="color:#f5e8d8; font-size:0.88rem; margin-bottom: 8px;"><strong>Key capabilities:</strong></p>
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Deferral policies</strong> &mdash; delay feature and quality updates by defined periods</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Pause updates</strong> &mdash; temporarily halt updates for up to 35 days</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Update rings</strong> &mdash; group devices with different deferral settings</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Deadline policies</strong> &mdash; enforce installation by a specific date</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Active hours</strong> &mdash; prevent restarts during business hours</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WUfB Configuration in Intune</h3>
-                        <p class="card-description">Configure WUfB policies through the Intune admin center:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Devices &gt; Windows &gt; Update rings for Windows 10 and later</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Set feature update deferral (0-365 days)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Set quality update deferral (0-30 days)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Configure automatic reboot behavior and deadlines</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Assign to device groups or user groups</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Long-Term Servicing Channel (LTSC)</div>
+                <div class="card-desc">For specialized, stability-critical devices. Receives no feature updates &mdash; only cumulative security patches for the life of the release. Support lifecycle: 5 years mainstream + 5 years extended. LTSC versions: Windows 10 2019, 2021; Windows 11 2024. NOT recommended for general-purpose workstations or laptops.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>WUfB is a cloud-native update management solution &mdash; it does NOT require WSUS or SCCM. Devices receive updates directly from Microsoft. WUfB policies can be configured via Intune, Group Policy, or MDM CSP. Know the deferral maximums: 365 days for feature updates, 30 days for quality updates. Pause is temporary (up to 35 days) and cannot be extended once activated.</p>
+            <div class="card c-purple">
+                <div class="card-label">Windows Insider Program</div>
+                <div class="card-desc">Pre-release builds for testing purposes only. Three rings: Dev (newest features, unstable), Beta (more stable, still pre-release), Release Preview (close to GA quality, used to validate updates). Devices on Insider should be test machines only. Configuring via Intune is possible but not recommended for production fleets.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 5: Update Rings -->
-        <section class="slide" data-slide="5">
-            <h2 class="slide-title">Update Rings</h2>
-            <p class="slide-subtitle">Staged deployment strategy to minimize risk across the organization</p>
-
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 22px;">
-                <div class="profile-card green">
-                    <div class="profile-icon">&#x1F9EA;</div>
-                    <div class="profile-name">Preview Ring</div>
-                    <div class="profile-detail">IT testers and volunteers. 0 days deferral. First to receive updates. ~1-5% of devices. Catches critical issues early.</div>
-                </div>
-                <div class="profile-card blue">
-                    <div class="profile-icon">&#x1F465;</div>
-                    <div class="profile-name">Pilot Ring</div>
-                    <div class="profile-detail">Broad cross-section of users. 5-10 day deferral. Validates across departments. ~10-15% of devices. Tests app compatibility.</div>
-                </div>
-                <div class="profile-card orange">
-                    <div class="profile-icon">&#x1F3E2;</div>
-                    <div class="profile-name">Broad Ring</div>
-                    <div class="profile-detail">Majority of organization. 10-15 day deferral. Most issues caught by now. ~70-80% of devices. General production rollout.</div>
-                </div>
-                <div class="profile-card purple">
-                    <div class="profile-icon">&#x1F3E5;</div>
-                    <div class="profile-name">Critical Ring</div>
-                    <div class="profile-detail">Mission-critical systems. 15-30 day deferral. Maximum validation. ~5-10%. Highest risk tolerance for delay.</div>
-                </div>
+<!-- ==================== SLIDE 4 — WSUS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Windows Server <span class="accent">Update Services (WSUS)</span></div>
+        <div class="slide-subtitle">On-premises update management &mdash; download once to the server, distribute to all clients.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">WSUS Architecture</div>
+                <div class="card-desc">WSUS is a Windows Server role that downloads updates from Microsoft Update to a local server, then distributes them to clients. Clients are pointed to the WSUS server via GPO (WUAU settings) or registry. Reduces internet bandwidth by downloading each update once regardless of how many clients need it. Requires SQL Server Express or full SQL for the database.</div>
             </div>
-
-            <div class="key-points">
-                <h3>UPDATE RING CONFIGURATION</h3>
-                <ul>
-                    <li><strong>Feature update deferral</strong> &mdash; number of days to wait after GA release before offering the update</li>
-                    <li><strong>Quality update deferral</strong> &mdash; number of days to wait after Patch Tuesday before offering the update</li>
-                    <li><strong>Deadline for feature updates</strong> &mdash; days after update is offered before forced install and reboot</li>
-                    <li><strong>Deadline for quality updates</strong> &mdash; typically shorter deadline (2-7 days for security patches)</li>
-                    <li><strong>Grace period</strong> &mdash; additional days after deadline before automatic reboot (gives user warning time)</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">WSUS Administration</div>
+                <div class="card-desc">Updates must be approved in the WSUS console before clients can download them. Approval can be by product (Windows 11), classification (Security Updates, Critical Updates, Feature Packs), and computer group. Automatic approval rules can be configured for specific classifications like Security Updates. Declined updates are suppressed for all clients.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title">Real-World Update Ring Example</div>
-                <div class="scenario-content">
-                    A quality update is released on Patch Tuesday (January 14). The <strong style="color:#f97316;">Preview Ring</strong> (0 days deferral) receives it immediately. The <strong style="color:#f97316;">Pilot Ring</strong> (7 days deferral) gets it on January 21. The <strong style="color:#f97316;">Broad Ring</strong> (14 days deferral) receives it on January 28. The <strong style="color:#f97316;">Critical Ring</strong> (21 days deferral) gets it on February 4. If a critical issue is found in the Preview ring, IT can pause updates for other rings before they receive the problematic patch.
-                </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Computer Groups</div>
+                <div class="card-desc">WSUS organizes clients into computer groups (analogous to deployment rings). Approve updates to the Pilot group first, validate, then approve to the Broad group. Client-side targeting (set by GPO) or server-side targeting allows automated group assignment. Default groups: All Computers, Unassigned Computers.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: WSUS -->
-        <section class="slide" data-slide="6">
-            <h2 class="slide-title">Windows Server Update Services (WSUS)</h2>
-            <p class="slide-subtitle">On-premises update management for traditional enterprise environments</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WSUS Architecture</h3>
-                        <p class="card-description">WSUS is a Windows Server role that acts as a local update repository. It downloads updates from Microsoft Update and distributes them to internal clients, providing granular approval control.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Centralized control</strong> &mdash; approve/decline updates before deployment</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Bandwidth savings</strong> &mdash; download once, distribute locally to many clients</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Computer groups</strong> &mdash; target different updates to different device groups</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Reporting</strong> &mdash; compliance reports showing update status per computer</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Hierarchy</strong> &mdash; upstream/downstream server architecture for multi-site</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">WSUS Configuration</h3>
-                        <p class="card-description">Clients connect to WSUS via Group Policy or registry settings:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f97316;">Specify intranet Microsoft update service location</strong> &mdash; point clients to WSUS server</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f97316;">Configure Automatic Updates</strong> &mdash; set schedule for download and install</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f97316;">Enable client-side targeting</strong> &mdash; auto-assign computers to WSUS groups</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>GPO path: Computer Config &gt; Admin Templates &gt; Windows Components &gt; Windows Update</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-blue">
+                <div class="card-label">WSUS Limitations</div>
+                <div class="card-desc">Requires on-premises Windows Server infrastructure. Does not manage Microsoft Store apps, driver updates (configurable), or Defender definitions natively. Poor visibility into client compliance without additional reporting tools. Does not integrate directly with Intune for cloud-managed devices. Being phased out in favor of WUfB for modern environments.</div>
             </div>
-
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Feature</th>
-                        <th scope="col">WSUS</th>
-                        <th scope="col">WUfB</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Infrastructure</td><td>On-premises server required</td><td>Cloud-based (no server needed)</td></tr>
-                    <tr><td>Update approval</td><td>Manual approve/decline per update</td><td>Policy-based deferral</td></tr>
-                    <tr><td>Update source</td><td>Local WSUS server</td><td>Microsoft Update directly</td></tr>
-                    <tr><td>Bandwidth</td><td>Download once, distribute locally</td><td>Each device downloads (use DO)</td></tr>
-                    <tr><td>Management</td><td>WSUS console or SCCM</td><td>Intune or Group Policy</td></tr>
-                    <tr><td>Best for</td><td>On-prem, air-gapped, granular control</td><td>Cloud-managed, remote workers</td></tr>
-                </tbody>
-            </table>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Delivery Optimization -->
-        <section class="slide" data-slide="7">
-            <h2 class="slide-title">Delivery Optimization</h2>
-            <p class="slide-subtitle">Peer-to-peer content distribution to reduce bandwidth consumption</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">How Delivery Optimization Works</h3>
-                        <p class="card-description">Delivery Optimization (DO) enables devices to share update content with each other via peer-to-peer, reducing the load on internet connections and update servers.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Device downloads update content in pieces from both Microsoft CDN and local peers</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Content is verified via hash validation &mdash; no security risk from peer sharing</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Applies to Windows updates, Microsoft Store apps, and Microsoft 365 Apps</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Configurable bandwidth limits to prevent network saturation</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">DO Download Modes</h3>
-                        <p class="card-description">Control the scope of peer-to-peer sharing:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">HTTP only (0)</strong> &mdash; no peer sharing, download from Microsoft only</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">LAN (1)</strong> &mdash; share with peers on the same local subnet (default for domain)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Group (2)</strong> &mdash; share within a defined group (by AD site or custom group ID)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Internet (3)</strong> &mdash; share with peers across the internet (default for non-domain)</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Bypass (99)</strong> &mdash; disable DO, use BITS only</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-purple">
+                <div class="card-label">WSUS vs. WUfB</div>
+                <div class="card-desc">WSUS requires on-prem server infrastructure, admin approval of each update. WUfB requires only Intune or GPO configuration, manages deferral periods without per-update approval. Organizations with existing WSUS can run both simultaneously. Microsoft is investing in WUfB as the modern replacement; WSUS remains on the exam for legacy and hybrid scenarios.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Delivery Optimization is especially important for WUfB deployments since devices download updates directly from Microsoft. Without DO, every device downloads the full update independently. With DO in LAN or Group mode, the first device on a subnet downloads the update and shares it with peers. Configure via Intune: Devices &gt; Configuration profiles &gt; Delivery Optimization.</p>
+<!-- ==================== SLIDE 5 — WUFB OVERVIEW ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Windows Update <span class="accent">for Business (WUfB)</span></div>
+        <div class="slide-subtitle">Cloud-native update management &mdash; deferral policies without an on-premises server.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What WUfB Does</div>
+                <div class="card-desc">Windows Update for Business allows IT to control the timing of feature and quality update installation using deferral policies. Policies are configured via Intune update rings, Group Policy (GPO), or MDM CSP. The device still downloads updates directly from Microsoft or peers (via Delivery Optimization) &mdash; WUfB controls WHEN updates apply, not where they come from.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Feature Update Policies -->
-        <section class="slide" data-slide="8">
-            <h2 class="slide-title">Feature Update Policies</h2>
-            <p class="slide-subtitle">Controlling which feature update version devices receive via Intune</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Feature Updates for Windows 10 and Later</h3>
-                        <p class="card-description">A separate Intune policy type that targets a specific feature update version. Unlike update rings (which control timing), feature update policies control <strong style="color:#f5e8d8;">which version</strong> devices install.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Lock devices to a specific Windows version (e.g., Windows 11 23H2)</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Prevent devices from upgrading beyond the specified version</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Devices on older versions will upgrade to the target version</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Quality updates continue to install normally</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Rollout Options</h3>
-                        <p class="card-description">Feature update policies include rollout scheduling capabilities:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Make available as soon as possible</strong> &mdash; immediate deployment</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Make available on a specific date</strong> &mdash; scheduled availability</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Make available gradually</strong> &mdash; phased rollout over a configured number of days</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Gradual rollout randomly distributes updates across the configured period</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deferral Periods</div>
+                <div class="card-desc"><strong>Feature updates:</strong> can be deferred 0-365 days. <strong>Quality updates:</strong> can be deferred 0-30 days. <strong>Definition updates:</strong> cannot be deferred (always install immediately). <strong>Driver updates:</strong> can be excluded entirely from Windows Update via policy. Pause periods: up to 35 days for both feature and quality updates.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title">When to Use Feature Update Policies vs. Update Rings</div>
-                <div class="scenario-content">
-                    <strong style="color:#f97316;">Update rings</strong> control <em>when</em> updates install (deferral, deadlines, active hours). <strong style="color:#f97316;">Feature update policies</strong> control <em>which version</em> devices run. Use both together: a feature update policy targets Windows 11 23H2, while update rings manage the timing of quality updates. If you need to hold devices on a specific version (e.g., for app compatibility testing), use a feature update policy.
-                </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Configuration Methods</div>
+                <div class="card-desc">Intune Update Rings (recommended for cloud-managed). Group Policy: Computer Configuration &gt; Administrative Templates &gt; Windows Components &gt; Windows Update. MDM CSP: Update/ namespace policies. All three methods use the same underlying Windows policies; Intune is the modern, cloud-native approach.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 9: Update Compliance & Reporting -->
-        <section class="slide" data-slide="9">
-            <h2 class="slide-title">Update Compliance &amp; Reporting</h2>
-            <p class="slide-subtitle">Monitoring update deployment status and identifying non-compliant devices</p>
-
-            <div class="two-col">
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Windows Update for Business Reports</h3>
-                        <p class="card-description">Cloud-based reporting solution that provides visibility into update compliance status across your device fleet.</p>
-                        <div style="margin-top: 14px;">
-                            <ul style="list-style: none;">
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Quality update status</strong> &mdash; which devices have the latest patches</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Feature update status</strong> &mdash; version distribution across your organization</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Delivery Optimization</strong> &mdash; bandwidth savings from peer-to-peer sharing</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Driver update status</strong> &mdash; track driver update deployment</li>
-                                <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span>Requires Azure Log Analytics workspace</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="content-card">
-                        <h3 class="card-title">Intune Update Reports</h3>
-                        <p class="card-description">Built-in reporting within the Intune admin center:</p>
-                        <ul style="list-style: none; margin-top: 12px;">
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Per-ring compliance</strong> &mdash; see how each update ring is progressing</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Per-device status</strong> &mdash; identify individual devices with update failures</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Update failure reasons</strong> &mdash; error codes and remediation guidance</li>
-                            <li style="padding: 5px 0 5px 22px; position:relative; color:#a07850; font-size:0.86rem;"><span style="position:absolute;left:0;color:#ea580c;">&rarr;</span><strong style="color:#f5e8d8;">Feature update readiness</strong> &mdash; compatibility assessment before deployment</li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card c-blue">
+                <div class="card-label">WUfB Deadlines</div>
+                <div class="card-desc">In addition to deferral, you can configure installation deadlines. If a device has not installed an update by the deadline, Windows will automatically schedule and force the installation. Quality deadline: typically 2-7 days after deferral period ends. Feature deadline: typically 2-14 days. Grace period allows users to delay the restart after installation.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">EXAM TIP</div>
-                <p>Windows Update for Business reports require diagnostic data to be set to Required (Basic) or Optional (Full) level. Devices must also have a valid Azure AD identity. The reports provide a dashboard view of update compliance but do NOT control update deployment &mdash; that is the role of update rings and feature update policies.</p>
+            <div class="card c-purple">
+                <div class="card-label">Active Hours</div>
+                <div class="card-desc">Active hours prevent devices from restarting for updates during user work hours. Default: 8 AM - 5 PM. Configurable via policy to match organizational work schedules. "Intelligent active hours" learns from user behavior and sets active hours automatically. Updates install and restart occur only outside active hours.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 6 — UPDATE RING DEPLOYMENT ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">WUfB Ring <span class="accent">Deployment Model</span></div>
+        <div class="slide-subtitle">Staged rollout that limits blast radius &mdash; preview rings catch issues before they reach the full fleet.</div>
 
-        <!-- Slide 10: Troubleshooting Updates -->
-        <section class="slide" data-slide="10">
-            <h2 class="slide-title">Troubleshooting Windows Updates</h2>
-            <p class="slide-subtitle">Common update failures, diagnostic tools, and remediation strategies</p>
+        <!-- SVG: Ring deployment: Preview -> Broad -> Critical -->
+        <div class="diagram-center">
+            <svg width="760" height="170" viewBox="0 0 760 170" role="img" aria-label="Windows Update for Business ring deployment: preview ring to broad ring to critical infrastructure">
+                <!-- Ring 1: Preview -->
+                <rect x="4" y="20" width="220" height="130" rx="8" fill="rgba(96,165,250,0.07)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="114" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#60a5fa">Preview Ring</text>
+                <text x="114" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">IT staff + early adopters</text>
+                <text x="114" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Feature defer: 0 days</text>
+                <text x="114" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Quality defer: 0 days</text>
+                <text x="114" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">~2-5% of fleet</text>
+                <text x="114" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#60a5fa">Gets updates first</text>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon">&#x1F527;</div>
-                    <h3 class="card-title">Windows Update Troubleshooter</h3>
-                    <p class="card-description">Built-in automated troubleshooter that diagnoses and fixes common update issues. Resets Windows Update components, clears the update cache, and restarts required services. Access via Settings &gt; Troubleshoot &gt; Other troubleshooters.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F4C4;</div>
-                    <h3 class="card-title">Update Logs</h3>
-                    <p class="card-description">Key log files for diagnosing update failures: <strong style="color:#f97316;">WindowsUpdate.log</strong> (generated via Get-WindowsUpdateLog PowerShell), <strong style="color:#f97316;">CBS.log</strong> (component-based servicing), and <strong style="color:#f97316;">DISM.log</strong> (image servicing operations).</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#x1F6E0;&#xFE0F;</div>
-                    <h3 class="card-title">Manual Remediation</h3>
-                    <p class="card-description">When automated tools fail: stop WU services, rename SoftwareDistribution and catroot2 folders, restart services. Use <strong style="color:#f97316;">DISM /Online /Cleanup-Image /RestoreHealth</strong> to repair the component store. Last resort: in-place upgrade to repair the OS.</p>
-                </div>
+                <!-- Arrow 1->2 -->
+                <polygon points="232,85 248,95 232,105" fill="#c9a83a"/>
+                <text x="240" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">~7-14d</text>
+
+                <!-- Ring 2: Broad -->
+                <rect x="256" y="20" width="240" height="130" rx="8" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="376" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#c9a83a">Broad Ring</text>
+                <text x="376" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">General workforce</text>
+                <text x="376" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Feature defer: 90-120 days</text>
+                <text x="376" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Quality defer: 7-14 days</text>
+                <text x="376" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">~85-90% of fleet</text>
+                <text x="376" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">After Preview validates</text>
+
+                <!-- Arrow 2->3 -->
+                <polygon points="504,85 520,95 504,105" fill="#ef4444"/>
+                <text x="512" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">~7d</text>
+
+                <!-- Ring 3: Critical -->
+                <rect x="528" y="20" width="226" height="130" rx="8" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="641" y="50" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#ef4444">Critical Infrastructure</text>
+                <text x="641" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Servers, DCs, POS, kiosks</text>
+                <text x="641" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Feature defer: 365 days</text>
+                <text x="641" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Quality defer: 30 days</text>
+                <text x="641" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">~5-10% of fleet</text>
+                <text x="641" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Maximum deferral</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Ring Strategy Rationale</div>
+                <div class="card-desc">The preview ring's small population catches application compatibility issues and driver conflicts before they affect most users. Only after the preview ring runs without reported issues does IT release to the broad ring. Critical systems get maximum deferral because unplanned downtime on those devices has outsized business impact.</div>
             </div>
-
-            <div class="key-points">
-                <h4>COMMON UPDATE ERROR CODES</h4>
-                <ul>
-                    <li><strong>0x80073712</strong> &mdash; damaged or missing component store file; run DISM /RestoreHealth</li>
-                    <li><strong>0x800F0922</strong> &mdash; insufficient System Reserved partition space or VPN connectivity issue during update</li>
-                    <li><strong>0x80070002</strong> &mdash; file not found; corrupt update cache; clear SoftwareDistribution folder</li>
-                    <li><strong>0x80240034</strong> &mdash; update not applicable to device; check architecture and edition compatibility</li>
-                    <li><strong>0xC1900208</strong> &mdash; incompatible application blocking feature update; identify and remove/update the app</li>
-                </ul>
+            <div class="card c-gold">
+                <div class="card-label">Intune Update Ring Settings</div>
+                <div class="card-desc">Each Intune update ring policy controls: feature update deferral, quality update deferral, deadline, restart grace period, auto-restart notification, active hours. Assign each ring to an Azure AD device group. Three rings (pilot, broad, critical) with different deferral values covers most enterprise scenarios.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 11: Knowledge Check -->
-        <section class="slide" data-slide="11">
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Apply what you know &mdash; two scenario-based questions</p>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title">Scenario 1</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">Your organization manages 3,000 cloud-managed devices via Intune. A critical security vulnerability is discovered on a Tuesday and a patch is released the same week. Your current quality update deferral is set to 14 days for the Broad Ring. What should you do to expedite the patch?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">A) Delete the existing update ring and create a new one with 0-day deferral</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1', 'q1')">B) Temporarily reduce the quality update deferral period in the Broad Ring update ring policy</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">C) Set up a WSUS server to push the update to all devices immediately</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1', 'q1')">D) Use a feature update policy to target the emergency quality update</button>
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Feature Update Policies</div>
+                <div class="card-desc">Separate from update rings in Intune. Feature Update deployment policies allow you to pin devices to a specific Windows version (e.g., hold all devices on Windows 11 23H2 until you're ready for 24H2). Rings control deferral timing; feature update policies control the specific version being deployed.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box" id="quiz2" style="margin-top: 24px;">
-                <div class="scenario-title">Scenario 2</div>
-                <div class="scenario-content">
-                    <p style="margin-bottom: 16px;">A hospital has 200 Windows devices connected to medical imaging equipment. These devices must remain on a specific Windows version and receive only security updates &mdash; no feature updates. Which servicing approach is most appropriate?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">A) Windows Update for Business with 365-day feature update deferral</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">B) General Availability Channel with update rings pausing feature updates</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2', 'q2')">C) Windows 10/11 Enterprise LTSC for maximum stability and security-only updates</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2', 'q2')">D) Disable Windows Update entirely and manually install security patches quarterly</button>
-                    <div class="feedback" id="feedback-quiz2"></div>
-                </div>
+<!-- ==================== SLIDE 7 — WSUS VS WUFB VS INTUNE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">WSUS vs. WUfB <span class="accent">vs. Intune</span></div>
+        <div class="slide-subtitle">Three tools for managing update rollout &mdash; each with distinct infrastructure and control models.</div>
+
+        <!-- SVG: Three-column comparison -->
+        <div class="diagram-center">
+            <svg width="720" height="180" viewBox="0 0 720 180" role="img" aria-label="WSUS vs WUfB vs Intune update management comparison">
+                <!-- WSUS column -->
+                <rect x="4" y="10" width="224" height="162" rx="6" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="116" y="36" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#c9a83a">WSUS</text>
+                <text x="116" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Infrastructure: Windows Server role</text>
+                <text x="116" y="74" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Updates: Manually approved</text>
+                <text x="116" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Reporting: WSUS console</text>
+                <text x="116" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Client config: GPO</text>
+                <text x="116" y="128" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Cloud managed: No</text>
+                <text x="116" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">Best for: On-premises, bandwidth control</text>
+
+                <!-- WUfB column -->
+                <rect x="248" y="10" width="224" height="162" rx="6" fill="rgba(96,165,250,0.07)" stroke="#60a5fa" stroke-width="1.5"/>
+                <text x="360" y="36" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#60a5fa">WUfB (GPO)</text>
+                <text x="360" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Infrastructure: None (policies only)</text>
+                <text x="360" y="74" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Updates: Deferral-based (no approval)</text>
+                <text x="360" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Reporting: Windows Update Reports</text>
+                <text x="360" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Client config: GPO or MDM CSP</text>
+                <text x="360" y="128" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Cloud managed: Partial</text>
+                <text x="360" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#60a5fa">Best for: On-prem AD, no server overhead</text>
+
+                <!-- Intune column -->
+                <rect x="492" y="10" width="224" height="162" rx="6" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="604" y="36" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="#3ab577">Intune Update Rings</text>
+                <text x="604" y="56" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#94a3b8">Infrastructure: Cloud only</text>
+                <text x="604" y="74" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Updates: Ring + deferral policies</text>
+                <text x="604" y="92" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Reporting: Intune update compliance</text>
+                <text x="604" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Client config: Intune policy</text>
+                <text x="604" y="128" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#64748b">Cloud managed: Yes</text>
+                <text x="604" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Best for: Azure AD joined, cloud-first</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Exam rule: if the scenario says "on-premises" with domain-joined clients, consider WSUS or WUfB via GPO. If the scenario says "Intune-managed" or "Azure AD joined," the answer is Intune Update Rings. These tools are not mutually exclusive &mdash; co-managed devices can use both.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — INTUNE UPDATE RING CONFIGURATION ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Intune Update Ring <span class="accent">Configuration</span></div>
+        <div class="slide-subtitle">Every configurable setting inside an Intune Windows 10/11 Update Ring policy.</div>
+        <table class="slide-table">
+            <thead>
+                <tr><th>Setting</th><th>Description</th><th>Typical Value</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Servicing channel</strong></td><td>General Availability Channel or Windows Insider</td><td>General Availability</td></tr>
+                <tr><td><strong>Feature update deferral</strong></td><td>Days to delay feature update after release</td><td>0 (pilot) / 90 (broad) / 365 (critical)</td></tr>
+                <tr><td><strong>Quality update deferral</strong></td><td>Days to delay monthly quality update</td><td>0 (pilot) / 7 (broad) / 30 (critical)</td></tr>
+                <tr><td><strong>Feature update deadline</strong></td><td>Days after deferral ends before forced install</td><td>7 days</td></tr>
+                <tr><td><strong>Quality update deadline</strong></td><td>Days after deferral ends before forced install</td><td>2-3 days</td></tr>
+                <tr><td><strong>Restart grace period</strong></td><td>Days user can snooze restart after update installs</td><td>2-5 days</td></tr>
+                <tr><td><strong>Active hours start/end</strong></td><td>Window when restart is NOT permitted</td><td>8 AM - 6 PM</td></tr>
+                <tr><td><strong>Auto-restart notifications</strong></td><td>How far in advance to notify user of pending restart</td><td>4 hours before, 15-minute snooze</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Feature update deferral: max 365 days. Quality update deferral: max 30 days. Definition updates: 0 days (cannot be deferred). If a question asks for the maximum deferral limits, memorize these three numbers.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — UPDATE TYPES REFERENCE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Update Types <span class="accent">Reference</span></div>
+        <div class="slide-subtitle">All six update classifications and how they behave under WUfB deferral policies.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Feature Updates</div>
+                <div class="card-desc">Annual release. New OS capabilities and sometimes UI changes. Example: Windows 11 22H2 to 23H2. Download size: 2-5 GB. Max deferral: 365 days (Enterprise/Education). Support: 24 months (Home/Pro), 36 months (Enterprise/Education).</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 12: Summary -->
-        <section class="slide" data-slide="12">
-            <h2 class="slide-title">Module 9 Summary</h2>
-            <p class="slide-subtitle">Managing Updates for Windows &mdash; key takeaways</p>
-
-            <ul class="summary-list">
-                <li>Windows as a Service delivers continuous updates through feature updates (annual) and quality updates (monthly)</li>
-                <li>General Availability Channel is standard; LTSC is for specialized fixed-function devices only</li>
-                <li>Feature updates can be deferred up to 365 days; quality updates up to 30 days</li>
-                <li>Quality updates are cumulative &mdash; the latest monthly patch includes all previous fixes</li>
-                <li>WUfB policies configured via Intune control deferral, deadlines, active hours, and pause</li>
-                <li>Update rings group devices with different deferral settings for staged deployment</li>
-                <li>Feature update policies control which version devices run; update rings control when updates install</li>
-                <li>WSUS provides on-premises update management with manual approve/decline per update</li>
-                <li>Delivery Optimization enables peer-to-peer update sharing to reduce bandwidth</li>
-                <li>Windows Update for Business reports require Azure Log Analytics and diagnostic data enabled</li>
-                <li>Update troubleshooting: Get-WindowsUpdateLog, DISM /RestoreHealth, clear SoftwareDistribution folder</li>
-                <li>Definition updates (Defender) cannot be deferred and update multiple times daily</li>
-            </ul>
-
-            <div class="exam-tip" style="margin-top: 28px;">
-                <div class="exam-tip-label">EXAM FOCUS AREAS</div>
-                <p>Feature vs. quality update deferral limits (365 vs. 30 days). WUfB vs. WSUS capabilities and when to use each. Update ring configuration and staged deployment strategy. LTSC use cases and why it is not for general workstations. Delivery Optimization download modes. Feature update policies vs. update rings purpose.</p>
+            <div class="card c-gold">
+                <div class="card-label">Quality Updates</div>
+                <div class="card-desc">Monthly (Patch Tuesday). Cumulative &mdash; install latest = have all previous. Content: security fixes, reliability improvements. Max deferral: 30 days. Out-of-band emergency patches may also be released between Patch Tuesdays for critical vulnerabilities.</div>
             </div>
-
-            <div class="scenario-box" style="text-align: center; margin-top: 24px;">
-                <div class="scenario-title" style="justify-content: center;">Module Complete</div>
-                <div class="scenario-content">
-                    <p>You have covered all Windows update management topics for the MD-101 exam. Mark this module complete to track your progress.</p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Driver Updates</div>
+                <div class="card-desc">Hardware driver updates via Windows Update. Can be excluded via WUfB policy ("Do not include drivers with Windows Updates"). Enterprise environments often manage drivers separately through SCCM or MDT to control tested driver versions.</div>
             </div>
+            <div class="card c-purple">
+                <div class="card-label">Firmware Updates</div>
+                <div class="card-desc">UEFI firmware updates on supported hardware via Windows Update. Uses UEFI Capsule mechanism. Less frequent. Critical for Secure Boot and TPM firmware. Can be excluded via policy. Always test firmware updates on a small group first due to brick risk on incompatible hardware.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Definition Updates</div>
+                <div class="card-desc">Microsoft Defender AV signatures. Released multiple times daily. <strong>Cannot be deferred.</strong> Must reach devices regardless of ring policy. Can be distributed via WSUS to reduce internet bandwidth. SCCM can also distribute definitions via software distribution if WSUS bandwidth is a concern.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Servicing Stack Updates</div>
+                <div class="card-desc">Updates to the Windows Update engine itself. Must be installed before other updates can be applied. Windows delivers SSUs automatically, often bundled with quality updates in recent releases. Critical prerequisite that cannot be blocked; attempting to skip an SSU breaks the update pipeline.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module &#x2713;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 10 — UPDATE COMPLIANCE MONITORING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Update Compliance <span class="accent">Monitoring</span></div>
+        <div class="slide-subtitle">Visibility into update deployment status across the entire managed fleet.</div>
 
-    </main>
+        <!-- SVG: Update compliance dashboard conceptual view -->
+        <div class="diagram-center">
+            <svg width="720" height="160" viewBox="0 0 720 160" role="img" aria-label="Update compliance monitoring dashboard showing device counts by update status">
+                <!-- Dashboard container -->
+                <rect x="4" y="4" width="712" height="152" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 12;
+                <!-- Section: Feature Update Status -->
+                <text x="16" y="26" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">Feature Update Status</text>
 
-        function updateProgress() {
-            const progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = 'Slide ' + currentSlide + ' of ' + totalSlides;
+                <!-- Bar: Current -->
+                <rect x="16" y="34" width="200" height="20" rx="3" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1"/>
+                <rect x="16" y="34" width="200" height="20" rx="3" fill="rgba(58,181,119,0.4)"/>
+                <text x="220" y="48" font-family="Segoe UI,sans-serif" font-size="10" fill="#3ab577">Current (23H2): 68%</text>
 
-            document.querySelectorAll('.slide-dot').forEach(function(dot, index) {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+                <!-- Bar: Pending -->
+                <rect x="16" y="60" width="120" height="20" rx="3" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="1"/>
+                <rect x="16" y="60" width="120" height="20" rx="3" fill="rgba(201,168,58,0.4)"/>
+                <text x="140" y="74" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">Deferred: 23%</text>
 
-            document.querySelectorAll('.slide').forEach(function(slide, index) {
-                slide.classList.toggle('active', index + 1 === currentSlide);
+                <!-- Bar: Failed -->
+                <rect x="16" y="86" width="50" height="20" rx="3" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>
+                <rect x="16" y="86" width="50" height="20" rx="3" fill="rgba(239,68,68,0.4)"/>
+                <text x="70" y="100" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">Failed: 9%</text>
+
+                <!-- Divider -->
+                <line x1="300" y1="10" x2="300" y2="150" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+                <!-- Section: Quality Update Status -->
+                <text x="316" y="26" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#60a5fa">Quality Update Status (Current Month)</text>
+
+                <rect x="316" y="34" width="220" height="20" rx="3" fill="rgba(96,165,250,0.4)"/>
+                <text x="540" y="48" font-family="Segoe UI,sans-serif" font-size="10" fill="#60a5fa">Installed: 78%</text>
+
+                <rect x="316" y="60" width="88" height="20" rx="3" fill="rgba(201,168,58,0.4)"/>
+                <text x="408" y="74" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">In progress: 14%</text>
+
+                <rect x="316" y="86" width="40" height="20" rx="3" fill="rgba(239,68,68,0.4)"/>
+                <text x="360" y="100" font-family="Segoe UI,sans-serif" font-size="10" fill="#ef4444">Failed: 8%</text>
+
+                <!-- Summary bar at bottom -->
+                <rect x="16" y="128" width="688" height="20" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                <text x="360" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#475569">Total managed devices: 4,812 | Report generated: Intune Update Compliance workbook</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Intune Update Reports</div>
+                <div class="card-desc">Intune provides built-in Windows Update reports under Reports &gt; Windows Updates. Shows per-device update status, pending updates, and failed installations. The "Windows Update compliance" workbook (requires Azure Monitor) gives fleet-level views. Per-device diagnostics accessible via the device page in Intune.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Update for Business Reports</div>
+                <div class="card-desc">Log Analytics-based reporting solution for WUfB. Requires devices to be configured to send Windows diagnostic data to Microsoft. Provides dashboards showing update deployment progress, device update health, and compliance across rings. Available in Azure portal as a Workbook.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SCCM Software Update Reports</div>
+                <div class="card-desc">For SCCM-managed devices, use the built-in software updates compliance reports. Filter by software update group, computer collection, or individual device. Reports show installation state: Required, Installed, Failed, Unknown. Critical for co-managed environments where SCCM still controls the Windows Updates workload.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — WSUS MAINTENANCE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">WSUS <span class="accent">Maintenance and Health</span></div>
+        <div class="slide-subtitle">A neglected WSUS server is worse than no WSUS server &mdash; maintenance is non-negotiable.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">WSUS Database Maintenance</div>
+                <div class="card-desc">The WSUS database (SUSDB) requires regular maintenance: re-indexing, statistics updates, and obsolete update cleanup. Use the WSUS Server Cleanup Wizard monthly (or the WID database maintenance scripts). Unneeded updates consume significant disk space. WSUS DB corruption causes sync failures and client connection issues.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IIS Application Pool Reset</div>
+                <div class="card-desc">WSUS runs as an IIS web application. The WsusPool application pool must be configured with sufficient memory (minimum 4 GB private memory limit for large deployments). Clients that cannot connect to WSUS often have IIS application pool crashes or memory limit exhaustion as the root cause. Monitor in IIS Manager.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Disk Space Management</div>
+                <div class="card-desc">WSUS downloads update content to the local server. For a typical enterprise environment, the download folder can grow to 100+ GB. Decline superseded updates and run cleanup monthly. The Cleanup Wizard removes: expired updates, superseded updates, unnecessary update files. Configure automatic approval rules to limit product/classification scope.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">GPO Configuration for Clients</div>
+                <div class="card-desc">Point clients to WSUS via GPO: Computer Configuration &gt; Admin Templates &gt; Windows Components &gt; Windows Update. Set "Specify intranet Microsoft update service location" to the WSUS URL. Set "Configure Automatic Updates" to the desired installation behavior. Set "Specify intranet statistics server" (can be same as WSUS).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">WSUS Sync Schedule</div>
+                <div class="card-desc">WSUS syncs metadata from Microsoft Update on a schedule. Default sync is daily. Configure product and classification subscriptions to limit what WSUS downloads. Synchronize only Windows 10/11 + Office products + Security/Critical classifications to avoid downloading drivers and optional updates that inflate disk usage.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — FEATURE UPDATE POLICY IN INTUNE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Feature Update <span class="accent">Policies in Intune</span></div>
+        <div class="slide-subtitle">Pin devices to specific Windows versions and control the exact timing of major upgrades.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Feature Update Deployment Policy</div>
+                <div class="card-desc">In Intune: Devices &gt; Windows Updates &gt; Feature updates for Windows 10 and later. Create a policy targeting a specific Windows version (e.g., Windows 11 24H2). Assign to device groups. Devices matching the policy will upgrade to the specified version on the deployment schedule. Separate from update rings, which only control deferral timing.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Safeguard Holds</div>
+                <div class="card-desc">Microsoft may place a safeguard hold on a device, blocking it from receiving a specific feature update due to a known compatibility issue (specific hardware or software). Displayed in the Intune update status as "safeguard hold." Organizations can override safeguard holds via the "Allow optional content" setting, but this is not recommended unless the issue is understood.</div>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Gradual Rollout</div>
+                <div class="card-desc">When a new Windows version becomes available, Microsoft uses a gradual rollout mechanism even for devices with no deferral policy. Early adopters receive the update first; Microsoft monitors telemetry and expands availability as confidence grows. This is separate from organizational ring policies &mdash; it is a Microsoft-side throttle on availability.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Monitoring Feature Update Progress</div>
+                <div class="card-desc">Track per-device status in Intune: Devices &gt; Monitor &gt; Feature update failures. Common states: Offered (device has been offered the update), In Progress, Success, Error. Error details include Windows Setup error codes. For broad ring failures, check the Top errors by feature update report to identify fleet-wide blockers.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Rollback</div>
+                <div class="card-desc">Windows preserves the previous OS installation for 10 days after a feature update. Users can roll back via Settings &gt; Recovery &gt; Go back. After 10 days, the previous installation is automatically deleted to reclaim disk space. IT can trigger rollback remotely for a device via Intune if a feature update causes critical issues post-deployment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — SCCM SOFTWARE UPDATE MANAGEMENT ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">SCCM Software <span class="accent">Update Management</span></div>
+        <div class="slide-subtitle">Enterprise patch orchestration for on-premises and co-managed environments.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Software Update Point (SUP)</div>
+                <div class="card-desc">SCCM site system role that integrates with WSUS. The SUP syncs updates from WSUS and makes them available in the SCCM console. All SCCM software update management flows through a SUP. Multiple SUPs can be configured for redundancy and branch office load distribution.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Software Update Groups</div>
+                <div class="card-desc">Logical groupings of updates in SCCM. Create monthly groups (e.g., "June 2025 Security Updates") or by product. Deploy update groups to device collections. SCCM tracks which devices in the collection have/need each update in the group. Required vs. Available deployment types control whether installation is forced or optional.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Automatic Deployment Rules (ADR)</div>
+                <div class="card-desc">Automate monthly patching without manual approval. Configure an ADR to automatically download and deploy updates matching criteria (Classification = Security Updates, Product = Windows 11) to a device collection on a schedule. ADRs run after Patch Tuesday sync to automate the approval and deployment pipeline.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Phased Deployments</div>
+                <div class="card-desc">SCCM phased deployments mirror the ring concept. Phase 1 (pilot collection): deploy to 50 devices, monitor for 7 days. Phase 2 (broad): auto-advance to full collection if success criteria met. Configurable success criteria: percentage of devices successfully installed, no error threshold exceeded. Built-in ring logic without manual steps.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Co-Management Update Workload</div>
+                <div class="card-desc">In co-managed environments, the Windows Update workload determines whether SCCM or Intune controls update policy for a device. Set to SCCM: existing SCCM ADRs and SUG deployments continue to govern updates. Set to Intune: Intune update rings take over. During transition, move the pilot collection to Intune first.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — DELIVERY OPTIMIZATION ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Delivery <span class="accent">Optimization</span></div>
+        <div class="slide-subtitle">Reduce WAN bandwidth consumption for Windows Update content by enabling peer-to-peer caching.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How Delivery Optimization Works</div>
+                <div class="card-desc">When Device A downloads Windows Update content, it caches it locally. Device B on the same LAN (or DO group) queries the DO service for peers that have the content. Device B downloads from Device A at LAN speed instead of from Microsoft's CDN. The DO service tracks which devices have which content without exposing private data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Download Mode Settings</div>
+                <div class="card-desc"><strong>0</strong> = HTTP only (no peers). <strong>1</strong> = LAN peers only. <strong>2</strong> = Group peers (DO GroupID match). <strong>3</strong> = Internet peers (public DO network). <strong>99</strong> = Bypass DO entirely (use BITS). <strong>100</strong> = Simple download (no peer selection). Mode 1 or Mode 2 is appropriate for enterprise networks.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Connected Cache</div>
+                <div class="card-desc">Deploy a Microsoft Connected Cache (MCC) server on-premises. The cache intercepts DO requests and serves content from local NTFS storage. SCCM distribution points can function as MCC servers. Provides LAN-speed delivery from a dedicated server without peer-to-peer complexity. Critical for branch offices on slow WAN links.</div>
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Exam scenario: branch office with 200 PCs on a 20 Mbps WAN link. Each PC downloads a 600 MB quality update. Without DO, that is 120 GB of WAN traffic. With DO Mode 1, only one or a few devices download from the internet; the rest pull from local peers. WAN consumption drops by 95%+.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — WINDOWS UPDATE POLICIES VIA GPO ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">WUfB Configuration <span class="accent">via Group Policy</span></div>
+        <div class="slide-subtitle">The GPO settings path for WUfB when Intune is not available or co-exists with on-premises AD.</div>
+        <table class="slide-table">
+            <thead>
+                <tr><th>GPO Setting</th><th>Path</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Select the target Feature Update version</strong></td><td>Windows Update for Business</td><td>Pin devices to a specific Windows version</td></tr>
+                <tr><td><strong>Select when Feature Updates are received</strong></td><td>Windows Update for Business</td><td>Set deferral days for feature updates</td></tr>
+                <tr><td><strong>Select when Quality Updates are received</strong></td><td>Windows Update for Business</td><td>Set deferral days for quality updates</td></tr>
+                <tr><td><strong>Configure Automatic Updates</strong></td><td>Windows Update (legacy)</td><td>Installation schedule and restart behavior</td></tr>
+                <tr><td><strong>Specify intranet Microsoft update service location</strong></td><td>Windows Update (legacy)</td><td>Point clients to WSUS URL</td></tr>
+                <tr><td><strong>Do not include drivers with Windows Updates</strong></td><td>Windows Update for Business</td><td>Exclude driver updates from automatic install</td></tr>
+                <tr><td><strong>Allow use of Delivery Optimization for WUfB</strong></td><td>Delivery Optimization</td><td>Enable peer caching for update content</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-cyan">
+            <div class="box-label">GPO Path</div>
+            Computer Configuration &gt; Administrative Templates &gt; Windows Components &gt; Windows Update &gt; Windows Update for Business. These policies require Windows 10 1511+ clients and a Server 2016+ domain controller to apply correctly. Intune MDM settings take precedence over GPO for Intune-enrolled devices.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — PAUSE AND UNINSTALL ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Pause, Uninstall, <span class="accent">and Recovery</span></div>
+        <div class="slide-subtitle">Emergency controls for when an update causes issues across the fleet.</div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Pause Updates</div>
+                <div class="card-desc">Temporarily stop receiving both feature and quality updates for up to 35 days. Configured via Intune update ring (Pause quality updates, Pause feature updates) or GPO. After 35 days, the pause expires automatically and updates resume. The pause can be reset from Intune or removed from GPO before 35 days if resolved sooner.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Uninstall Quality Update</div>
+                <div class="card-desc">Windows keeps the previous quality update available for uninstall for a configurable period (default 30 days, configurable 10-60 days). Intune: device action "Uninstall" for update. WUfB GPO: configure maximum days to keep a quality update for rollback. After the window closes, uninstall is no longer possible without manual intervention.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Uninstall Feature Update</div>
+                <div class="card-desc">Windows preserves the previous OS for 10 days after a feature update. Roll back via Settings &gt; System &gt; Recovery &gt; Go back. IT can trigger remotely via Intune device action. After 10 days, the previous OS partition is reclaimed. Feature update rollback does not affect user files but does revert app compatibility changes.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">SCCM Software Updates Pause</div>
+                <div class="card-desc">In SCCM, remove the deployment from the affected device collection or change the deployment deadline to a future date to pause distribution. Remove the device from the software update group assignment. SCCM does not have a native "pause" button; stopping a deployment is achieved by modifying collection membership or deployment settings.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Safe Orchestration Approach</div>
+                <div class="card-desc">When a problematic update is identified: 1) Immediately pause the update ring in Intune for all rings. 2) Identify affected device scope in Intune reports. 3) Test the fix (workaround or next update) on the preview ring. 4) Resume rings incrementally after validation. 5) Document the incident in the change management system.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — EXAM SCENARIOS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Exam <span class="accent">Scenario Practice</span></div>
+        <div class="slide-subtitle">High-frequency scenario types from the MD-101 update management domain.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Scenario:</strong> IT needs to prevent the latest feature update from installing on production devices for 6 months while a compatibility test is run. <strong>Answer:</strong> Configure a WUfB feature update deferral of 180 days via Intune update ring or GPO.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Scenario:</strong> A monthly quality update is causing BSODs on a specific hardware model. IT needs to stop it immediately. <strong>Answer:</strong> Pause quality updates in the Intune update ring (up to 35 days) and remove approval in WSUS for on-prem clients.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Scenario:</strong> Branch office WAN links are saturated every Patch Tuesday. 150 devices, 20 Mbps WAN. <strong>Answer:</strong> Enable Delivery Optimization Mode 1 (LAN peers) and/or deploy a Connected Cache server at the branch.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Scenario:</strong> Devices running medical imaging software must never receive feature updates automatically. <strong>Answer:</strong> Assign devices to LTSC channel, OR configure maximum feature update deferral (365 days) and use a Feature Update deployment policy to pin them to the current version.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Scenario:</strong> Compliance report shows 15% of devices have not installed the current quality update 45 days after release. <strong>Answer:</strong> Check Intune update compliance for failed states. Likely causes: deadline not configured, devices offline during active hours window, or network connectivity issues. Configure a deadline to force installation.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Scenario:</strong> Antivirus signatures are being deferred by the WUfB ring policy. <strong>Answer:</strong> Definition updates cannot be deferred by WUfB. If signatures are not updating, the cause is something else: network connectivity, WSUS classification not syncing definitions, or Defender policy misconfiguration.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — UPDATE COMPLIANCE DEEP DIVE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Update Compliance <span class="accent">Deep Dive</span></div>
+        <div class="slide-subtitle">Interpreting compliance data and acting on failure states in Intune.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Intune Device States</div>
+                <div class="card-desc"><strong>Pending Install:</strong> update offered but not yet installed. <strong>Installed:</strong> update applied successfully. <strong>Failed:</strong> Windows Update returned an error code during install or download. <strong>Not applicable:</strong> update does not apply to this device (wrong OS version or edition). <strong>Unknown:</strong> device has not checked in recently; check last sync date.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common Failure Codes</div>
+                <div class="card-desc"><strong>0x80070020:</strong> file in use, reboot needed. <strong>0x80073712:</strong> component store corruption (run DISM /restorehealth). <strong>0x800705B4:</strong> timeout (slow network or large update). <strong>0x8024402C:</strong> WSUS connectivity failure. <strong>0x80240017:</strong> update not applicable. Check Windows Update logs for full context.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Windows Update Log</div>
+                <div class="card-desc">Windows 10/11 no longer uses the traditional WindowsUpdate.log directly. Run <code style="font-family:monospace;font-size:0.78rem;color:#c9a83a">Get-WindowsUpdateLog</code> PowerShell cmdlet to decode and generate a readable log file. The resulting log is placed on the Desktop. Filter for "Agent" and "Handler" entries to trace specific update failures.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">WUfB Reports Workbook</div>
+                <div class="card-desc">The Windows Update for Business Reports workbook in Azure Monitor provides fleet-level compliance views. Prerequisite: devices configured to send Windows diagnostic data (Level 1 / Required minimum). Data latency: 24-72 hours. Shows update readiness, active issues, safeguard holds, and per-ring deployment progress across all enrolled devices.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Intune Built-in Reports</div>
+                <div class="card-desc">Intune Reports &gt; Windows Updates includes: Per-device status for update rings, Feature update failures, Windows Expedited update status. Device diagnostics (Collect diagnostics button) captures WU logs, event logs, and MDM traces without requiring RDP or on-site access. Critical for remote troubleshooting of persistent update failures.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — MODULE SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Module 9 &mdash; Complete</div>
+        <div class="slide-title">Module 9 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Core concepts for the MD-101 update management domain.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">WaaS &amp; Channels</div>
+                <div class="card-desc">General Availability Channel for all production devices. LTSC for specialized hardware only &mdash; no feature updates, security-only, 5+5 year support. Insider Preview for testing only. Feature updates annually; quality updates monthly on Patch Tuesday.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">WUfB Rings</div>
+                <div class="card-desc">Preview ring (0 deferral, 2-5% fleet), Broad ring (90-120d feature / 7-14d quality, 85-90% fleet), Critical ring (365d feature / 30d quality, 5-10% fleet). Maximum deferrals: Feature = 365d, Quality = 30d, Definitions = 0d (non-deferrable).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Tools Comparison</div>
+                <div class="card-desc">WSUS = on-prem server, manual approval, bandwidth reduction. WUfB via GPO = no server, deferral-based, on-prem AD. Intune Update Rings = cloud-native, Azure AD joined devices. SCCM = enterprise, ADRs, phased deployments, SUP + SUG. Delivery Optimization reduces WAN bandwidth via peer caching (Mode 1 = LAN).</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Critical Exam Rules</div>
+            Definition updates cannot be deferred under any WUfB configuration. Feature update max deferral is 365 days. Quality update max deferral is 30 days. LTSC is NOT appropriate for general-purpose workstations. Pause updates max duration is 35 days. Feature update rollback window is 10 days. Quality update uninstall window is configurable (default 30 days). WSUS requires GPO options 66/67 equivalent (intranet update service location).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== NAV BAR ==================== -->
+<nav id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">&larr; MD-101</a>
+    <button class="nav-btn" id="prev-btn" onclick="navigate(-1)" disabled>&larr; Prev</button>
+    <span id="slide-counter">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &rarr;</button>
+    <button id="complete-btn" onclick="markComplete()">Mark Complete</button>
+</nav>
+
+<script>
+    /* ── STATE ── */
+    const TOTAL = 19;
+    const MODULE_ID = 'forge-md101-m09';
+    let current = 1;
+
+    /* ── NAVIGATION ── */
+    function goToSlide(n) {
+        n = Math.max(1, Math.min(TOTAL, n));
+
+        const prev = document.getElementById('slide-' + current);
+        if (prev) prev.classList.remove('active');
+
+        current = n;
+
+        const next = document.getElementById('slide-' + current);
+        if (next) {
+            next.classList.add('active');
+            /* Restart SVG animations by re-inserting SVG nodes */
+            next.querySelectorAll('svg').forEach(function(svg) {
+                const clone = svg.cloneNode(true);
+                svg.parentNode.replaceChild(clone, svg);
             });
         }
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+        document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100).toFixed(2) + '%';
+        document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+        document.getElementById('prev-btn').disabled = (current === 1);
+
+        if (current === TOTAL) {
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('complete-btn').style.display = 'inline-block';
+        } else {
+            document.getElementById('next-btn').style.display = 'inline-block';
+            document.getElementById('complete-btn').style.display = 'none';
         }
+    }
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+    function navigate(dir) { goToSlide(current + dir); }
+
+    /* ── KEYBOARD ── */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+    });
+
+    /* ── MARK COMPLETE ── */
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.markComplete(MODULE_ID);
         }
-
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof AchievementManager !== 'undefined') {
+            AchievementManager.unlock('module_complete');
         }
+        document.getElementById('complete-btn').textContent = 'Completed';
+        document.getElementById('complete-btn').style.background = '#3ab577';
+        document.getElementById('complete-btn').disabled = true;
+    }
 
-        function checkAnswer(button, isCorrect, quizId, qKey) {
-            var feedbackEl = document.getElementById('feedback-' + quizId);
-            var options = button.parentElement.querySelectorAll('.quiz-option');
-
-            options.forEach(function(opt) { opt.style.pointerEvents = 'none'; });
-
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Correct. The fastest approach is to temporarily reduce the deferral period in the existing update ring policy. Changing the deferral from 14 days to 0 days makes the critical patch immediately available. After the emergency patch is deployed, restore the original deferral setting. Deleting and recreating rings is disruptive. WSUS is not needed for cloud-managed devices. Feature update policies only target feature updates, not quality updates.';
-                } else {
-                    feedbackEl.textContent = 'Correct. LTSC (Long-Term Servicing Channel) is specifically designed for fixed-function devices like medical equipment that need maximum stability. LTSC receives only security updates and no feature updates, with 5-year support. Deferring feature updates 365 days with WUfB only delays them temporarily. Pausing is limited to 35 days. Disabling updates entirely creates serious security vulnerabilities.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (qKey === 'q1') {
-                    feedbackEl.textContent = 'Incorrect. The correct approach is to reduce the quality update deferral in the existing Broad Ring. This is a simple policy change that makes the patch immediately available. Deleting rings loses configuration and history. WSUS is unnecessary for cloud-managed devices. Feature update policies control feature update versions, not quality updates.';
-                } else {
-                    feedbackEl.textContent = 'Incorrect. LTSC is the correct answer for medical imaging equipment that must remain on a fixed version with security-only updates. A 365-day deferral eventually expires and the feature update installs. Pausing is limited to 35 days. Disabling Windows Update entirely is a security risk and not a supported management strategy.';
-                }
-                options.forEach(function(opt) {
-                    if (opt.getAttribute('onclick').includes('true')) { opt.classList.add('correct'); }
-                });
-            }
-        }
-
-        function completeModule() {
-            ModuleProgress.complete('forge', 'forge-md101-m09', {
-                returnUrl: '../index.html'
-            });
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                prevSlide();
-            }
-        });
-
-        updateProgress();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../components/PresentationA11y.js"></script>
+    /* ── INIT ── */
+    goToSlide(1);
+</script>
 </body>
 </html>

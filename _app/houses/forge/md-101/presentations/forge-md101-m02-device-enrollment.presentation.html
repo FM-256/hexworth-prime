@@ -8,1362 +8,1092 @@
     <!-- Progress & Achievements -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Enrollment - MD-101 | House of the Forge</title>
+    <title>Device Enrollment | MD-101 &mdash; House of the Forge</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1510 50%, #0a0a0f 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #d4c4b5;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
         }
 
-        .presentation-header {
-            padding: 20px 40px;
-            background: rgba(10, 10, 15, 0.92);
-            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            padding: 8px 16px;
-            background: rgba(234, 88, 12, 0.1);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 6px;
-            color: #f97316;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            background: rgba(234, 88, 12, 0.2);
-            border-color: rgba(234, 88, 12, 0.5);
-        }
-
-        .house-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            color: #8a7060;
-            letter-spacing: 0.1em;
-        }
-
-        .house-badge-icon { font-size: 1.2rem; }
-
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .progress-bar {
-            width: 150px;
-            height: 4px;
-            background: rgba(234, 88, 12, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ea580c, #f97316);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            font-size: 0.75rem;
-            color: #6b5040;
-        }
-
-        .slides-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
+        /* ── SLIDE SYSTEM ── */
         .slide {
-            display: none;
-            animation: fadeIn 0.5s ease;
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
         }
 
-        .slide.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* ── PROGRESS BAR ── */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
         }
 
-        .slide-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            color: #f5e8d5;
-            margin-bottom: 10px;
-            text-align: center;
+        /* ── NAV BAR ── */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
         }
-
-        .slide-subtitle {
-            font-size: 1.1rem;
-            color: #8a7060;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .module-tag {
-            text-align: center;
-            font-size: 0.75rem;
-            color: #ea580c;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
-
-        .content-card {
-            background: rgba(20, 12, 5, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.15);
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s ease;
-        }
-
-        .content-card:hover {
-            border-color: rgba(234, 88, 12, 0.4);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .card-icon { font-size: 2.5rem; margin-bottom: 15px; }
-        .card-title { font-size: 1.1rem; color: #f5e8d5; margin-bottom: 10px; }
-        .card-description { font-size: 0.9rem; color: #9a8070; line-height: 1.6; }
-
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
-            font-size: 0.9rem;
-        }
-
-        .comparison-table th {
-            background: rgba(234, 88, 12, 0.15);
-            padding: 14px 15px;
-            text-align: left;
-            color: #f5e8d5;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
-        }
-
-        .comparison-table td {
-            padding: 11px 15px;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.1);
-            color: #b8a090;
-        }
-
-        .comparison-table tr:hover td {
-            background: rgba(234, 88, 12, 0.04);
-        }
-
-        .feature-yes { color: #4ade80; }
-        .feature-no { color: #5a4030; }
-        .feature-limited { color: #f59e0b; }
-
-        .key-points {
-            background: rgba(20, 12, 5, 0.65);
-            border-left: 3px solid #ea580c;
-            padding: 20px 25px;
-            margin: 25px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .key-points h4 {
-            color: #f97316;
-            margin-bottom: 12px;
-            font-size: 0.85rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .key-points ul { list-style: none; }
-
-        .key-points li {
-            padding: 7px 0;
-            padding-left: 25px;
-            position: relative;
-            color: #d4c4b5;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        .key-points li::before {
-            content: '\2192';
-            position: absolute;
-            left: 0;
-            color: #ea580c;
-        }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(251, 146, 60, 0.05));
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 12px;
-            padding: 28px;
-            margin: 25px 0;
-        }
-
-        .scenario-title {
-            font-size: 1rem;
-            color: #f97316;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-        }
-
-        .scenario-content {
-            font-size: 0.92rem;
-            color: #d4c4b5;
-            line-height: 1.7;
-        }
-
-        .exam-tip {
-            background: rgba(234, 88, 12, 0.08);
-            border: 1px solid rgba(234, 88, 12, 0.35);
-            border-radius: 8px;
-            padding: 18px 22px;
-            margin: 20px 0;
-        }
-
-        .exam-tip-label {
-            font-size: 0.75rem;
-            color: #ea580c;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .exam-tip p {
-            font-size: 0.9rem;
-            color: #d4c4b5;
-            line-height: 1.6;
-        }
-
-        .quiz-option {
-            display: block;
-            width: 100%;
-            padding: 14px 18px;
-            margin: 10px 0;
-            background: rgba(20, 12, 5, 0.65);
-            border: 1px solid rgba(234, 88, 12, 0.2);
-            border-radius: 8px;
-            color: #d4c4b5;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.92rem;
-            font-family: inherit;
-        }
-
-        .quiz-option:hover {
-            border-color: rgba(234, 88, 12, 0.5);
-            background: rgba(234, 88, 12, 0.08);
-        }
-
-        .quiz-option.correct {
-            border-color: #4ade80;
-            background: rgba(74, 222, 128, 0.08);
-            color: #4ade80;
-        }
-
-        .quiz-option.incorrect {
-            border-color: #f87171;
-            background: rgba(248, 113, 113, 0.08);
-            color: #f87171;
-        }
-
-        .quiz-option:disabled,
-        .quiz-option[style*="pointer-events: none"] { cursor: default; }
-
-        .feedback {
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            line-height: 1.6;
-            display: none;
-        }
-
-        .feedback.correct {
-            background: rgba(74, 222, 128, 0.08);
-            border: 1px solid rgba(74, 222, 128, 0.3);
-            color: #4ade80;
-            display: block;
-        }
-
-        .feedback.incorrect {
-            background: rgba(248, 113, 113, 0.08);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-            color: #f87171;
-            display: block;
-        }
-
-        .method-steps { list-style: none; margin: 15px 0; }
-
-        .method-steps li {
-            padding: 8px 0 8px 35px;
-            position: relative;
-            color: #d4c4b5;
-            font-size: 0.9rem;
-            border-bottom: 1px solid rgba(234, 88, 12, 0.08);
-        }
-
-        .method-steps li:last-child { border-bottom: none; }
-
-        .method-steps li .step-num {
-            position: absolute;
-            left: 0;
-            top: 8px;
-            width: 22px;
-            height: 22px;
-            background: rgba(234, 88, 12, 0.2);
-            border-radius: 50%;
-            text-align: center;
-            line-height: 22px;
-            font-size: 0.75rem;
-            color: #f97316;
-            font-weight: 700;
-        }
-
-        .slide-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 50px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(234, 88, 12, 0.15);
-        }
-
         .nav-btn {
-            padding: 12px 30px;
-            background: rgba(234, 88, 12, 0.12);
-            border: 1px solid rgba(234, 88, 12, 0.3);
-            border-radius: 8px;
-            color: #f97316;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #c9a83a; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+        #complete-btn:hover { background: #e0bf56; transform: translateY(-1px); }
+
+        /* ── TYPOGRAPHY ── */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* ── CARDS ── */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-purple { border-left-color: #a78bfa; }
+
+        /* ── CALLOUT BOXES ── */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* ── SCENARIO STRIP ── */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
         }
 
-        .nav-btn:hover {
-            background: rgba(234, 88, 12, 0.22);
-            border-color: rgba(234, 88, 12, 0.5);
+        /* ── SUMMARY FACTS ── */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.4; }
+        .fact-text strong { color: #f1f5f9; }
+
+        /* ── TITLE HERO ── */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
         }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
 
-        .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
-            border: none;
-            color: white;
-            font-weight: 500;
+        /* ── INLINE TABLE ── */
+        .slide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .slide-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 10px; text-align: left;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.25);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .slide-table td { padding: 7px 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .slide-table td strong { color: #f1f5f9; }
+        .slide-table tr:last-child td { border-bottom: none; }
+        .t-yes { color: #3ab577; font-weight: 600; }
+        .t-no  { color: #ef4444; font-weight: 600; }
+        .t-lim { color: #c9a83a; font-weight: 600; }
 
-        .nav-btn.primary:hover {
-            box-shadow: 0 5px 20px rgba(234, 88, 12, 0.35);
-            background: linear-gradient(135deg, #f97316, #ea580c);
+        /* ── MINI DIVIDER ── */
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        /* ── QUIZ ── */
+        .quiz-option {
+            display: block; width: 100%; padding: 10px 14px; margin: 7px 0;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px; color: #cbd5e1; text-align: left; cursor: pointer;
+            transition: background 0.2s, border-color 0.2s; font-size: 0.85rem; font-family: inherit;
         }
+        .quiz-option:hover { background: rgba(201,168,58,0.1); border-color: #c9a83a; }
+        .quiz-option.correct  { border-color: #3ab577; background: rgba(58,181,119,0.1); color: #3ab577; }
+        .quiz-option.incorrect { border-color: #ef4444; background: rgba(239,68,68,0.08); color: #ef4444; }
+        .feedback { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 6px; font-size: 0.83rem; line-height: 1.5; }
+        .feedback.correct   { display: block; background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.3); color: #d1fae5; }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
 
-        .slide-dots { display: flex; gap: 8px; }
+        /* ── SVG LAYOUT HELPERS ── */
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .layout-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 
-        .slide-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(234, 88, 12, 0.28);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: none;
-        }
-
-        .slide-dot.active {
-            background: #f97316;
-            transform: scale(1.25);
-        }
-
-        .completion-box {
-            background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(251, 146, 60, 0.06));
-            border: 1px solid rgba(234, 88, 12, 0.4);
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            margin-top: 30px;
-        }
-
-        .completion-box h3 { color: #f97316; margin-bottom: 10px; font-size: 1.2rem; }
-        .completion-box p { color: #d4c4b5; font-size: 0.92rem; line-height: 1.6; }
-
-        @media (max-width: 768px) {
-            .presentation-header { flex-direction: column; gap: 15px; padding: 15px 20px; }
-            .slide-title { font-size: 1.8rem; }
-            .content-grid { grid-template-columns: 1fr; }
-            .comparison-table { font-size: 0.8rem; }
-            .slide-nav { flex-direction: column; gap: 20px; }
-        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
-    <header class="presentation-header">
-        <div class="header-left">
-            <a href="../index.html" class="back-btn">&larr; Back to MD-101</a>
-            <div class="house-badge">
-                <span class="house-badge-icon"><img src="/assets/images/emblems/forge.webp" alt="Forge" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;"></span>
-                <span>HOUSE OF THE FORGE</span>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">MD-101 Module 2: Device Enrollment</h1>
+
+<div id="progress-bar" style="width:5.26%"></div>
+
+<nav id="nav-bar">
+    <a href="../index.html" class="nav-btn back-btn">&larr; MD-101</a>
+    <button class="nav-btn" id="prev-btn" onclick="prevSlide()" disabled>&larr; Prev</button>
+    <span id="slide-counter">1 / 19</span>
+    <button class="nav-btn" id="next-btn" onclick="nextSlide()">Next &rarr;</button>
+    <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+</nav>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">MD-101 &mdash; Managing Modern Desktops &nbsp;|&nbsp; Module 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Device<br>
+                <span class="accent">Enrollment</span>
+            </div>
+            <div class="slide-subtitle" style="max-width:640px; margin-top:4px;">
+                Getting devices under management: Azure AD identity types, Intune enrollment methods, Autopilot provisioning sequences, and enrollment restrictions.
             </div>
         </div>
-        <div class="progress-indicator">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progressText">Slide 1 of 12</span>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>Module 2 of 9</span>
+            <span>Auto-Enrollment &bull; DEM &bull; WCD &bull; Autopilot &bull; Restrictions</span>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="slides-container">
+<!-- ==================== SLIDE 2 — ENROLLMENT METHODS FLOW SVG ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19</div>
+        <div class="slide-title">Enrollment Methods <span class="accent">Flow</span></div>
+        <div class="slide-subtitle">Decision path from device type to correct enrollment method</div>
 
-        <!-- Slide 1: Introduction -->
-        <section class="slide active" data-slide="1">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h1 class="slide-title">Device Enrollment</h1>
-            <p class="slide-subtitle">Getting devices into your management ecosystem</p>
+        <!-- SVG: Enrollment methods decision flow -->
+        <div class="diagram-center">
+            <svg width="820" height="215" viewBox="0 0 820 215" aria-label="Enrollment methods decision flow diagram" role="img">
+                <!-- Start -->
+                <rect x="330" y="5" width="160" height="30" rx="15" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="410" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">New Device to Manage</text>
 
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-mobile.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h2 class="card-title">What This Module Covers</h2>
-                    <p class="card-description">Azure AD device identity types, Intune enrollment methods, Device Enrollment Manager accounts, bulk enrollment with provisioning packages, Windows Autopilot deployment profiles, and enrollment restrictions. Every device management journey starts here.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Exam Relevance</h3>
-                    <p class="card-description">MD-101 heavily tests enrollment scenarios. You must match the correct enrollment method to a given scenario (BYOD vs. corporate, single device vs. bulk, user-driven vs. automated). Expect 4-6 questions directly tied to enrollment concepts.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039;</div>
-                    <h3 class="card-title">Real-World Application</h3>
-                    <p class="card-description">Enrollment is the gateway to management. A device that is not enrolled cannot receive policies, apps, or compliance checks. Choosing the wrong enrollment method creates friction for users and overhead for IT. Get this right, and everything else flows.</p>
-                </div>
+                <!-- Arrow down to BYOD decision -->
+                <line x1="410" y1="35" x2="410" y2="58" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="405,58 415,58 410,68" fill="#94a3b8"/>
+
+                <!-- Diamond: BYOD? -->
+                <polygon points="410,68 470,96 410,124 350,96" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <text x="410" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#f1f5f9">Personal</text>
+                <text x="410" y="113" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#f1f5f9">device?</text>
+
+                <!-- Yes left branch -->
+                <line x1="350" y1="96" x2="220" y2="96" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="220,91 210,96 220,101" fill="#94a3b8"/>
+                <text x="285" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Yes (BYOD)</text>
+                <rect x="100" y="80" width="110" height="32" rx="6" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.4)" stroke-width="1"/>
+                <text x="155" y="99" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#c9a83a">User Self-Enroll</text>
+                <text x="155" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">(MAM or MDM)</text>
+
+                <!-- No right branch arrow down -->
+                <line x1="410" y1="124" x2="410" y2="148" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="405,148 415,148 410,158" fill="#94a3b8"/>
+                <text x="430" y="138" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">No (Corporate)</text>
+
+                <!-- Diamond: New device? -->
+                <polygon points="410,158 470,182 410,206 350,182" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+                <text x="410" y="186" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#f1f5f9">New from</text>
+                <text x="410" y="199" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#f1f5f9">vendor?</text>
+
+                <!-- Yes: Autopilot -->
+                <line x1="470" y1="182" x2="560" y2="182" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="560,177 570,182 560,187" fill="#94a3b8"/>
+                <text x="515" y="175" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Yes</text>
+                <rect x="570" y="167" width="110" height="30" rx="6" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.4)" stroke-width="1"/>
+                <text x="625" y="185" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Autopilot</text>
+
+                <!-- No: Existing/Bulk -->
+                <line x1="350" y1="182" x2="220" y2="182" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="220,177 210,182 220,187" fill="#94a3b8"/>
+                <text x="285" y="175" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">No</text>
+
+                <!-- Left branch split -->
+                <line x1="210" y1="182" x2="210" y2="145" stroke="#94a3b8" stroke-width="1.5"/>
+                <!-- Bulk -->
+                <line x1="210" y1="145" x2="100" y2="145" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="100,140 90,145 100,150" fill="#94a3b8"/>
+                <rect x="10" y="129" width="80" height="32" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.4)" stroke-width="1"/>
+                <text x="50" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">WCD .ppkg</text>
+                <text x="50" y="159" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Bulk</text>
+                <!-- DEM -->
+                <line x1="210" y1="182" x2="100" y2="182" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="100,177 90,182 100,187" fill="#94a3b8"/>
+                <rect x="10" y="167" width="80" height="30" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.4)" stroke-width="1"/>
+                <text x="50" y="185" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">DEM Account</text>
+                <!-- Hybrid -->
+                <line x1="210" y1="182" x2="210" y2="205" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="210" y1="205" x2="100" y2="205" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="100,200 90,205 100,210" fill="#94a3b8"/>
+                <rect x="10" y="197" width="80" height="16" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                <text x="50" y="209" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Hybrid + GPO</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Decision Factor 1: Ownership</div>
+                <div class="card-desc">Personal (BYOD) vs. corporate-owned. Personal devices use registration + MAM. Corporate devices use MDM enrollment methods.</div>
             </div>
-
-            <div class="key-points">
-                <h4>Learning Objectives</h4>
-                <ul>
-                    <li>Differentiate between Azure AD Registered, Azure AD Joined, and Hybrid Azure AD Joined devices</li>
-                    <li>Configure automatic MDM enrollment via Azure AD Join</li>
-                    <li>Use Device Enrollment Manager (DEM) accounts for bulk scenarios</li>
-                    <li>Create provisioning packages with Windows Configuration Designer</li>
-                    <li>Configure Windows Autopilot deployment profiles</li>
-                    <li>Set enrollment restrictions and device platform limits</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Decision Factor 2: Scale</div>
+                <div class="card-desc">One device &rarr; user self-enroll. Dozens (shared) &rarr; DEM account. Hundreds (bulk) &rarr; provisioning package. Thousands (new) &rarr; Autopilot.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" disabled>&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot active" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 2: Azure AD Device Identity Types -->
-        <section class="slide" data-slide="2">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Azure AD Device Identity Types</h2>
-            <p class="slide-subtitle">Understanding how devices relate to your directory</p>
-
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Feature</th>
-                        <th scope="col">Azure AD Registered</th>
-                        <th scope="col">Azure AD Joined</th>
-                        <th scope="col">Hybrid Azure AD Joined</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Target Scenario</strong></td>
-                        <td>BYOD / personal devices</td>
-                        <td>Cloud-only organizations</td>
-                        <td>Organizations with on-prem AD</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Device Ownership</strong></td>
-                        <td>Personal</td>
-                        <td>Organization</td>
-                        <td>Organization</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Primary Sign-In</strong></td>
-                        <td>Local account or Microsoft account</td>
-                        <td>Azure AD organizational account</td>
-                        <td>On-premises AD domain account</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Supported Platforms</strong></td>
-                        <td>Windows, iOS, Android, macOS</td>
-                        <td>Windows 10/11 only</td>
-                        <td>Windows 10/11 (Win 7/8.1 limited)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Management</strong></td>
-                        <td>MAM (optional MDM)</td>
-                        <td>MDM (Intune)</td>
-                        <td>SCCM + Intune (co-management)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Conditional Access</strong></td>
-                        <td class="feature-yes">Yes</td>
-                        <td class="feature-yes">Yes</td>
-                        <td class="feature-yes">Yes</td>
-                    </tr>
-                    <tr>
-                        <td><strong>SSO to Cloud Resources</strong></td>
-                        <td class="feature-yes">Yes</td>
-                        <td class="feature-yes">Yes</td>
-                        <td class="feature-yes">Yes</td>
-                    </tr>
-                    <tr>
-                        <td><strong>SSO to On-Prem Resources</strong></td>
-                        <td class="feature-no">No</td>
-                        <td class="feature-limited">Via Azure AD Connect</td>
-                        <td class="feature-yes">Yes (native Kerberos)</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p><strong>Azure AD Joined is Windows-only.</strong> You cannot Azure AD Join an iOS device, an Android device, or a Mac. Those platforms can only be Azure AD <em>Registered</em>. This is a commonly tested distinction. Also remember: Azure AD Join replaces the need for on-premises domain join entirely.</p>
+            <div class="card c-green">
+                <div class="card-label">Decision Factor 3: Infrastructure</div>
+                <div class="card-desc">Cloud-only &rarr; Azure AD Join + auto-enroll. Hybrid (on-prem AD exists) &rarr; Hybrid Azure AD Join + co-management. New vendor devices &rarr; Autopilot.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 3 — AZURE AD IDENTITY TYPES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19</div>
+        <div class="slide-title">Azure AD Device <span class="accent">Identity Types</span></div>
+        <div class="slide-subtitle">Understanding how devices relate to your directory before enrollment</div>
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Azure AD Registered</th>
+                    <th>Azure AD Joined</th>
+                    <th>Hybrid Azure AD Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Scenario</strong></td><td>BYOD / personal devices</td><td>Cloud-only orgs</td><td>Orgs with on-prem AD</td></tr>
+                <tr><td><strong>Ownership</strong></td><td>Personal</td><td>Organization</td><td>Organization</td></tr>
+                <tr><td><strong>Primary Sign-In</strong></td><td>Local or Microsoft account</td><td>Azure AD org account</td><td>On-prem AD domain account</td></tr>
+                <tr><td><strong>Platforms</strong></td><td>Windows, iOS, Android, macOS</td><td>Windows 10/11 only</td><td>Windows 10/11</td></tr>
+                <tr><td><strong>Management</strong></td><td>MAM (optional MDM)</td><td>MDM (Intune)</td><td>SCCM + Intune (co-mgmt)</td></tr>
+                <tr><td><strong>Conditional Access</strong></td><td class="t-yes">Yes</td><td class="t-yes">Yes</td><td class="t-yes">Yes</td></tr>
+                <tr><td><strong>SSO to Cloud</strong></td><td class="t-yes">Yes</td><td class="t-yes">Yes</td><td class="t-yes">Yes</td></tr>
+                <tr><td><strong>SSO to On-Prem</strong></td><td class="t-no">No</td><td class="t-lim">Via AAD Connect</td><td class="t-yes">Yes (native Kerberos)</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            <strong>Azure AD Joined is Windows-only.</strong> iOS, Android, and macOS cannot be Azure AD Joined &mdash; only Registered. Hybrid Azure AD Joined devices are joined to BOTH on-prem AD (domain join) and Azure AD simultaneously via AAD Connect sync.
+        </div>
+    </div>
+</section>
 
-        <!-- Slide 3: Intune Enrollment Methods -->
-        <section class="slide" data-slide="3">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Intune Enrollment Methods</h2>
-            <p class="slide-subtitle">Multiple paths to get devices under management</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">User Self-Enrollment</h3>
-                    <p class="card-description">Users go to <strong>Settings &gt; Accounts &gt; Access work or school &gt; Connect</strong> and sign in with their Azure AD credentials. The device registers with Azure AD and automatically enrolls in Intune if auto-enrollment is configured. Simplest method for individual devices.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Auto-Enrollment via Azure AD Join</h3>
-                    <p class="card-description">When a user Azure AD Joins a device, Intune MDM enrollment happens automatically if MDM auto-enrollment is enabled in Azure AD. Configure in <strong>Azure AD &gt; Mobility (MDM and MAM) &gt; Microsoft Intune</strong>. Set scope to All or specific groups.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Device Enrollment Manager (DEM)</h3>
-                    <p class="card-description">A special Intune role that allows a single account to enroll up to <strong>1,000 devices</strong>. Ideal for shared devices, kiosks, or bulk enrollment events. DEM-enrolled devices cannot use Autopilot, and the DEM user cannot use Conditional Access or user-targeted apps.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Bulk Enrollment</h3>
-                    <p class="card-description">Create provisioning packages using <strong>Windows Configuration Designer (WCD)</strong>. Packages are saved as .ppkg files and can be applied during OOBE or via Settings. Useful for enrolling many devices without individual user sign-in.</p>
-                </div>
+<!-- ==================== SLIDE 4 — USER SELF-ENROLLMENT + AUTO-ENROLLMENT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">User Self-Enrollment &amp; <span class="accent">Auto-Enrollment</span></div>
+        <div class="slide-subtitle">The simplest paths for individual device enrollment</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">User Self-Enrollment</div>
+                <div class="card-desc">Users go to <strong>Settings &gt; Accounts &gt; Access work or school &gt; Connect</strong> and sign in with Azure AD credentials. The device registers with Azure AD and auto-enrolls in Intune if auto-enrollment is configured. Simplest method for individual devices. Works for BYOD and corporate.</div>
             </div>
-
-            <div class="key-points">
-                <h4>Enrollment Method Decision Tree</h4>
-                <ul>
-                    <li>Single user device, cloud-only &rarr; Azure AD Join with auto-enrollment</li>
-                    <li>BYOD / personal device &rarr; User self-enrollment (Azure AD Register)</li>
-                    <li>Shared device / kiosk (no assigned user) &rarr; DEM account or Autopilot Self-Deploying</li>
-                    <li>Large batch, no Autopilot &rarr; Provisioning package (WCD)</li>
-                    <li>New devices from vendor &rarr; Windows Autopilot</li>
-                    <li>Existing on-prem AD devices &rarr; Hybrid Azure AD Join + co-management + auto-enrollment</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Auto-Enrollment via Azure AD Join</div>
+                <div class="card-desc">When a user Azure AD Joins a device, Intune MDM enrollment happens automatically if MDM auto-enrollment is enabled. Configure at <strong>Azure AD &gt; Mobility (MDM and MAM) &gt; Microsoft Intune</strong>. Set MDM scope to All or specific groups. Requires <strong>Azure AD P1</strong>.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 4: Auto-Enrollment Deep Dive -->
-        <section class="slide" data-slide="4">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Auto-Enrollment Configuration</h2>
-            <p class="slide-subtitle">Seamless MDM enrollment triggered by Azure AD Join</p>
-
-            <div class="scenario-box">
-                <div class="scenario-title">How Auto-Enrollment Works</div>
-                <div class="scenario-content">
-                    <p>When properly configured, the moment a device joins Azure AD, it automatically enrolls in Intune MDM. Here is the configuration path:</p>
-                    <ul class="method-steps" style="margin-top: 12px;">
-                        <li><span class="step-num">1</span>Navigate to <strong>Azure AD &gt; Mobility (MDM and MAM)</strong></li>
-                        <li><span class="step-num">2</span>Select <strong>Microsoft Intune</strong> from the application list</li>
-                        <li><span class="step-num">3</span>Set <strong>MDM user scope</strong> to <em>All</em> or select specific Azure AD groups</li>
-                        <li><span class="step-num">4</span>Optionally set <strong>MAM user scope</strong> for application-level management</li>
-                        <li><span class="step-num">5</span>Verify MDM URLs are populated (they auto-populate for Intune)</li>
-                        <li><span class="step-num">6</span>When a user joins a device to Azure AD, Intune enrollment triggers automatically</li>
-                    </ul>
-                </div>
+        </div>
+        <div class="scenario-strip">
+            Auto-Enrollment configuration path: Azure AD &gt; Mobility (MDM and MAM) &gt; Microsoft Intune &gt; Set MDM user scope to "All" or specific Azure AD groups &gt; Optionally set MAM user scope &gt; MDM URLs auto-populate. When a user joins a device to Azure AD, Intune enrollment triggers automatically.
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Auto-Enrollment Requirements</div>
+                <div class="card-desc">Azure AD Premium P1 license required. MDM authority set to Intune. Users must have Intune license assigned. Works with Azure AD Join and Hybrid Azure AD Join (via GPO).</div>
             </div>
-
-            <div class="key-points">
-                <h3>Auto-Enrollment Requirements</h3>
-                <ul>
-                    <li><strong>Azure AD Premium P1</strong> license (or higher) is required for auto-enrollment</li>
-                    <li>MDM authority must be set to Intune (not co-existence with another MDM)</li>
-                    <li>Users must have an Intune license assigned</li>
-                    <li>Works with both Azure AD Join and Hybrid Azure AD Join (via Group Policy)</li>
-                    <li>For Hybrid Join: configure auto-enrollment via GPO at <code style="color: #f97316; background: rgba(234,88,12,0.1); padding: 1px 5px; border-radius: 3px;">Computer Config &gt; Administrative Templates &gt; Windows Components &gt; MDM &gt; Enable auto MDM enrollment using default Azure AD credentials</code></li>
-                </ul>
+            <div class="card c-gold">
+                <div class="card-label">Hybrid Auto-Enrollment (GPO)</div>
+                <div class="card-desc">For Hybrid Azure AD Joined devices, enable auto-enrollment via Group Policy: Computer Config &gt; Admin Templates &gt; Windows Components &gt; MDM &gt; Enable auto MDM enrollment using default Azure AD credentials.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p><strong>Auto-enrollment requires Azure AD Premium P1.</strong> Without P1, you cannot configure automatic MDM enrollment. Users would need to manually enroll through Company Portal or Settings. This is a commonly tested licensing requirement on the MD-101 exam.</p>
+            <div class="card c-cyan">
+                <div class="card-label">MAM Scope</div>
+                <div class="card-desc">If MAM user scope is also configured, BYOD devices (not Azure AD Joined) that register get app protection policies instead of full MDM enrollment &mdash; preserving personal device privacy.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 5: Device Enrollment Manager -->
-        <section class="slide" data-slide="5">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Device Enrollment Manager (DEM)</h2>
-            <p class="slide-subtitle">A single account that can enroll up to 1,000 devices</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">What is DEM?</h3>
-                    <p class="card-description">A DEM is an Azure AD user account with special Intune permissions to enroll up to 1,000 devices. The DEM user signs in on each device to trigger enrollment. Devices enrolled via DEM are associated with the DEM account, not an end user.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Best Use Cases</h3>
-                    <p class="card-description">Shared devices (tablets in a hospital ward), kiosk devices, point-of-sale terminals, classroom devices, or any device that does not have a single assigned user. DEM is ideal when you need to quickly enroll many devices with one set of credentials.</p>
-                </div>
+<!-- ==================== SLIDE 5 — DEVICE ENROLLMENT MANAGER (DEM) ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">Device Enrollment <span class="accent">Manager (DEM)</span></div>
+        <div class="slide-subtitle">A single account that can enroll up to 1,000 devices</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What is DEM?</div>
+                <div class="card-desc">A DEM is an Azure AD user account with special Intune permissions to enroll up to 1,000 devices. The DEM user signs in on each device to trigger enrollment. Devices enrolled via DEM are associated with the DEM account, not an end user.</div>
             </div>
-
-            <div class="key-points">
-                <h4>DEM Limitations</h4>
-                <ul>
-                    <li>Maximum <strong>1,000 devices</strong> per DEM account (up to 150 DEM accounts per tenant)</li>
-                    <li>DEM-enrolled devices <strong>cannot use Windows Autopilot</strong></li>
-                    <li>DEM users <strong>cannot use Conditional Access</strong> for themselves</li>
-                    <li>User-targeted apps and policies do not apply &mdash; only device-targeted ones</li>
-                    <li>Company Portal cannot be used for Available apps on DEM-enrolled devices</li>
-                    <li>DEM account must have an Intune license assigned</li>
-                    <li>DEM works with Windows, iOS, and Android (not macOS)</li>
-                </ul>
+            <div class="card c-cyan">
+                <div class="card-label">Best Use Cases</div>
+                <div class="card-desc">Shared devices (hospital tablets, classroom devices), kiosk devices, point-of-sale terminals, or any device that does not have a single assigned user. Ideal when you need to quickly enroll many devices with one set of credentials.</div>
             </div>
-
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p>If a scenario describes shared devices and asks for the quickest enrollment method without Autopilot, <strong>DEM is the answer</strong>. But if the scenario requires user-specific apps, Conditional Access per user, or Autopilot, DEM is NOT appropriate. The 1,000-device limit per DEM account is frequently tested.</p>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">DEM Limitations</div>
+                <div class="card-desc">Max 1,000 devices per DEM account (up to 150 DEM accounts per tenant). Cannot use Windows Autopilot. DEM users cannot use Conditional Access for themselves. Only device-targeted policies apply &mdash; no user-targeted apps.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 6: Bulk Enrollment with Provisioning Packages -->
-        <section class="slide" data-slide="6">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Bulk Enrollment &amp; Provisioning Packages</h2>
-            <p class="slide-subtitle">Windows Configuration Designer for mass provisioning</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Windows Configuration Designer (WCD)</h3>
-                    <p class="card-description">A free Microsoft tool (available from Microsoft Store) that creates provisioning packages (.ppkg files). These packages can configure Windows settings, enroll in Azure AD, join a domain, install certificates, and trigger Intune enrollment in a single automated step.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Provisioning Package (.ppkg)</h3>
-                    <p class="card-description">A .ppkg file contains configuration settings that can be applied during OOBE (first run), from Settings, or via USB. When applied, the device can be renamed, joined to Azure AD, enrolled in Intune, and configured with Wi-Fi profiles&mdash;all without manual intervention.</p>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Platform Support</div>
+                <div class="card-desc">DEM works with Windows, iOS, and Android. Does NOT work with macOS. Company Portal cannot be used for Available apps on DEM-enrolled devices. DEM account must have an Intune license assigned.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title">Creating a Provisioning Package</div>
-                <div class="scenario-content">
-                    <ul class="method-steps" style="margin-top: 4px;">
-                        <li><span class="step-num">1</span>Install Windows Configuration Designer from the Microsoft Store</li>
-                        <li><span class="step-num">2</span>Select <strong>Provision desktop devices</strong> wizard</li>
-                        <li><span class="step-num">3</span>Configure device name pattern (e.g., KIOSK-%SERIAL%)</li>
-                        <li><span class="step-num">4</span>Set up Wi-Fi network connection if needed</li>
-                        <li><span class="step-num">5</span>Configure Azure AD enrollment with a bulk enrollment token</li>
-                        <li><span class="step-num">6</span>Export the .ppkg file to a USB drive</li>
-                        <li><span class="step-num">7</span>Insert USB during OOBE on new devices &mdash; package applies automatically</li>
-                    </ul>
-                </div>
+            <div class="card c-purple">
+                <div class="card-label">DEM vs. Autopilot</div>
+                <div class="card-desc">DEM requires IT to physically sign in on each device. Autopilot is automated via cloud. DEM works without Autopilot infrastructure (no hardware hash registration needed). Both are appropriate for shared-device scenarios.</div>
             </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Shared devices + quick enrollment + no Autopilot = DEM. User-specific apps or Conditional Access per user required = DEM is NOT appropriate. The <strong>1,000-device limit per DEM account</strong> is frequently tested.
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>Key Provisioning Package Facts</h4>
-                <ul>
-                    <li>Packages can be applied during OOBE by inserting a USB with the .ppkg file</li>
-                    <li>Packages can also be applied via <strong>Settings &gt; Accounts &gt; Access work or school &gt; Add provisioning package</strong></li>
-                    <li>Bulk tokens for Azure AD enrollment expire after a configurable period</li>
-                    <li>Provisioning packages do NOT support Autopilot &mdash; they are a separate enrollment path</li>
-                    <li>WCD also supports advanced provisioning for certificates, VPN profiles, and network settings</li>
-                </ul>
+<!-- ==================== SLIDE 6 — BULK ENROLLMENT / WCD ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">Bulk Enrollment &amp; <span class="accent">Windows Configuration Designer</span></div>
+        <div class="slide-subtitle">Mass provisioning via .ppkg files without individual user sign-in</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Windows Configuration Designer (WCD)</div>
+                <div class="card-desc">A free Microsoft tool (available from Microsoft Store) that creates provisioning packages (.ppkg files). Packages configure Windows settings, enroll in Azure AD, join domains, install certificates, and trigger Intune enrollment in one automated step.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 7: Windows Autopilot Enrollment -->
-        <section class="slide" data-slide="7">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Windows Autopilot Enrollment</h2>
-            <p class="slide-subtitle">Cloud-native device provisioning from hardware hash to Intune</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">&#65039;</div>
-                    <h3 class="card-title">Hardware Hash Registration</h3>
-                    <p class="card-description">Each device has a unique hardware hash (derived from hardware identifiers). OEM vendors or IT can extract hashes using PowerShell (<code style="color: #f97316; background: rgba(234,88,12,0.1); padding: 1px 5px; border-radius: 3px;">Get-WindowsAutopilotInfo</code>) and upload them as a CSV to the Intune admin center.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Deployment Profiles</h3>
-                    <p class="card-description">Autopilot deployment profiles define the OOBE experience: skip privacy settings, skip EULA, hide change account options, set device name template. Profiles are assigned to device groups and determine which Autopilot mode is used (user-driven, self-deploying, etc.).</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Dynamic Groups</h3>
-                    <p class="card-description">Create Azure AD dynamic device groups using the <code style="color: #f97316; background: rgba(234,88,12,0.1); padding: 1px 5px; border-radius: 3px;">ZTDID</code> (Zero Touch Device ID) attribute. All Autopilot-registered devices can be automatically added to a group, and that group can be targeted with deployment profiles, apps, and policies.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Enrollment Status Page (ESP)</h3>
-                    <p class="card-description">The ESP shows provisioning progress during Autopilot enrollment. It tracks device preparation, device setup (apps, profiles), and account setup phases. Can be configured to block device use until all required apps are installed &mdash; ensuring the device is ready before the user begins working.</p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Provisioning Package (.ppkg)</div>
+                <div class="card-desc">A .ppkg file contains configuration settings applied during OOBE (from USB), from Settings, or by double-clicking the file. Device is renamed, joined to Azure AD, enrolled in Intune, and configured with Wi-Fi profiles without manual intervention.</div>
             </div>
+        </div>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p>The <strong>Enrollment Status Page (ESP)</strong> is commonly tested. Know that it can be configured to block the user from using the device until all required apps and profiles are installed. This is critical for compliance-sensitive environments where a device must be fully configured before any user interaction.</p>
+        <!-- SVG: Bulk enrollment architecture diagram -->
+        <div class="diagram-center">
+            <svg width="750" height="90" viewBox="0 0 750 90" aria-label="Bulk enrollment architecture showing WCD tool creating ppkg applied to devices enrolling in Intune" role="img">
+                <!-- WCD Tool -->
+                <rect x="10" y="20" width="130" height="50" rx="7" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="75" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">WCD Tool</text>
+                <text x="75" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Create .ppkg</text>
+                <text x="75" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">(Microsoft Store)</text>
+
+                <line x1="140" y1="45" x2="190" y2="45" stroke="#c9a83a" stroke-width="1.5"/>
+                <polygon points="190,40 200,45 190,50" fill="#c9a83a"/>
+
+                <!-- USB/File -->
+                <rect x="200" y="20" width="120" height="50" rx="7" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <text x="260" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#f1f5f9">.ppkg File</text>
+                <text x="260" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">USB drive or</text>
+                <text x="260" y="70" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Settings import</text>
+
+                <line x1="320" y1="45" x2="370" y2="45" stroke="#94a3b8" stroke-width="1.5"/>
+                <polygon points="370,40 380,45 370,50" fill="#94a3b8"/>
+
+                <!-- Devices -->
+                <rect x="380" y="10" width="120" height="30" rx="5" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="440" y="28" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Device 1</text>
+                <rect x="380" y="45" width="120" height="30" rx="5" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="440" y="63" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" fill="#06b6d4">Device 2...N</text>
+
+                <line x1="500" y1="28" x2="570" y2="45" stroke="#06b6d4" stroke-width="1.5"/>
+                <line x1="500" y1="60" x2="570" y2="45" stroke="#06b6d4" stroke-width="1.5"/>
+                <polygon points="570,40 580,45 570,50" fill="#06b6d4"/>
+
+                <!-- Intune -->
+                <rect x="580" y="20" width="160" height="50" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="660" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#3ab577">Intune Enrolled</text>
+                <text x="660" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Policies + Apps Applied</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Apply Methods</div>
+                <div class="card-desc">Insert USB at OOBE (applied automatically). Or via Settings &gt; Accounts &gt; Access work or school &gt; Add provisioning package. Packages can also run silently via MDM or script.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 8: Autopilot Deployment Modes -->
-        <section class="slide" data-slide="8">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Autopilot Deployment Modes</h2>
-            <p class="slide-subtitle">Matching the deployment mode to the scenario</p>
-
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Mode</th>
-                        <th scope="col">User Interaction</th>
-                        <th scope="col">TPM 2.0</th>
-                        <th scope="col">Best For</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>User-Driven</strong></td>
-                        <td>User signs in with Azure AD credentials</td>
-                        <td class="feature-limited">Recommended</td>
-                        <td>Standard employee laptops/desktops</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Self-Deploying</strong></td>
-                        <td>None &mdash; fully automated</td>
-                        <td class="feature-yes">Required</td>
-                        <td>Kiosks, signage, shared devices</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Pre-Provisioning</strong></td>
-                        <td>IT does initial setup, user completes</td>
-                        <td class="feature-yes">Required</td>
-                        <td>High-security or app-heavy deployments</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Autopilot Reset</strong></td>
-                        <td>None (remote or local trigger)</td>
-                        <td class="feature-no">Not required</td>
-                        <td>Re-provisioning existing devices</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="key-points">
-                <h3>Autopilot User-Driven Flow</h3>
-                <ul>
-                    <li>User powers on new device and selects language/region/keyboard</li>
-                    <li>Device connects to the internet (Wi-Fi or Ethernet)</li>
-                    <li>OOBE contacts Azure AD and downloads the Autopilot profile</li>
-                    <li>Customized OOBE experience appears (company branding, simplified screens)</li>
-                    <li>User signs in with Azure AD credentials</li>
-                    <li>Device Azure AD Joins and auto-enrolls in Intune</li>
-                    <li>Enrollment Status Page tracks app and policy installation</li>
-                    <li>User lands on the desktop with all apps and policies applied</li>
-                </ul>
+            <div class="card c-gold">
+                <div class="card-label">Bulk Token Expiry</div>
+                <div class="card-desc">Bulk enrollment tokens for Azure AD have a configurable expiration period. Expired tokens must be renewed by creating a new provisioning package. Plan token lifetimes for large deployment windows.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p><strong>Autopilot Reset</strong> removes all user data, apps, and settings while preserving the Azure AD join and Intune enrollment. It is used to re-provision a device for a new user without re-imaging. This is different from a full wipe, which removes everything including the Autopilot profile.</p>
+<!-- ==================== SLIDE 7 — AUTOPILOT REGISTRATION + PROFILES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">Autopilot Registration &amp; <span class="accent">Deployment Profiles</span></div>
+        <div class="slide-subtitle">Hardware hash registration, deployment profiles, and dynamic groups</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Hardware Hash Registration</div>
+                <div class="card-desc">Each device has a unique hardware hash derived from hardware identifiers. OEM vendors or IT extract hashes using PowerShell (<strong>Get-WindowsAutopilotInfo</strong>) and upload them as a CSV to the Intune admin center or via a CSP partner.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 9: Enrollment Restrictions -->
-        <section class="slide" data-slide="9">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Enrollment Restrictions</h2>
-            <p class="slide-subtitle">Controlling which devices can enroll and how many</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon">&#128683;</div>
-                    <h3 class="card-title">Device Type Restrictions</h3>
-                    <p class="card-description">Control which <strong>platforms</strong> can enroll: Windows, iOS, Android, macOS. You can also block personally-owned devices (BYOD) from enrolling while allowing corporate-owned devices. Set minimum and maximum OS version requirements for enrollment.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Device Limit Restrictions</h3>
-                    <p class="card-description">Limit the <strong>number of devices</strong> a single user can enroll. Default is 5 devices per user. Can be set from 1 to 15 devices. Prevents users from enrolling excessive numbers of devices. Does not apply to DEM accounts or Autopilot devices.</p>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Deployment Profiles</div>
+                <div class="card-desc">Autopilot deployment profiles define the OOBE experience: skip privacy settings, skip EULA, hide change account options, set device name template. Profiles are assigned to device groups and determine which Autopilot mode is used.</div>
             </div>
-
-            <div class="key-points">
-                <h4>Enrollment Restriction Configuration</h4>
-                <ul>
-                    <li>Configure at <strong>Intune &gt; Devices &gt; Enrollment restrictions</strong></li>
-                    <li>Default restrictions apply to all users; custom restrictions can target specific groups</li>
-                    <li>Restrictions are prioritized by order &mdash; higher priority restrictions override lower ones</li>
-                    <li>Block personally-owned Windows devices while allowing corporate devices</li>
-                    <li>Block Android device administrator enrollment (force Android Enterprise instead)</li>
-                    <li>Set minimum OS version to prevent outdated, insecure devices from enrolling</li>
-                </ul>
+            <div class="card c-green">
+                <div class="card-label">Dynamic Device Groups (ZTDID)</div>
+                <div class="card-desc">Create Azure AD dynamic device groups using the <strong>ZTDID</strong> (Zero Touch Device ID) attribute. All Autopilot-registered devices auto-join the group. Target deployment profiles, apps, and policies at this group.</div>
             </div>
-
-            <div class="scenario-box">
-                <div class="scenario-title">Real-World Scenario</div>
-                <div class="scenario-content">
-                    <p>A financial services company wants to ensure: (1) only corporate-owned Windows and iOS devices can enroll, (2) no personally-owned devices, (3) each user can enroll a maximum of 3 devices, and (4) all Windows devices must run version 22H2 or later.</p>
-                    <p style="margin-top: 12px;">Configuration: Create a device type restriction that blocks Android and macOS, blocks personally-owned devices, and sets minimum Windows version to 10.0.19045 (22H2). Create a device limit restriction set to 3.</p>
-                </div>
+            <div class="card c-purple">
+                <div class="card-label">Enrollment Status Page (ESP)</div>
+                <div class="card-desc">The ESP shows provisioning progress: Device Preparation, Device Setup (apps/profiles), and Account Setup phases. Can be configured to block device use until all required apps are installed &mdash; ensuring compliance before user begins working.</div>
             </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            The <strong>Enrollment Status Page (ESP)</strong> is commonly tested. It can block the user from using the device until all required apps and profiles are installed. Critical for compliance-sensitive environments. Configure at: Intune &gt; Devices &gt; Enrollment &gt; Enrollment Status Page.
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 8 — AUTOPILOT PROVISIONING SEQUENCE SVG ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Autopilot Provisioning <span class="accent">Sequence</span></div>
+        <div class="slide-subtitle">From OOBE to productive desktop &mdash; user-driven mode step by step</div>
 
-        <!-- Slide 10: Enrollment Methods Comparison -->
-        <section class="slide" data-slide="10">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Enrollment Methods Comparison</h2>
-            <p class="slide-subtitle">Side-by-side comparison for exam scenarios</p>
+        <!-- SVG: Autopilot provisioning sequence with phases -->
+        <div class="diagram-center">
+            <svg width="820" height="185" viewBox="0 0 820 185" aria-label="Autopilot user-driven provisioning sequence with phases" role="img">
+                <!-- Phase 1: Hardware -->
+                <rect x="5" y="5" width="185" height="80" rx="7" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <text x="97" y="22" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">PRE-DEPLOYMENT</text>
+                <text x="97" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">OEM/IT registers hardware</text>
+                <text x="97" y="54" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">hash via CSV upload</text>
+                <text x="97" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">or CSP partner portal</text>
 
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Method</th>
-                        <th scope="col">Scale</th>
-                        <th scope="col">User Interaction</th>
-                        <th scope="col">Infrastructure</th>
-                        <th scope="col">BYOD?</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>User self-enrollment</strong></td>
-                        <td>Single device</td>
-                        <td>User-driven</td>
-                        <td>None (cloud)</td>
-                        <td class="feature-yes">Yes</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Auto-enrollment (AAD Join)</strong></td>
-                        <td>Per-device</td>
-                        <td>User joins device</td>
-                        <td>Azure AD P1</td>
-                        <td class="feature-no">No (corporate)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>DEM account</strong></td>
-                        <td>Up to 1,000</td>
-                        <td>IT signs in on each</td>
-                        <td>None</td>
-                        <td class="feature-no">No</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Provisioning package</strong></td>
-                        <td>Bulk</td>
-                        <td>Apply .ppkg via USB</td>
-                        <td>WCD tool</td>
-                        <td class="feature-no">No</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Autopilot (user-driven)</strong></td>
-                        <td>Any scale</td>
-                        <td>User signs in at OOBE</td>
-                        <td>Azure AD + Intune</td>
-                        <td class="feature-no">No (corporate)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Autopilot (self-deploying)</strong></td>
-                        <td>Any scale</td>
-                        <td>None</td>
-                        <td>Azure AD + Intune + TPM</td>
-                        <td class="feature-no">No</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Co-management auto-enrollment</strong></td>
-                        <td>Existing fleet</td>
-                        <td>None (GPO-driven)</td>
-                        <td>SCCM + Azure AD Connect</td>
-                        <td class="feature-no">No</td>
-                    </tr>
-                </tbody>
-            </table>
+                <line x1="190" y1="45" x2="218" y2="45" stroke="#c9a83a" stroke-width="1.5"/>
+                <polygon points="218,40 228,45 218,50" fill="#c9a83a"/>
 
-            <div class="exam-tip">
-                <div class="exam-tip-label">Exam Tip</div>
-                <p>When answering enrollment scenario questions, identify these three key factors: <strong>(1) device ownership</strong> (personal vs. corporate), <strong>(2) scale</strong> (one device, dozens, or thousands), and <strong>(3) infrastructure</strong> (cloud-only vs. hybrid). These three factors narrow the correct enrollment method to 1-2 options.</p>
+                <!-- Phase 2: OOBE -->
+                <rect x="228" y="5" width="175" height="80" rx="7" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="315" y="22" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">OOBE + AAD LOOKUP</text>
+                <text x="315" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">User powers on, selects</text>
+                <text x="315" y="54" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">language, connects internet</text>
+                <text x="315" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">OOBE contacts Azure AD</text>
+
+                <line x1="403" y1="45" x2="431" y2="45" stroke="#06b6d4" stroke-width="1.5"/>
+                <polygon points="431,40 441,45 431,50" fill="#06b6d4"/>
+
+                <!-- Phase 3: Enrollment -->
+                <rect x="441" y="5" width="175" height="80" rx="7" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <text x="528" y="22" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">ENROLLMENT</text>
+                <text x="528" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">User signs in with Azure AD</text>
+                <text x="528" y="54" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Device AAD Joins + MDM</text>
+                <text x="528" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">auto-enrolls in Intune</text>
+
+                <line x1="616" y1="45" x2="644" y2="45" stroke="#3ab577" stroke-width="1.5"/>
+                <polygon points="644,40 654,45 644,50" fill="#3ab577"/>
+
+                <!-- Phase 4: Provisioning -->
+                <rect x="654" y="5" width="160" height="80" rx="7" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="734" y="22" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">ESP PROVISIONING</text>
+                <text x="734" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Profiles applied</text>
+                <text x="734" y="54" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Required apps install</text>
+                <text x="734" y="68" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">Desktop ready</text>
+
+                <!-- ESP detail boxes -->
+                <rect x="228" y="100" width="540" height="80" rx="7" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <text x="498" y="118" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#94a3b8">ESP Phases</text>
+                <rect x="240" y="125" width="155" height="44" rx="5" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.2)" stroke-width="1"/>
+                <text x="317" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">1. Device Preparation</text>
+                <text x="317" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">MDM registration</text>
+                <rect x="408" y="125" width="155" height="44" rx="5" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+                <text x="485" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4">2. Device Setup</text>
+                <text x="485" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">Device apps + profiles</text>
+                <rect x="576" y="125" width="155" height="44" rx="5" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.2)" stroke-width="1"/>
+                <text x="653" y="142" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#3ab577">3. Account Setup</text>
+                <text x="653" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#64748b">User apps + policies</text>
+            </svg>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">ESP Block Behavior</div>
+            If configured to block, the user cannot access the desktop until all required apps in the Account Setup phase are installed. This guarantees a compliant, fully-provisioned device before any user interaction. If an app fails, the ESP reports the failure with details.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AUTOPILOT MODES TABLE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Autopilot <span class="accent">Deployment Modes</span></div>
+        <div class="slide-subtitle">Four modes &mdash; matching deployment scenario to correct mode</div>
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Mode</th>
+                    <th>User Interaction</th>
+                    <th>TPM 2.0</th>
+                    <th>Best For</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>User-Driven</strong></td><td>User signs in with Azure AD credentials</td><td class="t-lim">Recommended</td><td>Standard employee laptops/desktops</td></tr>
+                <tr><td><strong>Self-Deploying</strong></td><td>None &mdash; fully automated</td><td class="t-yes">Required</td><td>Kiosks, signage, shared devices</td></tr>
+                <tr><td><strong>Pre-Provisioning</strong></td><td>IT does initial setup, user completes</td><td class="t-yes">Required</td><td>High-security or app-heavy deployments</td></tr>
+                <tr><td><strong>Autopilot Reset</strong></td><td>None (remote or local trigger)</td><td class="t-no">Not required</td><td>Re-provisioning existing device for new user</td></tr>
+            </tbody>
+        </table>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">User-Driven Flow</div>
+                <div class="card-desc">Powers on &rarr; language/region &rarr; internet &rarr; OOBE contacts Azure AD &rarr; downloads Autopilot profile &rarr; user signs in &rarr; AAD join + Intune enroll &rarr; ESP &rarr; desktop ready.</div>
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 11: Knowledge Check -->
-        <section class="slide" data-slide="11">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Knowledge Check</h2>
-            <p class="slide-subtitle">Apply enrollment concepts to real-world scenarios</p>
-
-            <div class="scenario-box" id="quiz1">
-                <div class="scenario-title">Scenario 1</div>
-                <div class="scenario-content">
-                    <p>A hospital is deploying 200 shared tablets for nurses to use during rounds. No specific nurse is assigned to any tablet. IT needs to enroll the devices quickly without Autopilot. What is the most appropriate enrollment method?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">A) Have each nurse self-enroll the tablet with their personal Azure AD account</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz1')">B) Use a Device Enrollment Manager (DEM) account to enroll all 200 tablets</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">C) Create individual Azure AD accounts for each tablet and use auto-enrollment</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz1')">D) Configure Hybrid Azure AD Join for the tablets</button>
-                    <div class="feedback" id="feedback-quiz1"></div>
-                </div>
+            <div class="card c-cyan">
+                <div class="card-label">Self-Deploying Flow</div>
+                <div class="card-desc">Powers on &rarr; internet &rarr; TPM 2.0 device attestation to Azure AD (no user) &rarr; downloads Autopilot profile &rarr; auto-enrolls Intune &rarr; ESP &rarr; kiosk mode active.</div>
             </div>
-
-            <div class="scenario-box" id="quiz2">
-                <div class="scenario-title">Scenario 2</div>
-                <div class="scenario-content">
-                    <p>A company wants to prevent employees from enrolling their personal Windows devices in Intune. Only corporate-owned devices should be allowed to enroll. Additionally, no Android devices should be allowed. What should the admin configure?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">A) A Conditional Access policy that blocks personal devices</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">B) A compliance policy that marks personal devices as non-compliant</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz2')">C) An enrollment device type restriction that blocks personally-owned devices and blocks Android</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz2')">D) Remove the Intune license from all BYOD users</button>
-                    <div class="feedback" id="feedback-quiz2"></div>
-                </div>
+            <div class="card c-green">
+                <div class="card-label">Autopilot Reset</div>
+                <div class="card-desc">Removes user data, personal apps, and settings. Preserves Azure AD join and Intune enrollment. Device re-presents to new user as freshly provisioned. Triggered remotely from Intune admin center or locally via Win+Ctrl+R at login.</div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="scenario-box" id="quiz3">
-                <div class="scenario-title">Scenario 3</div>
-                <div class="scenario-content">
-                    <p>An organization has Azure AD Premium P1 licenses and Intune. They want Windows devices to automatically enroll in Intune when users Azure AD Join them during OOBE. What must they configure?</p>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">A) Create a Windows Autopilot deployment profile</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, true, 'quiz3')">B) Enable MDM auto-enrollment in Azure AD Mobility settings and set user scope</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">C) Create a Device Enrollment Manager account</button>
-                    <button class="quiz-option" onclick="checkAnswer(this, false, 'quiz3')">D) Deploy a provisioning package to all devices</button>
-                    <div class="feedback" id="feedback-quiz3"></div>
-                </div>
+<!-- ==================== SLIDE 10 — DEVICE IDENTITY LIFECYCLE SVG ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Device Identity <span class="accent">Lifecycle</span></div>
+        <div class="slide-subtitle">From registration to retirement &mdash; key state transitions</div>
+
+        <!-- SVG: Device identity lifecycle -->
+        <div class="diagram-center">
+            <svg width="820" height="170" viewBox="0 0 820 170" aria-label="Device identity lifecycle from registration through active management to retirement" role="img">
+                <!-- State 1: Unmanaged -->
+                <rect x="10" y="55" width="130" height="60" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                <text x="75" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#64748b">Unmanaged</text>
+                <text x="75" y="96" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">No Azure AD</text>
+                <text x="75" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">No Intune</text>
+
+                <!-- Arrow 1 -->
+                <line x1="140" y1="85" x2="178" y2="85" stroke="#c9a83a" stroke-width="1.5"/>
+                <polygon points="178,80 188,85 178,90" fill="#c9a83a"/>
+                <text x="163" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">Enroll /</text>
+                <text x="163" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#c9a83a">Register</text>
+
+                <!-- State 2: Azure AD Registered -->
+                <rect x="188" y="55" width="140" height="60" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="258" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#c9a83a">AAD Registered</text>
+                <text x="258" y="96" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Azure AD identity</text>
+                <text x="258" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">MAM policies</text>
+
+                <!-- Arrow 2 -->
+                <line x1="328" y1="85" x2="366" y2="85" stroke="#06b6d4" stroke-width="1.5"/>
+                <polygon points="366,80 376,85 366,90" fill="#06b6d4"/>
+                <text x="347" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4">MDM</text>
+                <text x="347" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#06b6d4">Enroll</text>
+
+                <!-- State 3: AAD Joined + Intune -->
+                <rect x="376" y="35" width="160" height="100" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="456" y="62" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">AAD Joined</text>
+                <text x="456" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#06b6d4">+ Intune MDM</text>
+                <text x="456" y="96" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Fully managed</text>
+                <text x="456" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Compliance evaluated</text>
+                <text x="456" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Conditional Access works</text>
+
+                <!-- Arrow 3 -->
+                <line x1="536" y1="85" x2="574" y2="85" stroke="#3ab577" stroke-width="1.5"/>
+                <polygon points="574,80 584,85 574,90" fill="#3ab577"/>
+                <text x="560" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577">Non-compliant</text>
+                <text x="560" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#3ab577">remediation</text>
+
+                <!-- State 4: Non-Compliant -->
+                <rect x="584" y="55" width="130" height="60" rx="8" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>
+                <text x="649" y="80" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11" font-weight="700" fill="#ef4444">Non-Compliant</text>
+                <text x="649" y="96" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">CA blocks access</text>
+                <text x="649" y="108" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">User must remediate</text>
+
+                <!-- Arrow 4: Retire -->
+                <line x1="714" y1="85" x2="752" y2="85" stroke="#ef4444" stroke-width="1.5"/>
+                <polygon points="752,80 762,85 752,90" fill="#ef4444"/>
+                <text x="738" y="78" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">Retire /</text>
+                <text x="738" y="88" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="#ef4444">Wipe</text>
+
+                <!-- State 5: Retired -->
+                <rect x="762" y="55" width="50" height="60" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <text x="787" y="89" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">Retired</text>
+
+                <!-- Labels below -->
+                <text x="75" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#475569">Unregistered</text>
+                <text x="258" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#c9a83a">BYOD baseline</text>
+                <text x="456" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#06b6d4">Fully managed</text>
+                <text x="649" y="155" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#ef4444">Access blocked</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="box box-cyan">
+                <div class="box-label">Compliance State Impact</div>
+                A device enrolled in Intune is evaluated against compliance policies continuously. Non-compliant devices trigger Conditional Access blocks, notifications, or automatic remediation actions depending on policy configuration.
             </div>
-
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="nextSlide()">Next &rarr;</button>
-            </nav>
-        </section>
-
-        <!-- Slide 12: Summary -->
-        <section class="slide" data-slide="12">
-            <p class="module-tag">MD-101 &mdash; Module 2</p>
-            <h2 class="slide-title">Summary</h2>
-            <p class="slide-subtitle">Module 2 consolidated &mdash; device enrollment mastery</p>
-
-            <div class="content-grid">
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Device Identity Types</h3>
-                    <p class="card-description">Registered = BYOD/personal. Joined = cloud-only corporate. Hybrid Joined = on-prem AD + Azure AD. Azure AD Join is Windows-only. Registration supports all platforms.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-mobile.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Enrollment Methods</h3>
-                    <p class="card-description">User self-enrollment for BYOD. Auto-enrollment via Azure AD Join (requires P1). DEM for shared devices (up to 1,000). Provisioning packages for bulk without Autopilot. Autopilot for cloud-native deployments.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-                    <h3 class="card-title">Autopilot Modes</h3>
-                    <p class="card-description">User-driven (standard). Self-deploying (kiosks, requires TPM 2.0). Pre-provisioning (IT pre-stages). Autopilot Reset (re-provision without re-imaging). ESP blocks use until apps are installed.</p>
-                </div>
-                <div class="content-card">
-                    <div class="card-icon">&#128683;</div>
-                    <h3 class="card-title">Enrollment Restrictions</h3>
-                    <p class="card-description">Device type restrictions control platforms and block personal devices. Device limit restrictions cap per-user device count (default 5, max 15). Custom restrictions target specific groups with priority ordering.</p>
-                </div>
+            <div class="box box-gold">
+                <div class="box-label">Re-Registration</div>
+                When a device is wiped (full wipe), it loses its Azure AD registration and Intune enrollment. It must be re-enrolled from scratch. Autopilot Reset preserves enrollment. Retire removes corporate data and unenrolls gracefully.
             </div>
+        </div>
+    </div>
+</section>
 
-            <div class="key-points">
-                <h4>Critical Exam Facts</h4>
-                <ul>
-                    <li>Auto-enrollment requires Azure AD Premium P1 &mdash; without it, users must manually enroll</li>
-                    <li>DEM accounts can enroll up to 1,000 devices but cannot use Autopilot or Conditional Access</li>
-                    <li>Autopilot Self-Deploying mode requires TPM 2.0; User-driven does not strictly require it</li>
-                    <li>Autopilot Reset preserves Azure AD join and Intune enrollment; full wipe removes everything</li>
-                    <li>Azure AD Joined = Windows only; Azure AD Registered = all platforms</li>
-                    <li>Enrollment Status Page (ESP) can block device use until required apps are installed</li>
-                </ul>
+<!-- ==================== SLIDE 11 — ENROLLMENT RESTRICTIONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19</div>
+        <div class="slide-title">Enrollment <span class="accent">Restrictions</span></div>
+        <div class="slide-subtitle">Controlling which devices can enroll and how many per user</div>
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Device Type Restrictions</div>
+                <div class="card-desc">Control which platforms can enroll: Windows, iOS, Android, macOS. Block personally-owned devices while allowing corporate-owned. Set minimum and maximum OS version requirements. Block Android device administrator (force Android Enterprise instead).</div>
             </div>
-
-            <div class="completion-box">
-                <h3>Module 2 Complete</h3>
-                <p>You can now select the correct enrollment method for any scenario, configure auto-enrollment, manage DEM accounts, create provisioning packages, set up Autopilot profiles, and apply enrollment restrictions to control device access to your organization.</p>
+            <div class="card c-cyan">
+                <div class="card-label">Device Limit Restrictions</div>
+                <div class="card-desc">Limit the number of devices a single user can enroll. Default is 5 devices per user. Configurable from 1 to 15. Prevents users from enrolling excessive devices. Does not apply to DEM accounts or Autopilot devices.</div>
             </div>
+        </div>
+        <div class="scenario-strip">
+            Real-world scenario: A financial services firm requires (1) only corporate-owned Windows and iOS devices, (2) no personally-owned devices, (3) max 3 devices per user, (4) Windows must be 22H2 (build 19045) or later. Configure a Device Type restriction blocking Android/macOS and personal devices + minimum version 10.0.19045, plus a Device Limit restriction of 3.
+        </div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Configuration Location</div>
+                <div class="card-desc">Intune &gt; Devices &gt; Enrollment restrictions. Default restrictions apply to all users. Custom restrictions can target specific Azure AD groups. Priority order determines which restriction applies when multiple exist.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Priority Rules</div>
+                <div class="card-desc">Restrictions are prioritized by order &mdash; higher priority restrictions override lower ones. You can reorder custom restrictions. The Default restriction (lowest priority) applies to users not targeted by any custom restriction.</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            <nav class="slide-nav">
-                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
-                <div class="slide-dots">
-                    <span class="slide-dot" onclick="goToSlide(1)"></span>
-                    <span class="slide-dot" onclick="goToSlide(2)"></span>
-                    <span class="slide-dot" onclick="goToSlide(3)"></span>
-                    <span class="slide-dot" onclick="goToSlide(4)"></span>
-                    <span class="slide-dot" onclick="goToSlide(5)"></span>
-                    <span class="slide-dot" onclick="goToSlide(6)"></span>
-                    <span class="slide-dot" onclick="goToSlide(7)"></span>
-                    <span class="slide-dot" onclick="goToSlide(8)"></span>
-                    <span class="slide-dot" onclick="goToSlide(9)"></span>
-                    <span class="slide-dot" onclick="goToSlide(10)"></span>
-                    <span class="slide-dot" onclick="goToSlide(11)"></span>
-                    <span class="slide-dot active" onclick="goToSlide(12)"></span>
-                </div>
-                <button class="nav-btn primary" onclick="completeModule()">Complete Module &#10003;</button>
-            </nav>
-        </section>
+<!-- ==================== SLIDE 12 — ANDROID ENROLLMENT METHODS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Android &amp; iOS <span class="accent">Enrollment Methods</span></div>
+        <div class="slide-subtitle">Platform-specific enrollment options for mobile devices</div>
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Platform</th>
+                    <th>Ownership</th>
+                    <th>Management Scope</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Android Enterprise Work Profile</strong></td><td>Android</td><td>Personal (BYOD)</td><td>Work profile only &mdash; personal apps untouched</td></tr>
+                <tr><td><strong>Android Enterprise Fully Managed</strong></td><td>Android</td><td>Corporate</td><td>Full device control, dedicated to organization</td></tr>
+                <tr><td><strong>Android Enterprise Dedicated (Kiosk)</strong></td><td>Android</td><td>Corporate</td><td>Single-app or multi-app kiosk lockdown</td></tr>
+                <tr><td><strong>iOS/iPadOS User Enrollment</strong></td><td>iOS</td><td>Personal</td><td>Managed Apple ID, work apps/data only</td></tr>
+                <tr><td><strong>iOS/iPadOS Device Enrollment</strong></td><td>iOS</td><td>Corporate</td><td>Full device, MDM profile, supervised</td></tr>
+                <tr><td><strong>Apple ADE (formerly DEP)</strong></td><td>iOS/macOS</td><td>Corporate</td><td>Zero-touch, supervised, cannot remove MDM profile</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            <strong>Android Enterprise replaces legacy Android Device Administrator.</strong> On new enrollments, block Android DA (device administrator) via enrollment restrictions and require Android Enterprise. Work Profile = BYOD separation. Fully Managed = corporate-owned, no personal use.
+        </div>
+    </div>
+</section>
 
-    </main>
+<!-- ==================== SLIDE 13 — ENROLLMENT METHODS COMPARISON TABLE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Enrollment Methods <span class="accent">Comparison</span></div>
+        <div class="slide-subtitle">Side-by-side comparison for exam scenarios</div>
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Scale</th>
+                    <th>User Interaction</th>
+                    <th>Infrastructure</th>
+                    <th>BYOD?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>User self-enrollment</strong></td><td>Single device</td><td>User-driven</td><td>None (cloud)</td><td class="t-yes">Yes</td></tr>
+                <tr><td><strong>Auto-enrollment (AAD Join)</strong></td><td>Per-device</td><td>User joins device</td><td>Azure AD P1</td><td class="t-no">No</td></tr>
+                <tr><td><strong>DEM account</strong></td><td>Up to 1,000</td><td>IT signs in on each</td><td>None</td><td class="t-no">No</td></tr>
+                <tr><td><strong>Provisioning package</strong></td><td>Bulk</td><td>Apply .ppkg via USB</td><td>WCD tool</td><td class="t-no">No</td></tr>
+                <tr><td><strong>Autopilot (user-driven)</strong></td><td>Any scale</td><td>User signs in at OOBE</td><td>AAD + Intune</td><td class="t-no">No</td></tr>
+                <tr><td><strong>Autopilot (self-deploying)</strong></td><td>Any scale</td><td>None</td><td>AAD + Intune + TPM</td><td class="t-no">No</td></tr>
+                <tr><td><strong>Co-mgmt auto-enrollment</strong></td><td>Existing fleet</td><td>None (GPO-driven)</td><td>SCCM + AAD Connect</td><td class="t-no">No</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-cyan">
+            <div class="box-label">Three-Factor Decision Framework</div>
+            When answering enrollment scenario questions: <strong>(1) Ownership</strong> (personal vs. corporate), <strong>(2) Scale</strong> (one device, dozens, or thousands), <strong>(3) Infrastructure</strong> (cloud-only vs. hybrid). These three factors narrow the correct method to 1-2 options.
+        </div>
+    </div>
+</section>
 
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 12;
+<!-- ==================== SLIDE 14 — COMPANY PORTAL ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Company Portal &amp; <span class="accent">Intune Management Extension</span></div>
+        <div class="slide-subtitle">The user-facing enrollment and app client, and the script/Win32 agent</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Company Portal App</div>
+                <div class="card-desc">The user-facing client for enrolling devices, accessing available apps, viewing compliance status, and initiating remote actions. Available on Windows, iOS, Android, and macOS. Required for BYOD enrollment flows on iOS and Android.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Intune Management Extension (IME)</div>
+                <div class="card-desc">A Windows agent automatically installed when PowerShell scripts or Win32 apps are assigned. IME delivers scripts, Win32 apps, and remediation scripts. Checks for new assignments approximately every hour. Not required for MDM policy delivery (policies use the MDM channel).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">MDM Channel vs. IME</div>
+                <div class="card-desc">MDM channel (WMI/OMA-DM) delivers configuration profiles and compliance policies directly to Windows. IME handles Win32 apps, PowerShell scripts, and remediations. Both operate independently and can work simultaneously on the same device.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">IME Check-In Frequency</div>
+                IME checks for new assignments approximately every hour during normal operation. After device restart: check-in occurs within 8 minutes. Manual sync from Settings or Company Portal triggers an immediate check-in.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">IME Log Location</div>
+                IME logs are stored on device at: <br><strong>C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\</strong><br>
+                AgentExecutor.log and IntuneManagementExtension.log contain deployment details and error codes.
+            </div>
+        </div>
+    </div>
+</section>
 
-        function updateProgress() {
-            var progress = (currentSlide / totalSlides) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = 'Slide ' + currentSlide + ' of ' + totalSlides;
+<!-- ==================== SLIDE 15 — TROUBLESHOOTING ENROLLMENT ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19</div>
+        <div class="slide-title">Troubleshooting <span class="accent">Enrollment</span></div>
+        <div class="slide-subtitle">Common enrollment failures and their root causes</div>
+        <table class="slide-table">
+            <thead>
+                <tr>
+                    <th>Error / Symptom</th>
+                    <th>Likely Cause</th>
+                    <th>Resolution</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Auto-enrollment fails at Azure AD Join</td><td>MDM user scope set to None or wrong group</td><td>Set MDM user scope to All or correct group in Azure AD Mobility settings</td></tr>
+                <tr><td>Device exceeds enrollment limit</td><td>User at device limit (default 5)</td><td>Increase device limit restriction or use DEM account</td></tr>
+                <tr><td>Autopilot profile not applied at OOBE</td><td>Hardware hash not registered or wrong tenant</td><td>Verify hash in Intune &gt; Devices &gt; Enrollment &gt; Windows Autopilot Devices</td></tr>
+                <tr><td>Self-Deploying fails with TPM error</td><td>TPM 2.0 not present or not provisioned</td><td>Confirm TPM 2.0 in BIOS/UEFI. TPM must be enabled and provisioned.</td></tr>
+                <tr><td>ESP stuck on app installation</td><td>Required app failing to install</td><td>Check IME logs. Verify app supersedence, detection rules, and content.</td></tr>
+                <tr><td>Platform blocked from enrolling</td><td>Enrollment restriction blocks device type</td><td>Review Intune &gt; Devices &gt; Enrollment restrictions. Adjust or exclude the user.</td></tr>
+            </tbody>
+        </table>
+        <div class="box box-cyan">
+            <div class="box-label">Enrollment Diagnostic Tool</div>
+            Use the <strong>Intune Troubleshooting + Support</strong> blade (Intune &gt; Troubleshoot + support &gt; Troubleshoot). Enter a user's UPN to see their assigned policies, enrollment status, compliance state, and any error codes. This is the first-stop diagnostic tool for enrollment issues.
+        </div>
+    </div>
+</section>
 
-            document.querySelectorAll('.slide-dot').forEach(function(dot, index) {
-                dot.classList.toggle('active', index + 1 === currentSlide);
-            });
+<!-- ==================== SLIDE 16 — BULK ENROLLMENT SVG (ARCHITECTURE) ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19</div>
+        <div class="slide-title">Bulk Enrollment <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">Comparing provisioning package delivery paths for large-scale rollouts</div>
 
-            document.querySelectorAll('.slide').forEach(function(slide, index) {
-                slide.classList.toggle('active', index + 1 === currentSlide);
-            });
-        }
+        <!-- SVG: Bulk enrollment architecture with three paths -->
+        <div class="diagram-center">
+            <svg width="820" height="180" viewBox="0 0 820 180" aria-label="Bulk enrollment architecture with three delivery paths: USB at OOBE, Settings import, and MDM push" role="img">
+                <!-- Source: .ppkg -->
+                <rect x="290" y="5" width="240" height="45" rx="8" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="2"/>
+                <text x="410" y="28" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#c9a83a">Provisioning Package (.ppkg)</text>
+                <text x="410" y="43" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Created via Windows Configuration Designer</text>
 
-        function nextSlide() {
-            if (currentSlide < totalSlides) {
-                currentSlide++;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+                <!-- Three downward branches -->
+                <line x1="320" y1="50" x2="150" y2="90" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="410" y1="50" x2="410" y2="90" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="500" y1="50" x2="670" y2="90" stroke="#94a3b8" stroke-width="1.5"/>
 
-        function prevSlide() {
-            if (currentSlide > 1) {
-                currentSlide--;
-                updateProgress();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
+                <!-- Branch 1: USB at OOBE -->
+                <rect x="60" y="90" width="180" height="50" rx="7" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="150" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#06b6d4">USB at OOBE</text>
+                <text x="150" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Insert USB drive during first boot</text>
 
-        function goToSlide(n) {
-            currentSlide = n;
-            updateProgress();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+                <!-- Branch 2: Settings import -->
+                <rect x="310" y="90" width="200" height="50" rx="7" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <text x="410" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Settings Import</text>
+                <text x="410" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Settings &gt; Accounts &gt; Provisioning</text>
 
-        function checkAnswer(button, isCorrect, quizId) {
-            var feedbackEl = document.getElementById('feedback-' + quizId);
-            var options = button.parentElement.querySelectorAll('.quiz-option');
+                <!-- Branch 3: MDM push / double-click -->
+                <rect x="580" y="90" width="180" height="50" rx="7" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <text x="670" y="112" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#c9a83a">Direct Execution</text>
+                <text x="670" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">Double-click .ppkg or MDM deploy</text>
 
-            options.forEach(function(opt) {
-                opt.style.pointerEvents = 'none';
-            });
+                <!-- All converge to Intune Enrollment -->
+                <line x1="150" y1="140" x2="350" y2="165" stroke="#94a3b8" stroke-width="1"/>
+                <line x1="410" y1="140" x2="410" y2="165" stroke="#94a3b8" stroke-width="1"/>
+                <line x1="670" y1="140" x2="470" y2="165" stroke="#94a3b8" stroke-width="1"/>
+                <rect x="300" y="155" width="220" height="22" rx="6" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="410" y="170" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3ab577">Azure AD Joined + Intune Enrolled</text>
+            </svg>
+        </div>
 
-            if (isCorrect) {
-                button.classList.add('correct');
-                feedbackEl.className = 'feedback correct';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = 'Correct. DEM is designed for shared device scenarios where no specific user is assigned. A single DEM account can enroll up to 1,000 devices. Since Autopilot is not available, DEM is the most efficient bulk enrollment method for shared tablets.';
-                } else if (quizId === 'quiz2') {
-                    feedbackEl.textContent = 'Correct. Enrollment device type restrictions allow you to block specific platforms (Android) and block personally-owned devices. This is configured in Intune > Devices > Enrollment restrictions. Conditional Access and compliance policies operate after enrollment, not during.';
-                } else {
-                    feedbackEl.textContent = 'Correct. MDM auto-enrollment is configured in Azure AD > Mobility (MDM and MAM) > Microsoft Intune. Setting the MDM user scope to All or specific groups enables automatic Intune enrollment when a device Azure AD Joins. This requires Azure AD P1.';
-                }
-            } else {
-                button.classList.add('incorrect');
-                feedbackEl.className = 'feedback incorrect';
-                if (quizId === 'quiz1') {
-                    feedbackEl.textContent = 'Incorrect. Self-enrollment ties devices to individual users, which is wrong for shared devices. Creating individual accounts per tablet is unmanageable. Hybrid Azure AD Join requires on-premises AD infrastructure. DEM is the correct answer for shared device bulk enrollment without Autopilot.';
-                } else if (quizId === 'quiz2') {
-                    feedbackEl.textContent = 'Incorrect. Conditional Access operates after enrollment (access control). Compliance policies evaluate enrolled devices. Removing licenses prevents all enrollment. Enrollment device type restrictions are the correct mechanism to block platforms and personal devices at enrollment time.';
-                } else {
-                    feedbackEl.textContent = 'Incorrect. Autopilot profiles customize OOBE but do not enable auto-enrollment. DEM is for shared devices. Provisioning packages are for offline bulk enrollment. MDM auto-enrollment in Azure AD Mobility settings is what triggers automatic Intune enrollment on Azure AD Join.';
-                }
-                options.forEach(function(opt) {
-                    if (quizId === 'quiz1' && opt.textContent.includes('Device Enrollment Manager')) {
-                        opt.classList.add('correct');
-                    }
-                    if (quizId === 'quiz2' && opt.textContent.includes('enrollment device type restriction')) {
-                        opt.classList.add('correct');
-                    }
-                    if (quizId === 'quiz3' && opt.textContent.includes('MDM auto-enrollment')) {
-                        opt.classList.add('correct');
-                    }
-                });
-            }
-        }
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">When to Use WCD vs. Autopilot</div>
+                <div class="card-desc">WCD: existing devices without Autopilot registration, offline scenarios, no internet at provisioning time. Autopilot: new devices from vendor, cloud infrastructure available, prefer zero-touch with no USB.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Package Security</div>
+                <div class="card-desc">Provisioning packages can be password-protected and signed. Signed packages prevent tampering. Consider encrypting packages containing sensitive configuration (domain join credentials, Wi-Fi PSK).</div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        function completeModule() {
-            ModuleProgress.complete('forge', 'forge-md101-m02', {
-                returnUrl: '../index.html'
-            });
-        }
+<!-- ==================== SLIDE 17 — KNOWLEDGE CHECK ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19</div>
+        <div class="slide-title">Knowledge <span class="accent">Check</span></div>
+        <div class="slide-subtitle">Apply enrollment concepts to real-world scenarios</div>
 
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                e.preventDefault();
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                prevSlide();
-            }
+        <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:14px 16px; border:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:0.82rem; font-weight:700; color:#c9a83a; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Scenario 1</div>
+            <div style="font-size:0.875rem; color:#cbd5e1; margin-bottom:10px;">A hospital is deploying 200 shared tablets for nurses during rounds. No specific nurse is assigned to any tablet. IT needs to enroll devices quickly without Autopilot. What is the most appropriate enrollment method?</div>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">A) Have each nurse self-enroll the tablet with their personal Azure AD account</button>
+            <button class="quiz-option" onclick="checkAnswer(this, true,  'q1')">B) Use a Device Enrollment Manager (DEM) account to enroll all 200 tablets</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">C) Create individual Azure AD accounts for each tablet</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">D) Deploy Autopilot user-driven mode to each tablet</button>
+            <div class="feedback" id="feedback-q1"></div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:14px 16px; border:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:0.82rem; font-weight:700; color:#c9a83a; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Scenario 2</div>
+            <div style="font-size:0.875rem; color:#cbd5e1; margin-bottom:10px;">An organization has existing Windows devices joined to on-premises AD. They want to enroll them in Intune without re-imaging or disrupting users. What is the correct approach?</div>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">A) Use Autopilot user-driven mode on each existing device</button>
+            <button class="quiz-option" onclick="checkAnswer(this, true,  'q2')">B) Configure Hybrid Azure AD Join with Azure AD Connect, then enable auto-enrollment via Group Policy</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">C) Disjoin each device from domain and Azure AD Join them manually</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">D) Create provisioning packages and apply them to running devices</button>
+            <div class="feedback" id="feedback-q2"></div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:14px 16px; border:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:0.82rem; font-weight:700; color:#c9a83a; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Scenario 3</div>
+            <div style="font-size:0.875rem; color:#cbd5e1; margin-bottom:10px;">A field technician needs to enroll 50 Windows devices at a remote site with limited internet. The devices cannot use Autopilot. What method allows offline bulk enrollment?</div>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">A) Autopilot Self-Deploying mode</button>
+            <button class="quiz-option" onclick="checkAnswer(this, true,  'q3')">B) Windows Configuration Designer provisioning package applied via USB</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">C) User self-enrollment through Settings on each device</button>
+            <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">D) DEM account with Autopilot Reset</button>
+            <div class="feedback" id="feedback-q3"></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — EXAM QUICK REFERENCE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19</div>
+        <div class="slide-title">Exam <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">High-yield enrollment facts for test day</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">DEM Limits</div>
+                <div class="card-desc">1,000 devices per DEM account. Up to 150 DEM accounts per tenant. No Autopilot. No Conditional Access for DEM user. No user-targeted policies. Works on Windows/iOS/Android only.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Auto-Enrollment Requirements</div>
+                <div class="card-desc">Azure AD Premium P1 required. MDM user scope must be set in Azure AD Mobility. Hybrid devices need GPO to trigger enrollment. MAM scope handles BYOD without MDM enrollment.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Autopilot Modes</div>
+                <div class="card-desc">User-Driven: no TPM required. Self-Deploying: TPM 2.0 required. Pre-Provisioning: TPM 2.0 required. Reset: no TPM required, preserves AAD + Intune. Wipe removes Autopilot profile.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">WCD / Provisioning Package</div>
+                <div class="card-desc">Apply via USB at OOBE, Settings import, or double-click. Bulk enrollment token expires. No Autopilot needed. Works offline during application. Does not preserve enrollment after full wipe.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Device Identity</div>
+                <div class="card-desc">Registered = BYOD, all platforms. Joined = corporate Windows only. Hybrid = both on-prem AD and Azure AD. Only Hybrid supports native on-prem SSO without additional config.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Three Decision Factors</div>
+                <div class="card-desc">1. Ownership (personal vs corporate). 2. Scale (one, dozens, hundreds, thousands). 3. Infrastructure (cloud-only, hybrid, offline). These three factors always identify the correct enrollment method.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — SUMMARY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19</div>
+        <div class="slide-title">Module 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Device enrollment consolidated</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Azure AD Identity Types:</strong> Registered (BYOD, all platforms), Joined (corporate, Windows-only), Hybrid (on-prem AD + Azure AD, co-management).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Auto-Enrollment:</strong> Azure AD P1 required. MDM scope in Azure AD Mobility. GPO-triggered for Hybrid Join devices.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>DEM:</strong> 1,000 devices per account. Shared/kiosk devices. No Autopilot, no Conditional Access per user, no user-targeted policies.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>WCD / Provisioning Package:</strong> .ppkg files for bulk offline enrollment. USB at OOBE or Settings import. Bulk token has expiry.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Autopilot:</strong> User-Driven (no TPM), Self-Deploying (TPM 2.0, no user), Pre-Provisioning (TPM 2.0, IT + user phases), Reset (preserves AAD/Intune).</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Enrollment Restrictions:</strong> Block platforms, block personal devices, set OS minimums. Device limit 1&ndash;15 per user (default 5). Priority order determines which restriction applies.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>ESP:</strong> Three phases: Device Preparation, Device Setup, Account Setup. Can block user until all required apps installed.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>Decision Framework:</strong> Ownership + Scale + Infrastructure narrows any enrollment scenario to 1&ndash;2 correct methods.</span></div>
+        </div>
+        <div class="box box-gold" style="margin-top:6px;">
+            <div class="box-label">Module Complete</div>
+            You can now select the appropriate enrollment method for any device scenario, configure auto-enrollment, deploy provisioning packages, and distinguish all four Autopilot modes with their prerequisites.
+        </div>
+    </div>
+</section>
+
+<script>
+    var currentSlide = 1;
+    var totalSlides = 19;
+
+    /* Restart all SVG animations on slide entry */
+    function restartSVGAnimations(slideEl) {
+        slideEl.querySelectorAll('animate, animateTransform, animateMotion').forEach(function(anim) {
+            anim.beginElement();
         });
+    }
 
-        updateProgress();
-    </script>
-    <script src="../../../../components/FluxCapacitor.js"></script>
-    <script src="../../../../components/PresentationA11y.js"></script>
+    function goToSlide(n) {
+        currentSlide = n;
+        var prev = document.getElementById('prev-btn');
+        var next = document.getElementById('next-btn');
+        var comp = document.getElementById('complete-btn');
+
+        document.getElementById('progress-bar').style.width = ((n / totalSlides) * 100) + '%';
+        document.getElementById('slide-counter').textContent = n + ' / ' + totalSlides;
+
+        prev.disabled = (n === 1);
+        next.style.display = (n === totalSlides) ? 'none' : '';
+        comp.style.display  = (n === totalSlides) ? '' : 'none';
+
+        document.querySelectorAll('.slide').forEach(function(s, i) {
+            var active = (i + 1 === n);
+            s.classList.toggle('active', active);
+            if (active) { restartSVGAnimations(s); }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides) { goToSlide(currentSlide + 1); }
+    }
+    function prevSlide() {
+        if (currentSlide > 1) { goToSlide(currentSlide - 1); }
+    }
+
+    function checkAnswer(btn, isCorrect, qid) {
+        var container = btn.closest('div[style]');
+        container.querySelectorAll('.quiz-option').forEach(function(o) {
+            o.style.pointerEvents = 'none';
+        });
+        var fb = document.getElementById('feedback-' + qid);
+        if (isCorrect) {
+            btn.classList.add('correct');
+            fb.className = 'feedback correct';
+            var msgs = {
+                q1: 'Correct. DEM is the right choice for shared devices with no assigned user, where Autopilot is not available. A single DEM account can enroll up to 1,000 devices. Only device-targeted policies apply.',
+                q2: 'Correct. Hybrid Azure AD Join with auto-enrollment via Group Policy is the non-disruptive path for existing on-prem joined devices. Devices remain on the domain while gaining Azure AD identity and Intune enrollment simultaneously.',
+                q3: 'Correct. WCD provisioning packages via USB work offline during OOBE without internet. Autopilot requires internet to contact Azure AD. DEM requires the DEM user to sign in on each device (needs connectivity). WCD is the correct offline bulk enrollment tool.'
+            };
+            fb.textContent = msgs[qid];
+        } else {
+            btn.classList.add('incorrect');
+            fb.className = 'feedback incorrect';
+            var errmsgs = {
+                q1: 'Incorrect. User self-enrollment creates user-device associations not appropriate for shared devices. Individual accounts per tablet would create management complexity. Autopilot user-driven also requires a per-user sign-in. DEM is correct for shared, unassigned devices.',
+                q2: 'Incorrect. Autopilot is for new device provisioning, not re-enrolling existing on-prem devices. Disjoining from domain disrupts user access to on-prem resources. Provisioning packages cannot non-destructively enroll already-configured devices. Hybrid AAD Join + GPO auto-enrollment is the correct path.',
+                q3: 'Incorrect. Autopilot Self-Deploying requires internet to contact Azure AD for device attestation. User self-enrollment requires individual internet connectivity per device. DEM + Autopilot Reset is not a valid combination. WCD provisioning packages via USB work completely offline during OOBE.'
+            };
+            fb.textContent = errmsgs[qid];
+            container.querySelectorAll('.quiz-option').forEach(function(o) {
+                if ((qid === 'q1' && o.textContent.includes('Device Enrollment Manager')) ||
+                    (qid === 'q2' && o.textContent.includes('Hybrid Azure AD Join')) ||
+                    (qid === 'q3' && o.textContent.includes('Windows Configuration Designer'))) {
+                    o.classList.add('correct');
+                }
+            });
+        }
+    }
+
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md101-m02', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+        else if (e.key === 'ArrowLeft') { prevSlide(); }
+    });
+
+    goToSlide(1);
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script src="../../../../components/PresentationA11y.js"></script>
 </body>
 </html>
