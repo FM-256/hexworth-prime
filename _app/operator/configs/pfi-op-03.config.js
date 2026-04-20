@@ -64,6 +64,8 @@ var PFI_OP_03_CONFIG = {
     id: 'pfi-op-03',
     title: 'PFI-OP-03 / THE ROUTER',
     subtitle: 'Compose multiple functions to sweep 3 gated network zones',
+    brief: 'The network is divided into three zones separated by firewall gates. You must sweep each zone to discover its servers, then <code>nmap()</code> the gate node to clear the firewall and advance to the next zone. Write separate functions for zone sweeping and gate clearing, then compose them into a complete patrol.',
+    successCondition: 'Discover all six servers, clear both firewall gates, and sweep all three zones.',
     category: 'python-ops',
     difficulty: 3,
     inputMode: 'python',

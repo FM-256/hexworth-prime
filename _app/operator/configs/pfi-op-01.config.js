@@ -48,6 +48,8 @@ var PFI_OP_01_CONFIG = {
     id: 'pfi-op-01',
     title: 'PFI-OP-01 / THE PATROL',
     subtitle: 'Define a patrol function to sweep 4 network sectors',
+    brief: 'Your agent has been deployed to patrol four network sectors on a 6x6 grid. Each sector has a critical server in its corner. Define a <code>patrol()</code> function that moves and scans in a given direction, then call it four times to sweep all sectors. Writing the same movement code four times will work &mdash; but a function makes it clean.',
+    successCondition: 'Discover all four sector servers and survive the patrol.',
     category: 'python-ops',
     difficulty: 2,
     inputMode: 'python',

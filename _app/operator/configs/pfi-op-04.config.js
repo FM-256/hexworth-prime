@@ -82,6 +82,8 @@ var PFI_OP_04_CONFIG = {
     id: 'pfi-op-04',
     title: 'PFI-OP-04 / THE ARCHITECT',
     subtitle: 'Compose helper functions to navigate 4 network quadrants',
+    brief: 'A cross-shaped wall divides the grid into four quadrants, each containing a server. All quadrant-to-quadrant movement funnels through a single central intersection. Write building-block helper functions &mdash; <code>move_n(dir, steps)</code>, <code>scan_quadrant()</code>, <code>return_to_center()</code> &mdash; then compose them to sweep all four quadrants efficiently.',
+    successCondition: 'Discover all four quadrant servers and survive the mission.',
     category: 'python-ops',
     difficulty: 4,
     inputMode: 'python',

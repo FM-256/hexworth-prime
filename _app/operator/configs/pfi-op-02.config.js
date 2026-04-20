@@ -69,6 +69,8 @@ var PFI_OP_02_CONFIG = {
     id: 'pfi-op-02',
     title: 'PFI-OP-02 / THE SCANNER',
     subtitle: 'Write parameterized scan functions to sweep corridors of varying length',
+    brief: 'Three network corridors of different lengths branch from a central spine. Each corridor has a server at its end. Write a <code>scan_row(length)</code> function that takes the corridor length as a parameter, then call it three times with different values. A <code>return_home(length)</code> helper will save you even more commands.',
+    successCondition: 'Discover all three corridor servers and maintain at least 2 integrity.',
     category: 'python-ops',
     difficulty: 3,
     inputMode: 'python',

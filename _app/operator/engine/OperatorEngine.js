@@ -1296,10 +1296,20 @@
         card.appendChild(sub);
 
         // Scenario
+        // Mission brief — use config.brief if provided, otherwise generic
         var scenario = document.createElement('div');
-        scenario.style.cssText = 'font-size:0.82rem;color:#94a3b8;line-height:1.7;margin-bottom:20px;padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;';
+        scenario.style.cssText = 'font-size:0.82rem;color:#94a3b8;line-height:1.7;margin-bottom:14px;padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;';
         var modeLabel = config.inputMode === 'terminal' ? 'terminal commands' : 'Python code';
-        scenario.innerHTML = 'Write ' + modeLabel + ' to control your agent through a network grid. Navigate nodes, scan for threats, bypass gates, and complete all objectives. Traps damage your integrity &mdash; scan before you move.';
+        var briefText = config.brief || ('Write ' + modeLabel + ' to control your agent through a network grid. Navigate nodes, scan for threats, bypass gates, and complete all objectives. Traps damage your integrity &mdash; scan before you move.');
+        scenario.innerHTML = briefText;
+
+        // Success condition — shown if config.successCondition is set
+        if (config.successCondition) {
+            var successEl = document.createElement('div');
+            successEl.style.cssText = 'font-size:0.78rem;color:#4ade80;line-height:1.5;margin-bottom:20px;padding:10px 14px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.18);border-left:3px solid #4ade80;border-radius:0 6px 6px 0;';
+            successEl.innerHTML = '<strong style="color:#4ade80;">Mission Success:</strong> ' + config.successCondition;
+            card.appendChild(successEl);
+        }
         card.appendChild(scenario);
 
         // Objectives
@@ -1328,23 +1338,23 @@
         var commands = [];
         if (config.inputMode === 'terminal') {
             commands = [
-                ['move <dir>', 'Move agent: north, south, east, west'],
-                ['scan', 'Scan adjacent cells — reveals nodes and disarms traps'],
-                ['nmap <node>', 'Port scan a node — required to bypass firewall gates'],
-                ['status', 'Show current position, discovered nodes, and objectives'],
-                ['sweep <dir>', 'Scan a specific direction — reveals and disarms one cell'],
-                ['ping <node>', 'Check if a node is reachable from current position'],
+                ['move <dir>', 'Move one cell: north, south, east, west'],
+                ['scan', 'Scan ALL 4 adjacent cells at once — reveals nodes, disarms traps'],
+                ['sweep <dir>', 'Scan ONE specific cell in a direction — cheaper than full scan'],
+                ['nmap <node>', 'Port scan a discovered node — required to clear firewall gates'],
+                ['status', 'Show current position, integrity, discovered nodes, objectives'],
+                ['ping <node>', 'Check if a discovered node is reachable from current position'],
                 ['help', 'Show available commands']
             ];
         } else {
             commands = [
-                ['agent.move("north")', 'Move agent in a direction (north/south/east/west)'],
-                ['agent.scan()', 'Scan adjacent cells — reveals nodes and disarms traps'],
-                ['agent.nmap("node")', 'Port scan a node — required to bypass firewall gates'],
-                ['agent.status()', 'Show current position, discovered nodes, objectives'],
-                ['agent.sweep("dir")', 'Scan a specific direction — reveals and disarms one cell'],
-                ['agent.ping("node")', 'Check if a node is reachable from current position'],
-                ['for / if / while', 'Standard Python control flow works']
+                ['agent.move("north")', 'Move one cell in a direction (north/south/east/west)'],
+                ['agent.scan()', 'Scan ALL 4 adjacent cells at once — reveals nodes, disarms traps'],
+                ['agent.sweep("dir")', 'Scan ONE specific cell in a direction — cheaper than full scan'],
+                ['agent.nmap("node")', 'Port scan a discovered node — required to clear firewall gates'],
+                ['agent.status()', 'Show current position, integrity, discovered nodes, objectives'],
+                ['agent.ping("node")', 'Check if a discovered node is reachable from current position'],
+                ['for / if / while', 'Standard Python control flow works — use loops to reduce commands']
             ];
         }
 
@@ -1369,13 +1379,13 @@
         card.appendChild(legTitle);
 
         var legendItems = [
-            ['\u25A0', '#4ade80', 'Your Agent — current position'],
+            ['\u25C6', '#4ade80', 'Your Agent — current position'],
             ['\u25A3', '#94a3b8', 'Network Node — move onto it to discover'],
-            ['\u25A0', '#1e293b', 'Fog of War — unexplored, use scan to reveal'],
+            ['\u25A1', '#334155', 'Fog of War — unexplored, use scan to reveal'],
             ['\u2718', '#ef4444', 'Trap — damages integrity if you enter unscanned'],
-            ['\u25A8', '#f59e0b', 'Gate — requires a specific action to pass (nmap, exploit, etc.)'],
+            ['\u25A8', '#f59e0b', 'Gate — requires nmap on the gate node to clear'],
             ['\u2605', '#a855f7', 'Target — your final objective'],
-            ['\u25A0', '#0f172a', 'Wall — impassable']
+            ['\u2588', '#0f172a', 'Wall — impassable terrain']
         ];
 
         var legGrid = document.createElement('div');
@@ -1399,7 +1409,11 @@
         // Tips
         var tips = document.createElement('div');
         tips.style.cssText = 'font-size:0.75rem;color:#64748b;line-height:1.6;margin-bottom:24px;padding:10px 14px;background:rgba(255,107,53,0.06);border:1px solid rgba(255,107,53,0.15);border-radius:6px;';
-        tips.innerHTML = '<strong style="color:' + accent + ';">Tips:</strong> Always <code style="color:' + accent + ';">scan()</code> before moving into unknown territory. Traps are invisible until scanned. Gates require specific commands shown in the output. Your integrity meter is your health &mdash; reach zero and the mission fails.';
+        tips.innerHTML = '<strong style="color:' + accent + ';">Tips:</strong> Always scan before moving into unknown territory. ' +
+            '<code style="color:' + accent + ';">scan()</code> reveals all 4 adjacent cells at once. ' +
+            '<code style="color:' + accent + ';">sweep("dir")</code> reveals only 1 cell &mdash; use it to save commands when you know which direction you\'re heading. ' +
+            'Traps are invisible until scanned. Gates must be cleared with <code style="color:' + accent + ';">nmap()</code> while standing on the gate cell. ' +
+            'Your integrity meter is your health &mdash; reach zero and the mission fails.';
         card.appendChild(tips);
 
         // Buttons
