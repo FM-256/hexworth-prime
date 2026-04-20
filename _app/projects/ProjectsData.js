@@ -116,9 +116,18 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 88 total (12 software + 16 hardware + 60 educative-inspired).
+    // Project definitions — 89 total (12 software + 16 hardware + 60 educative-inspired + 1 content).
     // -------------------------------------------------------------------------
     projects: [
+        {
+            id: 'divergent-faceless-youtube',
+            house: 'divergent',
+            title: 'Build a Faceless YouTube Channel',
+            description: 'Design, build, and launch a faceless YouTube channel from scratch — from niche selection and AI-powered content creation to SEO optimization and monetization strategy.',
+            difficulty: 'advanced',
+            minutes: 180,
+            xp: 1000
+        },
         {
             id: 'script-system-monitor',
             house: 'script',

@@ -133,7 +133,7 @@ var PFI_OP_04_CONFIG = {
         { id: 'obj_1', label: 'DISCOVER BRAVO -- Find the monitoring collector (SW quadrant)',    check: 'nodesDiscovered.has("srv-b")' },
         { id: 'obj_2', label: 'DISCOVER CHARLIE -- Find the config management server (NE)',       check: 'nodesDiscovered.has("srv-c")' },
         { id: 'obj_3', label: 'DISCOVER DELTA -- Find the vulnerability scanner (SE quadrant)',   check: 'nodesDiscovered.has("srv-d")' },
-        { id: 'obj_4', label: 'ARCHITECT BONUS -- Complete using 40 or fewer commands',           check: 'cmdCount <= 40' }
+        { id: 'obj_4', label: 'ARCHITECT BONUS -- Complete using 40 or fewer commands',           check: 'agentCmdCount <= 40' }
     ],
 
     integrity: 3,

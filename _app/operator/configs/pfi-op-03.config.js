@@ -100,8 +100,8 @@ var PFI_OP_03_CONFIG = {
         'srv-f':        { label: 'SERVER-FOXTROT',  abbr: 'SRF', ip: '10.50.3.11',  desc: 'Zone 3 — Backup replication target',                  ports: ['22/SSH','873/RSYNC','3260/ISCSI'],              os: 'CentOS Stream 9' },
 
         /* -- Gate nodes -- */
-        'nmap-gate-a':  { label: 'GATE-ALPHA',      abbr: 'GA',  ip: '10.50.0.250', desc: 'Zone firewall — nmap srv-a to reveal bypass route',   ports: ['22/SSH','443/MGMT'],                            os: 'pfSense 2.7.2',  vuln: 'CVE-2025-1180', vulnDesc: 'ACL misconfiguration — nmap probe reveals open path' },
-        'nmap-gate-b':  { label: 'GATE-BRAVO',      abbr: 'GB',  ip: '10.50.0.251', desc: 'Zone firewall — nmap srv-c to reveal bypass route',   ports: ['22/SSH','443/MGMT'],                            os: 'OPNsense 24.1',  vuln: 'CVE-2025-1181', vulnDesc: 'State table overflow — nmap scan forces rule reload' },
+        'nmap-gate-a':  { label: 'GATE-ALPHA',      abbr: 'GA',  ip: '10.50.0.250', desc: 'Zone firewall — nmap this gate node to reveal bypass route',   ports: ['22/SSH','443/MGMT'],                            os: 'pfSense 2.7.2',  vuln: 'CVE-2025-1180', vulnDesc: 'ACL misconfiguration — nmap probe reveals open path' },
+        'nmap-gate-b':  { label: 'GATE-BRAVO',      abbr: 'GB',  ip: '10.50.0.251', desc: 'Zone firewall — nmap this gate node to reveal bypass route',   ports: ['22/SSH','443/MGMT'],                            os: 'OPNsense 24.1',  vuln: 'CVE-2025-1181', vulnDesc: 'State table overflow — nmap scan forces rule reload' },
 
         /* -- Traps -- */
         'trap-a':       { label: 'HONEYPOT-ALPHA',  abbr: 'TRA', ip: '10.50.0.200', desc: 'Decoy node — triggers alert on contact',              ports: ['22/SSH-FAKE','80/HTTP-TRAP'],                   os: 'Honeyd 1.6 [TRAP]' },
@@ -118,9 +118,9 @@ var PFI_OP_03_CONFIG = {
 
     objectives: [
         { id: 'obj_0', label: 'ZONE 1 -- Discover and nmap servers Alpha and Bravo',   check: 'nodesDiscovered.has("srv-a") && nodesDiscovered.has("srv-b")' },
-        { id: 'obj_1', label: 'GATE A -- Clear the first zone firewall',                check: 'flags.gateACleared' },
+        { id: 'obj_1', label: 'GATE A -- Clear the first zone firewall',                check: 'gateACleared' },
         { id: 'obj_2', label: 'ZONE 2 -- Discover and nmap servers Charlie and Delta',  check: 'nodesDiscovered.has("srv-c") && nodesDiscovered.has("srv-d")' },
-        { id: 'obj_3', label: 'GATE B -- Clear the second zone firewall',               check: 'flags.gateBCleared' },
+        { id: 'obj_3', label: 'GATE B -- Clear the second zone firewall',               check: 'gateBCleared' },
         { id: 'obj_4', label: 'ZONE 3 -- Discover servers Echo and Foxtrot',            check: 'nodesDiscovered.has("srv-e") && nodesDiscovered.has("srv-f")' }
     ],
 

@@ -1,7 +1,7 @@
 /* ================================================================
    PFI-OP-02 / THE SCANNER -- Mission Config
    ================================================================
-   Python for IT — Week 3 (Functions) — Mission 2 of 2
+   Python for IT — Week 3 (Functions) — Mission 2 of 4
    Tier 3 mission. 7x7 grid — 49 cells.
    Forces students to write parameterized functions with varying arguments.
 

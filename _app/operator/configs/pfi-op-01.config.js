@@ -1,7 +1,7 @@
 /* ================================================================
    PFI-OP-01 / THE PATROL -- Mission Config
    ================================================================
-   Python for IT — Week 3 (Functions) — Mission 1 of 2
+   Python for IT — Week 3 (Functions) — Mission 1 of 4
    Tier 2 mission. 6x6 grid — 36 cells.
    Forces students to define and call a basic function (DRY principle).
 
@@ -91,7 +91,7 @@ var PFI_OP_01_CONFIG = {
         { id: 'obj_1', label: 'DISCOVER NE -- Find the web application server',      check: 'nodesDiscovered.has("server-ne")' },
         { id: 'obj_2', label: 'DISCOVER SW -- Find the log aggregation node',        check: 'nodesDiscovered.has("server-sw")' },
         { id: 'obj_3', label: 'DISCOVER SE -- Find the backup storage array',        check: 'nodesDiscovered.has("server-se")' },
-        { id: 'obj_4', label: 'EFFICIENCY -- Complete using 30 or fewer commands',    check: 'cmdCount <= 30' }
+        { id: 'obj_4', label: 'EFFICIENCY -- Complete using 30 or fewer commands',    check: 'agentCmdCount <= 30' }
     ],
 
     integrity: 4,
