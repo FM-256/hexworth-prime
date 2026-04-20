@@ -116,9 +116,26 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 89 total (12 software + 16 hardware + 60 educative-inspired + 1 content).
+    // Project definitions — 103 total (12 software + 16 hardware + 60 educative + 1 content + 14 "My First" starter).
     // -------------------------------------------------------------------------
     projects: [
+        // ── "My First..." Starter Series (14 projects) ──
+        { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'beginner', minutes: 45, xp: 250 },
+        { id: 'starter-first-api',       house: 'code',       title: 'My First API',         description: 'Build your first web API with Python and Flask — create endpoints that return data and accept input.',difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-database',  house: 'code',       title: 'My First Database',    description: 'Create your first database, write SQL queries, and build a Python app that stores real data.',         difficulty: 'beginner', minutes: 45, xp: 250 },
+        { id: 'starter-first-script',    house: 'script',     title: 'My First Script',      description: 'Write your first Bash script that organizes messy files into folders automatically.',                  difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-server',    house: 'cloud',      title: 'My First Server',      description: 'Spin up your first virtual machine, connect via SSH, and serve your first web page.',                 difficulty: 'beginner', minutes: 45, xp: 250 },
+        { id: 'starter-first-container', house: 'cloud',      title: 'My First Container',   description: 'Run your first Docker container, build your first image, and understand why containers matter.',      difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-network',   house: 'web',        title: 'My First Network',     description: 'Discover your own network — find your IP, trace a route, and understand how data travels.',           difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-hack',      house: 'dark-arts',  title: 'My First Hack',        description: 'Complete your first ethical hacking challenge — scan, find, exploit, and capture the flag.',          difficulty: 'beginner', minutes: 45, xp: 250 },
+        { id: 'starter-first-firewall',  house: 'shield',     title: 'My First Firewall',    description: 'Configure your first firewall rules — block traffic, allow services, and learn network defense.',     difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-scan',      house: 'eye',        title: 'My First Scan',        description: 'Use Nmap to scan your own network — discover hosts, identify services, see through a hacker\'s eyes.',difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250 },
+        { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250 },
+
+        // ── Featured Projects ──
         {
             id: 'divergent-faceless-youtube',
             house: 'divergent',
