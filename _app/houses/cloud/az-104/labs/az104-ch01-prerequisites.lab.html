@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Administration Fundamentals Lab — AZ-104 Chapter 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure Administration Fundamentals Lab</span>
+            <span class="lab-badge">AZ-104</span>
+            <span class="lab-badge-ch">CH.1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Subscription and Identity</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your Subscription</div>
+                    <div class="task-desc">Run <code>az account show</code> to inspect your active subscription — ID, tenant, and state. This is always the first step in any Azure CLI session.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Create a Resource Group</div>
+                    <div class="task-desc">Use <code>az group create --name lab-rg-01 --location eastus</code> to create your primary resource group. Resource groups are the fundamental management boundary in Azure.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — ARM Templates</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Explore the ARM Template</div>
+                    <div class="task-desc">Run <code>cat ~/templates/storage-account.json</code> to read the ARM template. Understand the schema, parameters, and resources sections before deploying.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Deploy the ARM Template</div>
+                    <div class="task-desc">Use <code>az deployment group create</code> with <code>--template-file</code> to deploy the storage account ARM template to <code>lab-rg-01</code>.</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Deploy with Parameters</div>
+                    <div class="task-desc">Run a second deployment using <code>--parameters ~/templates/parameters.json</code> to customize the deployment — same template, different inputs.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Resource Management</div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">List Deployments</div>
+                    <div class="task-desc">Run <code>az deployment group list --resource-group lab-rg-01</code> to see the deployment history. Both deployments should appear with their timestamps and status.</div>
+                </div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">List Resources in the Group</div>
+                    <div class="task-desc">Use <code>az resource list --resource-group lab-rg-01</code> to see all resources created by the two deployments. Two storage accounts should be present.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Tag a Resource</div>
+                    <div class="task-desc">Apply governance tags with <code>az tag create --resource-id</code> on the resource group. Tags are metadata used for cost tracking, automation, and policy enforcement.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Multi-Region and Cleanup</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Create a Second Resource Group</div>
+                    <div class="task-desc">Create <code>lab-rg-02</code> in <code>westus</code>, then run <code>az group list</code> to see both resource groups deployed across regions.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Delete a Resource Group</div>
+                    <div class="task-desc">Use <code>az group delete --name lab-rg-02 --yes</code> then verify with <code>az group list</code>. Deleting a resource group removes all resources inside it permanently.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">azadmin@cloud-shell — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure Cloud Shell Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">azadmin@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AZ-104 Chapter 1 Complete!</div>
+                    <div class="success-message">
+                        You inspected an Azure subscription, created resource groups across regions,
+                        read and deployed ARM templates with and without parameter files, listed deployments
+                        and resources, applied governance tags, and performed a safe resource group deletion.
+                        You now understand the ARM resource model and the Azure CLI workflows every
+                        Azure Administrator uses daily.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER      = 'azadmin';
+        var HOST      = 'cloud-shell';
+        var HOME      = '/home/azadmin';
+        var SUB_ID    = 'f2a4c6e8-1b3d-5f7a-9c0e-2d4f6a8b0c2e';
+        var TENANT_ID = '72f988bf-86f1-41af-91ab-2d7cd011db47';
+        var SUB_NAME  = 'Azure-Admin-Lab';
+        var LOCATION  = 'eastus';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-command tasks */
+        var task9_created  = false;  /* lab-rg-02 created */
+        var task9_listed   = false;  /* group list run showing both RGs */
+        var task10_deleted = false;  /* lab-rg-02 deleted */
+        var task10_listed  = false;  /* group list run after deletion */
+
+        /* Simulated resource state */
+        var resourceGroups = {};          /* keyed by RG name */
+        var deployments    = {};          /* keyed by "rg/deploymentName" */
+        var resources      = {};          /* keyed by resource id */
+        var taggedRGs      = {};          /* keyed by RG name */
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            /* Directories */
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/azadmin',
+                '/home/azadmin/templates',
+                '/home/azadmin/scripts',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 09:00:01] INFO  Azure CLI 2.58.0 initialised',
+                        '[2026-04-19 09:00:02] INFO  Subscription: ' + SUB_NAME + ' (' + SUB_ID + ')',
+                        '[2026-04-19 09:00:03] INFO  Tenant: ' + TENANT_ID,
+                        '[2026-04-19 09:00:04] INFO  Cloud Shell environment ready'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── ARM template: storage account ── */
+                '/home/azadmin/templates/storage-account.json': {
+                    c: JSON.stringify({
+                        '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#',
+                        contentVersion: '1.0.0.0',
+                        parameters: {
+                            storageName: {
+                                type: 'string',
+                                defaultValue: 'labstorage001',
+                                minLength: 3,
+                                maxLength: 24,
+                                metadata: {
+                                    description: 'Name of the storage account. Must be globally unique, 3-24 chars, lowercase alphanumeric.'
+                                }
+                            },
+                            location: {
+                                type: 'string',
+                                defaultValue: '[resourceGroup().location]',
+                                metadata: {
+                                    description: 'Azure region for the storage account. Defaults to resource group location.'
+                                }
+                            },
+                            sku: {
+                                type: 'string',
+                                defaultValue: 'Standard_LRS',
+                                allowedValues: ['Standard_LRS', 'Standard_GRS', 'Standard_RAGRS', 'Premium_LRS'],
+                                metadata: {
+                                    description: 'Storage account SKU. LRS = locally redundant, GRS = geo-redundant.'
+                                }
+                            }
+                        },
+                        variables: {
+                            storageApiVersion: '2023-01-01'
+                        },
+                        resources: [
+                            {
+                                type: 'Microsoft.Storage/storageAccounts',
+                                apiVersion: '[variables(\'storageApiVersion\')]',
+                                name: '[parameters(\'storageName\')]',
+                                location: '[parameters(\'location\')]',
+                                sku: {
+                                    name: '[parameters(\'sku\')]'
+                                },
+                                kind: 'StorageV2',
+                                properties: {
+                                    accessTier: 'Hot',
+                                    supportsHttpsTrafficOnly: true,
+                                    minimumTlsVersion: 'TLS1_2',
+                                    allowBlobPublicAccess: false,
+                                    networkAcls: {
+                                        defaultAction: 'Allow'
+                                    }
+                                }
+                            }
+                        ],
+                        outputs: {
+                            storageEndpoint: {
+                                type: 'string',
+                                value: '[reference(parameters(\'storageName\')).primaryEndpoints.blob]'
+                            },
+                            storageId: {
+                                type: 'string',
+                                value: '[resourceId(\'Microsoft.Storage/storageAccounts\', parameters(\'storageName\'))]'
+                            }
+                        }
+                    }, null, 2),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── ARM parameter file ── */
+                '/home/azadmin/templates/parameters.json': {
+                    c: JSON.stringify({
+                        '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+                        contentVersion: '1.0.0.0',
+                        parameters: {
+                            storageName: {
+                                value: 'labstorage002'
+                            },
+                            location: {
+                                value: 'eastus'
+                            },
+                            sku: {
+                                value: 'Standard_GRS'
+                            }
+                        }
+                    }, null, 2),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── ARM template: VM ── */
+                '/home/azadmin/templates/vm-template.json': {
+                    c: JSON.stringify({
+                        '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#',
+                        contentVersion: '1.0.0.0',
+                        parameters: {
+                            vmName: {
+                                type: 'string',
+                                defaultValue: 'lab-vm-01',
+                                metadata: { description: 'Name for the virtual machine.' }
+                            },
+                            adminUsername: {
+                                type: 'string',
+                                defaultValue: 'azadmin',
+                                metadata: { description: 'Admin username for the VM.' }
+                            },
+                            adminPassword: {
+                                type: 'securestring',
+                                metadata: { description: 'Admin password. Must meet Azure complexity requirements.' }
+                            },
+                            vmSize: {
+                                type: 'string',
+                                defaultValue: 'Standard_B2s',
+                                metadata: { description: 'VM size. Standard_B2s = 2 vCPU, 4 GB RAM (burstable).' }
+                            },
+                            location: {
+                                type: 'string',
+                                defaultValue: '[resourceGroup().location]'
+                            }
+                        },
+                        resources: [
+                            {
+                                type: 'Microsoft.Compute/virtualMachines',
+                                apiVersion: '2023-03-01',
+                                name: '[parameters(\'vmName\')]',
+                                location: '[parameters(\'location\')]',
+                                properties: {
+                                    hardwareProfile: { vmSize: '[parameters(\'vmSize\')]' },
+                                    osProfile: {
+                                        computerName: '[parameters(\'vmName\')]',
+                                        adminUsername: '[parameters(\'adminUsername\')]',
+                                        adminPassword: '[parameters(\'adminPassword\')]'
+                                    },
+                                    storageProfile: {
+                                        imageReference: {
+                                            publisher: 'Canonical',
+                                            offer: '0001-com-ubuntu-server-jammy',
+                                            sku: '22_04-lts-gen2',
+                                            version: 'latest'
+                                        },
+                                        osDisk: {
+                                            createOption: 'FromImage',
+                                            managedDisk: { storageAccountType: 'Premium_LRS' }
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }, null, 2),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Deployment script ── */
+                '/home/azadmin/scripts/deploy.sh': {
+                    c: [
+                        '#!/bin/bash',
+                        '# deploy.sh — Example ARM deployment script',
+                        '# Usage: ./scripts/deploy.sh <resource-group> <template-file> [parameters-file]',
+                        '',
+                        'set -euo pipefail',
+                        '',
+                        'RG="${1:?Usage: $0 <resource-group> <template-file> [parameters-file]}"',
+                        'TEMPLATE="${2:?Provide a template file path}"',
+                        'PARAMS="${3:-}"',
+                        'DEPLOYMENT_NAME="deploy-$(date +%Y%m%d-%H%M%S)"',
+                        '',
+                        'echo "Deploying ${TEMPLATE} to resource group ${RG}..."',
+                        '',
+                        'if [[ -n "$PARAMS" ]]; then',
+                        '  az deployment group create \\',
+                        '    --resource-group "$RG" \\',
+                        '    --template-file "$TEMPLATE" \\',
+                        '    --parameters "@${PARAMS}" \\',
+                        '    --name "$DEPLOYMENT_NAME"',
+                        'else',
+                        '  az deployment group create \\',
+                        '    --resource-group "$RG" \\',
+                        '    --template-file "$TEMPLATE" \\',
+                        '    --name "$DEPLOYMENT_NAME"',
+                        'fi',
+                        '',
+                        'echo "Deployment ${DEPLOYMENT_NAME} complete."'
+                    ].join('\n'),
+                    m: '-rwxr-xr-x'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serialises a JS object to indented JSON and colourises each token type.
+           Writes directly to terminal output. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Write serialised JSON to a VFS path */
+        function saveJSON(obj, path) {
+            var rp  = resolve(path);
+            var par = parentOf(rp);
+            if (!exists(par)) {
+                vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+            }
+            vfs[rp] = {
+                type:    'file',
+                content: JSON.stringify(obj, null, 2),
+                mode:    '-rw-r--r--'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and flag extraction.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        function splitRedirect(args) {
+            var rIdx = args.indexOf('>');
+            if (rIdx < 0) return { clean: args, redirect: null };
+            return {
+                clean:    args.slice(0, rIdx),
+                redirect: args[rIdx + 1] || null
+            };
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           DATA BUILDERS
+        ════════════════════════════════════════════════ */
+        function buildRG(name, location) {
+            return {
+                id:                '/subscriptions/' + SUB_ID + '/resourceGroups/' + name,
+                name:              name,
+                type:              'Microsoft.Resources/resourceGroups',
+                location:          location,
+                provisioningState: 'Succeeded',
+                tags:              {},
+                managedBy:         null
+            };
+        }
+
+        /* Deterministic deployment name from timestamp simulation */
+        var deploySeq = 0;
+        function nextDeployName(prefix) {
+            deploySeq++;
+            return (prefix || 'Microsoft.Storage.storageAccounts') + '-' +
+                   '20260419' + String(deploySeq).padStart(6, '0');
+        }
+
+        function buildDeployment(rg, name, templateFile, params, storageName, sku) {
+            var storageEndpoint = 'https://' + storageName + '.blob.core.windows.net/';
+            return {
+                id:            '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                               '/providers/Microsoft.Resources/deployments/' + name,
+                name:          name,
+                type:          'Microsoft.Resources/deployments',
+                resourceGroup: rg,
+                location:      LOCATION,
+                properties: {
+                    mode:              'Incremental',
+                    provisioningState: 'Succeeded',
+                    timestamp:         '2026-04-19T09:' + String(10 + deploySeq).padStart(2, '0') + ':00.000Z',
+                    duration:          'PT' + (18 + deploySeq) + 'S',
+                    correlationId:     'corr-' + storageName + '-' + deploySeq,
+                    templateLink:      null,
+                    parameters: {
+                        storageName: { value: storageName },
+                        location:    { value: LOCATION },
+                        sku:         { value: sku }
+                    },
+                    outputs: {
+                        storageEndpoint: { type: 'String', value: storageEndpoint },
+                        storageId: {
+                            type: 'String',
+                            value: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                                   '/providers/Microsoft.Storage/storageAccounts/' + storageName
+                        }
+                    },
+                    dependencies: []
+                }
+            };
+        }
+
+        function buildStorageResource(rg, storageName, sku, location) {
+            return {
+                id:            '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                               '/providers/Microsoft.Storage/storageAccounts/' + storageName,
+                name:          storageName,
+                type:          'Microsoft.Storage/storageAccounts',
+                location:      location,
+                resourceGroup: rg,
+                kind:          'StorageV2',
+                sku:           { name: sku, tier: sku.indexOf('Premium') >= 0 ? 'Premium' : 'Standard' },
+                tags:          {},
+                properties: {
+                    provisioningState:       'Succeeded',
+                    primaryLocation:         location,
+                    statusOfPrimary:         'available',
+                    supportsHttpsTrafficOnly: true,
+                    minimumTlsVersion:        'TLS1_2',
+                    allowBlobPublicAccess:     false,
+                    accessTier:               'Hot',
+                    primaryEndpoints: {
+                        blob:  'https://' + storageName + '.blob.core.windows.net/',
+                        queue: 'https://' + storageName + '.queue.core.windows.net/',
+                        table: 'https://' + storageName + '.table.core.windows.net/',
+                        file:  'https://' + storageName + '.file.core.windows.net/'
+                    },
+                    creationTime: '2026-04-19T09:10:00.000Z'
+                }
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var sr   = splitRedirect(args);
+            var path = sr.clean[0] ? resolve(sr.clean[0]) : cwd;
+            var long = sr.clean.indexOf('-l') >= 0 || sr.clean.indexOf('-la') >= 0 || sr.clean.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (sr.clean[0] || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 19 09:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            var sr   = splitRedirect(args);
+            var text = sr.clean.join(' ');
+            if (sr.redirect) {
+                var rp = resolve(sr.redirect);
+                vfs[rp] = { type: 'file', content: text, mode: '-rw-r--r--' };
+                addLine('(output redirected to ' + sr.redirect + ')', 'term-line-info');
+            } else {
+                addLine(text, 'term-line-out');
+            }
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                         'term-line-out');
+            addLine('USER=' + USER,                         'term-line-out');
+            addLine('SHELL=/bin/bash',                      'term-line-out');
+            addLine('TERM=xterm-256color',                  'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,      'term-line-out');
+            addLine('AZURE_DEFAULT_LOCATION=' + LOCATION,   'term-line-out');
+            addLine('AZURE_TENANT_ID=' + TENANT_ID,         'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az account
+        ════════════════════════════════════════════════ */
+        function cmd_az_account(args) {
+            if (!args.length) {
+                addLine('az account: usage: az account <show|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az account show ── */
+            if (sub === 'show') {
+                var showResult = {
+                    cloudName:        'AzureCloud',
+                    environmentName:  'AzureCloud',
+                    homeTenantId:     TENANT_ID,
+                    id:               SUB_ID,
+                    isDefault:        true,
+                    managedByTenants: [],
+                    name:             SUB_NAME,
+                    state:            'Enabled',
+                    tenantId:         TENANT_ID,
+                    user: {
+                        name:  USER + '@hexworthprime.onmicrosoft.com',
+                        type:  'user'
+                    }
+                };
+                printJSON(showResult);
+                addBlank();
+                addLine('  Subscription: ' + SUB_NAME + '  |  State: Enabled', 'term-line-info');
+                addLine('  Tenant: ' + TENANT_ID, 'term-line-dim');
+                return { account_shown: true, subId: SUB_ID, subName: SUB_NAME };
+            }
+
+            /* ── az account list ── */
+            if (sub === 'list') {
+                printJSON([
+                    {
+                        cloudName:       'AzureCloud',
+                        id:              SUB_ID,
+                        isDefault:       true,
+                        name:            SUB_NAME,
+                        state:           'Enabled',
+                        tenantId:        TENANT_ID,
+                        user: {
+                            name: USER + '@hexworthprime.onmicrosoft.com',
+                            type: 'user'
+                        }
+                    }
+                ]);
+                addBlank();
+                addLine('  1 subscription found.', 'term-line-info');
+                return { account_listed: true };
+            }
+
+            addLine('az account: unknown subcommand "' + sub + '". Try "show" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az group
+        ════════════════════════════════════════════════ */
+        function cmd_az_group(args) {
+            if (!args.length) {
+                addLine('az group: usage: az group <create|list|show|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az group create ── */
+            if (sub === 'create') {
+                var name = flagVal(args, '--name');
+                var loc  = flagVal(args, '--location') || flagVal(args, '-l');
+
+                if (!name) {
+                    addLine('az group create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!loc) {
+                    addLine('az group create: --location is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(resourceGroups, name)) {
+                    addLine('ERROR: Resource group "' + name + '" already exists.', 'term-line-err');
+                    return null;
+                }
+
+                addLine('Creating resource group "' + name + '" in ' + loc + '...', 'term-line-info');
+                var rg = buildRG(name, loc);
+                resourceGroups[name] = rg;
+
+                printJSON(rg);
+                addBlank();
+                addLine('  Resource group created successfully.  Location: ' + loc, 'term-line-info');
+                return { rg_created: true, name: name, location: loc };
+            }
+
+            /* ── az group list ── */
+            if (sub === 'list') {
+                var rgList = Object.keys(resourceGroups).map(function (k) { return resourceGroups[k]; });
+                if (!rgList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No resource groups found in subscription.', 'term-line-dim');
+                } else {
+                    printJSON(rgList);
+                    addBlank();
+                    addLine('  ' + rgList.length + ' resource group(s) found.', 'term-line-info');
+                }
+                return { rg_listed: true, count: rgList.length, groups: Object.keys(resourceGroups) };
+            }
+
+            /* ── az group show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name') || flagVal(args, '-n');
+                if (!showName) {
+                    addLine('az group show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(resourceGroups, showName)) {
+                    addLine('ERROR: Resource group "' + showName + '" not found.', 'term-line-err');
+                    addLine('List existing groups: az group list', 'term-line-info');
+                    return null;
+                }
+                printJSON(resourceGroups[showName]);
+                return { rg_shown: true, name: showName };
+            }
+
+            /* ── az group delete ── */
+            if (sub === 'delete') {
+                var delName = flagVal(args, '--name') || flagVal(args, '-n');
+                var yes     = args.indexOf('--yes') >= 0 || args.indexOf('-y') >= 0;
+
+                if (!delName) {
+                    addLine('az group delete: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!yes) {
+                    addLine('Are you sure you want to delete "' + delName + '" and all its resources? [y/n]: ', 'term-line-warn');
+                    addLine('Add --yes to confirm deletion without interactive prompt.', 'term-line-info');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(resourceGroups, delName)) {
+                    addLine('ERROR: Resource group "' + delName + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                addLine('Deleting resource group "' + delName + '" and all contained resources...', 'term-line-warn');
+                addLine('  This operation cannot be undone.', 'term-line-dim');
+
+                /* Remove all resources inside this RG from our registry */
+                Object.keys(resources).forEach(function (rid) {
+                    if (resources[rid].resourceGroup === delName) {
+                        delete resources[rid];
+                    }
+                });
+                /* Remove deployments for this RG */
+                Object.keys(deployments).forEach(function (key) {
+                    if (key.indexOf(delName + '/') === 0) {
+                        delete deployments[key];
+                    }
+                });
+                /* Remove tags for RG */
+                delete taggedRGs[delName];
+                /* Remove the RG itself */
+                delete resourceGroups[delName];
+
+                addBlank();
+                addLine('  Resource group "' + delName + '" deleted.', 'term-line-info');
+                addLine('  All resources within the group have been permanently removed.', 'term-line-dim');
+                return { rg_deleted: true, name: delName };
+            }
+
+            addLine('az group: unknown subcommand "' + sub + '". Try "create", "list", "show", or "delete".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az deployment group
+        ════════════════════════════════════════════════ */
+        function cmd_az_deployment_group(args) {
+            if (!args.length) {
+                addLine('az deployment group: usage: az deployment group <create|list|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az deployment group create ── */
+            if (sub === 'create') {
+                var rg           = flagVal(args, '--resource-group') || flagVal(args, '-g');
+                var templateFile = flagVal(args, '--template-file');
+                var paramsFile   = flagVal(args, '--parameters');
+                var deployName   = flagVal(args, '--name') || flagVal(args, '-n');
+
+                if (!rg) {
+                    addLine('az deployment group create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!templateFile) {
+                    addLine('az deployment group create: --template-file is required.', 'term-line-err');
+                    return null;
+                }
+
+                /* Validate resource group exists */
+                if (!Object.prototype.hasOwnProperty.call(resourceGroups, rg)) {
+                    addLine('ERROR: Resource group "' + rg + '" not found.', 'term-line-err');
+                    addLine('Create it first: az group create --name ' + rg + ' --location eastus', 'term-line-info');
+                    return null;
+                }
+
+                /* Validate template file exists in VFS */
+                var tPath = resolve(templateFile);
+                if (!isFile(tPath)) {
+                    addLine('ERROR: Template file not found: ' + templateFile, 'term-line-err');
+                    addLine('Check available templates: ls ~/templates/', 'term-line-info');
+                    return null;
+                }
+
+                var isStorageTemplate = tPath.indexOf('storage-account') >= 0;
+                var isVmTemplate      = tPath.indexOf('vm-template') >= 0;
+
+                /* VM template is for reading/study only — deployment not simulated */
+                if (isVmTemplate) {
+                    addLine('ERROR: VM deployment requires a virtual network and NIC that are not', 'term-line-err');
+                    addLine('configured in this lab environment. Use `cat ~/templates/vm-template.json`', 'term-line-err');
+                    addLine('to study the ARM template structure. This lab focuses on storage deployments.', 'term-line-err');
+                    return null;
+                }
+
+                if (!isStorageTemplate) {
+                    addLine('ERROR: Unrecognized template. This lab supports storage-account.json deployments.', 'term-line-err');
+                    return null;
+                }
+
+                /* Determine storage account name from params file or default */
+                var storageName = 'labstorage001';
+                var sku         = 'Standard_LRS';
+
+                if (paramsFile) {
+                    var pPath = resolve(paramsFile);
+                    if (!isFile(pPath)) {
+                        addLine('ERROR: Parameters file not found: ' + paramsFile, 'term-line-err');
+                        return null;
+                    }
+                    /* Parse the parameter file content */
+                    try {
+                        var pContent = vfs[pPath].content;
+                        var pObj     = JSON.parse(pContent);
+                        if (pObj.parameters && pObj.parameters.storageName) {
+                            storageName = pObj.parameters.storageName.value;
+                        }
+                        if (pObj.parameters && pObj.parameters.sku) {
+                            sku = pObj.parameters.sku.value;
+                        }
+                    } catch (e) {
+                        /* Parameters file malformed — use defaults */
+                    }
+                }
+
+                /* Check for name collision — if storage already deployed, bump name */
+                var resourceId = '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                                 '/providers/Microsoft.Storage/storageAccounts/' + storageName;
+                if (Object.prototype.hasOwnProperty.call(resources, resourceId)) {
+                    storageName = storageName.replace(/\d+$/, function (n) {
+                        return String(parseInt(n, 10) + 1).padStart(n.length, '0');
+                    });
+                    resourceId = '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                                 '/providers/Microsoft.Storage/storageAccounts/' + storageName;
+                }
+
+                var dName = deployName || nextDeployName('storage-deploy');
+
+                addLine('Validating template...', 'term-line-info');
+                addLine('  Schema:          valid', 'term-line-dim');
+                addLine('  Parameters:      resolved', 'term-line-dim');
+                addLine('  Resource types:  Microsoft.Storage/storageAccounts (2023-01-01)', 'term-line-dim');
+                addBlank();
+                addLine('Deploying to resource group "' + rg + '"...', 'term-line-info');
+                addLine('  [===========>         ] Creating Microsoft.Storage/storageAccounts/' + storageName, 'term-line-dim');
+                addLine('  [====================] Deployment complete.', 'term-line-dim');
+                addBlank();
+
+                var deploy = buildDeployment(rg, dName, templateFile, paramsFile, storageName, sku);
+                deployments[rg + '/' + dName] = deploy;
+
+                /* Register the storage resource */
+                var storageResource = buildStorageResource(rg, storageName, sku, LOCATION);
+                resources[storageResource.id] = storageResource;
+
+                printJSON(deploy);
+                addBlank();
+                addLine('  Deployment "' + dName + '" succeeded.', 'term-line-info');
+                addLine('  Storage endpoint: https://' + storageName + '.blob.core.windows.net/', 'term-line-info');
+
+                return {
+                    deployment_created: true,
+                    rg:           rg,
+                    name:         dName,
+                    storageName:  storageName,
+                    hasParams:    !!paramsFile,
+                    sku:          sku
+                };
+            }
+
+            /* ── az deployment group list ── */
+            if (sub === 'list') {
+                var listRG = flagVal(args, '--resource-group') || flagVal(args, '-g');
+                if (!listRG) {
+                    addLine('az deployment group list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(resourceGroups, listRG)) {
+                    addLine('ERROR: Resource group "' + listRG + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var prefix    = listRG + '/';
+                var deploys   = Object.keys(deployments)
+                    .filter(function (k) { return k.indexOf(prefix) === 0; })
+                    .map(function (k) { return deployments[k]; });
+
+                if (!deploys.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No deployments found in "' + listRG + '".', 'term-line-dim');
+                } else {
+                    printJSON(deploys);
+                    addBlank();
+                    addLine('  ' + deploys.length + ' deployment(s) in "' + listRG + '".', 'term-line-info');
+                }
+                return { deployment_listed: true, count: deploys.length, rg: listRG };
+            }
+
+            /* ── az deployment group show ── */
+            if (sub === 'show') {
+                var showRG   = flagVal(args, '--resource-group') || flagVal(args, '-g');
+                var showName = flagVal(args, '--name') || flagVal(args, '-n');
+                if (!showRG || !showName) {
+                    addLine('az deployment group show: --resource-group and --name are required.', 'term-line-err');
+                    return null;
+                }
+                var key = showRG + '/' + showName;
+                if (!Object.prototype.hasOwnProperty.call(deployments, key)) {
+                    addLine('ERROR: Deployment "' + showName + '" not found in "' + showRG + '".', 'term-line-err');
+                    return null;
+                }
+                printJSON(deployments[key]);
+                return { deployment_shown: true, rg: showRG, name: showName };
+            }
+
+            addLine('az deployment group: unknown subcommand "' + sub + '". Try "create", "list", or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az resource list
+        ════════════════════════════════════════════════ */
+        function cmd_az_resource(args) {
+            if (!args.length) {
+                addLine('az resource: usage: az resource list --resource-group <name>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var listRG = flagVal(args, '--resource-group') || flagVal(args, '-g');
+                if (!listRG) {
+                    addLine('az resource list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(resourceGroups, listRG)) {
+                    addLine('ERROR: Resource group "' + listRG + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var rgResources = Object.keys(resources)
+                    .filter(function (rid) { return resources[rid].resourceGroup === listRG; })
+                    .map(function (rid) {
+                        var r = resources[rid];
+                        return {
+                            id:            r.id,
+                            name:          r.name,
+                            type:          r.type,
+                            location:      r.location,
+                            resourceGroup: r.resourceGroup,
+                            kind:          r.kind,
+                            sku:           r.sku,
+                            tags:          r.tags
+                        };
+                    });
+
+                if (!rgResources.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No resources found in "' + listRG + '". Deploy a template first.', 'term-line-dim');
+                } else {
+                    printJSON(rgResources);
+                    addBlank();
+                    addLine('  ' + rgResources.length + ' resource(s) in "' + listRG + '".', 'term-line-info');
+                }
+                return { resource_listed: true, count: rgResources.length, rg: listRG };
+            }
+
+            addLine('az resource: unknown subcommand "' + sub + '". Try "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az tag create
+        ════════════════════════════════════════════════ */
+        function cmd_az_tag(args) {
+            if (!args.length) {
+                addLine('az tag: usage: az tag <create|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'create') {
+                var resourceId = flagVal(args, '--resource-id');
+                var tagsArg    = flagVal(args, '--tags');
+
+                if (!resourceId) {
+                    addLine('az tag create: --resource-id is required.', 'term-line-err');
+                    addLine('Example: az tag create --resource-id /subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01 --tags Environment=Lab', 'term-line-info');
+                    return null;
+                }
+                if (!tagsArg) {
+                    addLine('az tag create: --tags is required. Format: Key1=Value1 Key2=Value2', 'term-line-err');
+                    return null;
+                }
+
+                /* Parse all remaining args after --tags as tag pairs */
+                var tagsIdx    = args.indexOf('--tags');
+                var tagPairs   = args.slice(tagsIdx + 1);
+                /* Stop at any flag starting with -- */
+                var stopAt = tagPairs.findIndex(function (a) { return a.indexOf('--') === 0; });
+                if (stopAt >= 0) tagPairs = tagPairs.slice(0, stopAt);
+
+                var parsedTags = {};
+                tagPairs.forEach(function (pair) {
+                    var eqIdx = pair.indexOf('=');
+                    if (eqIdx > 0) {
+                        var k = pair.substring(0, eqIdx);
+                        var v = pair.substring(eqIdx + 1);
+                        parsedTags[k] = v;
+                    }
+                });
+                if (!Object.keys(parsedTags).length) {
+                    addLine('az tag create: no valid tag pairs found. Format: Key=Value', 'term-line-err');
+                    return null;
+                }
+
+                /* Apply tags — accept RG resource IDs or any resource */
+                var isRGTag = resourceId.indexOf('/resourceGroups/') >= 0 &&
+                              resourceId.split('/').length === 5;
+
+                /* Find which RG this targets (by ID pattern) */
+                var targetRGName = null;
+                var rgIdMatch = resourceId.match(/\/resourceGroups\/([^\/]+)$/);
+                if (rgIdMatch) targetRGName = rgIdMatch[1];
+
+                if (targetRGName && Object.prototype.hasOwnProperty.call(resourceGroups, targetRGName)) {
+                    /* Merge tags onto resource group */
+                    Object.keys(parsedTags).forEach(function (k) {
+                        resourceGroups[targetRGName].tags[k] = parsedTags[k];
+                    });
+                    taggedRGs[targetRGName] = true;
+                }
+
+                /* Also apply to matching resources */
+                Object.keys(resources).forEach(function (rid) {
+                    if (rid === resourceId) {
+                        Object.keys(parsedTags).forEach(function (k) {
+                            resources[rid].tags[k] = parsedTags[k];
+                        });
+                    }
+                });
+
+                var tagResult = {
+                    id:         resourceId,
+                    properties: {
+                        tags: parsedTags
+                    }
+                };
+                printJSON(tagResult);
+                addBlank();
+                addLine('  ' + Object.keys(parsedTags).length + ' tag(s) applied successfully.', 'term-line-info');
+                addLine('  Tags are used for cost allocation, automation, and policy enforcement.', 'term-line-dim');
+
+                return { tags_applied: true, resourceId: resourceId, tags: parsedTags };
+            }
+
+            if (sub === 'list') {
+                var listResId = flagVal(args, '--resource-id');
+                if (!listResId) {
+                    addLine('az tag list: --resource-id is required.', 'term-line-err');
+                    return null;
+                }
+                var listTags = {};
+                var listRGMatch = listResId.match(/\/resourceGroups\/([^\/]+)$/);
+                if (listRGMatch && resourceGroups[listRGMatch[1]]) {
+                    listTags = resourceGroups[listRGMatch[1]].tags || {};
+                }
+                printJSON({ id: listResId, properties: { tags: listTags } });
+                return { tags_listed: true };
+            }
+
+            addLine('az tag: unknown subcommand "' + sub + '". Try "create" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addLine('Azure Administration Fundamentals Lab — Available Commands', 'term-line-info');
+            addBlank();
+            addLine('AZURE CLI:', 'term-line-warn');
+            addLine('  az account show                                          Show active subscription', 'term-line-dim');
+            addLine('  az account list                                          List subscriptions', 'term-line-dim');
+            addLine('  az group create --name <n> --location <loc>              Create a resource group', 'term-line-dim');
+            addLine('  az group list                                            List resource groups', 'term-line-dim');
+            addLine('  az group show --name <n>                                 Show resource group details', 'term-line-dim');
+            addLine('  az group delete --name <n> --yes                         Delete a resource group', 'term-line-dim');
+            addLine('  az deployment group create --resource-group <rg>         Deploy ARM template', 'term-line-dim');
+            addLine('    --template-file <file> [--parameters <params>]', 'term-line-dim');
+            addLine('  az deployment group list --resource-group <rg>           List deployments', 'term-line-dim');
+            addLine('  az deployment group show --resource-group <rg>           Show deployment details', 'term-line-dim');
+            addLine('    --name <deployment-name>', 'term-line-dim');
+            addLine('  az resource list --resource-group <rg>                   List resources in RG', 'term-line-dim');
+            addLine('  az tag create --resource-id <id> --tags <k=v>...         Tag a resource', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   mkdir <dir>   env', 'term-line-dim');
+            addBlank();
+            addLine('LAB FILES:', 'term-line-warn');
+            addLine('  ARM Templates : ~/templates/  (storage-account.json, vm-template.json)', 'term-line-dim');
+            addLine('  Parameters    : ~/templates/parameters.json', 'term-line-dim');
+            addLine('  Scripts       : ~/scripts/deploy.sh', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'mkdir') {
+                result = cmd_mkdir(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'az') {
+                result = execAz(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route az sub-commands */
+        function execAz(args) {
+            if (!args.length) {
+                addLine('Welcome to Azure CLI (simulated). Type "help" for commands.', 'term-line-info');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'account') {
+                return cmd_az_account(args.slice(1));
+            }
+            if (sub === 'group') {
+                return cmd_az_group(args.slice(1));
+            }
+            if (sub === 'deployment') {
+                /* az deployment group ... */
+                if (args[1] === 'group') {
+                    return cmd_az_deployment_group(args.slice(2));
+                }
+                addLine('az deployment: unknown subcommand "' + args[1] + '". Did you mean "az deployment group ..."?', 'term-line-err');
+                return null;
+            }
+            if (sub === 'resource') {
+                return cmd_az_resource(args.slice(1));
+            }
+            if (sub === 'tag') {
+                return cmd_az_tag(args.slice(1));
+            }
+            if (sub === 'version' || sub === '--version') {
+                addLine('azure-cli                         2.58.0', 'term-line-out');
+                addLine('core                              2.58.0', 'term-line-out');
+                addLine('telemetry                          1.1.0', 'term-line-out');
+                addBlank();
+                addLine('Extensions: None installed', 'term-line-dim');
+                return { version: true };
+            }
+
+            addLine('az: unknown command "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+        ════════════════════════════════════════════════ */
+        function checkTasks(cmd, raw, result) {
+            /* ── Task 1: az account show ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.account_shown === true) {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: Create lab-rg-01 in eastus ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rg_created === true && result.name === 'lab-rg-01') {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: cat the storage-account.json template ── */
+            if (!taskDone[3] && taskDone[2]) {
+                if (cmd === 'cat' && result && typeof result === 'object' &&
+                    result.catted === true && result.path.indexOf('storage-account') >= 0) {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: Deploy template WITHOUT parameters file ── */
+            if (!taskDone[4] && taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.deployment_created === true &&
+                    result.rg === 'lab-rg-01' &&
+                    !result.hasParams) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: Deploy template WITH parameters file ── */
+            if (!taskDone[5] && taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.deployment_created === true &&
+                    result.rg === 'lab-rg-01' &&
+                    result.hasParams === true) {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: List deployments for lab-rg-01 (must show >= 2 deployments) ── */
+            if (!taskDone[6] && taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.deployment_listed === true &&
+                    result.rg === 'lab-rg-01' &&
+                    result.count >= 2) {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: List resources in lab-rg-01 (must have >= 1 resource) ── */
+            if (!taskDone[7] && taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_listed === true &&
+                    result.rg === 'lab-rg-01' &&
+                    result.count >= 1) {
+                    completeTask(7);
+                }
+            }
+
+            /* ── Task 8: Apply tags to lab-rg-01 ── */
+            if (!taskDone[8] && taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.tags_applied === true &&
+                    result.resourceId.indexOf('lab-rg-01') >= 0) {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: Create lab-rg-02 AND run group list showing both RGs ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rg_created === true && result.name === 'lab-rg-02') {
+                    task9_created = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rg_listed === true && result.count >= 2) {
+                    task9_listed = true;
+                }
+                if (task9_created && task9_listed) completeTask(9);
+            }
+
+            /* ── Task 10: Delete lab-rg-02 AND run group list showing only lab-rg-01 ── */
+            if (!taskDone[10] && taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rg_deleted === true && result.name === 'lab-rg-02') {
+                    task10_deleted = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.rg_listed === true && task10_deleted) {
+                    task10_listed = true;
+                }
+                if (task10_deleted && task10_listed) completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your Subscription',
+                2:  'Create a Resource Group',
+                3:  'Explore the ARM Template',
+                4:  'Deploy the ARM Template',
+                5:  'Deploy with Parameters',
+                6:  'List Deployments',
+                7:  'List Resources in the Group',
+                8:  'Tag a Resource',
+                9:  'Create a Second Resource Group',
+                10: 'Delete a Resource Group'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Run this command to inspect your active subscription:\n<code>az account show</code>\n\nLook at the output carefully. The <code>id</code> field is your subscription ID — a UUID that uniquely identifies your Azure subscription. The <code>tenantId</code> is your Microsoft Entra ID tenant. The <code>state</code> should be "Enabled". These three fields are what you will reference in every ARM resource ID.',
+                hint: 'The Azure subscription is the billing and management boundary in Azure. Every resource must belong to a subscription. A single Microsoft Entra ID tenant can have multiple subscriptions — common in large enterprises to separate production from dev/test costs. The subscription ID appears in every resource ID path: /subscriptions/{sub-id}/resourceGroups/{rg}/providers/{type}/{name}. Memorize this structure — you will see it constantly.',
+                cmd: 'az account show'
+            },
+            2: {
+                step: 'Create your first resource group:\n<code>az group create --name lab-rg-01 --location eastus</code>\n\nA resource group is a logical container for Azure resources. All resources in a group share the same lifecycle — you can deploy, manage, and delete them together. The <code>provisioningState: Succeeded</code> field confirms the operation completed.',
+                hint: 'Resource groups are not regions — they are management containers that live in a specific region for metadata storage, but their resources can be in any region. Best practices: one RG per application environment (e.g., myapp-prod, myapp-dev), or one RG per workload. Naming conventions matter for large organizations — Microsoft recommends including the environment, location, and workload in the name. Example: rg-storage-prod-eastus-001.',
+                cmd: 'az group create --name lab-rg-01 --location eastus'
+            },
+            3: {
+                step: 'Read the ARM template file:\n<code>cat ~/templates/storage-account.json</code>\n\nStudy the structure carefully:\n- <code>$schema</code> — validates the template against the ARM schema\n- <code>contentVersion</code> — your own versioning for change tracking\n- <code>parameters</code> — inputs that callers provide (or use defaults)\n- <code>variables</code> — computed values used within the template\n- <code>resources</code> — the actual Azure resources to deploy\n- <code>outputs</code> — values returned after deployment (endpoint URLs, IDs)',
+                hint: 'ARM templates are idempotent — running the same template twice with the same parameters produces the same result without duplicating resources. This is called "desired state" deployment. The <code>apiVersion</code> field in each resource block pins the API version, ensuring your template keeps working even as Azure adds new properties. Always use the latest stable API version for new templates. ARM templates are being gradually replaced by Bicep (a higher-level DSL) that compiles to ARM JSON.',
+                cmd: 'cat ~/templates/storage-account.json'
+            },
+            4: {
+                step: 'Deploy the ARM template using default parameters:\n<code>az deployment group create --resource-group lab-rg-01 --template-file ~/templates/storage-account.json</code>\n\nWatch the deployment output. The <code>provisioningState: Succeeded</code> inside the properties object confirms the deployment worked. The <code>outputs</code> section shows the storage endpoint URL returned by the template.',
+                hint: 'Incremental deployments (the default mode) only add or update resources — they do not delete resources not in the template. Complete deployments delete resources in the RG that are not in the template. Use Incremental for day-to-day updates; Complete only when you want the RG to exactly match the template. The deployment is recorded in Azure with a name, timestamp, and full input/output history — you can always roll back by re-deploying a previous template version.',
+                cmd: 'az deployment group create --resource-group lab-rg-01 --template-file ~/templates/storage-account.json'
+            },
+            5: {
+                step: 'Deploy the same template with a parameters file:\n<code>az deployment group create --resource-group lab-rg-01 --template-file ~/templates/storage-account.json --parameters ~/templates/parameters.json</code>\n\nThe parameters file overrides the template defaults. Check <code>cat ~/templates/parameters.json</code> first to see what values it sets — a different storage account name and GRS redundancy instead of LRS.',
+                hint: 'Parameter files are the recommended way to manage environment-specific values. You keep one template and multiple parameter files: parameters-dev.json, parameters-staging.json, parameters-prod.json. This follows the DRY principle — one template, many configurations. In CI/CD pipelines, the environment name selects the parameter file. Parameter files can also reference Azure Key Vault for secrets — the secret value is fetched at deploy time and never stored in the parameter file.',
+                cmd: 'az deployment group create --resource-group lab-rg-01 --template-file ~/templates/storage-account.json --parameters ~/templates/parameters.json'
+            },
+            6: {
+                step: 'List all deployments in your resource group:\n<code>az deployment group list --resource-group lab-rg-01</code>\n\nYou should see both deployments from Tasks 4 and 5. Each has a <code>name</code>, <code>timestamp</code>, and <code>provisioningState</code>. The <code>parameters</code> and <code>outputs</code> blocks show exactly what was deployed. This is your audit trail.',
+                hint: 'Deployment history is kept in Azure for 800 deployments per resource group before the oldest are auto-deleted. For compliance and auditing you can export deployment history to a storage account. In production environments, it is a best practice to give deployments meaningful names (not auto-generated GUIDs) so you can quickly identify what was deployed from which pipeline run. The az deployment group show command retrieves a single deployment with full detail including outputs.',
+                cmd: 'az deployment group list --resource-group lab-rg-01'
+            },
+            7: {
+                step: 'List all resources in the resource group:\n<code>az resource list --resource-group lab-rg-01</code>\n\nYou should see the two storage accounts created by the two deployments. Note the <code>type</code> field (Microsoft.Storage/storageAccounts), the <code>sku</code> showing Standard_LRS vs Standard_GRS, and the resource <code>id</code> — the full ARM path that uniquely identifies each resource in Azure.',
+                hint: 'The resource ID path has a fixed structure: /subscriptions/{sub}/resourceGroups/{rg}/providers/{namespace}/{type}/{name}. Understanding this path is essential — it is used for RBAC role assignments, policy targets, tag operations, and diagnostic settings. The provider namespace (e.g., Microsoft.Storage) identifies the Azure service. The resource type under that namespace (e.g., storageAccounts) is the specific resource kind. Child resources add more segments (e.g., /blobServices/default).',
+                cmd: 'az resource list --resource-group lab-rg-01'
+            },
+            8: {
+                step: 'Apply governance tags to your resource group:\n<code>az tag create --resource-id /subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01 --tags Environment=Lab Project=AZ104 Owner=student</code>\n\nYou can also tag individual resources by using their full resource ID. Tags are key-value pairs — maximum 50 tags per resource. The output shows the tag object applied to the resource.',
+                hint: 'Tags are the foundation of Azure governance. In production: every resource should have at minimum Environment, Owner, CostCenter, and Project tags. Azure Cost Management uses tags to break down billing by team or project. Azure Policy can enforce mandatory tags — if a resource is created without required tags, the policy can deny the deployment or auto-apply default values. Tags are case-insensitive for keys, case-sensitive for values. They are replicated globally and queryable via Azure Resource Graph.',
+                cmd: 'az tag create --resource-id /subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01 --tags Environment=Lab Project=AZ104 Owner=student'
+            },
+            9: {
+                step: 'Two commands required:\n1. <code>az group create --name lab-rg-02 --location westus</code> — Create a second resource group in West US.\n2. <code>az group list</code> — Verify both resource groups appear.\n\nNote that lab-rg-01 is in eastus and lab-rg-02 is in westus. Both are under the same subscription. This demonstrates that a subscription can span multiple regions.',
+                hint: 'Azure regions are physical datacenters grouped into paired regions for disaster recovery. eastus is paired with westus for geo-redundant storage (GRS) replication. When you create a resource group in westus, Azure stores the resource group metadata in that region, but resources inside the RG can still be in any region. Pairs like eastus/westus ensure at least one region stays online during large-scale regional outages. The region you choose affects latency, data residency compliance, and pricing.',
+                cmd: 'az group create --name lab-rg-02 --location westus\naz group list'
+            },
+            10: {
+                step: 'Two commands required:\n1. <code>az group delete --name lab-rg-02 --yes</code> — Delete the empty resource group. The <code>--yes</code> flag skips the interactive confirmation prompt.\n2. <code>az group list</code> — Confirm only lab-rg-01 remains.\n\nNote: if lab-rg-02 had resources, they would all be deleted simultaneously. This is the primary way to clean up entire workloads in Azure.',
+                hint: 'Resource group deletion is one of the most powerful operations in Azure — it removes all contained resources atomically. This is why proper tagging and naming is critical: you must know exactly what is in a resource group before deleting it. Azure provides resource locks (CanNotDelete and ReadOnly) to protect critical groups from accidental deletion. In production, apply a CanNotDelete lock to any resource group containing production data. The az lock create command creates these protection locks.',
+                cmd: 'az group delete --name lab-rg-02 --yes\naz group list'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                                ['account', 'group', 'deployment', 'resource', 'tag', 'version'],
+            'az account ':                                        ['show', 'list'],
+            'az group ':                                          ['create', 'list', 'show', 'delete'],
+            'az group create ':                                   ['--name', '--location', '-l'],
+            'az group show ':                                     ['--name', '-n'],
+            'az group delete ':                                   ['--name', '-n', '--yes', '-y'],
+            'az deployment ':                                     ['group'],
+            'az deployment group ':                               ['create', 'list', 'show'],
+            'az deployment group create ':                        ['--resource-group', '-g', '--template-file', '--parameters', '--name'],
+            'az deployment group list ':                          ['--resource-group', '-g'],
+            'az deployment group show ':                          ['--resource-group', '-g', '--name', '-n'],
+            'az resource ':                                       ['list'],
+            'az resource list ':                                  ['--resource-group', '-g'],
+            'az tag ':                                            ['create', 'list'],
+            'az tag create ':                                     ['--resource-id', '--tags'],
+            'az tag list ':                                       ['--resource-id']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'az104-ch01-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure Administration Lab — Cloud Shell Simulation', 'term-welcome');
+            addLine('Azure CLI 2.58.0   AZ-104 Chapter 1 — Prerequisites for Azure Administrators', 'term-welcome');
+            addBlank();
+            addLine('Welcome to Azure Cloud Shell. Your subscription is pre-configured.', 'term-line-info');
+            addLine('This lab covers the core ARM model and CLI workflows every admin needs.', 'term-line-info');
+            addBlank();
+            addLine('Files in this environment:', 'term-line-warn');
+            addLine('  Templates : ls ~/templates/   (storage-account.json, parameters.json, vm-template.json)', 'term-line-dim');
+            addLine('  Scripts   : ls ~/scripts/     (deploy.sh — example deployment script)', 'term-line-dim');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az" commands are simulated for this lab. In production, use Azure', 'term-line-warn');
+            addLine('Cloud Shell (shell.azure.com) or install the Azure CLI locally.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prerequisites for Azure Administrators | AZ-104 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        /* code inline in fact rows uses gold accent */
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent for code highlights */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; } /* comment */
+        .code-block .kw { color: #93c5fd; } /* keyword / property */
+        .code-block .st { color: #86efac; } /* string value */
+        .code-block .nu { color: #fdba74; } /* number */
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Prerequisites for Azure Administrators — AZ-104 Chapter 1</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-104 &nbsp;|&nbsp; Chapter 1 &nbsp;|&nbsp; Prerequisites</div>
+        <div class="title-hero">
+            <!-- Azure portal, CLI, and PowerShell converging into the Azure portal icon -->
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Azure Portal shield/logo -->
+                <rect x="164" y="25" width="92" height="80" rx="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="56" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="210" y="69" text-anchor="middle" font-size="9" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Portal</text>
+                <!-- Stylized "A" portal mark -->
+                <polygon points="210,78 202,92 218,92" fill="none" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="205" y1="87" x2="215" y2="87" stroke="#3b82f6" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+
+                <!-- Glow ring -->
+                <ellipse cx="210" cy="65" rx="58" ry="50" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- CLI Terminal — top-left -->
+                <rect x="14" y="8" width="110" height="58" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="69" y="24" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI</text>
+                <text x="22" y="38" font-size="7" fill="#86efac" font-family="Courier New,monospace">$ az group create \</text>
+                <text x="22" y="48" font-size="7" fill="#86efac" font-family="Courier New,monospace">  --name MyRG \</text>
+                <text x="22" y="58" font-size="7" fill="#86efac" font-family="Courier New,monospace">  --location eastus</text>
+
+                <!-- PowerShell — bottom-left -->
+                <rect x="14" y="76" width="110" height="46" rx="9" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="69" y="91" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell</text>
+                <text x="22" y="105" font-size="7" fill="#c4b5fd" font-family="Courier New,monospace">New-AzResourceGroup</text>
+                <text x="22" y="115" font-size="7" fill="#c4b5fd" font-family="Courier New,monospace">  -Name MyRG -Location eastus</text>
+
+                <!-- SDK / REST — top-right -->
+                <rect x="296" y="8" width="110" height="44" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="351" y="24" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SDK / REST</text>
+                <text x="304" y="37" font-size="7" fill="#86efac" font-family="Courier New,monospace">ResourceManagementClient</text>
+                <text x="304" y="47" font-size="7" fill="#64748b" font-family="Courier New,monospace">.resourceGroups.create()</text>
+
+                <!-- ARM Templates — bottom-right -->
+                <rect x="296" y="62" width="110" height="60" rx="9" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="351" y="78" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">ARM Templates</text>
+                <text x="304" y="91" font-size="7" fill="#67e8f9" font-family="Courier New,monospace">{</text>
+                <text x="304" y="101" font-size="7" fill="#67e8f9" font-family="Courier New,monospace">  "type": "Microsoft.Compute</text>
+                <text x="304" y="111" font-size="7" fill="#67e8f9" font-family="Courier New,monospace">  /virtualMachines"</text>
+
+                <!-- Converging arrows — all pointing toward the portal center -->
+                <!-- CLI top-left -> portal -->
+                <line x1="124" y1="37" x2="163" y2="52" stroke="rgba(201,168,58,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="156,47 163,52 158,58" fill="#c9a83a"/>
+                <!-- PS bottom-left -> portal -->
+                <line x1="124" y1="92" x2="163" y2="78" stroke="rgba(167,139,250,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="156,73 163,78 160,85" fill="#a78bfa"/>
+                <!-- SDK top-right -> portal -->
+                <line x1="295" y1="30" x2="257" y2="52" stroke="rgba(58,181,119,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="264,47 257,52 261,59" fill="#3ab577"/>
+                <!-- ARM bottom-right -> portal -->
+                <line x1="295" y1="92" x2="257" y2="78" stroke="rgba(6,182,212,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="264,72 257,78 263,84" fill="#06b6d4"/>
+            </svg>
+            <div class="big-title">
+                Prerequisites for <span class="accent">Azure Administrators</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                ARM &nbsp;&bull;&nbsp; Resource Groups &nbsp;&bull;&nbsp; IaC Templates &nbsp;&bull;&nbsp; CLI &nbsp;&bull;&nbsp; PowerShell &nbsp;&bull;&nbsp; Cloud Shell &nbsp;&bull;&nbsp; Bicep
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Before you manage a single VM or configure a single virtual network, you need to understand the tools Azure admins actually use. This chapter covers ARM — the single control plane beneath every Azure action — and the CLIs, templates, and shells that make it operational.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-104 Exam Objectives</span>
+            <span>Chapter 1 of 8</span>
+            <span>Azure Administrator Associate</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AZURE RESOURCE MANAGER ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure Resource Manager <span class="accent">(ARM)</span></div>
+        <div class="slide-subtitle">The single deployment and management layer for Azure. Every action — portal click, CLI command, PowerShell cmdlet, SDK call — hits the same ARM API.</div>
+
+        <!-- Multiple clients all converging on ARM, then out to Azure resources -->
+        <div class="diagram-center">
+            <svg width="680" height="120" viewBox="0 0 680 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Client: Portal -->
+                <rect x="4" y="4" width="90" height="26" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="49" y="12" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Portal</text>
+                <text x="49" y="23" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">portal.azure.com</text>
+
+                <!-- Client: CLI -->
+                <rect x="4" y="38" width="90" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="49" y="46" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI</text>
+                <text x="49" y="57" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">az command</text>
+
+                <!-- Client: PowerShell -->
+                <rect x="4" y="72" width="90" height="26" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="49" y="80" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell</text>
+                <text x="49" y="91" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Az module</text>
+
+                <!-- Client: SDK / REST -->
+                <rect x="4" y="96" width="90" height="20" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="49" y="105" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SDK / REST API</text>
+                <text x="49" y="113" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">management.azure.com</text>
+
+                <!-- Arrows from clients to ARM -->
+                <line x1="95" y1="17" x2="188" y2="57" stroke="rgba(59,130,246,0.45)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="95" y1="51" x2="188" y2="60" stroke="rgba(201,168,58,0.45)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="95" y1="85" x2="188" y2="65" stroke="rgba(167,139,250,0.45)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="95" y1="106" x2="188" y2="68" stroke="rgba(58,181,119,0.45)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- ARM Central Box -->
+                <rect x="188" y="22" width="152" height="76" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="264" y="44" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">ARM</text>
+                <text x="264" y="57" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Authentication + Authorization</text>
+                <text x="264" y="68" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Policy Enforcement</text>
+                <text x="264" y="79" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">management.azure.com</text>
+                <text x="264" y="89" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Single Control Plane</text>
+
+                <!-- Pulse ring on ARM -->
+                <rect x="180" y="14" width="168" height="92" rx="16" fill="none" stroke="rgba(59,130,246,0.12)" stroke-width="1.4"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Arrows from ARM to resources -->
+                <line x1="341" y1="57" x2="380" y2="57" stroke="rgba(59,130,246,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="380,53 388,57 380,61" fill="#3b82f6"/>
+
+                <!-- Azure Resources (stacked) -->
+                <rect x="390" y="6" width="118" height="22" rx="6" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="449" y="14" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Virtual Machines</text>
+                <text x="449" y="23" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Microsoft.Compute/virtualMachines</text>
+
+                <rect x="390" y="34" width="118" height="22" rx="6" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="449" y="42" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Storage Accounts</text>
+                <text x="449" y="51" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Microsoft.Storage/storageAccounts</text>
+
+                <rect x="390" y="62" width="118" height="22" rx="6" fill="rgba(6,182,212,0.07)" stroke="rgba(6,182,212,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="449" y="70" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Virtual Networks</text>
+                <text x="449" y="79" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Microsoft.Network/virtualNetworks</text>
+
+                <rect x="390" y="90" width="118" height="22" rx="6" fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.8s; opacity:0;"/>
+                <text x="449" y="98" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">SQL Databases</text>
+                <text x="449" y="107" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Microsoft.Sql/servers/databases</text>
+
+                <!-- RBAC / Entra label hanging off ARM -->
+                <rect x="520" y="38" width="152" height="40" rx="8" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.65s; opacity:0;"/>
+                <line x1="342" y1="40" x2="520" y2="40" stroke="rgba(239,68,68,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                <text x="596" y="51" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID + RBAC</text>
+                <text x="596" y="62" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Every request authenticated here</text>
+                <text x="596" y="72" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">before ARM forwards it</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            ARM is the single control plane for everything in Azure. Whether you click the portal or run <span class="ic">az vm create</span>, you hit <span class="ic">management.azure.com</span>. ARM authenticates your identity, checks your RBAC permissions, enforces any policies, and then routes the request to the appropriate resource provider.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What ARM Does</div>
+                <div class="card-desc">ARM receives every management request — create, read, update, delete — and handles authentication via Entra ID, authorization via RBAC, policy enforcement, and routing to the correct resource provider. It also maintains the resource metadata, tags, and relationships stored in Azure's resource graph.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Resource Providers</div>
+                <div class="card-desc">Each Azure service is a resource provider: <span class="ic">Microsoft.Compute</span>, <span class="ic">Microsoft.Storage</span>, <span class="ic">Microsoft.Network</span>. ARM delegates to them. Providers must be registered in your subscription before you can deploy their resources — most are auto-registered, but some (like <span class="ic">Microsoft.Cdn</span>) require manual registration.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why This Matters for Admins</div>
+                <div class="card-desc">Because all tools hit the same ARM API, everything is consistent and auditable. You can't do something in the portal that PowerShell can't also do. The ARM Activity Log records every operation — who did what, when, to which resource, and whether it succeeded. That log is your forensic trail for change management.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — RESOURCE GROUPS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Resource <span class="accent">Groups</span></div>
+        <div class="slide-subtitle">Logical containers for related Azure resources. A resource belongs to exactly one resource group. Delete the group — delete everything in it.</div>
+
+        <!-- Resource group box containing resources, with lifecycle arrows -->
+        <div class="diagram-center">
+            <svg width="680" height="118" viewBox="0 0 680 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Resource Group boundary -->
+                <rect x="4" y="10" width="400" height="104" rx="12" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="6,3"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="20" y="24" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Resource Group: rg-webapp-prod</text>
+                <text x="20" y="34" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Location: East US &nbsp;|&nbsp; Subscription: Contoso-Prod</text>
+
+                <!-- VM resource -->
+                <rect x="18" y="42" width="88" height="62" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="62" y="58" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VM</text>
+                <text x="62" y="69" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">vm-web-01</text>
+                <text x="62" y="79" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Standard_D2s_v3</text>
+                <text x="62" y="89" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Windows Server</text>
+                <text x="62" y="99" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">East US</text>
+
+                <!-- Storage resource -->
+                <rect x="116" y="42" width="88" height="62" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="160" y="58" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Storage</text>
+                <text x="160" y="69" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">stwebapp001</text>
+                <text x="160" y="79" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Blob + Files</text>
+                <text x="160" y="89" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">LRS Replication</text>
+                <text x="160" y="99" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">East US</text>
+
+                <!-- VNet resource -->
+                <rect x="214" y="42" width="88" height="62" rx="8" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="258" y="58" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">VNet</text>
+                <text x="258" y="69" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">vnet-prod-001</text>
+                <text x="258" y="79" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">10.0.0.0/16</text>
+                <text x="258" y="89" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">3 Subnets</text>
+                <text x="258" y="99" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">East US</text>
+
+                <!-- SQL resource -->
+                <rect x="312" y="42" width="84" height="62" rx="8" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="354" y="58" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">SQL DB</text>
+                <text x="354" y="69" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">sql-webapp-prod</text>
+                <text x="354" y="79" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">GP_S_Gen5_2</text>
+                <text x="354" y="89" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Serverless tier</text>
+                <text x="354" y="99" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">East US</text>
+
+                <!-- Lifecycle stages to the right -->
+                <!-- Stage 1: Create -->
+                <rect x="424" y="8" width="74" height="30" rx="7" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="461" y="22" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">1. Create</text>
+                <text x="461" y="31" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Deploy together</text>
+
+                <!-- Down arrow -->
+                <line x1="461" y1="39" x2="461" y2="52" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="457,52 461,59 465,52" fill="rgba(255,255,255,0.2)"/>
+
+                <!-- Stage 2: Manage -->
+                <rect x="424" y="60" width="74" height="30" rx="7" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="461" y="73" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">2. Manage</text>
+                <text x="461" y="83" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Tag, lock, RBAC</text>
+
+                <!-- Down arrow -->
+                <line x1="461" y1="91" x2="461" y2="104" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="457,104 461,111 465,104" fill="rgba(255,255,255,0.2)"/>
+
+                <!-- Stage 3: Delete -->
+                <rect x="510" y="34" width="162" height="52" rx="7" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.4)" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="591" y="51" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">3. Delete</text>
+                <text x="591" y="63" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Delete the RG = delete ALL resources</text>
+                <text x="591" y="73" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">VM + Storage + VNet + SQL — gone</text>
+                <text x="591" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Useful for dev/test cleanup</text>
+                <!-- Arrow from stage 2 to delete -->
+                <line x1="499" y1="75" x2="509" y2="62" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">One Resource Group, One Resource</div>
+                <div class="card-desc">A resource can only belong to a single resource group at a time. You can move resources between groups using <span class="ic">az resource move</span>, but during the move operation both groups are locked. Resources in different groups can still communicate — group membership is a management concept, not a network boundary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Location is the Metadata Location</div>
+                <div class="card-desc">When you create a resource group, you specify a location (e.g., <span class="ic">eastus</span>). This is where ARM stores the <em>metadata</em> about the group, not where the resources inside it must live. A resource group in East US can contain resources deployed to West Europe or Australia East.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Tags, Locks, and RBAC Scope</div>
+                <div class="card-desc">Tags applied to a resource group do <strong>not</strong> automatically inherit to child resources — you must apply tags explicitly or use Azure Policy. Locks (<span class="ic">CanNotDelete</span>, <span class="ic">ReadOnly</span>) do inherit. RBAC assignments at the resource group scope also inherit down to all resources within it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — ARM TEMPLATES (JSON) ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">ARM Templates <span class="accent">(JSON)</span></div>
+        <div class="slide-subtitle">Infrastructure as Code — declarative, idempotent JSON. Describe what you want. ARM figures out how to get there. Deploy the same template 100 times: same result every time.</div>
+
+        <!-- JSON file -> ARM -> deployed resources, with idempotent loop -->
+        <div class="diagram-center">
+            <svg width="680" height="106" viewBox="0 0 680 106" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- JSON Template file icon -->
+                <rect x="4" y="8" width="110" height="90" rx="9" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <!-- file header tab -->
+                <rect x="4" y="8" width="55" height="14" rx="6" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1"/>
+                <text x="30" y="18" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">.json</text>
+                <text x="59" y="34" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ARM Template</text>
+                <text x="14" y="46" font-size="6.5" fill="#fef3c7" font-family="Courier New,monospace">{</text>
+                <text x="14" y="56" font-size="6" fill="#86efac" font-family="Courier New,monospace">  "$schema": "...",</text>
+                <text x="14" y="65" font-size="6" fill="#67e8f9" font-family="Courier New,monospace">  "parameters": {},</text>
+                <text x="14" y="74" font-size="6" fill="#fdba74" font-family="Courier New,monospace">  "variables": {},</text>
+                <text x="14" y="83" font-size="6" fill="#c4b5fd" font-family="Courier New,monospace">  "resources": [],</text>
+                <text x="14" y="92" font-size="6" fill="#fca5a5" font-family="Courier New,monospace">  "outputs": {}</text>
+
+                <!-- Arrow: template -> ARM -->
+                <line x1="116" y1="53" x2="186" y2="53" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="186,49 194,53 186,57" fill="#c9a83a"/>
+                <text x="150" y="45" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">deploy</text>
+
+                <!-- ARM engine box -->
+                <rect x="196" y="22" width="128" height="62" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="260" y="40" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">ARM Engine</text>
+                <text x="260" y="52" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Validates template</text>
+                <text x="260" y="62" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Resolves dependencies</text>
+                <text x="260" y="72" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Parallel deploys where possible</text>
+
+                <!-- Arrow: ARM -> resources -->
+                <line x1="326" y1="53" x2="374" y2="53" stroke="rgba(59,130,246,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="374,49 382,53 374,57" fill="#3b82f6"/>
+                <text x="349" y="45" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-family="Segoe UI,sans-serif">provision</text>
+
+                <!-- Deployed resources stacked -->
+                <rect x="384" y="8" width="116" height="22" rx="6" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="442" y="17" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Virtual Machine</text>
+                <text x="442" y="26" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">created or verified existing</text>
+
+                <rect x="384" y="36" width="116" height="22" rx="6" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="442" y="45" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Virtual Network</text>
+                <text x="442" y="54" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">created or verified existing</text>
+
+                <rect x="384" y="64" width="116" height="22" rx="6" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="442" y="73" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Storage Account</text>
+                <text x="442" y="82" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">created or verified existing</text>
+
+                <!-- Idempotent loop box -->
+                <rect x="518" y="18" width="158" height="70" rx="10" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.35)" stroke-width="1.3"
+                    style="animation: boxGrow 0.4s ease forwards 0.55s; opacity:0;"/>
+                <text x="597" y="34" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Idempotent</text>
+                <text x="597" y="46" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Deploy same template</text>
+                <text x="597" y="57" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">100 times in a row:</text>
+                <text x="597" y="68" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Same result. No duplicates.</text>
+                <text x="597" y="79" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Safe to re-run on drift</text>
+                <!-- Arrow from resources back up to ARM for re-run -->
+                <line x1="500" y1="53" x2="518" y2="53" stroke="rgba(167,139,250,0.35)" stroke-width="1" stroke-dasharray="3,2"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Declarative vs. Imperative</div>
+                <div class="card-desc"><strong>Declarative (ARM):</strong> you describe the desired end state — "I want a VM named vm-web-01 with 2 cores." ARM decides the steps. <strong>Imperative (CLI/PS):</strong> you write each step — "create NIC, create disk, create VM, attach NIC, attach disk." ARM templates are always declarative. Scripts are imperative. Both have their place.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Incremental vs. Complete Mode</div>
+                <div class="card-desc">ARM deploys in <strong>Incremental mode</strong> by default: add/update resources in the template, leave anything not mentioned untouched. <strong>Complete mode</strong> is destructive: any resource in the resource group that is NOT in the template gets deleted. Use Complete mode carefully — it is the right tool for enforcing exact desired state, but it will delete resources you forgot to include.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">What-If Deployments</div>
+                <div class="card-desc">Before deploying, run <span class="ic">az deployment group what-if</span>. ARM previews every change: create, modify, delete, or no-change. This is your safety check before any deployment, especially in production. The output color-codes each operation: green (create), yellow (modify), red (delete). Use it every time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — ARM TEMPLATE STRUCTURE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">ARM Template <span class="accent">Structure</span></div>
+        <div class="slide-subtitle">Six mandatory and optional sections. Every valid ARM template starts with <span class="ic">$schema</span> and <span class="ic">contentVersion</span>. The <span class="ic">resources</span> array is the only required payload section.</div>
+
+        <!-- Template document with labeled sections -->
+        <div class="diagram-center">
+            <svg width="680" height="112" viewBox="0 0 680 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Template outer border -->
+                <rect x="4" y="4" width="280" height="104" rx="10" fill="rgba(201,168,58,0.05)" stroke="rgba(201,168,58,0.3)" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="144" y="16" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">azuredeploy.json</text>
+
+                <!-- Section rows inside template -->
+                <!-- $schema -->
+                <rect x="10" y="22" width="268" height="12" rx="3" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.25)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="16" y="31" font-size="6.5" fill="#93c5fd" font-family="Courier New,monospace">"$schema": "https://schema.management.azure.com/..."</text>
+
+                <!-- contentVersion -->
+                <rect x="10" y="36" width="268" height="12" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.25)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="16" y="45" font-size="6.5" fill="#67e8f9" font-family="Courier New,monospace">"contentVersion": "1.0.0.0"</text>
+
+                <!-- parameters -->
+                <rect x="10" y="50" width="268" height="12" rx="3" fill="rgba(167,139,250,0.1)" stroke="rgba(167,139,250,0.25)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.36s; opacity:0;"/>
+                <text x="16" y="59" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">"parameters": &#123; "vmName": &#123; "type": "string" &#125; &#125;</text>
+
+                <!-- variables -->
+                <rect x="10" y="64" width="268" height="12" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.25)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="16" y="73" font-size="6.5" fill="#fef3c7" font-family="Courier New,monospace">"variables": &#123; "nicName": "[concat(parameters('vmName'),'-nic')]" &#125;</text>
+
+                <!-- resources (highlighted — mandatory) -->
+                <rect x="10" y="78" width="268" height="14" rx="3" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.5)" stroke-width="1"
+                    style="animation: labelSlide 0.3s ease forwards 0.52s; opacity:0;"/>
+                <text x="16" y="88" font-size="6.5" fill="#86efac" font-weight="700" font-family="Courier New,monospace">"resources": [ &#123; "type": "Microsoft.Compute/virtualMachines", ... &#125; ]</text>
+
+                <!-- outputs -->
+                <rect x="10" y="94" width="268" height="10" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.25)" stroke-width="0.8"
+                    style="animation: labelSlide 0.3s ease forwards 0.60s; opacity:0;"/>
+                <text x="16" y="102" font-size="6.5" fill="#fdba74" font-family="Courier New,monospace">"outputs": &#123; "publicIp": &#123; "value": "[reference(...).ipAddress]" &#125; &#125;</text>
+
+                <!-- Section labels with descriptions on right side -->
+                <!-- Schema label -->
+                <line x1="286" y1="28" x2="304" y2="28" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"/>
+                <rect x="304" y="10" width="368" height="22" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="312" y="20" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">$schema</text>
+                <text x="312" y="29" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Declares ARM template version. Required. Links to Microsoft's JSON schema for validation and IntelliSense.</text>
+
+                <!-- contentVersion label -->
+                <line x1="286" y1="42" x2="304" y2="42" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"/>
+                <rect x="304" y="33" width="368" height="20" rx="5" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.2)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.33s; opacity:0;"/>
+                <text x="312" y="41" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">contentVersion</text>
+                <text x="312" y="50" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Semantic version of your template. "1.0.0.0" is the convention. Not enforced by ARM — it's for your change tracking.</text>
+
+                <!-- parameters label -->
+                <line x1="286" y1="56" x2="304" y2="56" stroke="rgba(167,139,250,0.3)" stroke-width="0.8"/>
+                <rect x="304" y="54" width="368" height="12" rx="5" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.41s; opacity:0;"/>
+                <text x="312" y="63" font-size="6.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">parameters — Optional. User-supplied values at deploy time (names, sizes, credentials, regions).</text>
+
+                <!-- variables label -->
+                <line x1="286" y1="70" x2="304" y2="70" stroke="rgba(201,168,58,0.3)" stroke-width="0.8"/>
+                <rect x="304" y="68" width="368" height="12" rx="5" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.2)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.49s; opacity:0;"/>
+                <text x="312" y="77" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">variables — Optional. Computed values reused in the template (avoid repeating concat expressions).</text>
+
+                <!-- resources label -->
+                <line x1="286" y1="85" x2="304" y2="85" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"/>
+                <rect x="304" y="82" width="368" height="13" rx="5" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.57s; opacity:0;"/>
+                <text x="312" y="91" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">resources — REQUIRED. The array of Azure resources to create or modify. At least one entry is mandatory.</text>
+
+                <!-- outputs label -->
+                <line x1="286" y1="99" x2="304" y2="99" stroke="rgba(249,115,22,0.3)" stroke-width="0.8"/>
+                <rect x="304" y="96" width="368" height="12" rx="5" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.2)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="312" y="105" font-size="6.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">outputs — Optional. Values returned after deployment (public IPs, connection strings, resource IDs).</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Template Functions</div>
+                <div class="card-desc">ARM has a built-in expression language: <span class="ic">[concat(...)]</span>, <span class="ic">[resourceId(...)]</span>, <span class="ic">[parameters('name')]</span>, <span class="ic">[variables('nic')]</span>, <span class="ic">[reference(...).properties.ipAddress]</span>. Expressions go inside square brackets. String literals do not. The engine evaluates expressions at deploy time, not author time.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Resource Dependencies</div>
+                <div class="card-desc">Use <span class="ic">dependsOn</span> to declare explicit ordering when ARM can't infer it automatically. For example, a VM must depend on the NIC, and the NIC must depend on the VNet subnet. ARM automatically detects dependencies when you use <span class="ic">[resourceId(...)]</span> references inside a resource definition — explicit <span class="ic">dependsOn</span> is only needed for non-reference relationships.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Linked and Nested Templates</div>
+                <div class="card-desc">For large deployments, break templates into modules. <strong>Nested templates</strong> embed a child template inline under <span class="ic">"type": "Microsoft.Resources/deployments"</span>. <strong>Linked templates</strong> reference a child template by URI (must be publicly accessible or in a storage account with SAS token). Bicep's <span class="ic">module</span> keyword is the modern replacement for this pattern.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — PARAMETERS AND VARIABLES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Parameters <span class="accent">and Variables</span></div>
+        <div class="slide-subtitle">Parameters accept user input at deploy time. Variables compute values once and reuse them. Together they make templates flexible and DRY (Don't Repeat Yourself).</div>
+
+        <!-- User provides params -> template computes variables -> consistent naming across resources -->
+        <div class="diagram-center">
+            <svg width="680" height="108" viewBox="0 0 680 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- User input box -->
+                <rect x="4" y="14" width="148" height="80" rx="9" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="78" y="28" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Deploy-Time Input</text>
+                <text x="12" y="41" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">vmName:    "prod-web-01"</text>
+                <text x="12" y="51" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">location:  "eastus"</text>
+                <text x="12" y="61" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">vmSize:    "Standard_D2s_v3"</text>
+                <text x="12" y="71" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">adminUser: "azureadmin"</text>
+                <text x="12" y="81" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">environment: "prod"</text>
+                <text x="78" y="91" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">--parameters @prod.params.json</text>
+
+                <!-- Arrow: params -> template -->
+                <line x1="154" y1="54" x2="192" y2="54" stroke="rgba(167,139,250,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="192,50 200,54 192,58" fill="#a78bfa"/>
+
+                <!-- Template / Variables box -->
+                <rect x="202" y="8" width="200" height="92" rx="9" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="302" y="22" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Template Variables</text>
+                <text x="210" y="35" font-size="6.5" fill="#fef3c7" font-family="Courier New,monospace">"nicName":</text>
+                <text x="210" y="44" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  "[concat(parameters('vmName'),'-nic')]"</text>
+                <text x="210" y="55" font-size="6.5" fill="#fef3c7" font-family="Courier New,monospace">"osDiskName":</text>
+                <text x="210" y="64" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  "[concat(parameters('vmName'),'-os-disk')]"</text>
+                <text x="210" y="75" font-size="6.5" fill="#fef3c7" font-family="Courier New,monospace">"nsgName":</text>
+                <text x="210" y="84" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  "[concat(parameters('vmName'),'-nsg')]"</text>
+                <text x="302" y="96" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">computed once, reused everywhere</text>
+
+                <!-- Arrow: variables -> resources -->
+                <line x1="404" y1="54" x2="444" y2="54" stroke="rgba(201,168,58,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="444,50 452,54 444,58" fill="#c9a83a"/>
+
+                <!-- Deployed resources with consistent names -->
+                <rect x="454" y="8" width="222" height="92" rx="9" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="565" y="22" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Deployed Resources</text>
+                <text x="462" y="35" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">VM:    prod-web-01</text>
+                <text x="462" y="46" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">NIC:   prod-web-01-nic</text>
+                <text x="462" y="57" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">Disk:  prod-web-01-os-disk</text>
+                <text x="462" y="68" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">NSG:   prod-web-01-nsg</text>
+                <text x="565" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Consistent naming from one variable.</text>
+                <text x="565" y="92" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Change vmName once = all names update.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Parameter Schema</div>
+                <div class="card-desc">Each parameter has a <span class="ic">"type"</span> (<span class="ic">string</span>, <span class="ic">int</span>, <span class="ic">bool</span>, <span class="ic">array</span>, <span class="ic">object</span>, <span class="ic">secureString</span>), an optional <span class="ic">"defaultValue"</span>, an optional <span class="ic">"allowedValues"</span> array to constrain choices, and <span class="ic">"minLength"</span>/<span class="ic">"maxLength"</span> for strings. Use <span class="ic">secureString</span> for passwords — ARM will never echo the value back in logs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Parameter Files</div>
+                <div class="card-desc">Store environment-specific values in separate parameter files: <span class="ic">dev.parameters.json</span>, <span class="ic">prod.parameters.json</span>. Pass them at deploy time with <span class="ic">--parameters @prod.parameters.json</span>. The template stays the same; only the parameter file changes per environment. Commit both to source control — never hardcode prod values in the template itself.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">When to Use Variables vs Parameters</div>
+                <div class="card-desc">Use <strong>parameters</strong> for values that change between environments or deployments: names, sizes, regions, admin usernames. Use <strong>variables</strong> for values that are computed from parameters and reused in multiple places — naming conventions, resource IDs, conditional strings. Variables are evaluated by ARM before any resource is provisioned; they cannot reference other variables defined later in the block.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — AZURE CLOUD SHELL ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Cloud Shell</span></div>
+        <div class="slide-subtitle">A fully managed, browser-based shell. No local install. No OS compatibility issues. Bash or PowerShell. Your session persists files in an Azure Storage account across sessions.</div>
+
+        <!-- Browser -> Cloud Shell with Bash/PS tabs -> Azure resources -->
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Browser / Portal box -->
+                <rect x="4" y="18" width="110" height="74" rx="9" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <!-- Browser chrome bar -->
+                <rect x="4" y="18" width="110" height="14" rx="9" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.4"/>
+                <circle cx="14" cy="25" r="3" fill="#ef4444" opacity="0.6"/>
+                <circle cx="22" cy="25" r="3" fill="#f97316" opacity="0.6"/>
+                <circle cx="30" cy="25" r="3" fill="#3ab577" opacity="0.6"/>
+                <text x="57" y="26" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">portal.azure.com</text>
+                <text x="59" y="44" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Portal</text>
+                <text x="59" y="57" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Click the</text>
+                <text x="59" y="67" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Cloud Shell icon</text>
+                <text x="59" y="79" text-anchor="middle" font-size="9" fill="#93c5fd" font-family="Segoe UI,sans-serif">&gt;_</text>
+                <text x="59" y="89" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">in the top nav bar</text>
+
+                <!-- Arrow: browser -> Cloud Shell -->
+                <line x1="116" y1="55" x2="154" y2="55" stroke="rgba(59,130,246,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="154,51 162,55 154,59" fill="#3b82f6"/>
+
+                <!-- Cloud Shell terminal box -->
+                <rect x="164" y="8" width="210" height="94" rx="10" fill="rgba(0,0,0,0.35)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <!-- Terminal tabs -->
+                <rect x="164" y="8" width="72" height="16" rx="5" fill="#3b82f6"/>
+                <text x="200" y="19" text-anchor="middle" font-size="7.5" fill="#fff" font-weight="700" font-family="Segoe UI,sans-serif">Bash</text>
+                <rect x="238" y="8" width="80" height="16" rx="5" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.4)" stroke-width="0.8"/>
+                <text x="278" y="19" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell</text>
+                <!-- Terminal content -->
+                <text x="172" y="35" font-size="7" fill="#3ab577" font-family="Courier New,monospace">user@Azure:~$</text>
+                <text x="172" y="46" font-size="7" fill="#86efac" font-family="Courier New,monospace">az account show --query name</text>
+                <text x="172" y="56" font-size="7" fill="#67e8f9" font-family="Courier New,monospace">"Contoso-Production"</text>
+                <text x="172" y="67" font-size="7" fill="#3ab577" font-family="Courier New,monospace">user@Azure:~$</text>
+                <text x="172" y="77" font-size="7" fill="#86efac" font-family="Courier New,monospace">az group list --output table</text>
+                <text x="172" y="87" font-size="7" fill="#475569" font-family="Courier New,monospace">Name           Location  State</text>
+                <text x="172" y="96" font-size="7" fill="#475569" font-family="Courier New,monospace">rg-prod-001    eastus    Succeeded</text>
+
+                <!-- Arrow: Cloud Shell -> Azure -->
+                <line x1="376" y1="55" x2="416" y2="55" stroke="rgba(59,130,246,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="416,51 424,55 416,59" fill="#3b82f6"/>
+
+                <!-- Features list box -->
+                <rect x="426" y="8" width="248" height="94" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="550" y="22" text-anchor="middle" font-size="8.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Cloud Shell Features</text>
+                <!-- Feature rows -->
+                <circle cx="436" cy="33" r="3" fill="#3ab577"/>
+                <text x="443" y="37" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Pre-installed: az, pwsh, git, kubectl, terraform, ansible</text>
+                <circle cx="436" cy="47" r="3" fill="#3b82f6"/>
+                <text x="443" y="51" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">5 GB file persistence in Azure File Share</text>
+                <circle cx="436" cy="61" r="3" fill="#c9a83a"/>
+                <text x="443" y="65" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Monaco Editor: edit files right in the browser</text>
+                <circle cx="436" cy="75" r="3" fill="#a78bfa"/>
+                <text x="443" y="79" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Authenticated: no az login needed, uses your portal session</text>
+                <circle cx="436" cy="89" r="3" fill="#f97316"/>
+                <text x="443" y="93" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Available: portal, shell.azure.com, VS Code Azure extension</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">First-Time Setup</div>
+                <div class="card-desc">The first time you open Cloud Shell, Azure creates a storage account and file share in a new resource group (<span class="ic">cloud-shell-storage-&lt;region&gt;</span>). This storage account persists your files across sessions. It costs a small amount (a few cents/month). You can specify an existing storage account if you want cost control.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bash vs PowerShell Mode</div>
+                <div class="card-desc">Both modes run in the same Linux container. Switching modes does not change the underlying OS — it just changes the shell. In Bash you use <span class="ic">az</span> CLI commands. In PowerShell you use <span class="ic">Az</span> module cmdlets. You can run either tool in either shell — <span class="ic">az</span> works in the PowerShell session and <span class="ic">Get-AzResourceGroup</span> works in the Bash session.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When to Use Cloud Shell</div>
+                <div class="card-desc">Cloud Shell is ideal for quick one-off tasks, exploration, and demos. For production automation, use a CI/CD pipeline (GitHub Actions, Azure DevOps) where you have full control over versions and logging. Cloud Shell sessions time out after 20 minutes of inactivity — do not rely on it for long-running processes.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — AZURE CLI ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Azure <span class="accent">CLI</span></div>
+        <div class="slide-subtitle">Cross-platform command-line tool. Install once on Linux, macOS, or Windows. The <span class="ic">az</span> command structure is consistent: <span class="ic">az &lt;group&gt; &lt;subcommand&gt; --flags</span>.</div>
+
+        <!-- Terminal with az command hierarchy diagram -->
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Command hierarchy tree -->
+                <!-- Root: az -->
+                <rect x="4" y="40" width="50" height="28" rx="7" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="29" y="58" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="800" font-family="Courier New,monospace">az</text>
+
+                <!-- Level 1: command groups -->
+                <line x1="54" y1="54" x2="80" y2="54" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <!-- group -->
+                <rect x="80" y="6" width="68" height="22" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="114" y="20" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Courier New,monospace">group</text>
+                <!-- vm -->
+                <rect x="80" y="34" width="68" height="22" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="114" y="48" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">vm</text>
+                <!-- storage -->
+                <rect x="80" y="62" width="68" height="22" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="114" y="76" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Courier New,monospace">storage</text>
+                <!-- network -->
+                <rect x="80" y="90" width="68" height="22" rx="6" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="114" y="104" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Courier New,monospace">network</text>
+
+                <line x1="54" y1="54" x2="80" y2="17" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <line x1="54" y1="54" x2="80" y2="73" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <line x1="54" y1="54" x2="80" y2="101" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+                <!-- Level 2: subcommands for vm -->
+                <line x1="148" y1="45" x2="190" y2="45" stroke="rgba(58,181,119,0.2)" stroke-width="1"/>
+                <rect x="190" y="26" width="72" height="18" rx="5" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="226" y="38" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Courier New,monospace">create</text>
+                <rect x="190" y="48" width="72" height="18" rx="5" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="226" y="60" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Courier New,monospace">start / stop</text>
+                <rect x="190" y="70" width="72" height="18" rx="5" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="226" y="82" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Courier New,monospace">list / show</text>
+                <line x1="148" y1="45" x2="190" y2="35" stroke="rgba(58,181,119,0.15)" stroke-width="1"/>
+                <line x1="148" y1="45" x2="190" y2="57" stroke="rgba(58,181,119,0.15)" stroke-width="1"/>
+                <line x1="148" y1="45" x2="190" y2="79" stroke="rgba(58,181,119,0.15)" stroke-width="1"/>
+
+                <!-- Terminal examples on the right -->
+                <rect x="278" y="4" width="398" height="102" rx="10" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="286" y="18" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ az group create --name rg-prod --location eastus</text>
+                <text x="286" y="30" font-size="7" fill="#475569" font-family="Courier New,monospace">&#123; "id": "/subscriptions/.../resourceGroups/rg-prod", "location": "eastus" ... &#125;</text>
+                <text x="286" y="44" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ az vm create \</text>
+                <text x="286" y="54" font-size="7" fill="#86efac" font-family="Courier New,monospace">    --resource-group rg-prod --name vm-web-01 \</text>
+                <text x="286" y="64" font-size="7" fill="#86efac" font-family="Courier New,monospace">    --image Ubuntu2204 --size Standard_D2s_v3 \</text>
+                <text x="286" y="74" font-size="7" fill="#86efac" font-family="Courier New,monospace">    --admin-username azureadmin --generate-ssh-keys</text>
+                <text x="286" y="87" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ az vm list --resource-group rg-prod --output table</text>
+                <text x="286" y="97" font-size="7" fill="#475569" font-family="Courier New,monospace">Name       ResourceGroup  Location  ProvisioningState</text>
+                <text x="286" y="107" font-size="7" fill="#475569" font-family="Courier New,monospace">vm-web-01  rg-prod        eastus    Succeeded</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Output Formats</div>
+                <div class="card-desc">Control output with <span class="ic">--output</span>: <span class="ic">json</span> (default, full response), <span class="ic">table</span> (human-readable columns), <span class="ic">tsv</span> (tab-separated for scripting), <span class="ic">yaml</span>, <span class="ic">none</span> (suppress output). Use <span class="ic">--query</span> with JMESPath to filter the JSON response — e.g., <span class="ic">--query "[].name" --output tsv</span> returns just the names as plain text for scripting.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Useful Flags</div>
+                <div class="card-desc"><span class="ic">--help</span> on any command or subgroup shows usage. <span class="ic">--subscription</span> targets a specific subscription when you have multiple. <span class="ic">--resource-group</span> scopes commands to a group. <span class="ic">--debug</span> shows the full HTTP request/response ARM sees. <span class="ic">--verbose</span> shows progress messages. Always test destructive commands with <span class="ic">--what-if</span> when available.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">az login and Contexts</div>
+                <div class="card-desc">Run <span class="ic">az login</span> to authenticate via browser. For automation use <span class="ic">az login --service-principal -u &lt;appId&gt; -p &lt;password&gt; --tenant &lt;tenantId&gt;</span>. If you have multiple subscriptions, set the active one with <span class="ic">az account set --subscription &lt;id&gt;</span>. Check the active subscription with <span class="ic">az account show</span> before any destructive operation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AZURE POWERSHELL ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Azure <span class="accent">PowerShell</span></div>
+        <div class="slide-subtitle">The <span class="ic">Az</span> module for PowerShell. Verb-Noun cmdlet pattern: <span class="ic">Get-AzResourceGroup</span>, <span class="ic">New-AzVM</span>, <span class="ic">Remove-AzResourceGroup</span>. Cross-platform — runs on Linux and macOS too.</div>
+
+        <!-- PowerShell terminal with CLI vs PS side-by-side comparison -->
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- PowerShell terminal -->
+                <rect x="4" y="4" width="316" height="102" rx="10" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <!-- PS header -->
+                <rect x="4" y="4" width="316" height="16" rx="8" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="1.6"/>
+                <text x="162" y="14" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell — Az Module</text>
+                <!-- PS cmdlets -->
+                <text x="12" y="31" font-size="7" fill="#a78bfa" font-family="Courier New,monospace">PS&gt; Connect-AzAccount</text>
+                <text x="12" y="42" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Account     : user@contoso.com</text>
+                <text x="12" y="52" font-size="7" fill="#a78bfa" font-family="Courier New,monospace">PS&gt; Get-AzResourceGroup | Format-Table</text>
+                <text x="12" y="62" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">ResourceGroupName  Location  ProvisioningState</text>
+                <text x="12" y="72" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">rg-prod-001        eastus    Succeeded</text>
+                <text x="12" y="83" font-size="7" fill="#a78bfa" font-family="Courier New,monospace">PS&gt; New-AzResourceGroup -Name rg-test -Location westus2</text>
+                <text x="12" y="93" font-size="7" fill="#a78bfa" font-family="Courier New,monospace">PS&gt; Remove-AzResourceGroup -Name rg-test -Force</text>
+                <text x="12" y="103" font-size="7" fill="#94a3b8" font-family="Courier New,monospace"># -Force skips confirmation prompt</text>
+
+                <!-- VS label -->
+                <text x="340" y="57" text-anchor="middle" font-size="16" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">vs</text>
+
+                <!-- CLI terminal -->
+                <rect x="360" y="4" width="316" height="102" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <rect x="360" y="4" width="316" height="16" rx="8" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1.6"/>
+                <text x="518" y="14" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI</text>
+                <text x="368" y="31" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">$ az login</text>
+                <text x="368" y="42" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">&#123; "tenantId": "...", "user": &#123;"name": "user@..." &#125; &#125;</text>
+                <text x="368" y="52" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">$ az group list --output table</text>
+                <text x="368" y="62" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">Name          Location  State</text>
+                <text x="368" y="72" font-size="7" fill="#94a3b8" font-family="Courier New,monospace">rg-prod-001   eastus    Succeeded</text>
+                <text x="368" y="83" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">$ az group create -n rg-test -l westus2</text>
+                <text x="368" y="93" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">$ az group delete --name rg-test --yes</text>
+                <text x="368" y="103" font-size="7" fill="#94a3b8" font-family="Courier New,monospace"># --yes skips confirmation prompt</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Verb-Noun Pattern</div>
+                <div class="card-desc">PowerShell cmdlets use standard verbs: <span class="ic">Get-</span> (read), <span class="ic">New-</span> (create), <span class="ic">Set-</span> (update), <span class="ic">Remove-</span> (delete), <span class="ic">Start-</span>/<span class="ic">Stop-</span> (state change). This consistency means if you know <span class="ic">Get-AzVM</span> you can guess <span class="ic">Get-AzStorageAccount</span>, <span class="ic">Get-AzVirtualNetwork</span>, etc. Tab completion in PowerShell makes this fast.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Pipeline and Objects</div>
+                <div class="card-desc">PowerShell returns <strong>objects</strong>, not text. This lets you pipe: <span class="ic">Get-AzResourceGroup | Where-Object &#123; $_.Location -eq 'eastus' &#125; | Remove-AzResourceGroup</span>. Filtering, sorting, and chaining actions is more natural than piping CLI text through grep/awk. For complex automation scripts, PowerShell's object model is often more readable.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CLI vs PowerShell — When to Use Each</div>
+                <div class="card-desc">Both do the same things. Choose based on your team and environment. <strong>Linux/macOS shops:</strong> CLI tends to feel more natural. <strong>Windows/enterprise shops:</strong> PowerShell integrates with existing automation frameworks. The AZ-104 exam expects you to recognize both syntaxes. You will not be asked to choose one — you need to read both.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — BICEP ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Bicep — <span class="accent">Modern IaC</span></div>
+        <div class="slide-subtitle">Bicep is a domain-specific language (DSL) that compiles to ARM JSON. Dramatically cleaner syntax — the same resources in a fraction of the lines. Type-safe. Modules. No state files.</div>
+
+        <!-- Bicep -> compiler -> ARM JSON -> deployment -->
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Bicep file -->
+                <rect x="4" y="4" width="196" height="102" rx="10" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="102" y="17" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">main.bicep — 12 lines</text>
+                <text x="12" y="29" font-size="6.5" fill="#93c5fd" font-family="Courier New,monospace">param vmName string = 'prod-web-01'</text>
+                <text x="12" y="39" font-size="6.5" fill="#93c5fd" font-family="Courier New,monospace">param location string = resourceGroup().location</text>
+                <text x="12" y="49" font-size="6.5" fill="#c4b5fd" font-family="Courier New,monospace">var nicName = '&#36;&#123;vmName&#125;-nic'</text>
+                <text x="12" y="59" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">resource nic 'Microsoft.Network/</text>
+                <text x="12" y="68" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  networkInterfaces@2023-04-01' = &#123;</text>
+                <text x="12" y="77" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  name: nicName</text>
+                <text x="12" y="86" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  location: location</text>
+                <text x="12" y="95" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">  properties: &#123; ... &#125;</text>
+                <text x="12" y="104" font-size="6.5" fill="#86efac" font-family="Courier New,monospace">&#125;</text>
+
+                <!-- Arrow: bicep -> compiler -->
+                <line x1="202" y1="55" x2="240" y2="55" stroke="rgba(59,130,246,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="240,51 248,55 240,59" fill="#3b82f6"/>
+                <!-- Compiler box -->
+                <rect x="250" y="36" width="78" height="38" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="289" y="52" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Bicep</text>
+                <text x="289" y="64" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Compiler</text>
+                <text x="289" y="73" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">az bicep build</text>
+
+                <!-- Arrow: compiler -> ARM JSON -->
+                <line x1="330" y1="55" x2="368" y2="55" stroke="rgba(201,168,58,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="368,51 376,55 368,59" fill="#c9a83a"/>
+
+                <!-- ARM JSON file — longer/busier -->
+                <rect x="378" y="4" width="174" height="102" rx="10" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.3)" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="465" y="17" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">azuredeploy.json — 87 lines</text>
+                <text x="386" y="30" font-size="5.5" fill="#fef3c7" font-family="Courier New,monospace">&#123; "$schema": "https://schema.management...</text>
+                <text x="386" y="39" font-size="5.5" fill="#fef3c7" font-family="Courier New,monospace">  "contentVersion": "1.0.0.0",</text>
+                <text x="386" y="48" font-size="5.5" fill="#fef3c7" font-family="Courier New,monospace">  "parameters": &#123; "vmName": &#123; "type":</text>
+                <text x="386" y="57" font-size="5.5" fill="#fef3c7" font-family="Courier New,monospace">    "string", "defaultValue": "prod-web-01"</text>
+                <text x="386" y="66" font-size="5.5" fill="#fef3c7" font-family="Courier New,monospace">  &#125;, "location": &#123; "type": "string",</text>
+                <text x="386" y="75" font-size="5.5" fill="#64748b" font-family="Courier New,monospace">    "defaultValue": "[resourceGroup()...</text>
+                <text x="386" y="84" font-size="5.5" fill="#64748b" font-family="Courier New,monospace">  &#125; &#125;, "variables": &#123; "nicName": "[concat...</text>
+                <text x="386" y="93" font-size="5.5" fill="#64748b" font-family="Courier New,monospace">  "resources": [ &#123; "type": "Microsoft...</text>
+                <text x="386" y="102" font-size="5.5" fill="#64748b" font-family="Courier New,monospace">  "name": "[variables('nicName')]",...</text>
+
+                <!-- Arrow: ARM JSON -> Deploy -->
+                <line x1="554" y1="55" x2="578" y2="55" stroke="rgba(59,130,246,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="578,51 586,55 578,59" fill="#3b82f6"/>
+
+                <!-- Deploy box -->
+                <rect x="588" y="24" width="86" height="62" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="631" y="43" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Deployed</text>
+                <text x="631" y="54" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">to Azure</text>
+                <text x="631" y="67" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">az deployment</text>
+                <text x="631" y="76" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">group create</text>
+                <text x="631" y="82" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">--template-file</text>
+                <text x="631" y="89" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">main.bicep</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Why Bicep Instead of ARM JSON?</div>
+                <div class="card-desc">Bicep eliminates ARM JSON boilerplate: no <span class="ic">$schema</span>, no <span class="ic">contentVersion</span>, no deeply nested <span class="ic">[concat(...)]</span> expressions. Bicep uses string interpolation (<span class="ic">'&#36;&#123;vmName&#125;-nic'</span>), has type safety, IntelliSense in VS Code, and a modules system for reuse. The same NIC resource that takes 35 lines in JSON takes 8 lines in Bicep.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">No State Files</div>
+                <div class="card-desc">Unlike Terraform, Bicep (and ARM templates) have no local state file to manage. ARM itself is the source of truth — the actual deployed resources in Azure. This eliminates an entire category of drift and state-lock problems that Terraform teams deal with. For Azure-only workloads, Bicep is often simpler to operate at scale.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Bicep Modules</div>
+                <div class="card-desc">Bicep's <span class="ic">module</span> keyword lets you reference other <span class="ic">.bicep</span> files as reusable components. A central repo can publish versioned modules (network, VM, storage) and teams reference them: <span class="ic">module network './modules/vnet.bicep' = &#123; name: 'vnet' params: &#123;...&#125; &#125;</span>. This is the modern equivalent of linked ARM templates — cleaner, easier to version, easier to maintain.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — AZURE PORTAL NAVIGATION ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Azure Portal <span class="accent">Navigation</span></div>
+        <div class="slide-subtitle">The portal is your graphical ARM client. Behind every wizard click is an ARM API call. Understanding the portal flow reinforces the underlying resource model.</div>
+
+        <!-- Portal mockup as connected steps -->
+        <div class="diagram-center">
+            <svg width="680" height="108" viewBox="0 0 680 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Step 1: Search + browse -->
+                <rect x="4" y="14" width="100" height="80" rx="9" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="54" y="28" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">1. Search</text>
+                <!-- Search bar mockup -->
+                <rect x="12" y="33" width="84" height="11" rx="4" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.8"/>
+                <text x="19" y="41" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Search resources...</text>
+                <text x="54" y="58" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Top search bar</text>
+                <text x="54" y="68" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">finds services,</text>
+                <text x="54" y="78" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">resource groups,</text>
+                <text x="54" y="88" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">and docs</text>
+
+                <!-- Arrow 1 -->
+                <line x1="106" y1="54" x2="126" y2="54" stroke="rgba(59,130,246,0.4)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="126,50 134,54 126,58" fill="#3b82f6"/>
+
+                <!-- Step 2: Create -->
+                <rect x="136" y="14" width="100" height="80" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="186" y="28" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">2. + Create</text>
+                <rect x="144" y="33" width="84" height="12" rx="4" fill="#3ab577" opacity="0.8"/>
+                <text x="186" y="42" text-anchor="middle" font-size="7" fill="#000" font-weight="700" font-family="Segoe UI,sans-serif">+ Create a resource</text>
+                <text x="186" y="58" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Marketplace or</text>
+                <text x="186" y="68" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">service-specific</text>
+                <text x="186" y="78" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Create blade</text>
+
+                <!-- Arrow 2 -->
+                <line x1="238" y1="54" x2="258" y2="54" stroke="rgba(58,181,119,0.4)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="258,50 266,54 258,58" fill="#3ab577"/>
+
+                <!-- Step 3: Configure (Basics tab) -->
+                <rect x="268" y="14" width="108" height="80" rx="9" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="322" y="28" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">3. Configure</text>
+                <!-- Tabs mockup -->
+                <rect x="276" y="33" width="32" height="10" rx="2" fill="#c9a83a"/>
+                <text x="292" y="41" text-anchor="middle" font-size="5.5" fill="#000" font-weight="700" font-family="Segoe UI,sans-serif">Basics</text>
+                <rect x="310" y="33" width="28" height="10" rx="2" fill="rgba(255,255,255,0.06)"/>
+                <text x="324" y="41" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Disks</text>
+                <rect x="340" y="33" width="30" height="10" rx="2" fill="rgba(255,255,255,0.06)"/>
+                <text x="355" y="41" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Network</text>
+                <text x="322" y="58" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Fill each tab:</text>
+                <text x="322" y="68" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">subscription, RG,</text>
+                <text x="322" y="78" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">name, size, region</text>
+
+                <!-- Arrow 3 -->
+                <line x1="378" y1="54" x2="400" y2="54" stroke="rgba(201,168,58,0.4)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="400,50 408,54 400,58" fill="#c9a83a"/>
+
+                <!-- Step 4: Review + Create -->
+                <rect x="410" y="14" width="108" height="80" rx="9" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="464" y="28" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">4. Review</text>
+                <text x="418" y="42" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Validation passed</text>
+                <circle cx="413" cy="41" r="4" fill="none" stroke="#3ab577" stroke-width="1"/>
+                <text x="413" y="44" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">&#10003;</text>
+                <text x="418" y="56" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Estimated cost shown</text>
+                <text x="418" y="66" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">per month</text>
+                <text x="418" y="76" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">ARM template can be</text>
+                <text x="418" y="86" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">downloaded here!</text>
+
+                <!-- Arrow 4 -->
+                <line x1="520" y1="54" x2="542" y2="54" stroke="rgba(6,182,212,0.4)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="542,50 550,54 542,58" fill="#06b6d4"/>
+
+                <!-- Step 5: Deploy + Monitor -->
+                <rect x="552" y="14" width="122" height="80" rx="9" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="613" y="28" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">5. Deploy</text>
+                <!-- Deployment progress dots -->
+                <circle cx="570" cy="42" r="4" fill="#3ab577" style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <circle cx="584" cy="42" r="4" fill="#3ab577" style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <circle cx="598" cy="42" r="4" fill="#3ab577" style="animation: entityPop 0.3s ease forwards 0.8s; opacity:0;"/>
+                <circle cx="612" cy="42" r="4" fill="#c9a83a" style="animation: pulse 1s ease-in-out infinite 0.9s;"/>
+                <circle cx="626" cy="42" r="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <text x="613" y="58" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Deployment status</text>
+                <text x="613" y="68" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">in Notifications bell</text>
+                <text x="613" y="78" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Activity Log records</text>
+                <text x="613" y="88" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">every ARM operation</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Dashboard Customization</div>
+                <div class="card-desc">Pin any blade, chart, or metric tile to your dashboard. Create separate dashboards per project or team. Dashboards are stored as JSON resources in Azure — you can export, version control, and share them. Go to Dashboard &rarr; Edit &rarr; drag tiles. Pin from any resource overview blade using the pin icon.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Download the ARM Template</div>
+                <div class="card-desc">On the "Review + Create" page of any resource wizard, there is a "Download a template for automation" link. This gives you the exact ARM JSON the portal would have submitted. Use this to learn ARM template syntax by building through the wizard, then inspecting the output — it's the fastest way to understand template structure for a given resource type.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Activity Log and Notifications</div>
+                <div class="card-desc">Every ARM operation is recorded in the Activity Log (Monitor &rarr; Activity Log). Filter by subscription, resource group, resource, operation type, or time range. This is your first stop for "who deleted that resource?" or "why did that deployment fail last Tuesday?" You can also create alerts from Activity Log events.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; Chapter 1 Complete</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Everything in Azure goes through ARM. Every tool you use is just a different way to call the same control plane.</div>
+
+        <!-- Summary SVG: ARM at center with all tools, flowing to Azure -->
+        <div class="diagram-center">
+            <svg width="580" height="110" viewBox="0 0 580 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Six input tools surrounding ARM -->
+                <!-- Portal -->
+                <rect x="4" y="4" width="72" height="22" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.1"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="40" y="18" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Portal</text>
+                <!-- CLI -->
+                <rect x="4" y="32" width="72" height="22" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.1"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="40" y="46" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI</text>
+                <!-- PowerShell -->
+                <rect x="4" y="60" width="72" height="22" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="40" y="74" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell</text>
+                <!-- ARM Templates -->
+                <rect x="4" y="88" width="72" height="18" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="40" y="100" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">ARM / Bicep</text>
+
+                <!-- Arrows from tools to ARM central box -->
+                <line x1="77" y1="15" x2="200" y2="50" stroke="rgba(59,130,246,0.35)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <line x1="77" y1="43" x2="200" y2="55" stroke="rgba(201,168,58,0.35)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="77" y1="71" x2="200" y2="60" stroke="rgba(167,139,250,0.35)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="77" y1="97" x2="200" y2="65" stroke="rgba(6,182,212,0.35)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- ARM Central Box -->
+                <rect x="200" y="30" width="130" height="50" rx="10" fill="rgba(59,130,246,0.14)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="265" y="50" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">ARM</text>
+                <text x="265" y="63" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Single Control Plane</text>
+                <text x="265" y="73" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">auth &bull; RBAC &bull; policy &bull; route</text>
+                <!-- Pulse ring -->
+                <rect x="192" y="22" width="146" height="66" rx="14" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.5"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Arrow: ARM -> Azure Resources -->
+                <line x1="332" y1="55" x2="370" y2="55" stroke="rgba(59,130,246,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="370,51 378,55 370,59" fill="#3b82f6"/>
+
+                <!-- Key concepts column -->
+                <rect x="380" y="4" width="194" height="102" rx="10" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="477" y="18" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Key Concepts — Ch.1</text>
+                <circle cx="390" cy="30" r="3" fill="#3b82f6"/>
+                <text x="397" y="34" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">ARM = single control plane for all of Azure</text>
+                <circle cx="390" cy="44" r="3" fill="#3ab577"/>
+                <text x="397" y="48" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Resource Groups = lifecycle containers</text>
+                <circle cx="390" cy="58" r="3" fill="#c9a83a"/>
+                <text x="397" y="62" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">ARM Templates = declarative IaC (JSON)</text>
+                <circle cx="390" cy="72" r="3" fill="#a78bfa"/>
+                <text x="397" y="76" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Bicep = modern IaC, compiles to ARM JSON</text>
+                <circle cx="390" cy="86" r="3" fill="#06b6d4"/>
+                <text x="397" y="90" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">CLI + PowerShell = same ARM API, diff syntax</text>
+                <circle cx="390" cy="100" r="3" fill="#f97316"/>
+                <text x="397" y="104" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Cloud Shell = browser-based, no local install</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>ARM is the control plane.</strong> Every tool — portal, CLI, PowerShell, SDK, templates — hits <code>management.azure.com</code>. Understanding ARM means understanding all of Azure's management layer.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Resource Groups are lifecycle units.</strong> A resource belongs to exactly one group. Deleting the group deletes everything in it. Tags, locks, and RBAC scope inherit down from the group.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>ARM templates are idempotent.</strong> Declarative JSON describes desired state. Deploy the same template repeatedly — same result. Use <code>--what-if</code> before every deployment to preview changes.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Bicep vs JSON:</strong> same output, dramatically less code. Bicep compiles to ARM JSON — no state files, no new concepts beyond what ARM already provides. Prefer Bicep for new templates.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>CLI and PowerShell are equivalent in capability.</strong> The exam expects you to read both. <code>az vm create</code> and <code>New-AzVM</code> do the same thing. Know the syntax of each.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 &mdash; Manage Identities and Governance in Azure</strong> &nbsp;|&nbsp; Entra ID &bull; RBAC &bull; Azure Policy &bull; Management Groups &bull; Subscriptions
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-104</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az104-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
