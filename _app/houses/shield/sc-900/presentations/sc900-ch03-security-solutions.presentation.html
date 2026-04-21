@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Security Solutions | SC-900 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #ef4444; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(10,6,8,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(239,68,68,0.15); color: #ef4444; border-color: #ef4444; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; } #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #fca5a5; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; } .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; } .box-gold { background: rgba(201,168,58,0.08); border: 1px solid rgba(201,168,58,0.3); color: #fef3c7; } .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; } .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #ef4444; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #c9a83a; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #3b82f6; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; } .fact-num { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #cbd5e1; }
+        .ic { font-family: 'Courier New', monospace; color: #ef4444; background: rgba(239,68,68,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; } .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; } .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Microsoft Security Solutions -- SC-900 Chapter 3</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-900 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Security Solutions</div>
+    <div class="title-hero">
+        <svg width="420" height="110" viewBox="0 0 420 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="140" y="10" width="140" height="90" rx="14" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+            <text x="210" y="38" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft</text>
+            <text x="210" y="55" text-anchor="middle" font-size="11" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">Security Solutions</text>
+            <text x="210" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Defender + Sentinel + Network</text>
+        </svg>
+        <div class="big-title">Microsoft <span class="accent">Security Solutions</span></div>
+        <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Defender for Cloud &nbsp;&bull;&nbsp; Defender for Endpoint &nbsp;&bull;&nbsp; Sentinel &nbsp;&bull;&nbsp; Azure Firewall &nbsp;&bull;&nbsp; NSGs &nbsp;&bull;&nbsp; Bastion</div>
+    </div>
+    <div class="scenario-strip">Microsoft offers a comprehensive security portfolio that spans cloud workloads, endpoints, email, identity, and network. Understanding which product protects which layer is essential for the SC-900 exam.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>SC-900 Exam Objectives</span><span>Chapter 3 of 4</span><span>Security Solutions</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title">Microsoft Defender for <span class="accent">Cloud</span></div>
+    <div class="slide-subtitle">Cloud Security Posture Management (CSPM) and Cloud Workload Protection (CWP) in a single product. Protects Azure, on-premises, and multi-cloud (AWS, GCP) workloads.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Secure Score</div><div class="card-desc">A numerical representation of your security posture. Ranges from 0% to 100%. Each recommendation improves your score. Higher score = fewer exploitable misconfigurations. Prioritize recommendations by potential impact.</div></div>
+        <div class="card c-blue"><div class="card-label">Security Recommendations</div><div class="card-desc">Actionable findings based on Azure Security Benchmark. Examples: enable MFA for admin accounts, encrypt storage accounts, restrict public network access. Each recommendation includes severity, affected resources, and remediation steps.</div></div>
+        <div class="card c-gold"><div class="card-label">Defender Plans</div><div class="card-desc">Optional paid plans for workload-specific protection: Defender for Servers, Defender for Storage, Defender for SQL, Defender for Containers, Defender for Key Vault. Each plan provides threat detection and response for its workload type.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Exam Focus</div>Defender for Cloud = CSPM (free tier, recommendations, secure score) + CWP (paid Defender plans, threat detection, alerts). It is the central security dashboard for Azure.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title">Defender for <span class="accent">Endpoint</span></div>
+    <div class="slide-subtitle">Enterprise endpoint security platform. Protects Windows, macOS, Linux, Android, and iOS devices. Combines prevention, detection, investigation, and response in one agent.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Threat Detection</div><div class="card-desc">Behavioral sensors on the endpoint collect telemetry. Cloud-based analytics detect known and unknown threats. Automated investigation examines alerts and determines if they are true positive, benign, or false positive.</div></div>
+        <div class="card c-blue"><div class="card-label">Attack Surface Reduction</div><div class="card-desc">Rules that prevent common attack techniques before they execute: block Office macros from creating child processes, block credential stealing from LSASS, block untrusted USB processes. Reduces the attack surface proactively.</div></div>
+        <div class="card c-green"><div class="card-label">Endpoint Detection and Response</div><div class="card-desc">Real-time visibility into endpoint activity. Timeline view shows every process, network connection, and file operation. Analysts can isolate compromised devices, collect investigation packages, and run live response sessions.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title">Defender for <span class="accent">Office 365</span></div>
+    <div class="slide-subtitle">Protects email and collaboration tools (Exchange Online, Teams, SharePoint, OneDrive) against phishing, malware, and business email compromise.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Safe Attachments</div><div class="card-desc">Opens email attachments in a sandboxed virtual machine. Detonates suspicious files to detect malware before delivery. If malicious, the attachment is removed or the email is quarantined.</div></div>
+        <div class="card c-blue"><div class="card-label">Safe Links</div><div class="card-desc">Rewrites URLs in emails and Office documents. When the user clicks, Safe Links checks the URL against a real-time block list. Protects against time-of-click phishing attacks where URLs are clean at delivery but turn malicious later.</div></div>
+        <div class="card c-gold"><div class="card-label">Anti-Phishing Policies</div><div class="card-desc">Machine learning models detect impersonation attempts. Mailbox intelligence learns communication patterns. Identifies when someone impersonates a trusted sender. Quarantines or flags suspicious messages.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title">Defender for <span class="accent">Identity</span> and Cloud Apps</div>
+    <div class="slide-subtitle">Two products protecting different layers: Defender for Identity monitors on-premises AD signals, while Defender for Cloud Apps is a Cloud Access Security Broker (CASB).</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Defender for Identity</div><div class="card-desc">Monitors on-premises Active Directory signals to detect advanced identity threats. Detects: lateral movement paths, compromised credentials, reconnaissance activities (LDAP queries, DNS enumeration), and privilege escalation. Uses sensors on domain controllers.</div></div>
+        <div class="card c-blue"><div class="card-label">Defender for Cloud Apps</div><div class="card-desc">Cloud Access Security Broker (CASB) that provides visibility and control over cloud app usage. Discovers shadow IT (unapproved SaaS apps). Enforces session controls, detects anomalous behavior, and applies DLP policies across cloud applications.</div></div>
+        <div class="card c-gold"><div class="card-label">App Discovery</div><div class="card-desc">Analyzes firewall and proxy logs to discover all cloud apps in use. Risk-scores each app based on 90+ factors including compliance certifications, security controls, and legal terms. Over 31,000 apps in the catalog.</div></div>
+        <div class="card c-green"><div class="card-label">Session Control</div><div class="card-desc">Conditional Access App Control integrates with Conditional Access to enforce real-time session controls: block downloads of sensitive data, apply watermarks, require step-up authentication for specific actions within an app.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title">Microsoft <span class="accent">Sentinel</span></div>
+    <div class="slide-subtitle">Cloud-native Security Information and Event Management (SIEM) and Security Orchestration, Automation, and Response (SOAR). Collects data at cloud scale, detects threats, investigates incidents, and responds automatically.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Data Connectors</div><div class="card-desc">Ingest security data from across your environment: Microsoft 365, Entra ID, Azure services, firewalls, on-premises servers, AWS, GCP, and third-party security tools. Built-in connectors for 100+ data sources.</div></div>
+        <div class="card c-blue"><div class="card-label">Analytics Rules</div><div class="card-desc">KQL (Kusto Query Language) queries that detect threat patterns in ingested data. Built-in rules from Microsoft threat intelligence. Custom rules for organization-specific detection. Rules generate incidents when they match.</div></div>
+        <div class="card c-gold"><div class="card-label">Playbooks (SOAR)</div><div class="card-desc">Automated response workflows built on Azure Logic Apps. When an incident fires, a playbook can: block an IP in the firewall, disable a compromised user, create a ServiceNow ticket, send a Teams notification. Reduces mean time to respond (MTTR).</div></div>
+    </div>
+    <div class="scenario-strip">Sentinel = SIEM (collect, detect, investigate) + SOAR (automate responses). It replaces traditional on-premises SIEM systems that cannot scale to cloud data volumes. Pay-per-GB ingestion model.</div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title">Microsoft 365 <span class="accent">Defender Portal</span></div>
+    <div class="slide-subtitle">Unified security portal that combines signals from Defender for Endpoint, Office 365, Identity, and Cloud Apps into a single incident view for cross-domain threat detection.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Unified Incidents</div><div class="card-desc">Correlates alerts from multiple Defender products into a single incident. A phishing email (Office 365) that leads to malware (Endpoint) that steals credentials (Identity) appears as one incident, not three separate alerts.</div></div>
+        <div class="card c-blue"><div class="card-label">Automated Investigation</div><div class="card-desc">When an incident is created, automated investigation examines related entities (mailboxes, devices, users) and determines remediation actions. Analysts can approve or reject pending actions.</div></div>
+        <div class="card c-gold"><div class="card-label">Threat Analytics</div><div class="card-desc">Microsoft threat intelligence team publishes reports on active campaigns. Each report shows: what the threat does, which of your devices are exposed, and recommended mitigations. Proactive defense based on current threat landscape.</div></div>
+        <div class="card c-green"><div class="card-label">Advanced Hunting</div><div class="card-desc">KQL-based query interface across all Defender data. Search raw telemetry from endpoints, email, identity, and cloud apps. Build custom detections and share queries across the security team.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title">Azure <span class="accent">DDoS Protection</span></div>
+    <div class="slide-subtitle">Protects Azure resources from Distributed Denial of Service attacks. Two tiers: Basic (free, always on) and Standard (paid, advanced protection with telemetry and SLA).</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">DDoS Basic</div><div class="card-desc">Free and enabled by default on all Azure services. Protects against common network-layer attacks. Uses the same infrastructure that protects Microsoft's own services. No configuration required.</div></div>
+        <div class="card c-blue"><div class="card-label">DDoS Standard</div><div class="card-desc">Paid tier with advanced mitigation capabilities: adaptive tuning (learns your traffic patterns), real-time attack metrics, diagnostic logging, and DDoS Rapid Response (DRR) team access during active attacks. Includes cost protection guarantee.</div></div>
+        <div class="card c-gold"><div class="card-label">Attack Types Mitigated</div><div class="card-desc"><strong>Volumetric</strong>: floods bandwidth (UDP floods, amplification attacks). <strong>Protocol</strong>: exploits protocol weaknesses (SYN floods, ping of death). <strong>Application layer</strong>: targets web application vulnerabilities (HTTP floods). Standard tier mitigates all three.</div></div>
+        <div class="card c-green"><div class="card-label">Integration</div><div class="card-desc">Works with Azure Firewall, Application Gateway with WAF, and Azure Front Door. DDoS Standard telemetry integrates with Azure Monitor and Microsoft Sentinel for unified security monitoring.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">Azure <span class="accent">Firewall</span></div>
+    <div class="slide-subtitle">Cloud-native, managed network security service. Provides stateful packet inspection, application-level filtering, and threat intelligence-based filtering for Azure virtual networks.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Application Rules</div><div class="card-desc">Filter outbound HTTP/HTTPS traffic by FQDN (fully qualified domain name). Allow access to *.microsoft.com while blocking everything else. Essential for controlling which external services VMs can reach.</div></div>
+        <div class="card c-blue"><div class="card-label">Network Rules</div><div class="card-desc">Traditional L3/L4 rules based on source IP, destination IP, port, and protocol. Control traffic between subnets, VNets, and the internet. Rules are processed by priority, with deny-by-default.</div></div>
+        <div class="card c-gold"><div class="card-label">Threat Intelligence</div><div class="card-desc">Microsoft threat intelligence feed identifies known malicious IPs and FQDNs. Azure Firewall can alert on or deny traffic to/from these indicators of compromise (IoCs). Updated automatically.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title"><span class="accent">NSGs</span>, WAF, and Bastion</div>
+    <div class="slide-subtitle">Network Security Groups filter traffic at the subnet and NIC level. Web Application Firewall protects web apps. Azure Bastion provides secure RDP/SSH without public IPs.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Network Security Groups</div><div class="card-desc">Stateful packet filter applied to subnet or network interface. Rules specify source, destination, port, protocol, and action (allow/deny). Default rules allow VNet-to-VNet and outbound internet. You add custom rules to restrict traffic.</div></div>
+        <div class="card c-blue"><div class="card-label">Web Application Firewall</div><div class="card-desc">Protects web applications against common exploits: SQL injection, cross-site scripting (XSS), and other OWASP Top 10 vulnerabilities. Deployed on Application Gateway or Azure Front Door. WAF policies use managed rule sets.</div></div>
+        <div class="card c-gold"><div class="card-label">Azure Bastion</div><div class="card-desc">PaaS service that provides secure RDP and SSH connectivity to VMs through the Azure portal over TLS. No public IP needed on the VM. No RDP/SSH ports exposed to the internet. Eliminates the attack surface of exposed management ports.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title">Security Products <span class="accent">Map</span></div>
+    <div class="slide-subtitle">Which product protects which layer? This is the key mental model for the SC-900 exam.</div>
+    <div class="hex-grid">
+        <div class="hex-cell"><div class="hex-title">Endpoints</div><div class="hex-desc">Defender for Endpoint: devices, servers, mobile. Endpoint Detection and Response (EDR).</div></div>
+        <div class="hex-cell"><div class="hex-title">Email + Collaboration</div><div class="hex-desc">Defender for Office 365: Exchange, Teams, SharePoint. Safe Attachments, Safe Links.</div></div>
+        <div class="hex-cell"><div class="hex-title">Identity</div><div class="hex-desc">Defender for Identity: on-premises AD signals. Entra ID Protection: cloud identity risk.</div></div>
+        <div class="hex-cell"><div class="hex-title">Cloud Apps</div><div class="hex-desc">Defender for Cloud Apps: CASB for SaaS visibility, shadow IT discovery, session control.</div></div>
+        <div class="hex-cell"><div class="hex-title">Cloud Workloads</div><div class="hex-desc">Defender for Cloud: CSPM + CWP. Secure score, recommendations, workload protection plans.</div></div>
+        <div class="hex-cell"><div class="hex-title">SIEM + SOAR</div><div class="hex-desc">Microsoft Sentinel: collect logs, detect threats, investigate incidents, automate response.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Chapter 3 <span class="accent">Summary</span></div>
+    <div class="slide-subtitle">Key security solutions for the SC-900 exam.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Defender for Cloud</strong> = CSPM (secure score, recommendations) + CWP (Defender plans for servers, storage, SQL, containers). Multi-cloud support.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Defender for Endpoint</strong> = EDR for devices. Threat detection, attack surface reduction, automated investigation, live response.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Defender for Office 365</strong> = email protection. Safe Attachments (sandbox detonation), Safe Links (URL rewriting), anti-phishing AI.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Microsoft Sentinel</strong> = cloud-native SIEM + SOAR. Data connectors, analytics rules, playbooks for automated response.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Network security</strong>: Azure DDoS Protection (volumetric/protocol/app-layer), Azure Firewall (stateful L3-L7), NSGs (subnet/NIC filtering), WAF (OWASP), Bastion (secure RDP/SSH).</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Microsoft 365 Defender portal</strong> unifies signals from Endpoint + Office 365 + Identity + Cloud Apps into correlated incidents.</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 4 -- Microsoft Compliance Solutions</strong> &nbsp;|&nbsp; Purview &bull; DLP &bull; Sensitivity Labels &bull; eDiscovery &bull; Insider Risk &bull; Azure Policy</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; SC-900</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) { cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; } }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch03-pres', { returnUrl: '../index.html' }); } }</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Entra ID | SC-900 Chapter 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #ef4444; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(10, 6, 8, 0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(239,68,68,0.15); color: #ef4444; border-color: #ef4444; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #fca5a5; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; }
+        .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-gold { background: rgba(201,168,58,0.08); border: 1px solid rgba(201,168,58,0.3); color: #fef3c7; }
+        .box-green { background: rgba(58,181,119,0.08); border: 1px solid rgba(58,181,119,0.35); color: #d1fae5; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #ef4444; }
+        .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #c9a83a; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-orange { border-left-color: #f97316; } .card.c-blue { border-left-color: #3b82f6; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .ic { font-family: 'Courier New', monospace; color: #ef4444; background: rgba(239,68,68,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; } .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Microsoft Entra ID -- SC-900 Chapter 2</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-900 &nbsp;|&nbsp; Chapter 2 &nbsp;|&nbsp; Entra ID</div>
+    <div class="title-hero">
+        <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="145" y="10" width="130" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+            <text x="210" y="42" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft</text>
+            <text x="210" y="58" text-anchor="middle" font-size="11" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID</text>
+            <text x="210" y="76" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Identity + Access Management</text>
+            <rect x="20" y="30" width="100" height="28" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+            <text x="70" y="48" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="600" font-family="Segoe UI,sans-serif">Users + Groups</text>
+            <rect x="20" y="68" width="100" height="28" rx="8" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+            <text x="70" y="86" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="600" font-family="Segoe UI,sans-serif">MFA + FIDO2</text>
+            <rect x="300" y="30" width="100" height="28" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+            <text x="350" y="48" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="600" font-family="Segoe UI,sans-serif">Conditional Access</text>
+            <rect x="300" y="68" width="100" height="28" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2" style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+            <text x="350" y="86" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600" font-family="Segoe UI,sans-serif">PIM + Governance</text>
+            <line x1="120" y1="44" x2="144" y2="50" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/></line>
+            <line x1="120" y1="82" x2="144" y2="68" stroke="rgba(251,191,36,0.4)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+            <line x1="299" y1="44" x2="276" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+            <line x1="299" y1="82" x2="276" y2="68" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+        </svg>
+        <div class="big-title">Microsoft <span class="accent">Entra ID</span></div>
+        <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Tenants &nbsp;&bull;&nbsp; Users &amp; Groups &nbsp;&bull;&nbsp; MFA &nbsp;&bull;&nbsp; Passwordless &nbsp;&bull;&nbsp; Conditional Access &nbsp;&bull;&nbsp; PIM &nbsp;&bull;&nbsp; External Identities</div>
+    </div>
+    <div class="scenario-strip">Microsoft Entra ID (formerly Azure Active Directory) is the cloud-based identity and access management service at the heart of every Microsoft security product. Every authentication, every authorization decision, every Conditional Access policy runs through Entra ID.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>SC-900 Exam Objectives</span><span>Chapter 2 of 4</span><span>Identity and Access</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title">Entra ID <span class="accent">Core Concepts</span></div>
+    <div class="slide-subtitle">A tenant is a dedicated instance of Entra ID. A directory is the container for users, groups, and apps. Every organization gets one tenant when they sign up for Microsoft cloud services.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Tenant</div><div class="card-desc">A dedicated, trusted instance of Microsoft Entra ID created automatically when your organization signs up for a Microsoft cloud service. Each tenant is distinct and separate. A tenant represents a single organization and has a unique tenant ID (GUID).</div></div>
+        <div class="card c-blue"><div class="card-label">Users</div><div class="card-desc">Identity objects representing people or services. <strong>Cloud identities</strong> exist only in Entra ID. <strong>Synchronized identities</strong> come from on-premises Active Directory via Entra Connect. <strong>Guest users</strong> are external identities invited for collaboration.</div></div>
+        <div class="card c-gold"><div class="card-label">Groups</div><div class="card-desc"><strong>Security groups</strong> manage access to resources (RBAC role assignments, app access). <strong>Microsoft 365 groups</strong> provide collaboration features (shared mailbox, SharePoint site, Teams channel). Groups can be <strong>assigned</strong> (manual) or <strong>dynamic</strong> (rule-based membership).</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Key Distinction</div>Microsoft Entra ID is NOT the same as on-premises Active Directory Domain Services (AD DS). Entra ID is a cloud identity service using HTTP/HTTPS protocols (SAML, OAuth, OpenID Connect). AD DS uses Kerberos and LDAP. They can be synchronized but are fundamentally different products.</div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title">Authentication <span class="accent">Methods</span></div>
+    <div class="slide-subtitle">How users prove their identity. Microsoft Entra ID supports multiple authentication methods ranging from traditional passwords to modern passwordless options.</div>
+    <div class="hex-grid">
+        <div class="hex-cell"><div class="hex-title">Passwords</div><div class="hex-desc">Traditional but weakest method. Vulnerable to phishing, spray, and stuffing attacks. Microsoft recommends eliminating passwords where possible.</div></div>
+        <div class="hex-cell"><div class="hex-title">MFA</div><div class="hex-desc">Requires two or more verification factors. Blocks 99.9% of identity attacks. Combines something you know + something you have or are.</div></div>
+        <div class="hex-cell"><div class="hex-title">Microsoft Authenticator</div><div class="hex-desc">Push notification or time-based one-time password (TOTP). Number matching prevents MFA fatigue attacks. Can serve as passwordless primary factor.</div></div>
+        <div class="hex-cell"><div class="hex-title">FIDO2 Security Keys</div><div class="hex-desc">Hardware tokens using public-key cryptography. Phishing-resistant because the key is bound to the origin domain. No shared secret to steal.</div></div>
+        <div class="hex-cell"><div class="hex-title">Windows Hello for Business</div><div class="hex-desc">Biometric (face, fingerprint) or PIN tied to the device. Credentials never leave the device. Uses asymmetric key pairs, not passwords.</div></div>
+        <div class="hex-cell"><div class="hex-title">Certificate-Based Auth</div><div class="hex-desc">X.509 certificates for authentication. Common in government and high-security environments. Certificates can be stored on smart cards or devices.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title"><span class="accent">Conditional Access</span></div>
+    <div class="slide-subtitle">The Zero Trust policy engine. Conditional Access evaluates signals (who, where, what device, what app) and enforces access decisions: allow, block, or require MFA.</div>
+    <div class="diagram-center">
+        <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="4" y="10" width="140" height="80" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+            <text x="74" y="30" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Signals</text>
+            <text x="74" y="44" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">User / Group</text>
+            <text x="74" y="56" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Location (IP)</text>
+            <text x="74" y="68" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Device state</text>
+            <text x="74" y="80" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Application / Risk level</text>
+            <line x1="145" y1="50" x2="220" y2="50" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+            <rect x="222" y="15" width="200" height="70" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+            <text x="322" y="36" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Conditional Access Policy</text>
+            <text x="322" y="52" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">IF signals match conditions</text>
+            <text x="322" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">THEN enforce access controls</text>
+            <text x="322" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Requires Entra ID P1 or P2</text>
+            <line x1="423" y1="35" x2="490" y2="20" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/></line>
+            <line x1="423" y1="50" x2="490" y2="50" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/></line>
+            <line x1="423" y1="65" x2="490" y2="80" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="3,3"><animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/></line>
+            <rect x="492" y="6" width="120" height="26" rx="7" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+            <text x="552" y="23" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Allow Access</text>
+            <rect x="492" y="38" width="120" height="26" rx="7" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+            <text x="552" y="55" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Require MFA</text>
+            <rect x="492" y="70" width="120" height="26" rx="7" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+            <text x="552" y="87" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Block Access</text>
+        </svg>
+    </div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Common Policy Examples</div><div class="card-desc">Require MFA for all admin roles. Block sign-ins from high-risk countries. Require compliant devices for accessing sensitive apps. Force password change when sign-in risk is elevated.</div></div>
+        <div class="card c-blue"><div class="card-label">Session Controls</div><div class="card-desc">Beyond allow/block/MFA, policies can enforce session controls: sign-in frequency (force re-authentication every N hours), persistent browser sessions, and app-enforced restrictions.</div></div>
+        <div class="card c-gold"><div class="card-label">Report-Only Mode</div><div class="card-desc">Test policies before enforcement. Report-only mode logs what the policy would do without actually blocking or requiring MFA. Essential for safe rollout of new policies in production.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title">Entra ID <span class="accent">Roles</span></div>
+    <div class="slide-subtitle">Built-in roles follow the principle of least privilege. Assign the most restrictive role that still allows the user to do their job.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Global Administrator</div><div class="card-desc">Full access to everything in Entra ID and all Microsoft 365 services. Can manage all aspects of the directory. Limit to 2-4 people maximum. Always protect with MFA and PIM just-in-time activation.</div></div>
+        <div class="card c-blue"><div class="card-label">User Administrator</div><div class="card-desc">Can create and manage users and groups. Can reset passwords for non-admin users. Cannot manage Global Admin accounts or security settings. Common for helpdesk tier-2 roles.</div></div>
+        <div class="card c-gold"><div class="card-label">Security Administrator</div><div class="card-desc">Can read security information, manage security policies, and configure identity protection. Cannot create or delete users. Designed for the security team.</div></div>
+    </div>
+    <div class="box box-red"><div class="box-label">Least Privilege</div>Never assign Global Administrator when a more specific role (User Admin, Security Admin, Billing Admin) will do. Use Privileged Identity Management (PIM) to make role assignments just-in-time rather than permanent.</div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title"><span class="accent">Privileged Identity</span> Management</div>
+    <div class="slide-subtitle">PIM provides just-in-time privileged access. Instead of permanent admin roles, users activate roles when needed for a limited time. Requires Entra ID P2.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Just-in-Time Activation</div><div class="card-desc">Users are <strong>eligible</strong> for a role but not permanently assigned. They must activate the role, optionally provide justification, and the activation expires after a set duration (e.g., 8 hours). Reduces the window for compromised admin accounts.</div></div>
+        <div class="card c-blue"><div class="card-label">Approval Workflows</div><div class="card-desc">Require a designated approver to approve role activation before it takes effect. Critical for high-impact roles like Global Administrator or Exchange Administrator.</div></div>
+        <div class="card c-gold"><div class="card-label">Access Reviews</div><div class="card-desc">Periodic reviews of who has access to what. Reviewers confirm or deny continued access. Automated removal of access that is no longer justified. Required for compliance audits.</div></div>
+        <div class="card c-green"><div class="card-label">Audit History</div><div class="card-desc">Complete log of all role activations: who activated, when, for how long, and the justification provided. Essential for forensic investigation and compliance reporting.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title"><span class="accent">Identity</span> Governance</div>
+    <div class="slide-subtitle">Identity governance ensures the right people have the right access to the right resources for the right amount of time.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Entitlement Management</div><div class="card-desc">Bundle resources (groups, apps, SharePoint sites) into access packages. Users request access packages. Policies define who can request, who approves, and when access expires. Self-service with governance controls.</div></div>
+        <div class="card c-blue"><div class="card-label">Access Reviews</div><div class="card-desc">Scheduled reviews of group memberships, app assignments, and role assignments. Reviewers can be managers, resource owners, or self-review. Auto-remove access for users who do not respond or are denied.</div></div>
+        <div class="card c-gold"><div class="card-label">Lifecycle Workflows</div><div class="card-desc">Automate identity lifecycle events: onboarding (create account, assign groups, send welcome email), role changes (add/remove access), offboarding (disable account, remove licenses, revoke access).</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title"><span class="accent">External</span> Identities</div>
+    <div class="slide-subtitle">Collaborate with people outside your organization without creating local accounts. Entra External ID covers B2B and B2C scenarios.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">B2B Collaboration</div><div class="card-desc">Invite external users (partners, vendors, contractors) as guest users in your tenant. They authenticate with their own identity provider (their own Entra ID, Google, Microsoft account). You control what resources they can access. Their identity lifecycle is managed by their home organization.</div></div>
+        <div class="card c-blue"><div class="card-label">B2C (Customer Identity)</div><div class="card-desc">Customer-facing identity service for apps and APIs. Users sign up with email, social accounts (Google, Facebook, Apple), or local accounts. Fully customizable sign-in experience. Separate from your corporate Entra ID tenant.</div></div>
+        <div class="card c-gold"><div class="card-label">Cross-Tenant Access</div><div class="card-desc">Control inbound and outbound collaboration with other Entra ID organizations. Configure trust settings per organization: allow or block B2B, trust MFA from the partner tenant, trust device compliance claims.</div></div>
+        <div class="card c-green"><div class="card-label">Direct Connect</div><div class="card-desc">Mutual trust between two Entra ID tenants. Users from one tenant can access shared channels in Teams without being added as guest users. Seamless collaboration with reduced identity sprawl.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">Entra ID <span class="accent">Protection</span></div>
+    <div class="slide-subtitle">Automated risk detection and remediation for identity-based threats. Analyzes sign-in behavior and user activity to detect compromised accounts.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Sign-In Risk</div><div class="card-desc">Detects risky sign-in attempts in real time: impossible travel (sign-in from New York then Tokyo within minutes), anonymous IP addresses, unfamiliar sign-in properties, malware-linked IP addresses. Risk levels: low, medium, high.</div></div>
+        <div class="card c-blue"><div class="card-label">User Risk</div><div class="card-desc">Detects compromised user accounts based on offline analysis: leaked credentials (found on dark web), anomalous user activity patterns. Higher risk than sign-in risk because it indicates persistent compromise.</div></div>
+        <div class="card c-gold"><div class="card-label">Risk-Based Policies</div><div class="card-desc">Conditional Access policies that respond to risk levels. Low risk: allow with MFA. Medium risk: require password change. High risk: block access. Automated remediation reduces SOC workload.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title">Single Sign-On <span class="accent">(SSO)</span></div>
+    <div class="slide-subtitle">Authenticate once, access all authorized applications. SSO reduces password fatigue, improves security, and streamlines the user experience.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">How SSO Works</div><div class="card-desc">User signs in to Entra ID once. Entra ID issues a token. When the user accesses another app, the app redirects to Entra ID, which recognizes the existing session and issues a new token without requiring another login.</div></div>
+        <div class="card c-blue"><div class="card-label">Supported Protocols</div><div class="card-desc">SAML 2.0, OAuth 2.0, OpenID Connect, and WS-Federation. Entra ID can federate with thousands of pre-integrated SaaS applications (Salesforce, ServiceNow, Workday, AWS) in the app gallery.</div></div>
+        <div class="card c-gold"><div class="card-label">Security Benefits</div><div class="card-desc">Fewer passwords means fewer password-related attacks. Centralized access control through Conditional Access. Centralized audit logging of all application access. Instant revocation when a user is disabled.</div></div>
+        <div class="card c-green"><div class="card-label">Entra Connect</div><div class="card-desc">Synchronizes on-premises AD identities to Entra ID. Enables SSO across on-premises and cloud apps. Supports password hash sync, pass-through authentication, or federation with AD FS.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title">Entra ID <span class="accent">Editions</span></div>
+    <div class="slide-subtitle">Four editions with increasing capabilities. Most enterprise security features require P1 or P2 licensing.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Free</div><div class="card-desc">Included with Microsoft cloud subscriptions. User and group management, basic SSO, self-service password change, basic security reports. Limited to 500,000 objects.</div></div>
+        <div class="card c-blue"><div class="card-label">Microsoft 365 Apps</div><div class="card-desc">Included with Microsoft 365 F1/F3/E3/E5. Adds: company branding, group-based access, self-service password reset for cloud users, Microsoft Identity Manager.</div></div>
+        <div class="card c-gold"><div class="card-label">P1 (Premium Plan 1)</div><div class="card-desc">Adds: Conditional Access, dynamic groups, self-service group management, on-premises write-back, Entra Application Proxy. Required for Conditional Access policies.</div></div>
+        <div class="card c-green"><div class="card-label">P2 (Premium Plan 2)</div><div class="card-desc">Adds: Entra ID Protection (risk-based policies), Privileged Identity Management (PIM), access reviews, entitlement management. Required for the most advanced governance features.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+    <div class="slide-subtitle">Key identity concepts for the SC-900 exam.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Microsoft Entra ID</strong> is the cloud identity and access management service. A tenant is a dedicated instance. Users, groups, and apps live in the directory.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Authentication methods</strong> range from passwords (weakest) to FIDO2 security keys (strongest, phishing-resistant). MFA blocks 99.9% of identity attacks.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Conditional Access</strong> is the Zero Trust policy engine: evaluate signals, enforce controls (allow, block, require MFA). Requires P1 license.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>PIM</strong> provides just-in-time privileged access with approval workflows and audit trails. Requires P2 license.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Identity governance</strong> includes entitlement management, access reviews, and lifecycle workflows to ensure least-privilege access over time.</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>External identities</strong> enable B2B collaboration (guest users) and B2C customer identity (consumer-facing apps) without creating local accounts.</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>Next: Chapter 3 -- Microsoft Security Solutions</strong> &nbsp;|&nbsp; Defender for Cloud &bull; Sentinel &bull; Defender Suite &bull; Azure Firewall &bull; NSGs &bull; Bastion</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; SC-900</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const completeBtn = document.getElementById('complete-btn'); if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; } }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch02-pres', { returnUrl: '../index.html' }); } }</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

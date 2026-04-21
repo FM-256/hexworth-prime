@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security, Compliance, and Identity Concepts | SC-900 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security, Compliance, and Identity Concepts -- SC-900 Chapter 1</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-900 &nbsp;|&nbsp; Chapter 1 &nbsp;|&nbsp; Concepts</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="50" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">SHIELD</text>
+                <text x="210" y="66" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">Security Fundamentals</text>
+                <polygon points="210,78 195,100 225,100" fill="none" stroke="#ef4444" stroke-width="1.8" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="200" y1="94" x2="220" y2="94" stroke="#ef4444" stroke-width="1" style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Zero Trust</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Never trust, always verify</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">CIA Triad</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Confidentiality Integrity Avail</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Encryption</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Symmetric / Asymmetric</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Defense in Depth</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Layered security controls</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Security, Compliance, and <span class="accent">Identity Concepts</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Shared Responsibility &nbsp;&bull;&nbsp; Zero Trust &nbsp;&bull;&nbsp; Defense in Depth &nbsp;&bull;&nbsp; CIA Triad &nbsp;&bull;&nbsp; Common Threats &nbsp;&bull;&nbsp; Encryption
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Before you deploy a single security control, you need to understand the foundational models that drive every security decision in the Microsoft ecosystem. This chapter covers the frameworks, threat landscape, and cryptographic primitives that the SC-900 exam expects you to know cold.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-900 Exam Objectives</span>
+            <span>Chapter 1 of 4</span>
+            <span>Security Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- SHARED RESPONSIBILITY MODEL -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Shared Responsibility <span class="accent">Model</span></div>
+        <div class="slide-subtitle">Security in the cloud is a shared job. Microsoft secures the infrastructure. You secure your data, identities, and configurations. The split depends on the service model.</div>
+        <div class="diagram-center">
+            <svg width="680" height="120" viewBox="0 0 680 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="10" width="155" height="100" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="81" y="30" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises</text>
+                <text x="81" y="46" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">You own EVERYTHING</text>
+                <text x="81" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Physical, Network, OS,</text>
+                <text x="81" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Apps, Data, Identity,</text>
+                <text x="81" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Devices, Accounts</text>
+                <rect x="175" y="10" width="155" height="100" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="252" y="30" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">IaaS</text>
+                <text x="252" y="46" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">MS: Physical + Network</text>
+                <text x="252" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">You: OS, Apps, Data,</text>
+                <text x="252" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Runtime, Identity,</text>
+                <text x="252" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Network controls</text>
+                <rect x="346" y="10" width="155" height="100" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="423" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">PaaS</text>
+                <text x="423" y="46" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">MS: Infra + OS + Runtime</text>
+                <text x="423" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">You: Apps, Data,</text>
+                <text x="423" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Identity, Access</text>
+                <text x="423" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">controls</text>
+                <rect x="517" y="10" width="155" height="100" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="594" y="30" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SaaS</text>
+                <text x="594" y="46" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">MS: Nearly everything</text>
+                <text x="594" y="60" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">You: Data, Identity,</text>
+                <text x="594" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Devices, Accounts,</text>
+                <text x="594" y="84" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Access governance</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Always Your Responsibility</div><div class="card-desc">Regardless of service model, you always own: <strong>data classification, account and identity management, device security, and access control decisions</strong>. Microsoft never manages your data governance for you.</div></div>
+            <div class="card c-blue"><div class="card-label">Always Microsoft's Responsibility</div><div class="card-desc">Microsoft always owns: <strong>physical datacenters, physical network, physical hosts</strong>. You never patch a rack switch in Azure. The physical security of every Azure region is Microsoft's job.</div></div>
+            <div class="card c-gold"><div class="card-label">The Shifting Middle</div><div class="card-desc">The layers between physical infra and data shift ownership depending on IaaS vs PaaS vs SaaS. In IaaS you patch the OS. In PaaS Microsoft patches the OS. In SaaS Microsoft handles nearly everything except your data and identity choices.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- DEFENSE IN DEPTH -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Defense in <span class="accent">Depth</span></div>
+        <div class="slide-subtitle">No single security layer is enough. Defense in depth uses multiple layers so if one fails, the next layer catches the attacker. Think of it as concentric rings of protection around your data.</div>
+        <div class="diagram-center">
+            <svg width="500" height="160" viewBox="0 0 500 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <ellipse cx="250" cy="80" rx="240" ry="75" fill="none" stroke="rgba(239,68,68,0.15)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="250" y="12" text-anchor="middle" font-size="7.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Physical Security</text>
+                <ellipse cx="250" cy="80" rx="200" ry="62" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="250" y="24" text-anchor="middle" font-size="7.5" fill="#fbbf24" font-family="Segoe UI,sans-serif">Identity and Access</text>
+                <ellipse cx="250" cy="80" rx="160" ry="50" fill="none" stroke="rgba(59,130,246,0.2)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="250" y="36" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-family="Segoe UI,sans-serif">Perimeter (DDoS, Firewall)</text>
+                <ellipse cx="250" cy="80" rx="120" ry="38" fill="none" stroke="rgba(6,182,212,0.2)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="250" y="50" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-family="Segoe UI,sans-serif">Network (NSGs, Segmentation)</text>
+                <ellipse cx="250" cy="80" rx="80" ry="26" fill="none" stroke="rgba(167,139,250,0.25)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="250" y="62" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-family="Segoe UI,sans-serif">Compute (Patching, AV)</text>
+                <ellipse cx="250" cy="80" rx="45" ry="15" fill="none" stroke="rgba(58,181,119,0.3)" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.55s; opacity:0;"/>
+                <text x="250" y="74" text-anchor="middle" font-size="7.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Application</text>
+                <rect x="222" y="82" width="56" height="18" rx="5" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5" style="animation: entityPop 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="250" y="94" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DATA</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Data at the Core</div><div class="card-desc">Data is the ultimate target. Every layer exists to protect it. Whether attackers want to steal it, encrypt it with ransomware, or destroy it -- every control is a barrier between them and your data.</div></div>
+            <div class="card c-blue"><div class="card-label">If One Layer Fails</div><div class="card-desc">A phishing email bypasses the perimeter. But MFA at the identity layer stops the attacker from using the stolen password. If MFA fails, network segmentation limits lateral movement. Each layer is independent.</div></div>
+            <div class="card c-green"><div class="card-label">Microsoft's Implementation</div><div class="card-desc">Azure implements defense in depth through: physical datacenter security, Microsoft Entra ID for identity, Azure DDoS + Firewall for perimeter, NSGs for network, patching for compute, and encryption for data.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- ZERO TRUST -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Zero Trust</span> Model</div>
+        <div class="slide-subtitle">Never trust, always verify. Assume breach. Verify explicitly. Use least-privilege access. These three principles replace the old "trust the corporate network" approach.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Verify Explicitly</div><div class="hex-desc">Always authenticate and authorize based on all available signals: identity, location, device health, service or workload, data classification, and anomalies.</div></div>
+            <div class="hex-cell"><div class="hex-title">Least Privilege Access</div><div class="hex-desc">Limit user access with just-in-time (JIT) and just-enough-access (JEA). Use risk-based adaptive policies and data protection to secure both data and productivity.</div></div>
+            <div class="hex-cell"><div class="hex-title">Assume Breach</div><div class="hex-desc">Minimize blast radius with micro-segmentation. Use end-to-end encryption. Use analytics to detect threats, improve defenses, and drive automated responses.</div></div>
+            <div class="hex-cell"><div class="hex-title">Identity Pillar</div><div class="hex-desc">Identities are the new perimeter. Every access request starts with identity verification through Microsoft Entra ID, MFA, and Conditional Access policies.</div></div>
+            <div class="hex-cell"><div class="hex-title">Devices Pillar</div><div class="hex-desc">Devices create a large attack surface. Monitor device health and compliance. Only compliant, managed devices get full access to corporate resources.</div></div>
+            <div class="hex-cell"><div class="hex-title">Data Pillar</div><div class="hex-desc">Classify, label, and encrypt data. Use data loss prevention policies. Data should be protected at rest, in transit, and in use regardless of where it travels.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Exam Focus</div>Zero Trust is the foundational security model for all Microsoft security products. Conditional Access is the Zero Trust policy engine. Every SC-900 question about security architecture maps back to these three principles.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- CIA TRIAD -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">The <span class="accent">CIA</span> Triad</div>
+        <div class="slide-subtitle">Three pillars of information security. Every security control maps to one or more of these goals: Confidentiality, Integrity, and Availability.</div>
+        <div class="diagram-center">
+            <svg width="400" height="140" viewBox="0 0 400 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <polygon points="200,10 340,120 60,120" fill="none" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.5s ease forwards 0.1s; opacity:0;"/>
+                <rect x="165" y="2" width="70" height="24" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="200" y="18" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Confidentiality</text>
+                <rect x="8" y="112" width="90" height="24" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="53" y="128" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Integrity</text>
+                <rect x="300" y="112" width="90" height="24" rx="6" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.2" style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="345" y="128" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Availability</text>
+                <text x="200" y="75" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Security</text>
+                <text x="200" y="88" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif">Controls</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Confidentiality</div><div class="card-desc">Only authorized people can access data. Enforced through encryption (data at rest and in transit), access controls (RBAC, Conditional Access), and data classification (sensitivity labels). A data breach violates confidentiality.</div></div>
+            <div class="card c-blue"><div class="card-label">Integrity</div><div class="card-desc">Data has not been tampered with. Enforced through hashing (SHA-256 checksums), digital signatures, version control, and audit logs. If an attacker modifies a database record without detection, integrity is violated.</div></div>
+            <div class="card c-green"><div class="card-label">Availability</div><div class="card-desc">Systems and data are accessible when needed. Enforced through redundancy, load balancing, DDoS protection, backup and disaster recovery. A DDoS attack that takes down a service violates availability.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- COMMON THREATS -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Common <span class="accent">Threats</span></div>
+        <div class="slide-subtitle">Know the threat landscape. The SC-900 exam expects you to identify and describe phishing, ransomware, DDoS attacks, and insider threats.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Phishing</div><div class="card-desc">Social engineering via email, text, or voice. Attacker impersonates a trusted entity to trick users into revealing credentials or clicking malicious links. <strong>Spear phishing</strong> targets specific individuals. <strong>Whaling</strong> targets executives. MFA and security awareness training are primary defenses.</div></div>
+            <div class="card c-gold"><div class="card-label">Ransomware</div><div class="card-desc">Malware that encrypts files and demands payment for the decryption key. Often delivered through phishing or exploiting vulnerabilities. Defense: regular backups, endpoint protection (Defender for Endpoint), network segmentation, and patch management. Never pay the ransom.</div></div>
+            <div class="card c-blue"><div class="card-label">DDoS (Distributed Denial of Service)</div><div class="card-desc">Overwhelms a service with massive traffic from multiple sources to make it unavailable. Targets the <strong>availability</strong> pillar of CIA. Azure DDoS Protection detects and mitigates volumetric, protocol, and application-layer attacks automatically.</div></div>
+            <div class="card c-purple"><div class="card-label">Insider Threats</div><div class="card-desc">Malicious or negligent actions by employees, contractors, or partners with legitimate access. Harder to detect than external attacks because the user has valid credentials. Microsoft Purview Insider Risk Management uses behavioral signals to detect risky activity.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Insight</div>Most breaches start with compromised identities, not network exploits. This is why Zero Trust places identity at the center of the security model, and why MFA is the single most effective control against credential-based attacks.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- ENCRYPTION FUNDAMENTALS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Encryption</span> Concepts</div>
+        <div class="slide-subtitle">Encryption transforms readable data (plaintext) into unreadable data (ciphertext). Only authorized parties with the correct key can decrypt it back to plaintext.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Symmetric Encryption</div><div class="card-desc"><strong>One key</strong> for both encryption and decryption. Fast, used for bulk data encryption. Example: AES-256. Challenge: how do you securely share the key? Used for data at rest (disk encryption) and data in transit (after key exchange).</div></div>
+            <div class="card c-blue"><div class="card-label">Asymmetric Encryption</div><div class="card-desc"><strong>Two keys</strong>: public key encrypts, private key decrypts. Slower than symmetric but solves the key distribution problem. Example: RSA. Used for digital signatures, TLS handshakes, and key exchange. The public key can be shared openly.</div></div>
+            <div class="card c-green"><div class="card-label">Hashing</div><div class="card-desc"><strong>One-way function</strong>: converts data into a fixed-length digest. Cannot be reversed. Same input always produces same hash. Used for password storage, file integrity verification, and digital signatures. Example: SHA-256. Any change to input produces a completely different hash.</div></div>
+        </div>
+        <div class="scenario-strip">In practice, TLS uses asymmetric encryption for the initial handshake (key exchange), then switches to symmetric encryption for the actual data transfer. This hybrid approach combines the security of asymmetric with the speed of symmetric.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- DATA STATES -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Encryption for <span class="accent">Data States</span></div>
+        <div class="slide-subtitle">Data exists in three states, and each requires protection. Microsoft provides encryption solutions for all three.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Data at Rest</div><div class="card-desc">Stored on disk, database, or storage account. Azure Storage Service Encryption (SSE) encrypts all data automatically with AES-256. Azure Disk Encryption protects VM disks using BitLocker (Windows) or DM-Crypt (Linux). Keys can be managed by Microsoft or customer-managed in Azure Key Vault.</div></div>
+            <div class="card c-blue"><div class="card-label">Data in Transit</div><div class="card-desc">Moving between locations -- user to server, server to server, datacenter to datacenter. Protected with TLS/SSL (HTTPS). Azure enforces TLS 1.2 minimum. ExpressRoute provides private connectivity. VPN Gateway encrypts site-to-site traffic.</div></div>
+            <div class="card c-gold"><div class="card-label">Data in Use</div><div class="card-desc">Currently being processed in memory. Hardest state to protect. Azure Confidential Computing uses hardware-based Trusted Execution Environments (TEEs) to protect data in memory. Data remains encrypted even while being processed.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- GOVERNANCE AND COMPLIANCE CONCEPTS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Governance and <span class="accent">Compliance</span></div>
+        <div class="slide-subtitle">Compliance means meeting regulatory, legal, and industry standards. Governance means the policies and processes that enforce compliance across your organization.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Regulatory Compliance</div><div class="card-desc">Laws and regulations that apply based on industry and geography. GDPR (EU data privacy), HIPAA (US healthcare), PCI DSS (payment cards), SOC 2 (service organizations). Non-compliance means fines, legal action, and reputation damage.</div></div>
+            <div class="card c-blue"><div class="card-label">Microsoft Compliance Offerings</div><div class="card-desc">Microsoft holds 90+ compliance certifications. Azure, Microsoft 365, and Dynamics 365 are audited and certified against these standards. Microsoft provides compliance documentation, audit reports, and the Service Trust Portal for verification.</div></div>
+            <div class="card c-gold"><div class="card-label">Data Residency and Sovereignty</div><div class="card-desc">Some regulations require data to stay within specific geographic boundaries. Azure regions let you choose where data is stored. Azure sovereign clouds (Government, China) provide isolated environments for regulated workloads.</div></div>
+            <div class="card c-green"><div class="card-label">Privacy Principles</div><div class="card-desc">Microsoft follows six privacy principles: control, transparency, security, strong legal protections, no content-based targeting, and benefits to users. The Microsoft Privacy Statement details how personal data is collected and used.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- IDENTITY CONCEPTS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Identity as the <span class="accent">Security Perimeter</span></div>
+        <div class="slide-subtitle">The traditional network perimeter is gone. With remote work, BYOD, and cloud services, identity is now the primary security boundary. Authentication and authorization are the gatekeepers.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Authentication (AuthN)</div><div class="card-desc">Proving who you are. Something you <strong>know</strong> (password), something you <strong>have</strong> (phone, security key), something you <strong>are</strong> (biometrics). MFA combines two or more of these factors. Authentication answers: "Are you who you claim to be?"</div></div>
+            <div class="card c-blue"><div class="card-label">Authorization (AuthZ)</div><div class="card-desc">Determining what you can do. After authentication confirms your identity, authorization checks your permissions. Role-Based Access Control (RBAC) assigns permissions through roles. Authorization answers: "What are you allowed to access?"</div></div>
+            <div class="card c-gold"><div class="card-label">Identity Provider (IdP)</div><div class="card-desc">A service that creates, maintains, and manages identity information. Microsoft Entra ID is the IdP for Microsoft cloud services. An IdP handles authentication so applications do not have to build their own login systems.</div></div>
+            <div class="card c-green"><div class="card-label">Federation</div><div class="card-desc">Trust relationship between identity providers. Allows users authenticated by one IdP to access resources managed by another. Enables single sign-on (SSO) across organizational boundaries without sharing passwords.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- COMMON IDENTITY ATTACKS -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Common Identity <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">Understanding how attackers target identities helps you appreciate why controls like MFA, Conditional Access, and password protection exist.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Password Spray</div><div class="hex-desc">Try a few common passwords against many accounts. Avoids lockout thresholds. Microsoft Entra ID detects and blocks these patterns automatically.</div></div>
+            <div class="hex-cell"><div class="hex-title">Credential Stuffing</div><div class="hex-desc">Use stolen username/password pairs from breached sites. Works because users reuse passwords. MFA stops this even if credentials are valid.</div></div>
+            <div class="hex-cell"><div class="hex-title">Brute Force</div><div class="hex-desc">Try every possible password combination. Slow but effective against weak passwords. Account lockout policies and smart lockout in Entra ID mitigate this.</div></div>
+            <div class="hex-cell"><div class="hex-title">Man-in-the-Middle</div><div class="hex-desc">Attacker intercepts communication between user and service. Captures credentials or session tokens. TLS encryption and certificate validation prevent this.</div></div>
+            <div class="hex-cell"><div class="hex-title">Token Replay</div><div class="hex-desc">Steal and reuse a valid authentication token. Conditional Access token protection and continuous access evaluation (CAE) detect and revoke compromised tokens.</div></div>
+            <div class="hex-cell"><div class="hex-title">Social Engineering</div><div class="hex-desc">Manipulate people into revealing credentials or granting access. Technical controls combined with security awareness training are the only effective defense.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-900 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Shared Responsibility Model</strong> -- security responsibilities are split between Microsoft and the customer. The split varies by IaaS, PaaS, and SaaS. You always own data, identity, and access decisions.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Defense in Depth</strong> -- multiple layers of security (physical, identity, perimeter, network, compute, application, data). No single layer is sufficient alone.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Zero Trust</strong> -- three principles: verify explicitly, use least-privilege access, assume breach. Identity is the primary control plane.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>CIA Triad</strong> -- Confidentiality (only authorized access), Integrity (data not tampered), Availability (systems accessible when needed).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Common Threats</strong> -- phishing (social engineering), ransomware (encrypt and extort), DDoS (overwhelm availability), insider threats (trusted users acting maliciously or negligently).</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Encryption</strong> -- symmetric (one key, fast), asymmetric (two keys, key exchange), hashing (one-way, integrity). Protect data at rest, in transit, and in use.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- Microsoft Entra ID</strong> &nbsp;|&nbsp; Tenants &bull; Authentication &bull; MFA &bull; Conditional Access &bull; PIM &bull; External Identities
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc900-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

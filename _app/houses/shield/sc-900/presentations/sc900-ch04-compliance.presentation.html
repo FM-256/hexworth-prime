@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Compliance Solutions | SC-900 Chapter 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; } html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #ef4444; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(10,6,8,0.95); border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255,255,255,0.07); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .nav-btn:hover:not(:disabled) { background: rgba(239,68,68,0.15); color: #ef4444; border-color: #ef4444; } .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; } .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #3ab577; color: #000; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; } #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; } .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #fca5a5; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; } .box-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fee2e2; } .box-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; } .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; } .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; } .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #ef4444; } .card:hover { background: rgba(255,255,255,0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; } .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; } .card.c-red { border-left-color: #ef4444; } .card.c-gold { border-left-color: #c9a83a; } .card.c-cyan { border-left-color: #06b6d4; } .card.c-purple { border-left-color: #a78bfa; } .card.c-blue { border-left-color: #3b82f6; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; } .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; } .fact-num { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; } .fact-text { color: #cbd5e1; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; padding: 12px 14px; text-align: center; opacity: 0; animation: hexAppear 0.4s ease forwards; }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; } .hex-cell:nth-child(2) { animation-delay: 0.25s; } .hex-cell:nth-child(3) { animation-delay: 0.4s; } .hex-cell:nth-child(4) { animation-delay: 0.55s; } .hex-cell:nth-child(5) { animation-delay: 0.7s; } .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; } .hex-cell .hex-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Microsoft Compliance Solutions -- SC-900 Chapter 4</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<section class="slide active" id="slide-1"><div class="slide-inner">
+    <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-900 &nbsp;|&nbsp; Chapter 4 &nbsp;|&nbsp; Compliance</div>
+    <div class="title-hero">
+        <svg width="420" height="110" viewBox="0 0 420 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="140" y="10" width="140" height="90" rx="14" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+            <text x="210" y="38" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft</text>
+            <text x="210" y="55" text-anchor="middle" font-size="11" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">Compliance</text>
+            <text x="210" y="72" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Purview + DLP + Governance</text>
+        </svg>
+        <div class="big-title">Microsoft <span class="accent">Compliance Solutions</span></div>
+        <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">Purview &nbsp;&bull;&nbsp; Compliance Manager &nbsp;&bull;&nbsp; DLP &nbsp;&bull;&nbsp; Sensitivity Labels &nbsp;&bull;&nbsp; eDiscovery &nbsp;&bull;&nbsp; Azure Policy</div>
+    </div>
+    <div class="scenario-strip">Microsoft Purview brings together data governance, data protection, and compliance management. Understanding the compliance portfolio is essential for the SC-900 exam -- it covers approximately 25-30% of the exam objectives.</div>
+    <div class="title-meta-row"><span>12 Slides</span><span>SC-900 Exam Objectives</span><span>Chapter 4 of 4</span><span>Compliance Solutions</span></div>
+</div></section>
+
+<section class="slide" id="slide-2"><div class="slide-inner">
+    <div class="slide-meta">Slide 2 of 12</div>
+    <div class="slide-title">Microsoft <span class="accent">Purview</span> Compliance Portal</div>
+    <div class="slide-subtitle">The central hub for compliance management across Microsoft 365. Access compliance solutions, manage policies, and monitor compliance posture from a single portal.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Compliance Manager</div><div class="card-desc">Dashboard that measures your compliance posture with a <strong>compliance score</strong>. Similar to Defender for Cloud's secure score but focused on regulatory compliance (GDPR, HIPAA, ISO 27001). Provides improvement actions with step-by-step guidance.</div></div>
+        <div class="card c-blue"><div class="card-label">Compliance Score</div><div class="card-desc">Numerical score (0-100%) based on completed improvement actions. Microsoft-managed actions (controls Microsoft implements) contribute to your baseline score. Customer-managed actions (controls you implement) increase your score further.</div></div>
+        <div class="card c-gold"><div class="card-label">Assessments</div><div class="card-desc">Pre-built templates for 300+ regulations and standards. Each assessment maps Microsoft 365 controls to regulatory requirements. Track progress per regulation. Custom assessments for industry-specific requirements.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-3"><div class="slide-inner">
+    <div class="slide-meta">Slide 3 of 12</div>
+    <div class="slide-title">Data <span class="accent">Classification</span></div>
+    <div class="slide-subtitle">Before you can protect data, you must classify it. Microsoft Purview provides built-in and custom classifiers to automatically identify sensitive information across Microsoft 365.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Sensitive Information Types</div><div class="card-desc">Pattern-based classifiers that detect specific data: credit card numbers, Social Security numbers, passport numbers, bank account numbers. 300+ built-in types. Custom types using regex, keywords, and confidence levels.</div></div>
+        <div class="card c-blue"><div class="card-label">Trainable Classifiers</div><div class="card-desc">Machine learning classifiers trained on sample data. Pre-trained classifiers detect: resumes, source code, harassment, threats, profanity. Custom trainable classifiers learn from your organization's specific data patterns.</div></div>
+        <div class="card c-gold"><div class="card-label">Content Explorer</div><div class="card-desc">Browse and search for items that have been classified. See which sensitive information types were detected, which labels are applied, and where sensitive data resides across Exchange, SharePoint, OneDrive, and Teams.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-4"><div class="slide-inner">
+    <div class="slide-meta">Slide 4 of 12</div>
+    <div class="slide-title"><span class="accent">Sensitivity</span> Labels</div>
+    <div class="slide-subtitle">Persistent, machine-readable tags that travel with the data. A sensitivity label can encrypt, watermark, restrict access, and control sharing -- regardless of where the document goes.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">How Labels Work</div><div class="card-desc">Labels are metadata applied to documents and emails. Labels can trigger protection actions: encrypt the file, add a visual marking (header, footer, watermark), restrict access to specific users or groups. Labels persist even when files are shared externally.</div></div>
+        <div class="card c-blue"><div class="card-label">Label Policies</div><div class="card-desc">Publish labels to users so they appear in Office apps. Policies control: which labels are available to which users, whether a default label is applied, whether users can downgrade or remove labels, and whether justification is required for downgrades.</div></div>
+        <div class="card c-gold"><div class="card-label">Auto-Labeling</div><div class="card-desc">Automatically apply labels based on content inspection. Service-side auto-labeling scans data at rest in SharePoint/OneDrive/Exchange. Client-side auto-labeling recommends labels as users work in Office applications.</div></div>
+        <div class="card c-green"><div class="card-label">Container Labels</div><div class="card-desc">Apply sensitivity labels to Teams, Microsoft 365 Groups, and SharePoint sites. Controls: guest access settings, privacy (public/private), unmanaged device access, and external sharing. Governs the container, not individual files.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-5"><div class="slide-inner">
+    <div class="slide-meta">Slide 5 of 12</div>
+    <div class="slide-title">Data Loss <span class="accent">Prevention</span> (DLP)</div>
+    <div class="slide-subtitle">Prevent accidental or intentional sharing of sensitive information. DLP policies detect sensitive data and enforce protective actions across Microsoft 365 services.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">DLP Policies</div><div class="card-desc">Rules that detect sensitive information types in content and enforce actions. Locations: Exchange email, SharePoint sites, OneDrive accounts, Teams chat/channel messages, and Windows endpoints. Actions: block sharing, encrypt, notify user, alert admin.</div></div>
+        <div class="card c-blue"><div class="card-label">Policy Tips</div><div class="card-desc">Real-time notifications to users when they attempt to share sensitive data. Educates users in the moment without blocking them. Users can override with business justification. Reduces violations through awareness, not just enforcement.</div></div>
+        <div class="card c-gold"><div class="card-label">Endpoint DLP</div><div class="card-desc">Extends DLP to Windows and macOS devices. Monitors activities like: copying to USB, printing, uploading to cloud services, copying to clipboard. Enforces policies even when files leave Microsoft 365.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-6"><div class="slide-inner">
+    <div class="slide-meta">Slide 6 of 12</div>
+    <div class="slide-title">Records Management and <span class="accent">Retention</span></div>
+    <div class="slide-subtitle">Manage the lifecycle of content: keep what you need for compliance, delete what you do not. Retention policies and retention labels control how long content is kept and what happens when it expires.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Retention Policies</div><div class="card-desc">Broad policies applied to entire locations (all Exchange mailboxes, all SharePoint sites). Retain content for a specified period (e.g., 7 years), then optionally delete. Or delete content older than a specified age. Policies override user deletion during the retention period.</div></div>
+        <div class="card c-blue"><div class="card-label">Retention Labels</div><div class="card-desc">Item-level labels for granular control. Applied to individual documents, emails, or folders. Can mark items as records (immutable -- cannot be edited or deleted until retention expires). Support disposition review before final deletion.</div></div>
+        <div class="card c-gold"><div class="card-label">Records Management</div><div class="card-desc">Formal records declaration for regulatory compliance. Regulatory records cannot be relabeled or deleted by anyone, including admins. File plan provides a structured view for managing record categories, retention periods, and disposition actions.</div></div>
+        <div class="card c-green"><div class="card-label">Adaptive Scopes</div><div class="card-desc">Dynamic scoping for retention policies. Instead of targeting all mailboxes, target mailboxes where Department = Finance. Scope automatically updates as users change departments. Replaces static group-based targeting.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-7"><div class="slide-inner">
+    <div class="slide-meta">Slide 7 of 12</div>
+    <div class="slide-title"><span class="accent">eDiscovery</span></div>
+    <div class="slide-subtitle">The process of identifying, collecting, and producing electronically stored information (ESI) for legal proceedings, investigations, or audits.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Content Search</div><div class="card-desc">Basic search across Exchange, SharePoint, OneDrive, and Teams. KQL-based queries to find specific content. Export results for review. Available in all Microsoft 365 plans. The starting point for any investigation.</div></div>
+        <div class="card c-blue"><div class="card-label">eDiscovery (Standard)</div><div class="card-desc">Adds case management. Create cases, add custodians (people of interest), place legal holds to preserve content. Legal holds prevent deletion of relevant content even if retention policies would allow it. Export for legal review.</div></div>
+        <div class="card c-gold"><div class="card-label">eDiscovery (Premium)</div><div class="card-desc">Advanced capabilities: custodian management, legal hold notifications, review sets with AI-powered relevance scoring, conversation threading for Teams/email threads, near-duplicate detection, and themes analysis. Requires E5 or eDiscovery add-on license.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-8"><div class="slide-inner">
+    <div class="slide-meta">Slide 8 of 12</div>
+    <div class="slide-title"><span class="accent">Insider Risk</span> Management</div>
+    <div class="slide-subtitle">Detect and respond to risky activities by people inside your organization. Uses behavioral signals, not content inspection, to identify potential insider threats.</div>
+    <div class="card-grid-2">
+        <div class="card c-red"><div class="card-label">Risk Indicators</div><div class="card-desc">Correlates signals from multiple sources: file downloads, USB copies, email to personal accounts, print activity, access pattern changes, resignation signals from HR. Machine learning identifies anomalous combinations, not individual events.</div></div>
+        <div class="card c-blue"><div class="card-label">Policy Templates</div><div class="card-desc">Pre-built templates: data theft by departing users, data leaks, security policy violations, patient data misuse (healthcare). Triggers can be HR events (resignation, termination notice) or DLP policy matches.</div></div>
+        <div class="card c-gold"><div class="card-label">Investigation Workflow</div><div class="card-desc">Alerts generate cases for investigation. Activity explorer shows a timeline of risky actions. Pseudonymized by default -- investigator sees "User A" not "Jane Smith" until escalation is justified. Integrates with eDiscovery for deeper investigation.</div></div>
+        <div class="card c-green"><div class="card-label">Communication Compliance</div><div class="card-desc">Monitor communications (email, Teams, third-party apps) for policy violations: harassment, threats, regulatory compliance (financial services). Uses classifiers to detect inappropriate content. Reviewers assess flagged messages.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-9"><div class="slide-inner">
+    <div class="slide-meta">Slide 9 of 12</div>
+    <div class="slide-title">Azure <span class="accent">Policy</span></div>
+    <div class="slide-subtitle">Enforce organizational standards and assess compliance for Azure resources. Policies evaluate resources and flag or prevent non-compliant configurations.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Policy Definitions</div><div class="card-desc">JSON rules that define what is evaluated and what happens when non-compliant. Effects: <strong>Deny</strong> (block creation), <strong>Audit</strong> (log only), <strong>DeployIfNotExists</strong> (auto-remediate), <strong>Modify</strong> (change properties). Example: deny VM creation without a required tag.</div></div>
+        <div class="card c-blue"><div class="card-label">Policy Initiatives</div><div class="card-desc">Groups of related policy definitions assigned together. Built-in initiatives: CIS Benchmark, NIST 800-53, ISO 27001. Each initiative maps to a compliance standard with dozens of individual policy checks.</div></div>
+        <div class="card c-gold"><div class="card-label">Compliance Dashboard</div><div class="card-desc">Shows compliance state for all assigned policies and initiatives. Drill down to non-compliant resources. Generate compliance reports for auditors. Track compliance over time to demonstrate improvement.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-10"><div class="slide-inner">
+    <div class="slide-meta">Slide 10 of 12</div>
+    <div class="slide-title">Resource <span class="accent">Locks</span> and Blueprints</div>
+    <div class="slide-subtitle">Prevent accidental deletion or modification of critical Azure resources. Blueprints package policies, role assignments, and ARM templates for repeatable environment deployments.</div>
+    <div class="card-grid">
+        <div class="card c-red"><div class="card-label">Resource Locks</div><div class="card-desc">Two lock types: <strong>CanNotDelete</strong> (read and modify allowed, delete blocked) and <strong>ReadOnly</strong> (read only, no modifications or deletions). Applied at subscription, resource group, or individual resource level. Locks inherit downward.</div></div>
+        <div class="card c-blue"><div class="card-label">Azure Blueprints</div><div class="card-desc">Define a repeatable set of Azure resources with governance. A blueprint packages: ARM templates, policy assignments, role assignments, and resource groups. Version-controlled and auditable. Deploy consistent environments across subscriptions.</div></div>
+        <div class="card c-gold"><div class="card-label">Management Groups</div><div class="card-desc">Organize subscriptions into a hierarchy. Apply Azure Policy and RBAC at the management group level -- all child subscriptions inherit. Root management group at the top. Up to 6 levels of depth (excluding root and subscription).</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-11"><div class="slide-inner">
+    <div class="slide-meta">Slide 11 of 12</div>
+    <div class="slide-title">Compliance Products <span class="accent">Map</span></div>
+    <div class="slide-subtitle">Which product handles which compliance need? This is the key mental model for the compliance portion of the SC-900 exam.</div>
+    <div class="hex-grid">
+        <div class="hex-cell"><div class="hex-title">Compliance Posture</div><div class="hex-desc">Compliance Manager: compliance score, assessments, improvement actions. Your compliance dashboard.</div></div>
+        <div class="hex-cell"><div class="hex-title">Data Protection</div><div class="hex-desc">Sensitivity labels + DLP policies. Classify, label, encrypt, and prevent data loss across M365.</div></div>
+        <div class="hex-cell"><div class="hex-title">Data Lifecycle</div><div class="hex-desc">Retention policies + retention labels + records management. Keep, delete, and manage content lifecycle.</div></div>
+        <div class="hex-cell"><div class="hex-title">Legal + Audit</div><div class="hex-desc">eDiscovery: search, hold, collect, review, and export content for legal proceedings and investigations.</div></div>
+        <div class="hex-cell"><div class="hex-title">Insider Risk</div><div class="hex-desc">Insider risk management + communication compliance. Behavioral detection of risky insider activities.</div></div>
+        <div class="hex-cell"><div class="hex-title">Azure Governance</div><div class="hex-desc">Azure Policy + resource locks + Blueprints + management groups. Enforce standards on Azure resources.</div></div>
+    </div>
+</div></section>
+
+<section class="slide" id="slide-12"><div class="slide-inner">
+    <div class="slide-meta">Slide 12 of 12</div>
+    <div class="slide-title">Chapter 4 <span class="accent">Summary</span></div>
+    <div class="slide-subtitle">Key compliance concepts for the SC-900 exam.</div>
+    <div class="summary-facts">
+        <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Microsoft Purview</strong> = unified compliance portal. Compliance Manager provides compliance score and improvement actions mapped to 300+ regulatory standards.</span></div>
+        <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Data classification</strong> uses sensitive information types (pattern-based) and trainable classifiers (ML-based) to identify sensitive data across Microsoft 365.</span></div>
+        <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Sensitivity labels</strong> persist with data. Labels can encrypt, watermark, and restrict access. Auto-labeling applies labels based on content inspection.</span></div>
+        <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>DLP policies</strong> detect and prevent sensitive data sharing across Exchange, SharePoint, OneDrive, Teams, and endpoints. Policy tips educate users.</span></div>
+        <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Records management</strong> + retention policies manage content lifecycle. eDiscovery (Standard/Premium) supports legal holds and content collection for investigations.</span></div>
+        <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Azure governance</strong>: Azure Policy (enforce standards), resource locks (prevent deletion/modification), Blueprints (repeatable deployments), management groups (hierarchy).</span></div>
+    </div>
+    <div class="box box-red" style="font-size:0.85rem; text-align:center;"><strong>SC-900 Course Complete!</strong> &nbsp;|&nbsp; Review all four chapters, complete the labs and quizzes, and you will be ready for the exam.</div>
+    <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+</div></section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; SC-900</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+<script>
+    let currentSlide = 1; const TOTAL_SLIDES = 12;
+    function goToSlide(n) { if (n < 1 || n > TOTAL_SLIDES) return; const prev = document.getElementById('slide-' + currentSlide); if (prev) prev.classList.remove('active'); currentSlide = n; const next = document.getElementById('slide-' + currentSlide); if (next) next.classList.add('active'); document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%'; document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES; document.getElementById('prev-btn').disabled = (currentSlide === 1); document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES); const cb = document.getElementById('complete-btn'); if (cb) { cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; } }
+    document.addEventListener('keydown', function(e) { if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); } });
+    goToSlide(1);
+</script>
+<script>function completeModule() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc900-ch04-pres', { returnUrl: '../index.html' }); } }</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

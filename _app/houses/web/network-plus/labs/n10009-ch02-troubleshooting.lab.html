@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Troubleshooting and Tools Lab — N10-009 Chapter 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            height: 100vh; overflow: hidden; background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5; display: flex; flex-direction: column;
+        }
+        .lab-header {
+            flex-shrink: 0; padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px; background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px;
+            color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease;
+        }
+        .back-btn:hover { background: rgba(59, 130, 246, 0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge { padding: 4px 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59, 130, 246, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10, 14, 22, 0.95); border-right: 1px solid rgba(59, 130, 246, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(12, 18, 32, 0.8); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(59, 130, 246, 0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59, 130, 246, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(12, 18, 28, 0.9); border-bottom: 1px solid rgba(59, 130, 246, 0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59, 130, 246, 0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; }
+        .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #dbeafe; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #3b82f6; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .instructions-panel {
+            position: absolute; top: 20px; right: 20px; width: 320px;
+            background: rgba(10, 16, 28, 0.97); border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px; padding: 20px; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease;
+        }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title { font-size: 1rem; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; }
+        .instructions-toggle:hover { background: rgba(59, 130, 246, 0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59, 130, 246, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59, 130, 246, 0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 5px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: all 0.2s ease; width: 100%; text-align: center; }
+        .hint-btn:hover { background: rgba(59, 130, 246, 0.22); }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10, 16, 28, 0.97); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-icon { margin-bottom: 20px; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35); transform: translateY(-1px); }
+        @media (max-width: 1024px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .term-output, .term-input-row { padding-right: 20px; }
+            .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Network Troubleshooting Lab</span>
+            <span class="lab-badge">N10-009</span>
+            <span class="lab-badge-ch">CH.2</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Identify the Problem</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check IP Configuration</div>
+                    <div class="task-desc">Run <code>ip addr</code> to verify the workstation has a valid IP address, subnet mask, and is not in an APIPA range (169.254.x.x).</div>
+                </div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Check Default Gateway</div>
+                    <div class="task-desc">Run <code>ip route</code> to view the routing table and confirm the default gateway is configured correctly.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Test Connectivity</div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Ping the Default Gateway</div>
+                    <div class="task-desc">Run <code>ping -c 4 10.0.1.1</code> to test Layer 3 connectivity to the local gateway.</div>
+                </div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Ping an External Host</div>
+                    <div class="task-desc">Run <code>ping -c 4 8.8.8.8</code> to test internet reachability beyond the local network.</div>
+                </div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Trace the Route</div>
+                    <div class="task-desc">Run <code>traceroute 8.8.8.8</code> to map the path and identify where packet loss occurs.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- DNS Diagnostics</div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Test DNS Resolution</div>
+                    <div class="task-desc">Run <code>nslookup example.com</code> to test whether the configured DNS server can resolve domain names.</div>
+                </div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Test Alternate DNS</div>
+                    <div class="task-desc">Run <code>nslookup example.com 8.8.8.8</code> to test resolution using Google's public DNS server.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 -- Advanced Analysis</div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Check Active Connections</div>
+                    <div class="task-desc">Run <code>ss -tulnp</code> to list all listening services and active connections on this machine.</div>
+                </div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Review Interface Errors</div>
+                    <div class="task-desc">Run <code>ip -s link show eth0</code> to view interface statistics including packet errors, drops, and collisions.</div>
+                </div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Generate Diagnostics Report</div>
+                    <div class="task-desc">Run <code>netdiag</code> to generate a comprehensive network diagnostics summary.</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">netadmin@troubleshoot-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div> Lab Environment Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">netadmin@lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
+                    <div class="success-title">N10-009 Troubleshooting Lab Complete!</div>
+                    <div class="success-message">
+                        You verified IP configuration, checked the routing table, tested gateway
+                        and internet connectivity with ping, mapped the network path with traceroute,
+                        diagnosed DNS resolution failures, audited listening services, analyzed
+                        interface error counters, and generated a comprehensive diagnostics report.
+                        These are the essential troubleshooting workflows for the CompTIA Network+ exam.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var USER = 'netadmin';
+        var HOST = 'lab';
+        var HOME = '/home/netadmin';
+        var cwd = HOME;
+        var cmdHistory = [];
+        var histIdx = -1;
+
+        var taskDone = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false, 7:false, 8:false, 9:false, 10:false };
+        var TOTAL_TASKS = 10;
+        var currentTask = 1;
+
+        /* ── Terminal UI ── */
+        var outputEl, inputEl, ps1PathEl;
+        function addLine(t, c) { var d = document.createElement('div'); d.className = 'term-line' + (c ? ' ' + c : ''); d.textContent = t; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addHTML(h, c) { var d = document.createElement('div'); d.className = 'term-line' + (c ? ' ' + c : ''); d.innerHTML = h; outputEl.appendChild(d); outputEl.scrollTop = outputEl.scrollHeight; }
+        function addBlank() { addLine('', ''); }
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addPromptLine(cmd) {
+            addHTML('<span class="term-prompt-span">' + USER + '@' + HOST + '</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>' + escH(cmd), 'term-line-cmd');
+        }
+
+        /* ── Simulated commands ── */
+        function cmd_ip_addr() {
+            addLine('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536', 'term-line-out');
+            addLine('    inet 127.0.0.1/8 scope host lo', 'term-line-out');
+            addLine('2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP', 'term-line-out');
+            addLine('    link/ether 52:54:00:ab:cd:ef brd ff:ff:ff:ff:ff:ff', 'term-line-out');
+            addLine('    inet 10.0.1.100/24 brd 10.0.1.255 scope global dynamic eth0', 'term-line-out');
+            addLine('       valid_lft 82400sec preferred_lft 82400sec', 'term-line-out');
+            return 'ip_addr';
+        }
+
+        function cmd_ip_route() {
+            addLine('default via 10.0.1.1 dev eth0 proto dhcp metric 100', 'term-line-out');
+            addLine('10.0.1.0/24 dev eth0 proto kernel scope link src 10.0.1.100 metric 100', 'term-line-out');
+            return 'ip_route';
+        }
+
+        function cmd_ping_gw() {
+            addLine('PING 10.0.1.1 (10.0.1.1) 56(84) bytes of data.', 'term-line-out');
+            addLine('64 bytes from 10.0.1.1: icmp_seq=1 ttl=64 time=0.8 ms', 'term-line-out');
+            addLine('64 bytes from 10.0.1.1: icmp_seq=2 ttl=64 time=0.6 ms', 'term-line-out');
+            addLine('64 bytes from 10.0.1.1: icmp_seq=3 ttl=64 time=0.7 ms', 'term-line-out');
+            addLine('64 bytes from 10.0.1.1: icmp_seq=4 ttl=64 time=0.9 ms', 'term-line-out');
+            addBlank();
+            addLine('--- 10.0.1.1 ping statistics ---', 'term-line-out');
+            addLine('4 packets transmitted, 4 received, 0% packet loss, time 3004ms', 'term-line-out');
+            addLine('rtt min/avg/max/mdev = 0.6/0.75/0.9/0.11 ms', 'term-line-out');
+            return 'ping_gw';
+        }
+
+        function cmd_ping_ext() {
+            addLine('PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.', 'term-line-out');
+            addLine('64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=12.4 ms', 'term-line-out');
+            addLine('64 bytes from 8.8.8.8: icmp_seq=2 ttl=118 time=11.8 ms', 'term-line-out');
+            addLine('64 bytes from 8.8.8.8: icmp_seq=3 ttl=118 time=45.2 ms', 'term-line-warn');
+            addLine('64 bytes from 8.8.8.8: icmp_seq=4 ttl=118 time=12.1 ms', 'term-line-out');
+            addBlank();
+            addLine('--- 8.8.8.8 ping statistics ---', 'term-line-out');
+            addLine('4 packets transmitted, 4 received, 0% packet loss, time 3006ms', 'term-line-out');
+            addLine('rtt min/avg/max/mdev = 11.8/20.4/45.2/14.1 ms', 'term-line-out');
+            addBlank();
+            addLine('  NOTE: Packet 3 shows a latency spike (45.2ms vs ~12ms average).', 'term-line-warn');
+            addLine('  This jitter could impact real-time applications like VoIP.', 'term-line-warn');
+            return 'ping_ext';
+        }
+
+        function cmd_traceroute() {
+            addLine('traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets', 'term-line-out');
+            addLine(' 1  10.0.1.1 (10.0.1.1)  0.8 ms  0.6 ms  0.7 ms', 'term-line-out');
+            addLine(' 2  isp-gw.example.net (203.0.113.1)  5.2 ms  4.8 ms  5.1 ms', 'term-line-out');
+            addLine(' 3  core-rtr.example.net (203.0.113.10)  8.4 ms  42.6 ms  8.1 ms', 'term-line-warn');
+            addLine(' 4  * * *', 'term-line-err');
+            addLine(' 5  peer-rtr.example.net (198.51.100.5)  15.3 ms  14.8 ms  15.1 ms', 'term-line-out');
+            addLine(' 6  dns.google (8.8.8.8)  12.1 ms  11.9 ms  12.0 ms', 'term-line-out');
+            addBlank();
+            addLine('  Analysis:', 'term-line-info');
+            addLine('  - Hop 3 shows inconsistent latency (8ms, 42ms, 8ms) = jitter at ISP core router', 'term-line-warn');
+            addLine('  - Hop 4 shows * * * = router blocking ICMP (normal, not necessarily a problem)', 'term-line-info');
+            addLine('  - Final destination reached successfully at hop 6', 'term-line-info');
+            return 'traceroute';
+        }
+
+        function cmd_nslookup_default() {
+            addLine('Server:         10.0.1.1', 'term-line-out');
+            addLine('Address:        10.0.1.1#53', 'term-line-out');
+            addBlank();
+            addLine('** server can\'t find example.com: SERVFAIL', 'term-line-err');
+            addBlank();
+            addLine('  The local DNS server (10.0.1.1) failed to resolve example.com.', 'term-line-warn');
+            addLine('  This suggests the local DNS server is misconfigured or its upstream is down.', 'term-line-warn');
+            addLine('  Try querying an alternate DNS server to confirm.', 'term-line-info');
+            return 'nslookup_fail';
+        }
+
+        function cmd_nslookup_alt() {
+            addLine('Server:         8.8.8.8', 'term-line-out');
+            addLine('Address:        8.8.8.8#53', 'term-line-out');
+            addBlank();
+            addLine('Non-authoritative answer:', 'term-line-out');
+            addLine('Name:   example.com', 'term-line-out');
+            addLine('Address: 93.184.216.34', 'term-line-out');
+            addBlank();
+            addLine('  DNS resolution succeeded with alternate server (8.8.8.8).', 'term-line-info');
+            addLine('  Conclusion: The local DNS server (10.0.1.1) is the problem.', 'term-line-info');
+            addLine('  Remediation: Fix the local DNS server or change client DNS settings.', 'term-line-info');
+            return 'nslookup_alt';
+        }
+
+        function cmd_ss() {
+            addLine('Netid  State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port  Process', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:22           0.0.0.0:*          sshd', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:80           0.0.0.0:*          nginx', 'term-line-out');
+            addLine('tcp    ESTAB   0       0       10.0.1.100:22        10.0.1.10:52100    sshd', 'term-line-out');
+            addLine('udp    UNCONN  0       0       0.0.0.0:68           0.0.0.0:*          dhclient', 'term-line-out');
+            addLine('tcp    ESTAB   0       436     10.0.1.100:80        10.0.1.200:44312   nginx', 'term-line-out');
+            addLine('tcp    TIME-WAIT 0     0       10.0.1.100:80        10.0.1.200:44290              ', 'term-line-dim');
+            return 'ss';
+        }
+
+        function cmd_ip_stats() {
+            addLine('2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP', 'term-line-out');
+            addLine('    RX:  bytes   packets  errors  dropped  missed  mcast', 'term-line-out');
+            addLine('         8457321  12845    3       0        0       42', 'term-line-out');
+            addLine('    TX:  bytes   packets  errors  dropped  carrier  collsns', 'term-line-out');
+            addLine('         4231567  8432     0       2        0        0', 'term-line-out');
+            addBlank();
+            addLine('  Analysis:', 'term-line-info');
+            addLine('  - 3 RX errors detected (possible physical layer issue — check cable)', 'term-line-warn');
+            addLine('  - 2 TX drops (output buffer overflow — possible congestion)', 'term-line-warn');
+            addLine('  - 0 collisions (good — full-duplex link confirmed)', 'term-line-info');
+            addLine('  - 0 carrier errors (link stability is good)', 'term-line-info');
+            return 'ip_stats';
+        }
+
+        function cmd_netdiag() {
+            addLine('==========================================', 'term-line-info');
+            addLine('  NETWORK DIAGNOSTICS REPORT', 'term-line-info');
+            addLine('  Host: 10.0.1.100/24  GW: 10.0.1.1', 'term-line-info');
+            addLine('  Date: 2026-04-21', 'term-line-info');
+            addLine('==========================================', 'term-line-info');
+            addBlank();
+            addLine('  [OK] IP Configuration: 10.0.1.100/24 via DHCP', 'term-line-out');
+            addLine('  [OK] Default Gateway: 10.0.1.1 reachable (0.75ms avg)', 'term-line-out');
+            addLine('  [OK] Internet Connectivity: 8.8.8.8 reachable (20.4ms avg)', 'term-line-out');
+            addLine('  [WARN] Jitter detected: 14.1ms mdev to 8.8.8.8', 'term-line-warn');
+            addLine('  [WARN] Traceroute hop 3 latency spike: 42.6ms (ISP core)', 'term-line-warn');
+            addBlank();
+            addLine('  [FAIL] Local DNS (10.0.1.1): SERVFAIL for example.com', 'term-line-err');
+            addLine('  [OK] Alternate DNS (8.8.8.8): Resolves example.com correctly', 'term-line-out');
+            addLine('  [ACTION] Fix local DNS server or update /etc/resolv.conf', 'term-line-err');
+            addBlank();
+            addLine('  [WARN] Interface eth0: 3 RX errors, 2 TX drops', 'term-line-warn');
+            addLine('  [ACTION] Inspect cable and connector for physical damage', 'term-line-warn');
+            addBlank();
+            addLine('  Services: SSH(22) OK, HTTP(80) OK, DHCP client active', 'term-line-out');
+            addBlank();
+            addLine('  Primary Issue: Local DNS server failure', 'term-line-err');
+            addLine('  Secondary Issue: Jitter at ISP hop (contact ISP if persistent)', 'term-line-warn');
+            addLine('  Minor Issue: RX errors suggest marginal cable', 'term-line-warn');
+            addLine('==========================================', 'term-line-info');
+            return 'netdiag';
+        }
+
+        /* ── Command dispatch ── */
+        function execLine(raw) {
+            var t = raw.trim();
+            addPromptLine(t);
+            if (!t) return;
+            var result = null;
+
+            if (t === 'ip addr' || t === 'ip a' || t === 'ifconfig') { result = cmd_ip_addr(); }
+            else if (t === 'ip route' || t === 'ip r' || t === 'route -n') { result = cmd_ip_route(); }
+            else if (t.match(/^ping\s+(-c\s*\d+\s+)?10\.0\.1\.1$/)) { result = cmd_ping_gw(); }
+            else if (t.match(/^ping\s+(-c\s*\d+\s+)?8\.8\.8\.8$/)) { result = cmd_ping_ext(); }
+            else if (t.match(/^traceroute\s+8\.8\.8\.8$/) || t.match(/^tracert\s+8\.8\.8\.8$/)) { result = cmd_traceroute(); }
+            else if (t === 'nslookup example.com' || t === 'dig example.com') { result = cmd_nslookup_default(); }
+            else if (t === 'nslookup example.com 8.8.8.8' || t === 'dig @8.8.8.8 example.com') { result = cmd_nslookup_alt(); }
+            else if (t === 'ss -tulnp' || t === 'netstat -an' || t === 'netstat -tulnp') { result = cmd_ss(); }
+            else if (t === 'ip -s link show eth0' || t === 'ip -s link' || t === 'ifconfig eth0') { result = cmd_ip_stats(); }
+            else if (t === 'netdiag' || t === 'netdiag --full') { result = cmd_netdiag(); }
+            else if (t === 'clear') { outputEl.innerHTML = ''; result = 'clear'; }
+            else if (t === 'pwd') { addLine(HOME, 'term-line-out'); result = 'pwd'; }
+            else if (t === 'help' || t === '--help') {
+                addLine('Network Troubleshooting Lab — Available Commands', 'term-line-info');
+                addBlank();
+                addLine('DIAGNOSTICS:', 'term-line-warn');
+                addLine('  ip addr                  Show IP configuration', 'term-line-dim');
+                addLine('  ip route                 Show routing table', 'term-line-dim');
+                addLine('  ping -c 4 <ip>           Test connectivity', 'term-line-dim');
+                addLine('  traceroute <ip>           Map route to destination', 'term-line-dim');
+                addLine('  nslookup <domain> [dns]   Query DNS', 'term-line-dim');
+                addLine('  ss -tulnp                Show listening services', 'term-line-dim');
+                addLine('  ip -s link show eth0     Show interface statistics', 'term-line-dim');
+                addLine('  netdiag                  Full diagnostics report', 'term-line-dim');
+                addBlank();
+                addLine('GENERAL:', 'term-line-warn');
+                addLine('  pwd  clear  help', 'term-line-dim');
+                addBlank();
+                result = 'help';
+            }
+            else {
+                addLine('bash: ' + t.split(' ')[0] + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+            checkTasks(t, result);
+        }
+
+        /* ── Task verification ── */
+        function checkTasks(raw, result) {
+            if (!taskDone[1] && result === 'ip_addr') completeTask(1);
+            if (!taskDone[2] && result === 'ip_route') completeTask(2);
+            if (!taskDone[3] && result === 'ping_gw') completeTask(3);
+            if (!taskDone[4] && result === 'ping_ext') completeTask(4);
+            if (!taskDone[5] && result === 'traceroute') completeTask(5);
+            if (!taskDone[6] && result === 'nslookup_fail') completeTask(6);
+            if (!taskDone[7] && result === 'nslookup_alt') completeTask(7);
+            if (!taskDone[8] && result === 'ss') completeTask(8);
+            if (!taskDone[9] && result === 'ip_stats') completeTask(9);
+            if (!taskDone[10] && result === 'netdiag') completeTask(10);
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var done = countDone();
+            document.getElementById('taskProgress').textContent = done + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((done / TOTAL_TASKS) * 100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>', 'term-line-info');
+            addBlank();
+            if (done === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(n) {
+            var names = { 1:'Check IP Configuration', 2:'Check Default Gateway', 3:'Ping the Default Gateway', 4:'Ping an External Host', 5:'Trace the Route', 6:'Test DNS Resolution', 7:'Test Alternate DNS', 8:'Check Active Connections', 9:'Review Interface Errors', 10:'Generate Diagnostics Report' };
+            return names[n] || 'Task ' + n;
+        }
+        function countDone() { var c = 0; for (var k in taskDone) { if (taskDone[k]) c++; } return c; }
+        function nextIncompleteTask() { for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) return i; } return null; }
+
+        /* ── Instructions ── */
+        var taskInstructions = {
+            1: { step: 'Run <code>ip addr</code> to verify the IP configuration.\n\nCheck for:\n- A valid IP address (not 169.254.x.x APIPA)\n- Correct subnet mask (/24 = 255.255.255.0)\n- Interface state (UP vs DOWN)', hint: 'If the IP were in the 169.254.0.0/16 range, that would mean DHCP failed and the system fell back to APIPA. The current address (10.0.1.100/24) is a valid DHCP-assigned private address.', cmd: 'ip addr' },
+            2: { step: 'Run <code>ip route</code> to check the routing table.\n\nVerify that:\n- A default route exists (0.0.0.0/0 via gateway)\n- The gateway IP is on the same subnet\n- The route points to the correct interface', hint: 'Without a default gateway, the machine can only communicate with devices on its own subnet (10.0.1.0/24). All traffic to remote networks (including the internet) is sent to the default gateway for forwarding.', cmd: 'ip route' },
+            3: { step: 'Ping the default gateway:\n<code>ping -c 4 10.0.1.1</code>\n\nThis tests Layer 3 connectivity to the nearest router. If this fails, the problem is local (cable, switch port, IP config).', hint: 'Sub-1ms response times to the gateway are normal on a local network. If latency were 50ms+ to the gateway, suspect congestion or a duplex mismatch. 100% packet loss means the gateway is unreachable — check physical connections.', cmd: 'ping -c 4 10.0.1.1' },
+            4: { step: 'Ping an external host:\n<code>ping -c 4 8.8.8.8</code>\n\nThis tests internet reachability. If the gateway responds but 8.8.8.8 does not, the problem is upstream (ISP, routing, firewall blocking outbound traffic).', hint: 'Watch for latency spikes (jitter). Consistent 12ms with one 45ms packet indicates intermittent congestion. For VoIP, jitter above 30ms causes audio quality problems. The mdev (mean deviation) value quantifies jitter.', cmd: 'ping -c 4 8.8.8.8' },
+            5: { step: 'Map the path to the destination:\n<code>traceroute 8.8.8.8</code>\n\nEach line shows one router hop. Look for latency spikes at specific hops and timeouts (* * *) that indicate ICMP filtering or unreachable routers.', hint: 'A single * at a hop is normal (the router may rate-limit ICMP). Three consecutive *** means the hop did not respond at all. If all hops after a certain point show ***, the path is broken at that point. If the final destination responds but intermediate hops show ***, the routers are simply filtering ICMP — not a connectivity problem.', cmd: 'traceroute 8.8.8.8' },
+            6: { step: 'Test DNS resolution using the default server:\n<code>nslookup example.com</code>\n\nIf this fails (SERVFAIL), the configured DNS server cannot resolve the domain. This does not mean the internet is down — it means DNS specifically is broken.', hint: 'SERVFAIL means the DNS server received the query but could not process it — its upstream forwarders may be misconfigured or unreachable. NXDOMAIN would mean the domain does not exist. REFUSED would mean the server explicitly rejected the query (access control).', cmd: 'nslookup example.com' },
+            7: { step: 'Test DNS using an alternate server:\n<code>nslookup example.com 8.8.8.8</code>\n\nIf this succeeds while the default DNS fails, you have isolated the problem: the local DNS server is the root cause.', hint: 'This is the classic DNS isolation test. If both servers fail, the domain itself may be down. If only the default fails, the fix is either repairing the local DNS server or updating /etc/resolv.conf to use a working DNS server. In production, always have at least two DNS servers configured for redundancy.', cmd: 'nslookup example.com 8.8.8.8' },
+            8: { step: 'Check listening services and active connections:\n<code>ss -tulnp</code>\n\nIdentify what services are running, which ports they listen on, and who is connected. ESTABLISHED connections show active sessions. TIME-WAIT shows recently closed connections.', hint: 'UDP port 68 is the DHCP client — this machine is using DHCP for its IP address. An SSH session (ESTABLISHED on port 22) from 10.0.1.10 is your admin session. TIME-WAIT connections on port 80 are normal HTTP connections that recently closed — TCP holds them briefly to handle straggler packets.', cmd: 'ss -tulnp' },
+            9: { step: 'View interface error counters:\n<code>ip -s link show eth0</code>\n\nRX errors indicate corrupted incoming frames (physical layer issue). TX drops indicate the output buffer is full (congestion). Collisions indicate half-duplex operation.', hint: '3 RX errors out of 12,845 packets is a 0.02% error rate — borderline acceptable but worth monitoring. Rising errors over time indicate a deteriorating cable or connector. Zero collisions confirms full-duplex operation. In half-duplex, collisions are expected but degrade performance.', cmd: 'ip -s link show eth0' },
+            10: { step: 'Generate a comprehensive diagnostics report:\n<code>netdiag</code>\n\nThis aggregates all findings from the lab into a prioritized summary with root cause analysis and remediation actions.', hint: 'In real troubleshooting, you would document these findings (CompTIA step 7). The primary issue is DNS failure — fixing the local DNS server or updating client configuration resolves the user-reported symptom. The jitter and RX errors are secondary concerns that warrant monitoring.', cmd: 'netdiag' }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var c = document.getElementById('task-card-' + i);
+                if (!c) continue; c.classList.remove('active');
+                if (i === num) c.classList.add('active');
+            }
+            var ac = document.getElementById('task-card-' + num);
+            if (ac) ac.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            var info = taskInstructions[num]; if (!info) return;
+            var s = document.getElementById('instructionsStep');
+            var h = document.getElementById('instructionsHint');
+            var hc = document.getElementById('hintCommand');
+            if (s) s.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (h) h.innerHTML = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' + escH(info.hint);
+            if (hc) { hc.textContent = info.cmd; hc.classList.remove('visible'); }
+            var btn = document.getElementById('hintBtn'); if (btn) btn.textContent = 'Show command hint';
+            var p = document.getElementById('instructionsPanel');
+            if (p && p.classList.contains('collapsed')) p.classList.remove('collapsed');
+        }
+
+        function toggleInstructions() { var p = document.getElementById('instructionsPanel'); if (p) p.classList.toggle('collapsed'); }
+        function revealHint() {
+            var h = document.getElementById('hintCommand'); if (h) h.classList.toggle('visible');
+            var b = document.getElementById('hintBtn'); if (b) b.textContent = (h && h.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+        window.selectTask = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint = revealHint;
+
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('web', 'n10009-ch02-lab', { returnUrl: '../index.html' });
+            } else { window.location.href = '../index.html'; }
+        }
+        window.finishLab = finishLab;
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+
+            addLine('Network Troubleshooting Lab', 'term-welcome');
+            addLine('N10-009 Chapter 2 — Diagnostic Tools and Methodology', 'term-welcome');
+            addBlank();
+            addLine('Scenario: A user reports they cannot access websites by name.', 'term-line-info');
+            addLine('IP connectivity appears to work but browsing fails.', 'term-line-info');
+            addLine('Follow the CompTIA troubleshooting methodology to diagnose the issue.', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+
+            inputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var cmd = inputEl.value; inputEl.value = '';
+                    if (cmd.trim()) { cmdHistory.push(cmd); histIdx = cmdHistory.length; }
+                    execLine(cmd);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (histIdx < cmdHistory.length - 1) { histIdx++; inputEl.value = cmdHistory[histIdx]; }
+                    else { histIdx = cmdHistory.length; inputEl.value = ''; }
+                }
+            });
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+        else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

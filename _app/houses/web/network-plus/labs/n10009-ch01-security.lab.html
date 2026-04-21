@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Security Fundamentals Lab — N10-009 Chapter 1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            height: 100vh; overflow: hidden; background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5; display: flex; flex-direction: column;
+        }
+        .lab-header {
+            flex-shrink: 0; padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px; background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px;
+            color: #3b82f6; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease;
+        }
+        .back-btn:hover { background: rgba(59, 130, 246, 0.2); }
+        .lab-title { font-size: 1rem; color: #dbeafe; }
+        .lab-badge {
+            padding: 4px 12px; background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #60a5fa; letter-spacing: 0.05em;
+        }
+        .lab-badge-ch {
+            padding: 4px 12px; background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em;
+        }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #6b82a0; }
+        .task-count { color: #3b82f6; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(59, 130, 246, 0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10, 14, 22, 0.95); border-right: 1px solid rgba(59, 130, 246, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #3b5278; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card {
+            background: rgba(12, 18, 32, 0.8); border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease;
+        }
+        .task-card:hover { border-color: rgba(59, 130, 246, 0.4); }
+        .task-card.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .task-card.completed { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #3b82f6; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #dbeafe; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #6b82a0; line-height: 1.45; }
+        .task-desc code { background: rgba(59, 130, 246, 0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #60a5fa; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar {
+            flex-shrink: 0; padding: 8px 20px; background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #4a6080; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row {
+            flex-shrink: 0; display: flex; align-items: center;
+            padding: 8px 360px 12px 20px; border-top: 1px solid rgba(59, 130, 246, 0.1); gap: 0;
+        }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #3b82f6; } .term-prompt-sep { color: #3b5278; }
+        .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+        .term-input {
+            flex: 1; background: transparent; border: none; outline: none; color: #dbeafe;
+            font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #3b82f6;
+        }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #b3cef5; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; }
+        .term-line-info { color: #60a5fa; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #374860; }
+        .term-welcome { color: #3b82f6; }
+        .term-prompt-span { color: #3b82f6; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #3b5278; }
+        .json-key { color: #60a5fa; } .json-string { color: #86efac; } .json-number { color: #fbbf24; }
+        .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel {
+            position: absolute; top: 20px; right: 20px; width: 320px;
+            background: rgba(10, 16, 28, 0.97); border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px; padding: 20px; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease;
+        }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-panel.collapsed .instructions-toggle { transform: rotate(180deg); }
+        .instructions-title {
+            font-size: 1rem; color: #3b82f6; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 10px; cursor: pointer;
+        }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle {
+            margin-left: auto; width: 28px; height: 28px;
+            background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .instructions-toggle:hover { background: rgba(59, 130, 246, 0.4); }
+        .instructions-step { font-size: 0.88rem; color: #b3cef5; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(59, 130, 246, 0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #60a5fa; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #3b5278; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(59, 130, 246, 0.15); line-height: 1.5; }
+        .hint-btn {
+            margin-top: 12px; padding: 6px 12px; background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 5px; color: #3b82f6;
+            font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease; width: 100%; text-align: center;
+        }
+        .hint-btn:hover { background: rgba(59, 130, 246, 0.22); }
+        .hint-command {
+            display: none; margin-top: 10px; padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem;
+            color: #86efac; line-height: 1.55; white-space: pre-wrap; word-break: break-all;
+        }
+        .hint-command.visible { display: block; }
+        .success-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.82); display: none; align-items: center; justify-content: center; z-index: 2000;
+        }
+        .success-overlay.active { display: flex; }
+        .success-card {
+            background: rgba(10, 16, 28, 0.97); border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%;
+        }
+        .success-icon { margin-bottom: 20px; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #b3cef5; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn {
+            padding: 12px 30px; background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease;
+        }
+        .success-btn:hover { box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35); transform: translateY(-1px); }
+        .tab-suggestions {
+            display: none; position: absolute; bottom: 52px; left: 20px;
+            background: rgba(10, 16, 28, 0.97); border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px; padding: 4px 0; z-index: 200; font-family: 'Consolas', monospace; font-size: 0.8rem;
+        }
+        .tab-suggestions.visible { display: block; }
+        .tab-option { padding: 4px 14px; color: #86efac; cursor: pointer; }
+        .tab-option:hover, .tab-option.selected { background: rgba(59, 130, 246, 0.15); color: #dbeafe; }
+        @media (max-width: 1024px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .term-output, .term-input-row { padding-right: 20px; }
+            .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Network Security Fundamentals Lab</span>
+            <span class="lab-badge">N10-009</span>
+            <span class="lab-badge-ch">CH.1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel">
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 -- Reconnaissance</div>
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Network Interfaces</div>
+                    <div class="task-desc">Run <code>ip addr</code> to view network interface configuration. Identify the IP address, subnet mask, and MAC address of the active interface.</div>
+                </div>
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Inspect the ARP Table</div>
+                    <div class="task-desc">Run <code>arp -a</code> to display the ARP cache. Identify the gateway MAC address and look for any suspicious duplicate entries.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 -- Firewall Analysis</div>
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">View Firewall Rules</div>
+                    <div class="task-desc">Run <code>iptables -L -n</code> to list current firewall rules. Identify the default policy and any explicit permit/deny rules.</div>
+                </div>
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Block Suspicious IP</div>
+                    <div class="task-desc">Use <code>iptables -A INPUT -s 10.99.99.50 -j DROP</code> to block incoming traffic from a known malicious IP address.</div>
+                </div>
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Verify the Block Rule</div>
+                    <div class="task-desc">Run <code>iptables -L -n</code> again to confirm your new DROP rule appears in the INPUT chain.</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 -- Port Security</div>
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Scan Open Ports</div>
+                    <div class="task-desc">Run <code>ss -tulnp</code> to list all listening TCP and UDP ports. Identify which services are exposed and their port numbers.</div>
+                </div>
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Check for Insecure Services</div>
+                    <div class="task-desc">Run <code>cat /etc/services-audit.txt</code> to review the security audit report identifying insecure services (Telnet, FTP, SNMPv1).</div>
+                </div>
+            </div>
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 -- Authentication and Logging</div>
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Review Authentication Logs</div>
+                    <div class="task-desc">Run <code>cat /var/log/auth.log</code> to examine authentication events. Look for failed login attempts and brute-force patterns.</div>
+                </div>
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Check RADIUS Configuration</div>
+                    <div class="task-desc">Run <code>cat /etc/raddb/clients.conf</code> to inspect the RADIUS server client configuration -- shared secrets, client IPs, and NAS types.</div>
+                </div>
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Generate Security Summary</div>
+                    <div class="task-desc">Run <code>security-report</code> to generate a final security posture summary for this network segment.</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">secadmin@net-security-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div> Lab Environment Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">secadmin@lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain"></div>
+                    <div class="success-title">N10-009 Security Lab Complete!</div>
+                    <div class="success-message">
+                        You inspected network interfaces, analyzed the ARP table for poisoning indicators,
+                        reviewed and modified firewall rules, audited open ports for insecure services,
+                        examined authentication logs for brute-force patterns, verified RADIUS configuration,
+                        and generated a security posture summary. These are the core defensive analysis
+                        skills every network security professional uses daily.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var USER = 'secadmin';
+        var HOST = 'lab';
+        var HOME = '/home/secadmin';
+
+        var cwd = HOME;
+        var cmdHistory = [];
+        var histIdx = -1;
+
+        var taskDone = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false, 7:false, 8:false, 9:false, 10:false };
+        var TOTAL_TASKS = 10;
+        var currentTask = 1;
+        var firewallBlockAdded = false;
+        var iptablesViewedAfterBlock = false;
+
+        /* ── Virtual File System ── */
+        var vfs = {};
+        function initFS() {
+            var dirs = ['/', '/bin', '/etc', '/etc/raddb', '/home', HOME, '/tmp', '/var', '/var/log'];
+            dirs.forEach(function (d) { vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' }; });
+
+            var files = {
+                '/etc/hostname': { c: 'net-security-lab', m: '-rw-r--r--' },
+                '/etc/services-audit.txt': {
+                    c: [
+                        '=== Network Security Audit Report ===',
+                        'Date: 2026-04-21  Auditor: SOC-TEAM-ALPHA',
+                        '',
+                        'FINDING 1 [CRITICAL]: Telnet (TCP/23) is ENABLED',
+                        '  Risk: Telnet transmits credentials in plaintext.',
+                        '  Remediation: Disable Telnet, use SSH (TCP/22) instead.',
+                        '',
+                        'FINDING 2 [HIGH]: FTP (TCP/21) is ENABLED',
+                        '  Risk: FTP transmits files and credentials unencrypted.',
+                        '  Remediation: Disable FTP, use SFTP or SCP instead.',
+                        '',
+                        'FINDING 3 [HIGH]: SNMPv1 community string "public" detected',
+                        '  Risk: SNMPv1 sends community strings in cleartext.',
+                        '  Remediation: Migrate to SNMPv3 with authPriv (SHA+AES).',
+                        '',
+                        'FINDING 4 [MEDIUM]: HTTP (TCP/80) running without TLS redirect',
+                        '  Risk: Unencrypted web traffic exposes session cookies.',
+                        '  Remediation: Enable HTTPS (TCP/443), redirect HTTP to HTTPS.',
+                        '',
+                        'FINDING 5 [LOW]: ICMP echo reply enabled',
+                        '  Risk: Allows network mapping via ping sweeps.',
+                        '  Note: Consider blocking at perimeter, allow internally.',
+                        '',
+                        '=== End of Audit Report ==='
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/var/log/auth.log': {
+                    c: [
+                        'Apr 21 02:14:01 lab sshd[4821]: Failed password for admin from 10.99.99.50 port 44812 ssh2',
+                        'Apr 21 02:14:03 lab sshd[4823]: Failed password for admin from 10.99.99.50 port 44814 ssh2',
+                        'Apr 21 02:14:05 lab sshd[4825]: Failed password for admin from 10.99.99.50 port 44816 ssh2',
+                        'Apr 21 02:14:07 lab sshd[4827]: Failed password for admin from 10.99.99.50 port 44818 ssh2',
+                        'Apr 21 02:14:09 lab sshd[4829]: Failed password for admin from 10.99.99.50 port 44820 ssh2',
+                        'Apr 21 02:14:11 lab sshd[4831]: Failed password for root from 10.99.99.50 port 44822 ssh2',
+                        'Apr 21 02:14:13 lab sshd[4833]: Failed password for root from 10.99.99.50 port 44824 ssh2',
+                        'Apr 21 02:14:15 lab sshd[4835]: Failed password for root from 10.99.99.50 port 44826 ssh2',
+                        'Apr 21 02:15:00 lab sshd[4840]: Connection closed by 10.99.99.50 port 44828 [preauth]',
+                        'Apr 21 06:30:12 lab sshd[5100]: Accepted publickey for secadmin from 192.168.1.10 port 52100 ssh2',
+                        'Apr 21 06:30:12 lab sshd[5100]: pam_unix(sshd:session): session opened for user secadmin',
+                        'Apr 21 08:45:00 lab sudo: secadmin : TTY=pts/0 ; PWD=/home/secadmin ; COMMAND=/usr/sbin/iptables -L -n'
+                    ].join('\n'),
+                    m: '-rw-r-----'
+                },
+                '/etc/raddb/clients.conf': {
+                    c: [
+                        '# RADIUS Client Configuration',
+                        '# FreeRADIUS 3.0 — /etc/raddb/clients.conf',
+                        '',
+                        'client switch-core-01 {',
+                        '    ipaddr          = 192.168.1.2',
+                        '    secret          = R@d1us$3cure!Key',
+                        '    shortname       = core-switch',
+                        '    nastype         = cisco',
+                        '    require_message_authenticator = yes',
+                        '}',
+                        '',
+                        'client ap-floor1 {',
+                        '    ipaddr          = 192.168.1.20',
+                        '    secret          = W1r3l3ss@uth!2026',
+                        '    shortname       = ap-floor1',
+                        '    nastype         = other',
+                        '    require_message_authenticator = yes',
+                        '}',
+                        '',
+                        'client vpn-concentrator {',
+                        '    ipaddr          = 192.168.1.5',
+                        '    secret          = VPN@cce$$K3y!Prod',
+                        '    shortname       = vpn-gw',
+                        '    nastype         = other',
+                        '    require_message_authenticator = yes',
+                        '}',
+                        '',
+                        '# NOTE: All clients use unique, complex shared secrets.',
+                        '# SNMPv3 is required for device monitoring.',
+                        '# 802.1X EAP-TLS is the preferred authentication method.'
+                    ].join('\n'),
+                    m: '-rw-r-----'
+                }
+            };
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ── Path utilities ── */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); } else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p) { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var name = p.substring(prefix.length).split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        /* ── Terminal UI ── */
+        var outputEl, inputEl, ps1PathEl;
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div); outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div); outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        function addBlank() { addLine('', ''); }
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd), 'term-line-cmd'
+            );
+        }
+        function updatePS1() { if (ps1PathEl) ps1PathEl.textContent = promptPath(); }
+
+        /* ── Simulated commands ── */
+        function cmd_ip_addr() {
+            addLine('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536', 'term-line-out');
+            addLine('    inet 127.0.0.1/8 scope host lo', 'term-line-out');
+            addLine('    link/loopback 00:00:00:00:00:00', 'term-line-out');
+            addLine('2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500', 'term-line-out');
+            addLine('    link/ether 08:00:27:ab:cd:ef brd ff:ff:ff:ff:ff:ff', 'term-line-out');
+            addLine('    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0', 'term-line-out');
+            addLine('       valid_lft forever preferred_lft forever', 'term-line-out');
+            return 'ip_addr';
+        }
+
+        function cmd_arp() {
+            addLine('? (192.168.1.1) at 00:1a:2b:3c:4d:5e [ether] on eth0', 'term-line-out');
+            addLine('? (192.168.1.2) at 00:1a:2b:3c:4d:60 [ether] on eth0', 'term-line-out');
+            addLine('? (192.168.1.5) at 00:1a:2b:3c:4d:70 [ether] on eth0', 'term-line-out');
+            addLine('? (192.168.1.20) at 00:1a:2b:3c:4d:80 [ether] on eth0', 'term-line-out');
+            addLine('? (192.168.1.50) at 00:1a:2b:3c:4d:5e [ether] on eth0', 'term-line-out');
+            addBlank();
+            addLine('  NOTE: 192.168.1.1 and 192.168.1.50 share the same MAC address!', 'term-line-warn');
+            addLine('  This is a strong indicator of ARP poisoning.', 'term-line-warn');
+            addLine('  192.168.1.50 may be impersonating the gateway.', 'term-line-warn');
+            return 'arp';
+        }
+
+        function cmd_iptables_list() {
+            addLine('Chain INPUT (policy ACCEPT)', 'term-line-out');
+            addLine('target     prot opt source               destination', 'term-line-out');
+            addLine('ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:22', 'term-line-out');
+            addLine('ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:443', 'term-line-out');
+            addLine('ACCEPT     tcp  --  192.168.1.0/24       0.0.0.0/0            tcp dpt:1812', 'term-line-out');
+            if (firewallBlockAdded) {
+                addLine('DROP       all  --  10.99.99.50          0.0.0.0/0', 'term-line-err');
+            }
+            addBlank();
+            addLine('Chain FORWARD (policy DROP)', 'term-line-out');
+            addLine('target     prot opt source               destination', 'term-line-out');
+            addBlank();
+            addLine('Chain OUTPUT (policy ACCEPT)', 'term-line-out');
+            addLine('target     prot opt source               destination', 'term-line-out');
+            return 'iptables_list';
+        }
+
+        function cmd_iptables_add(raw) {
+            if (raw.indexOf('-A INPUT') >= 0 && raw.indexOf('10.99.99.50') >= 0 && raw.indexOf('DROP') >= 0) {
+                firewallBlockAdded = true;
+                addLine('Rule added: DROP all traffic from 10.99.99.50 on INPUT chain.', 'term-line-info');
+                return 'iptables_block';
+            }
+            addLine('iptables: invalid rule syntax. Example: iptables -A INPUT -s <IP> -j DROP', 'term-line-err');
+            return null;
+        }
+
+        function cmd_ss() {
+            addLine('Netid  State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port  Process', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:22           0.0.0.0:*          sshd', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:443          0.0.0.0:*          nginx', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:80           0.0.0.0:*          nginx', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:23           0.0.0.0:*          telnetd', 'term-line-err');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:21           0.0.0.0:*          vsftpd', 'term-line-err');
+            addLine('udp    UNCONN  0       0       0.0.0.0:161          0.0.0.0:*          snmpd', 'term-line-warn');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:1812         0.0.0.0:*          radiusd', 'term-line-out');
+            addLine('tcp    LISTEN  0       128     0.0.0.0:1813         0.0.0.0:*          radiusd', 'term-line-out');
+            addBlank();
+            addLine('  WARNING: Telnet (23) and FTP (21) are insecure — plaintext protocols.', 'term-line-warn');
+            addLine('  WARNING: SNMP (161) should verify SNMPv3 is in use.', 'term-line-warn');
+            return 'ss';
+        }
+
+        function cmd_security_report() {
+            addLine('=========================================', 'term-line-info');
+            addLine('  NETWORK SECURITY POSTURE SUMMARY', 'term-line-info');
+            addLine('  Segment: 192.168.1.0/24', 'term-line-info');
+            addLine('  Date: 2026-04-21', 'term-line-info');
+            addLine('=========================================', 'term-line-info');
+            addBlank();
+            addLine('  [CRITICAL] ARP poisoning detected', 'term-line-err');
+            addLine('    192.168.1.50 impersonating gateway 192.168.1.1', 'term-line-err');
+            addLine('    Action: Enable Dynamic ARP Inspection on switch', 'term-line-err');
+            addBlank();
+            addLine('  [CRITICAL] Brute-force SSH attack from 10.99.99.50', 'term-line-err');
+            addLine('    8 failed attempts targeting admin and root', 'term-line-err');
+            addLine('    Action: IP blocked via iptables' + (firewallBlockAdded ? ' [DONE]' : ' [PENDING]'), 'term-line-err');
+            addBlank();
+            addLine('  [HIGH] Insecure services running', 'term-line-warn');
+            addLine('    Telnet (TCP/23), FTP (TCP/21), SNMPv1 (UDP/161)', 'term-line-warn');
+            addLine('    Action: Disable and replace with SSH, SFTP, SNMPv3', 'term-line-warn');
+            addBlank();
+            addLine('  [OK] Firewall: SSH(22), HTTPS(443), RADIUS(1812) permitted', 'term-line-out');
+            addLine('  [OK] RADIUS: 3 clients configured with unique secrets', 'term-line-out');
+            addLine('  [OK] SSH: Public key authentication for secadmin verified', 'term-line-out');
+            addBlank();
+            addLine('  Overall Risk Rating: HIGH', 'term-line-warn');
+            addLine('  Priority: Remediate ARP poisoning and disable plaintext services.', 'term-line-warn');
+            addLine('=========================================', 'term-line-info');
+            return 'security_report';
+        }
+
+        /* ── Command dispatch ── */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+
+            var result = null;
+
+            if (trimmed === 'ip addr' || trimmed === 'ip a' || trimmed === 'ifconfig') {
+                result = cmd_ip_addr();
+            } else if (trimmed === 'arp -a' || trimmed === 'arp') {
+                result = cmd_arp();
+            } else if (trimmed === 'iptables -L -n' || trimmed === 'iptables -L' || trimmed === 'sudo iptables -L -n') {
+                result = cmd_iptables_list();
+            } else if (trimmed.indexOf('iptables -A') >= 0 || trimmed.indexOf('iptables -a') >= 0) {
+                result = cmd_iptables_add(trimmed);
+            } else if (trimmed === 'ss -tulnp' || trimmed === 'ss -tlnp' || trimmed === 'netstat -tulnp' || trimmed === 'netstat -an') {
+                result = cmd_ss();
+            } else if (trimmed === 'security-report' || trimmed === 'security-report --full') {
+                result = cmd_security_report();
+            } else if (trimmed.indexOf('cat ') === 0) {
+                var catPath = resolve(trimmed.substring(4).trim());
+                if (!exists(catPath)) { addLine('cat: ' + trimmed.substring(4).trim() + ': No such file or directory', 'term-line-err'); }
+                else if (isDir(catPath)) { addLine('cat: ' + trimmed.substring(4).trim() + ': Is a directory', 'term-line-err'); }
+                else { (vfs[catPath].content || '').split('\n').forEach(function(l){ addLine(l, 'term-line-out'); }); result = { catted: true, path: catPath }; }
+            } else if (trimmed === 'ls' || trimmed.indexOf('ls ') === 0) {
+                var lsPath = trimmed === 'ls' ? cwd : resolve(trimmed.substring(3).trim());
+                if (!exists(lsPath)) { addLine('ls: cannot access: No such file or directory', 'term-line-err'); }
+                else { var items = listDir(lsPath); addLine(items.length ? items.join('  ') : '(empty directory)', items.length ? 'term-line-out' : 'term-line-dim'); result = 'ls'; }
+            } else if (trimmed.indexOf('cd ') === 0) {
+                var cdTarget = resolve(trimmed.substring(3).trim());
+                if (!exists(cdTarget) || !isDir(cdTarget)) { addLine('cd: not a directory', 'term-line-err'); }
+                else { cwd = cdTarget; updatePS1(); result = 'cd'; }
+            } else if (trimmed === 'pwd') {
+                addLine(cwd, 'term-line-out'); result = 'pwd';
+            } else if (trimmed === 'clear') {
+                outputEl.innerHTML = ''; result = 'clear';
+            } else if (trimmed === 'help' || trimmed === '--help') {
+                addLine('Network Security Lab — Available Commands', 'term-line-info');
+                addBlank();
+                addLine('NETWORK:', 'term-line-warn');
+                addLine('  ip addr              Show network interfaces', 'term-line-dim');
+                addLine('  arp -a               Show ARP cache', 'term-line-dim');
+                addLine('  ss -tulnp            Show listening ports', 'term-line-dim');
+                addLine('  iptables -L -n       List firewall rules', 'term-line-dim');
+                addLine('  iptables -A INPUT -s <IP> -j DROP   Block an IP', 'term-line-dim');
+                addLine('  security-report      Generate security summary', 'term-line-dim');
+                addBlank();
+                addLine('FILESYSTEM:', 'term-line-warn');
+                addLine('  ls [path]  cd <path>  pwd  cat <file>  clear', 'term-line-dim');
+                addBlank();
+                result = 'help';
+            } else {
+                addLine('bash: ' + trimmed.split(' ')[0] + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(trimmed, result);
+        }
+
+        /* ── Task verification ── */
+        function checkTasks(raw, result) {
+            if (!taskDone[1] && result === 'ip_addr') completeTask(1);
+            if (!taskDone[2] && result === 'arp') completeTask(2);
+            if (!taskDone[3] && !firewallBlockAdded && result === 'iptables_list') completeTask(3);
+            if (!taskDone[4] && result === 'iptables_block') completeTask(4);
+            if (!taskDone[5] && firewallBlockAdded && result === 'iptables_list') {
+                iptablesViewedAfterBlock = true;
+                completeTask(5);
+            }
+            if (!taskDone[6] && result === 'ss') completeTask(6);
+            if (!taskDone[7] && result && typeof result === 'object' && result.catted && result.path.indexOf('services-audit') >= 0) completeTask(7);
+            if (!taskDone[8] && result && typeof result === 'object' && result.catted && result.path.indexOf('auth.log') >= 0) completeTask(8);
+            if (!taskDone[9] && result && typeof result === 'object' && result.catted && result.path.indexOf('clients.conf') >= 0) completeTask(9);
+            if (!taskDone[10] && result === 'security_report') completeTask(10);
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = countDone();
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () { document.getElementById('successOverlay').classList.add('active'); }, 700);
+                return;
+            }
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = { 1:'Check Network Interfaces', 2:'Inspect the ARP Table', 3:'View Firewall Rules', 4:'Block Suspicious IP', 5:'Verify the Block Rule', 6:'Scan Open Ports', 7:'Check for Insecure Services', 8:'Review Authentication Logs', 9:'Check RADIUS Configuration', 10:'Generate Security Summary' };
+            return names[num] || 'Task ' + num;
+        }
+        function countDone() { var n = 0; for (var k in taskDone) { if (taskDone[k]) n++; } return n; }
+        function nextIncompleteTask() { for (var i = 1; i <= TOTAL_TASKS; i++) { if (!taskDone[i]) return i; } return null; }
+
+        /* ── Instructions ── */
+        var taskInstructions = {
+            1: { step: 'Run <code>ip addr</code> to display all network interfaces.\n\nExamine the output for:\n- Interface name (eth0)\n- IP address and subnet mask (192.168.1.100/24)\n- MAC address (link/ether line)\n- Interface state (UP/DOWN)', hint: 'The ip addr command replaces the deprecated ifconfig on modern Linux. The /24 subnet mask means 255.255.255.0 — a standard Class C network with 254 usable host addresses.', cmd: 'ip addr' },
+            2: { step: 'Run <code>arp -a</code> to display the ARP cache.\n\nLook for:\n- The gateway MAC address (192.168.1.1)\n- Any duplicate MAC addresses across different IPs\n- Duplicate MACs indicate ARP poisoning', hint: 'ARP poisoning occurs when an attacker sends gratuitous ARP replies to associate their MAC with the gateway IP. If two different IPs share the same MAC address, one of them is likely an attacker.', cmd: 'arp -a' },
+            3: { step: 'Run <code>iptables -L -n</code> to list firewall rules.\n\nIdentify:\n- The default policy for each chain (INPUT, FORWARD, OUTPUT)\n- Which ports are explicitly permitted\n- Whether there are any DROP/REJECT rules', hint: 'The INPUT chain handles incoming traffic, FORWARD handles routed traffic, OUTPUT handles outgoing traffic. A default policy of ACCEPT means anything not explicitly denied is permitted — the opposite of best practice (deny by default).', cmd: 'iptables -L -n' },
+            4: { step: 'Block the attacker IP identified in the auth logs:\n<code>iptables -A INPUT -s 10.99.99.50 -j DROP</code>\n\nThis adds a rule to the INPUT chain that drops all packets from 10.99.99.50.', hint: 'The -A flag appends a rule to the chain. -s specifies the source IP. -j specifies the target action (DROP silently discards, REJECT sends an error back). In a real scenario, you would also implement fail2ban for automated blocking.', cmd: 'iptables -A INPUT -s 10.99.99.50 -j DROP' },
+            5: { step: 'Run <code>iptables -L -n</code> again to verify your DROP rule.\n\nConfirm that the new rule blocking 10.99.99.50 appears in the INPUT chain output.', hint: 'Always verify firewall changes after applying them. A rule that appears in the list but is in the wrong position (below a broader ACCEPT rule) would be ineffective. Rules are processed top-down, first match wins.', cmd: 'iptables -L -n' },
+            6: { step: 'Run <code>ss -tulnp</code> to list all listening ports.\n\nIdentify:\n- Expected services (SSH, HTTPS, RADIUS)\n- Insecure services that should not be running (Telnet, FTP)\n- SNMP — is it v1/v2c or v3?', hint: 'The ss command replaces netstat on modern Linux. Flags: -t (TCP), -u (UDP), -l (listening), -n (numeric, no DNS resolution), -p (show process). Any service listening on 0.0.0.0 is accessible from all interfaces.', cmd: 'ss -tulnp' },
+            7: { step: 'Read the security audit report:\n<code>cat /etc/services-audit.txt</code>\n\nThis report identifies insecure services and their recommended replacements.', hint: 'The audit follows a standard risk rating: CRITICAL (must fix immediately), HIGH (fix within 24 hours), MEDIUM (fix within 1 week), LOW (fix during next maintenance window). Each finding includes the risk and remediation steps.', cmd: 'cat /etc/services-audit.txt' },
+            8: { step: 'Examine the authentication log:\n<code>cat /var/log/auth.log</code>\n\nLook for:\n- Failed login attempts (brute-force indicators)\n- Source IP addresses of failed attempts\n- Successful logins and their authentication method', hint: 'Multiple failed password attempts from the same IP in rapid succession (every 2 seconds) is a classic brute-force pattern. The attacker (10.99.99.50) tried both admin and root accounts. The successful login from 192.168.1.10 used public key authentication — much more secure.', cmd: 'cat /var/log/auth.log' },
+            9: { step: 'Review the RADIUS configuration:\n<code>cat /etc/raddb/clients.conf</code>\n\nIdentify:\n- Configured NAS clients (switches, APs, VPN)\n- Shared secret strength\n- Whether message authenticator is required', hint: 'RADIUS shared secrets should be unique per client and complex (the ones here use 16+ character mixed-case passwords). The require_message_authenticator setting prevents replay attacks. Each client has a unique shortname for logging purposes.', cmd: 'cat /etc/raddb/clients.conf' },
+            10: { step: 'Generate the final security posture summary:\n<code>security-report</code>\n\nThis aggregates all findings from the lab into a risk-rated summary.', hint: 'A security posture report prioritizes findings by risk level and includes actionable remediation steps. In a real environment, this would be generated by a vulnerability scanner (Nessus, Qualys) or a SIEM dashboard. The lab report reflects everything you discovered during this session.', cmd: 'security-report' }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue; card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            var info = taskInstructions[num]; if (!info) return;
+            var stepEl = document.getElementById('instructionsStep');
+            var hintEl = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) hintEl.innerHTML = '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' + escH(info.hint);
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var btn = document.getElementById('hintBtn'); if (btn) btn.textContent = 'Show command hint';
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        function toggleInstructions() { var p = document.getElementById('instructionsPanel'); if (p) p.classList.toggle('collapsed'); }
+        function revealHint() {
+            var h = document.getElementById('hintCommand'); if (h) h.classList.toggle('visible');
+            var b = document.getElementById('hintBtn'); if (b) b.textContent = (h && h.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+        window.selectTask = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint = revealHint;
+
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('web', 'n10009-ch01-lab', { returnUrl: '../index.html' });
+            } else { window.location.href = '../index.html'; }
+        }
+        window.finishLab = finishLab;
+
+        function init() {
+            initFS();
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+
+            addLine('Network Security Fundamentals Lab', 'term-welcome');
+            addLine('N10-009 Chapter 1 — Security Analysis Environment', 'term-welcome');
+            addBlank();
+            addLine('You are secadmin on a network security analysis workstation.', 'term-line-info');
+            addLine('This lab covers firewall analysis, ARP poisoning detection,', 'term-line-info');
+            addLine('port auditing, authentication log review, and RADIUS configuration.', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+
+            inputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var cmd = inputEl.value; inputEl.value = '';
+                    if (cmd.trim()) { cmdHistory.push(cmd); histIdx = cmdHistory.length; }
+                    execLine(cmd);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (histIdx > 0) { histIdx--; inputEl.value = cmdHistory[histIdx]; }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (histIdx < cmdHistory.length - 1) { histIdx++; inputEl.value = cmdHistory[histIdx]; }
+                    else { histIdx = cmdHistory.length; inputEl.value = ''; }
+                }
+            });
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+        else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Security Fundamentals | N10-009 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Web house blue progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG containers */
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Step list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Network Security Fundamentals -- N10-009 Chapter 1</h1>
+
+<!-- Progress bar -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; N10-009 &nbsp;|&nbsp; Supplement Ch.1 &nbsp;|&nbsp; Security</div>
+        <div class="title-hero">
+            <!-- Network Security SVG: shield with lock, firewall, and attack vectors -->
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central shield -->
+                <path d="M210,18 L250,35 L250,75 Q250,105 210,118 Q170,105 170,75 L170,35 Z" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="62" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Network</text>
+                <text x="210" y="74" text-anchor="middle" font-size="9" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Security</text>
+                <!-- Lock icon inside shield -->
+                <rect x="203" y="82" width="14" height="10" rx="2" fill="none" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <path d="M206,82 L206,78 Q206,73 210,73 Q214,73 214,78 L214,82" fill="none" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+
+                <!-- Attack vector: left top - DoS -->
+                <rect x="14" y="8" width="100" height="40" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="64" y="24" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DoS / DDoS</text>
+                <text x="64" y="36" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Flood / Amplification</text>
+
+                <!-- Attack vector: left bottom - MITM -->
+                <rect x="14" y="60" width="100" height="40" rx="8" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="64" y="76" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">MITM</text>
+                <text x="64" y="88" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">ARP / DNS Poisoning</text>
+
+                <!-- Defense: right top - Firewall -->
+                <rect x="306" y="8" width="100" height="40" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="356" y="24" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Firewalls</text>
+                <text x="356" y="36" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">IDS / IPS / Proxy</text>
+
+                <!-- Defense: right bottom - Auth -->
+                <rect x="306" y="60" width="100" height="40" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="356" y="76" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Authentication</text>
+                <text x="356" y="88" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">RADIUS / Kerberos</text>
+
+                <!-- Arrows: attacks toward shield -->
+                <line x1="114" y1="28" x2="168" y2="50" stroke="rgba(239,68,68,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="114" y1="80" x2="168" y2="68" stroke="rgba(249,115,22,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <!-- Arrows: defenses from shield -->
+                <line x1="252" y1="50" x2="304" y2="28" stroke="rgba(58,181,119,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="252" y1="68" x2="304" y2="80" stroke="rgba(6,182,212,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Network <span class="accent">Security Fundamentals</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Attacks &nbsp;&bull;&nbsp; Firewalls &nbsp;&bull;&nbsp; IDS/IPS &nbsp;&bull;&nbsp; Authentication &nbsp;&bull;&nbsp; Wireless Security &nbsp;&bull;&nbsp; Hardening
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Network security is not optional -- it is the foundation that protects every service, every user, and every byte of data traversing your infrastructure. This chapter covers the attack surface, the defense stack, and the authentication protocols that the N10-009 exam expects you to identify and explain.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>N10-009 Exam Objectives</span>
+            <span>Supplement Chapter 1</span>
+            <span>CompTIA Network+</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- DoS AND DDoS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Denial of Service <span class="accent">(DoS / DDoS)</span></div>
+        <div class="slide-subtitle">DoS exhausts target resources with illegitimate traffic. DDoS amplifies the attack using a distributed botnet -- thousands of compromised hosts flooding a single target simultaneously.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Attacker -->
+                <rect x="4" y="35" width="80" height="40" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="44" y="53" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Attacker</text>
+                <text x="44" y="65" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">C2 Server</text>
+
+                <!-- Botnet nodes -->
+                <circle cx="140" cy="18" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="140" y="22" text-anchor="middle" font-size="6.5" fill="#f97316" font-family="Segoe UI,sans-serif">Bot</text>
+                <circle cx="140" cy="55" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="140" y="59" text-anchor="middle" font-size="6.5" fill="#f97316" font-family="Segoe UI,sans-serif">Bot</text>
+                <circle cx="140" cy="92" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="140" y="96" text-anchor="middle" font-size="6.5" fill="#f97316" font-family="Segoe UI,sans-serif">Bot</text>
+
+                <!-- Arrows: attacker to bots -->
+                <line x1="84" y1="48" x2="126" y2="20" stroke="rgba(239,68,68,0.4)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line x1="84" y1="55" x2="126" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="84" y1="62" x2="126" y2="90" stroke="rgba(239,68,68,0.4)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Flood arrows: bots to target -->
+                <line x1="154" y1="18" x2="390" y2="50" stroke="rgba(239,68,68,0.6)" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite"/>
+                </line>
+                <line x1="154" y1="55" x2="390" y2="55" stroke="rgba(239,68,68,0.6)" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="154" y1="92" x2="390" y2="60" stroke="rgba(239,68,68,0.6)" stroke-width="1.5" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.6s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Target server -->
+                <rect x="392" y="25" width="100" height="60" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="442" y="48" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Target</text>
+                <text x="442" y="60" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Server</text>
+                <text x="442" y="74" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">OVERWHELMED</text>
+
+                <!-- Mitigations box -->
+                <rect x="520" y="4" width="156" height="102" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="598" y="18" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">DDoS Mitigation</text>
+                <circle cx="530" cy="32" r="3" fill="#3ab577"/>
+                <text x="537" y="36" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Rate limiting</text>
+                <circle cx="530" cy="46" r="3" fill="#3b82f6"/>
+                <text x="537" y="50" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">BGP blackholing</text>
+                <circle cx="530" cy="60" r="3" fill="#c9a83a"/>
+                <text x="537" y="64" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">CDN/WAF scrubbing</text>
+                <circle cx="530" cy="74" r="3" fill="#a78bfa"/>
+                <text x="537" y="78" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">SYN cookies</text>
+                <circle cx="530" cy="88" r="3" fill="#06b6d4"/>
+                <text x="537" y="92" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Ingress filtering (BCP38)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">SYN Flood</div>
+                <div class="card-desc">The attacker sends thousands of TCP SYN packets with spoofed source IPs. The server allocates resources for each half-open connection and never receives the completing ACK. The connection table fills, legitimate users cannot connect. Mitigation: SYN cookies allow the server to avoid allocating state until the three-way handshake completes.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Amplification Attack</div>
+                <div class="card-desc">The attacker sends small requests to public servers (DNS, NTP, memcached) with the source IP spoofed to the victim's address. Each server responds with a much larger reply directed at the victim. A 60-byte DNS query can generate a 4000-byte response -- a 66x amplification factor. Mitigation: BCP38 ingress filtering blocks spoofed source addresses at the network edge.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Application Layer (Layer 7)</div>
+                <div class="card-desc">Slow HTTP attacks like Slowloris keep connections open by sending incomplete HTTP headers. The server waits for the complete request, exhausting its thread pool with minimal attacker bandwidth. These attacks bypass volumetric defenses because the traffic volume is low. Mitigation: connection timeouts, request rate limiting per IP, and WAF rules that detect malformed request patterns.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- MITM AND ARP POISONING ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Man-in-the-Middle &amp; <span class="accent">ARP Poisoning</span></div>
+        <div class="slide-subtitle">MITM attacks intercept communication between two parties. ARP poisoning is the most common LAN-based MITM technique -- the attacker associates their MAC address with the default gateway's IP.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Victim -->
+                <rect x="4" y="30" width="90" height="50" rx="9" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="49" y="50" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Victim PC</text>
+                <text x="49" y="62" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">192.168.1.10</text>
+                <text x="49" y="72" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">GW: .1.1</text>
+
+                <!-- Attacker in middle -->
+                <rect x="200" y="10" width="110" height="90" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="255" y="30" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Attacker</text>
+                <text x="255" y="42" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">192.168.1.50</text>
+                <text x="255" y="55" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Sends gratuitous</text>
+                <text x="255" y="66" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">ARP replies:</text>
+                <text x="255" y="78" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace">.1.1 is-at AA:BB:CC</text>
+                <text x="255" y="90" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace">(attacker's MAC)</text>
+
+                <!-- Gateway -->
+                <rect x="420" y="30" width="90" height="50" rx="9" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="465" y="50" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Gateway</text>
+                <text x="465" y="62" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">192.168.1.1</text>
+                <text x="465" y="72" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Real MAC: DD:EE:FF</text>
+
+                <!-- Redirected traffic arrows -->
+                <line x1="94" y1="48" x2="198" y2="45" stroke="rgba(59,130,246,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="312" y1="45" x2="418" y2="48" stroke="rgba(58,181,119,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Defenses -->
+                <rect x="540" y="4" width="136" height="102" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="608" y="18" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">MITM Defenses</text>
+                <circle cx="550" cy="32" r="3" fill="#3ab577"/>
+                <text x="557" y="36" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Dynamic ARP Inspection</text>
+                <circle cx="550" cy="46" r="3" fill="#3b82f6"/>
+                <text x="557" y="50" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">DHCP Snooping</text>
+                <circle cx="550" cy="60" r="3" fill="#c9a83a"/>
+                <text x="557" y="64" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">802.1X port auth</text>
+                <circle cx="550" cy="74" r="3" fill="#a78bfa"/>
+                <text x="557" y="78" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Static ARP entries</text>
+                <circle cx="550" cy="88" r="3" fill="#06b6d4"/>
+                <text x="557" y="92" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">HTTPS / TLS encryption</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">DNS Poisoning</div>
+                <div class="card-desc">The attacker corrupts the DNS cache of a resolver so that legitimate domain lookups return malicious IP addresses. Users type the correct URL but are directed to a phishing site. Defenses include DNSSEC (which signs DNS records cryptographically), DNS over HTTPS (DoH), and restricting recursive DNS queries to trusted clients only.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VLAN Hopping</div>
+                <div class="card-desc">Two techniques: <strong>Switch Spoofing</strong> -- the attacker configures their NIC to negotiate a trunk link with the switch, gaining access to all VLANs. <strong>Double Tagging</strong> -- the attacker sends a frame with two 802.1Q tags; the first is stripped by the access switch, the second routes the frame to a different VLAN. Defense: disable DTP on all access ports, set native VLAN to an unused VLAN ID, and explicitly configure trunk ports.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- FIREWALLS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Firewalls</span> -- Network Perimeter Defense</div>
+        <div class="slide-subtitle">Firewalls filter traffic between network zones using rules based on source/destination IP, port, protocol, and application state. They are the primary perimeter defense on every network.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Packet Filtering</div>
+                <div class="hex-desc">Stateless -- inspects each packet individually against ACL rules. Fast but cannot track connection state. A rule allowing inbound port 80 cannot distinguish between a new connection and an established reply.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Stateful Inspection</div>
+                <div class="hex-desc">Tracks the state of active connections in a state table. Return traffic for established sessions is automatically allowed. The standard for modern enterprise firewalls since the late 1990s.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Next-Gen (NGFW)</div>
+                <div class="hex-desc">Combines stateful inspection with deep packet inspection (DPI), application awareness (identifies Zoom vs generic HTTPS), intrusion prevention, TLS decryption, and threat intelligence feeds. Examples: Palo Alto, Fortinet, Cisco Firepower.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Implicit Deny</div>
+                <div class="hex-desc">Every firewall ends its ruleset with an implicit deny -- any traffic not explicitly permitted is dropped. This is the foundational security principle: deny by default, allow by exception. The exam will test this concept directly.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DMZ Architecture</div>
+                <div class="hex-desc">A demilitarized zone sits between the external and internal firewalls. Public-facing servers (web, email, DNS) live in the DMZ. If compromised, the attacker still cannot reach the internal LAN -- the inner firewall blocks lateral movement.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ACL Rule Order</div>
+                <div class="hex-desc">Rules are processed top-down. The first match wins. Specific rules go above general rules. A permit-all rule at the top would bypass every rule below it. Order matters -- exam questions frequently test this logic.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- IDS / IPS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">IDS / IPS -- <span class="accent">Intrusion Detection &amp; Prevention</span></div>
+        <div class="slide-subtitle">IDS monitors and alerts. IPS monitors, alerts, AND blocks. Both analyze traffic against signatures and behavioral baselines to detect threats the firewall cannot see.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Internet cloud -->
+                <ellipse cx="60" cy="50" rx="50" ry="30" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="60" y="48" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Internet</text>
+                <text x="60" y="60" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Threats</text>
+
+                <!-- Arrow to firewall -->
+                <line x1="110" y1="50" x2="148" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1.3"/>
+                <polygon points="148,46 156,50 148,54" fill="#64748b"/>
+
+                <!-- Firewall -->
+                <rect x="158" y="28" width="70" height="44" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="193" y="48" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Firewall</text>
+                <text x="193" y="60" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">L3/L4 filter</text>
+
+                <!-- Arrow to IPS (inline) -->
+                <line x1="228" y1="50" x2="266" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1.3"/>
+                <polygon points="266,46 274,50 266,54" fill="#64748b"/>
+
+                <!-- IPS (inline) -->
+                <rect x="276" y="20" width="100" height="60" rx="9" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="326" y="38" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">IPS (Inline)</text>
+                <text x="326" y="50" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Signature + anomaly</text>
+                <text x="326" y="62" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">CAN BLOCK traffic</text>
+                <text x="326" y="74" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Fail-open or fail-close</text>
+
+                <!-- Arrow to LAN -->
+                <line x1="376" y1="50" x2="414" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1.3"/>
+                <polygon points="414,46 422,50 414,54" fill="#64748b"/>
+
+                <!-- Internal LAN -->
+                <rect x="424" y="28" width="80" height="44" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="464" y="48" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Internal</text>
+                <text x="464" y="60" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">LAN</text>
+
+                <!-- IDS (passive) -- tapped from LAN -->
+                <rect x="540" y="20" width="100" height="60" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="590" y="38" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">IDS (Passive)</text>
+                <text x="590" y="50" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Mirror port / SPAN</text>
+                <text x="590" y="62" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Alert only, no block</text>
+                <text x="590" y="74" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Zero latency impact</text>
+
+                <line x1="504" y1="50" x2="538" y2="50" stroke="rgba(201,168,58,0.4)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Signature-Based</div>
+                <div class="card-desc">Compares traffic against a database of known attack patterns. Fast and accurate for known threats. Cannot detect zero-day attacks. Requires regular signature updates. Think of it as antivirus for network traffic -- effective against what it recognizes, blind to what it does not.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Anomaly-Based (Behavioral)</div>
+                <div class="card-desc">Establishes a baseline of normal traffic patterns, then flags deviations. Can detect novel attacks. Prone to false positives during legitimate traffic spikes. Requires a learning period to calibrate the baseline. Most modern IPS systems combine signature and anomaly detection.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">HIDS vs NIDS</div>
+                <div class="card-desc"><strong>HIDS</strong> (Host-based) runs on individual endpoints -- monitors file integrity, log events, and process behavior. <strong>NIDS</strong> (Network-based) monitors network traffic from a span port or tap. For the exam: NIDS watches the wire, HIDS watches the host. Both feed alerts to a SIEM for correlation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PROXY SERVERS AND VPN ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Proxy Servers &amp; <span class="accent">VPN Concentrators</span></div>
+        <div class="slide-subtitle">Proxies mediate connections between clients and the internet. VPN concentrators establish encrypted tunnels for remote access and site-to-site connectivity.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Forward Proxy</div>
+                <div class="card-desc">Sits between internal clients and the internet. Clients send requests to the proxy, which fetches content on their behalf. Provides: URL filtering (block social media), content caching (reduce bandwidth), logging (who visited what), and anonymity (the destination sees the proxy IP, not the client's). Example: Squid, Zscaler, Blue Coat.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reverse Proxy</div>
+                <div class="card-desc">Sits in front of servers, receiving client requests and distributing them to backend servers. Provides: load balancing, SSL offloading (decrypt TLS once at the proxy instead of on each server), caching, and DDoS protection. Example: Nginx, HAProxy, Cloudflare. The client never connects directly to the backend server.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Site-to-Site VPN</div>
+                <div class="card-desc">Permanent encrypted tunnel between two locations using IPSec. Once established, traffic flows transparently -- users do not need VPN clients. The VPN concentrator at each site encrypts/decrypts all inter-site traffic. Protocols: IKEv2 negotiates the tunnel parameters, ESP encrypts the payload. Used to connect branch offices to headquarters.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Remote Access VPN</div>
+                <div class="card-desc">Individual users connect from laptops or phones to the corporate VPN concentrator. Protocols: SSL/TLS VPN (uses port 443, works through most firewalls), IPSec with IKEv2, or WireGuard. Split tunneling sends only corporate traffic through the VPN; full tunnel routes all traffic through it. Split tunneling saves bandwidth but reduces security visibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- AUTHENTICATION PROTOCOLS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Authentication <span class="accent">Protocols</span></div>
+        <div class="slide-subtitle">Network access requires authentication. These protocols centralize credential verification so every switch, AP, VPN, and firewall authenticates against one source of truth.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">RADIUS</div>
+                <div class="card-desc">Remote Authentication Dial-In User Service. Client/server protocol on UDP 1812/1813. Encrypts only the password field. Combines authentication and authorization in one response. The standard for wireless authentication (802.1X), VPN login, and network device access. Widely supported by every vendor.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">TACACS+</div>
+                <div class="card-desc">Terminal Access Controller Access-Control System Plus. Cisco-proprietary on TCP 49. Encrypts the entire packet body (not just the password). Separates authentication, authorization, and accounting into distinct operations. Preferred for network device administration (router/switch CLI access) because of granular command-level authorization.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Kerberos</div>
+                <div class="card-desc">Ticket-based authentication using a trusted third party (KDC). Uses port 88/TCP and UDP. The user authenticates once, receives a Ticket-Granting Ticket (TGT), then exchanges it for service tickets without re-entering credentials. Active Directory authentication is built on Kerberos. Provides mutual authentication -- both client and server prove their identity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">LDAP / LDAPS</div>
+                <div class="card-desc">Lightweight Directory Access Protocol on port 389 (636 for LDAPS with TLS). Not an authentication protocol itself -- it is a directory query protocol. RADIUS and TACACS+ servers query LDAP backends (Active Directory, OpenLDAP) to validate credentials. LDAPS encrypts the connection with TLS. Always use LDAPS in production.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SAML / SSO</div>
+                <div class="card-desc">Security Assertion Markup Language enables Single Sign-On (SSO) for web applications. The Identity Provider (IdP) authenticates the user once, then issues signed XML assertions to Service Providers (SPs). The user accesses multiple applications without re-authenticating. Common in cloud/SaaS environments. N10-009 expects you to recognize SAML as an SSO enabler.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Multifactor Authentication</div>
+                <div class="card-desc">MFA requires two or more factors from different categories: something you know (password), something you have (token, phone), something you are (biometrics). A password plus a PIN is NOT MFA -- both are "something you know." A password plus a push notification IS MFA. The exam tests the distinction between multi-factor and multi-step.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- WIRELESS SECURITY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Wireless <span class="accent">Security Standards</span></div>
+        <div class="slide-subtitle">Wireless networks broadcast traffic over radio -- anyone within range can capture frames. Encryption and authentication are mandatory, not optional.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- WEP (deprecated) -->
+                <rect x="4" y="20" width="100" height="60" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="54" y="38" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">WEP</text>
+                <text x="54" y="50" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">RC4 cipher</text>
+                <text x="54" y="62" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">24-bit IV</text>
+                <text x="54" y="74" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">BROKEN</text>
+
+                <!-- Arrow -->
+                <line x1="106" y1="50" x2="128" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <polygon points="128,46 136,50 128,54" fill="#475569"/>
+
+                <!-- WPA2 -->
+                <rect x="140" y="20" width="130" height="60" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="205" y="35" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">WPA2</text>
+                <text x="205" y="47" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">AES-CCMP encryption</text>
+                <text x="205" y="58" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Personal: PSK (passphrase)</text>
+                <text x="205" y="69" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Enterprise: 802.1X + RADIUS</text>
+
+                <!-- Arrow -->
+                <line x1="272" y1="50" x2="294" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <polygon points="294,46 302,50 294,54" fill="#475569"/>
+
+                <!-- WPA3 -->
+                <rect x="306" y="20" width="130" height="60" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="371" y="35" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">WPA3</text>
+                <text x="371" y="47" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">SAE (Dragonfly handshake)</text>
+                <text x="371" y="58" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Forward secrecy per-session</text>
+                <text x="371" y="69" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">192-bit in Enterprise mode</text>
+
+                <!-- 802.1X box -->
+                <rect x="470" y="10" width="206" height="80" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="573" y="24" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">802.1X Components</text>
+                <circle cx="480" cy="38" r="3" fill="#3b82f6"/>
+                <text x="487" y="42" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Supplicant: the client device</text>
+                <circle cx="480" cy="52" r="3" fill="#3ab577"/>
+                <text x="487" y="56" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Authenticator: the switch / AP</text>
+                <circle cx="480" cy="66" r="3" fill="#c9a83a"/>
+                <text x="487" y="70" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Auth Server: RADIUS backend</text>
+                <circle cx="480" cy="80" r="3" fill="#a78bfa"/>
+                <text x="487" y="84" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">EAP: tunnels auth inside 802.1X</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">EAP Types</div>
+                <div class="card-desc"><strong>EAP-TLS:</strong> Mutual certificate authentication -- both client and server present certificates. Most secure, but requires PKI infrastructure. <strong>PEAP:</strong> Server certificate creates TLS tunnel, client authenticates inside with MSCHAPv2 (username/password). <strong>EAP-FAST:</strong> Cisco proprietary, uses Protected Access Credential (PAC) instead of certificates.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Wireless Threats</div>
+                <div class="card-desc"><strong>Rogue AP:</strong> Unauthorized access point connected to the corporate network, bypassing security controls. <strong>Evil Twin:</strong> Attacker-controlled AP with the same SSID as a legitimate network -- clients connect unknowingly. <strong>War Driving:</strong> Scanning for open or weak wireless networks from a vehicle. Defense: Wireless Intrusion Prevention System (WIPS), strong WPA3 Enterprise, 802.1X with RADIUS.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exam Tips</div>
+                <div class="card-desc">WEP is always wrong on the exam unless the question asks what is deprecated. WPA2-Enterprise with 802.1X/RADIUS is the corporate standard. WPA3-SAE replaces PSK with a key exchange resistant to offline dictionary attacks. Know the three 802.1X roles: supplicant, authenticator, authentication server. PEAP is the most commonly deployed EAP type.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- NETWORK HARDENING ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Network <span class="accent">Hardening</span></div>
+        <div class="slide-subtitle">Hardening reduces the attack surface by disabling unnecessary services, restricting access, and implementing switch-level security controls that prevent Layer 2 attacks.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Port Security</div>
+                <div class="hex-desc">Limits the number of MAC addresses allowed on a switch port. If an unknown MAC appears, the port can shutdown, restrict, or protect. Prevents CAM table overflow attacks where an attacker floods the switch with fake MACs to force it into hub mode.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">DHCP Snooping</div>
+                <div class="hex-desc">Switch builds a binding table mapping MAC to IP to VLAN to port. Only trusted ports (connected to legitimate DHCP servers) can send DHCP offers. Untrusted ports sending DHCP server messages are blocked. Prevents rogue DHCP servers from poisoning client configurations.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Dynamic ARP Inspection</div>
+                <div class="hex-desc">Uses the DHCP snooping binding table to validate ARP packets. If an ARP reply claims an IP belongs to a MAC that does not match the binding table, the frame is dropped. Directly prevents ARP poisoning attacks. Requires DHCP snooping to be enabled first.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">ACLs (Access Control Lists)</div>
+                <div class="hex-desc">Filter traffic at Layer 3/4 on routers and Layer 3 switches. Standard ACLs filter by source IP only. Extended ACLs filter by source/destination IP, port, and protocol. Applied inbound or outbound on interfaces. Processed top-down, first match wins, implicit deny at the end.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Disable Unused Ports</div>
+                <div class="hex-desc">Every unused switch port should be administratively shut down and placed in a dead VLAN. Prevents physical access attacks -- an intruder plugging into an open port gets no network connectivity. Also disable unused services: Telnet (use SSH), HTTP (use HTTPS), SNMPv1/v2 (use SNMPv3).</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Role-Based Access</div>
+                <div class="hex-desc">Network device management should use role-based access control. Privilege levels on Cisco devices (levels 0-15) or custom roles restrict which commands each admin can execute. Combined with TACACS+ for centralized, auditable command authorization. No shared admin accounts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- SECURITY ZONES AND SEGMENTATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Security Zones &amp; <span class="accent">Network Segmentation</span></div>
+        <div class="slide-subtitle">Segmentation limits the blast radius of a breach. If an attacker compromises a workstation in the guest VLAN, segmentation prevents lateral movement to the server VLAN.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">VLAN Segmentation</div>
+                <div class="card-desc">VLANs create logical broadcast domains on a single physical switch. Hosts in different VLANs cannot communicate without a Layer 3 device (router or L3 switch) that enforces ACLs between them. Common zones: Management VLAN (network devices), Server VLAN, User VLAN, Guest VLAN, IoT VLAN. Each zone has its own subnet and firewall rules.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Zero Trust Architecture</div>
+                <div class="card-desc">The traditional perimeter model assumes everything inside the firewall is trusted. Zero Trust assumes nothing is trusted -- every access request is verified regardless of location. Principles: verify explicitly (authenticate every request), use least-privilege access, assume breach. Micro-segmentation enforces policy at the workload level, not just the network boundary.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network Access Control (NAC)</div>
+                <div class="card-desc">NAC evaluates device health before granting network access. Is the antivirus up to date? Is the OS patched? Is the device domain-joined? Non-compliant devices are quarantined to a remediation VLAN. NAC works with 802.1X -- the supplicant provides both user credentials and device posture. Examples: Cisco ISE, Aruba ClearPass, FortiNAC.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Honeypots and Deception</div>
+                <div class="card-desc">A honeypot is a deliberately vulnerable system designed to attract attackers. It provides early warning of network intrusion and diverts attackers from real assets. A honeynet is a network of honeypots. Placement: DMZ for external threats, internal network for insider threat detection. Any traffic to a honeypot is suspicious by definition -- legitimate users have no reason to connect to it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- CRYPTOGRAPHY ESSENTIALS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Cryptography <span class="accent">Essentials for Networking</span></div>
+        <div class="slide-subtitle">Encryption, hashing, and certificates secure data in transit and at rest. The N10-009 expects you to understand where each mechanism applies in the network stack.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Symmetric Encryption</div>
+                <div class="card-desc">One shared key encrypts and decrypts. Fast -- used for bulk data transfer. <strong>AES-256</strong> is the standard for VPN tunnels, wireless (WPA2/WPA3), and disk encryption. The challenge: both parties must securely exchange the shared key before communication begins (solved by asymmetric key exchange).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Asymmetric Encryption</div>
+                <div class="card-desc">Two mathematically linked keys: public (shared freely) and private (kept secret). Data encrypted with the public key can only be decrypted with the private key. <strong>RSA</strong> and <strong>ECDSA</strong> are common algorithms. Used for TLS handshakes, SSH authentication, and digital signatures. Slower than symmetric -- not used for bulk data.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hashing</div>
+                <div class="card-desc">One-way function that produces a fixed-length digest. SHA-256 and SHA-384 are current standards. MD5 and SHA-1 are deprecated (collision vulnerabilities). Hashing verifies data integrity -- if the hash of a downloaded file matches the published hash, the file is unmodified. HMAC combines hashing with a secret key for message authentication.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">TLS / SSL</div>
+                <div class="card-desc">TLS 1.2 and TLS 1.3 encrypt HTTP, SMTP, LDAP, and other application protocols. The TLS handshake uses asymmetric encryption to exchange a symmetric session key, then switches to symmetric encryption for performance. TLS 1.3 reduced the handshake from two round-trips to one. SSL is deprecated -- "SSL certificate" is a legacy name for a TLS certificate.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">PKI and Certificates</div>
+                <div class="card-desc">A Certificate Authority (CA) issues digital certificates that bind a public key to an identity (domain name, organization). The browser trusts the CA, the CA vouches for the server, and the TLS connection is established. Certificate chain: Root CA signs Intermediate CA, Intermediate CA signs the server certificate. Revocation is checked via CRL or OCSP.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">IPSec Components</div>
+                <div class="card-desc"><strong>AH (Authentication Header):</strong> Integrity and authentication only, no encryption. Protocol 51. <strong>ESP (Encapsulating Security Payload):</strong> Encryption + integrity + authentication. Protocol 50. <strong>IKE:</strong> Negotiates the security association (SA) -- the set of algorithms and keys both sides agree on. IKEv2 is the current standard for VPN tunnel establishment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Network Security Fundamentals -- key concepts for N10-009.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>DoS/DDoS attacks</strong> exhaust resources through volume (SYN flood, amplification) or application abuse (Slowloris). Mitigate with rate limiting, SYN cookies, CDN scrubbing, and BCP38 ingress filtering.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>ARP poisoning</strong> is the primary LAN-based MITM vector. Defend with Dynamic ARP Inspection + DHCP snooping. DNS poisoning redirects lookups -- defend with DNSSEC.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Firewalls</strong> progress from stateless packet filtering to stateful inspection to NGFW with DPI and application awareness. Every ruleset ends with an implicit deny.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>IDS alerts, IPS blocks.</strong> IDS is passive (SPAN port), IPS is inline. Both use signature + anomaly detection. HIDS watches hosts, NIDS watches the network.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>RADIUS</strong> for wireless/VPN (UDP 1812), <strong>TACACS+</strong> for device admin (TCP 49, encrypts full packet), <strong>Kerberos</strong> for AD (port 88, ticket-based SSO).</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>WPA3-SAE</strong> replaces PSK with forward secrecy. 802.1X Enterprise uses supplicant + authenticator + RADIUS. EAP-TLS (certificates) is most secure, PEAP (password in tunnel) is most deployed.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Hardening:</strong> port security, DHCP snooping, DAI, disable unused ports, disable Telnet/SNMPv1, segment with VLANs, apply ACLs between zones.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- Network Troubleshooting and Tools</strong> &nbsp;|&nbsp; CompTIA 7-Step Process &bull; CLI Tools &bull; SNMP &bull; Connectivity Issues &bull; Performance Metrics
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; N10-009</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'n10009-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

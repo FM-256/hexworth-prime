@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Troubleshooting and Tools | N10-009 Chapter 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        .hex-cell:nth-child(7) { animation-delay: 1.0s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Network Troubleshooting and Tools -- N10-009 Chapter 2</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; N10-009 &nbsp;|&nbsp; Supplement Ch.2 &nbsp;|&nbsp; Troubleshooting</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Terminal window -->
+                <rect x="130" y="10" width="160" height="110" rx="12" fill="rgba(0,0,0,0.35)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <!-- Terminal dots -->
+                <circle cx="145" cy="22" r="4" fill="#ff5f57" style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="157" cy="22" r="4" fill="#febc2e" style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="169" cy="22" r="4" fill="#28c840" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <!-- Terminal text -->
+                <text x="140" y="42" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ ping 10.0.0.1</text>
+                <text x="140" y="53" font-size="7" fill="#86efac" font-family="Courier New,monospace">Reply: bytes=64 time=2ms</text>
+                <text x="140" y="64" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ traceroute 8.8.8.8</text>
+                <text x="140" y="75" font-size="7" fill="#86efac" font-family="Courier New,monospace">1  gw  1.2ms</text>
+                <text x="140" y="86" font-size="7" fill="#86efac" font-family="Courier New,monospace">2  isp 8.4ms</text>
+                <text x="140" y="97" font-size="7" fill="#3ab577" font-family="Courier New,monospace">$ nslookup example.com</text>
+                <text x="140" y="108" font-size="7" fill="#86efac" font-family="Courier New,monospace">93.184.216.34</text>
+
+                <!-- Left: wrench icon -->
+                <rect x="14" y="35" width="80" height="60" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="54" y="56" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">7-Step</text>
+                <text x="54" y="68" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Process</text>
+                <text x="54" y="82" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">CompTIA Model</text>
+
+                <!-- Right: metrics -->
+                <rect x="326" y="35" width="80" height="60" rx="9" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="366" y="56" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Metrics</text>
+                <text x="366" y="68" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Latency / Jitter</text>
+                <text x="366" y="80" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Throughput / Loss</text>
+
+                <!-- Connecting arrows -->
+                <line x1="94" y1="65" x2="128" y2="65" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="292" y1="65" x2="324" y2="65" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Network <span class="accent">Troubleshooting &amp; Tools</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                7-Step Methodology &nbsp;&bull;&nbsp; CLI Tools &nbsp;&bull;&nbsp; SNMP &nbsp;&bull;&nbsp; NetFlow &nbsp;&bull;&nbsp; Connectivity Issues &nbsp;&bull;&nbsp; Performance Metrics
+            </div>
+        </div>
+        <div class="scenario-strip">
+            When the network breaks, the exam expects you to follow a structured methodology -- not guess. This chapter covers CompTIA's 7-step troubleshooting process, the command-line tools every network technician uses daily, monitoring protocols, and the metrics that define network health.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>N10-009 Exam Objectives</span>
+            <span>Supplement Chapter 2</span>
+            <span>CompTIA Network+</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- 7-STEP METHODOLOGY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">CompTIA <span class="accent">7-Step Troubleshooting</span> Process</div>
+        <div class="slide-subtitle">This is the official CompTIA methodology. The exam will test each step and expect you to identify which step applies to a given scenario. Memorize the order.</div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Identify the problem.</strong> Gather information from the user: What happened? When did it start? What changed? Check for recent changes (new equipment, updates, config changes). Duplicate the problem if possible. Question users to identify the scope -- one user, one subnet, or the entire network?</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Establish a theory of probable cause.</strong> Start with the most likely explanation based on symptoms. Use the OSI model as a framework -- start at Layer 1 (physical: cable unplugged?) and work up. Consider multiple theories. If a switch port light is off, the theory might be a bad cable, dead port, or powered-off device.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Test the theory to determine cause.</strong> Verify your theory with a targeted test. If you suspect a bad cable, swap it. If the issue resolves, the theory is confirmed. If not, go back to step 2 and form a new theory. If the theory is confirmed but outside your expertise, escalate.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Establish a plan of action.</strong> Design a fix and identify potential side effects. A plan might be: "Replace the patch cable between the wall jack and the switch. Estimated downtime: 30 seconds. No impact to other users." Get approval from change management if required.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Implement the solution or escalate.</strong> Execute the plan. If the fix is beyond your authorization or expertise, escalate to the appropriate team with all documentation gathered so far. Always have a rollback plan in case the fix causes new problems.</span></div>
+            <div class="step-row"><span class="step-num">6</span><span class="step-text"><strong>Verify full system functionality.</strong> Confirm the original problem is resolved AND that the fix did not break anything else. Test from the user's perspective. Check monitoring systems for related alerts. If applicable, implement preventive measures to stop recurrence.</span></div>
+            <div class="step-row"><span class="step-num">7</span><span class="step-text"><strong>Document findings, actions, and outcomes.</strong> Record what the problem was, what caused it, what was done, and the result. Update the knowledge base. Documentation helps future technicians resolve the same issue faster. This step is frequently skipped in practice -- the exam penalizes skipping it.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PING AND TRACEROUTE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="ic">ping</span> and <span class="ic">tracert</span> / <span class="accent"><span class="ic">traceroute</span></span></div>
+        <div class="slide-subtitle">The two most fundamental network diagnostic tools. Ping tests reachability. Traceroute maps the path and identifies where packets are being dropped or delayed.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Source -->
+                <rect x="4" y="30" width="80" height="40" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="44" y="48" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Source</text>
+                <text x="44" y="60" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">ICMP Echo</text>
+
+                <!-- Hop 1 -->
+                <circle cx="150" cy="50" r="18" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="150" y="48" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Hop 1</text>
+                <text x="150" y="57" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">1ms</text>
+
+                <!-- Hop 2 -->
+                <circle cx="250" cy="50" r="18" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="250" y="48" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Hop 2</text>
+                <text x="250" y="57" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">8ms</text>
+
+                <!-- Hop 3 (problem) -->
+                <circle cx="350" cy="50" r="18" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="350" y="48" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Hop 3</text>
+                <text x="350" y="57" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">* * *</text>
+
+                <!-- Destination -->
+                <rect x="420" y="30" width="80" height="40" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="460" y="48" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Target</text>
+                <text x="460" y="60" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">8.8.8.8</text>
+
+                <!-- Connecting arrows -->
+                <line x1="84" y1="50" x2="132" y2="50" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line x1="168" y1="50" x2="232" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="268" y1="50" x2="332" y2="50" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="368" y1="50" x2="418" y2="50" stroke="rgba(239,68,68,0.3)" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+                <!-- Analysis box -->
+                <rect x="530" y="4" width="146" height="92" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="603" y="18" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">traceroute Analysis</text>
+                <circle cx="540" cy="32" r="3" fill="#3ab577"/>
+                <text x="547" y="36" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Hop 1: local gateway OK</text>
+                <circle cx="540" cy="46" r="3" fill="#c9a83a"/>
+                <text x="547" y="50" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Hop 2: ISP router OK</text>
+                <circle cx="540" cy="60" r="3" fill="#ef4444"/>
+                <text x="547" y="64" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Hop 3: timeout = blockage</text>
+                <circle cx="540" cy="74" r="3" fill="#3b82f6"/>
+                <text x="547" y="78" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Issue is between hops 2-3</text>
+                <circle cx="540" cy="88" r="3" fill="#a78bfa"/>
+                <text x="547" y="92" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Escalate to ISP</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">ping</div>
+                <div class="card-desc">Sends ICMP Echo Request, expects ICMP Echo Reply. Tests basic IP connectivity. <span class="ic">ping -t</span> (Windows) sends continuously. <span class="ic">ping -c 4</span> (Linux) sends 4 packets. Output shows: bytes, TTL, and round-trip time. If ping fails, the target is unreachable, down, or blocking ICMP. Ping your default gateway first to isolate local vs remote issues.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">tracert / traceroute</div>
+                <div class="card-desc">Maps every router hop between source and destination by incrementing TTL from 1. Each hop returns ICMP Time Exceeded. <span class="ic">tracert</span> (Windows) uses ICMP. <span class="ic">traceroute</span> (Linux) uses UDP by default, <span class="ic">-I</span> for ICMP. Asterisks (* * *) mean a hop did not respond -- either ICMP is filtered or the device timed out.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">pathping / mtr</div>
+                <div class="card-desc"><span class="ic">pathping</span> (Windows) combines ping and traceroute -- maps the path, then sends 100 packets to each hop and reports packet loss percentage at each point. <span class="ic">mtr</span> (Linux) does the same in real-time. Both are invaluable for identifying intermittent packet loss at a specific hop -- data that simple traceroute misses.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- DNS TOOLS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">DNS Tools: <span class="accent"><span class="ic">nslookup</span> and <span class="ic">dig</span></span></div>
+        <div class="slide-subtitle">DNS resolution failures are one of the most common network issues. These tools query DNS servers directly to verify records, diagnose resolution failures, and test DNS server health.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">nslookup</div>
+                <div class="card-desc">Available on Windows and Linux. <span class="ic">nslookup example.com</span> performs a forward lookup (domain to IP). <span class="ic">nslookup 93.184.216.34</span> performs a reverse lookup (IP to domain). <span class="ic">nslookup -type=MX example.com</span> queries mail exchange records. <span class="ic">nslookup example.com 8.8.8.8</span> queries a specific DNS server instead of the default. Interactive mode: type <span class="ic">nslookup</span> with no arguments, then <span class="ic">set type=any</span> to query all record types.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">dig (Domain Information Groper)</div>
+                <div class="card-desc">Linux/macOS tool with richer output. <span class="ic">dig example.com A</span> queries A records. <span class="ic">dig example.com MX +short</span> returns only the answer, no headers. <span class="ic">dig @8.8.8.8 example.com</span> queries a specific server. <span class="ic">dig example.com +trace</span> follows the full delegation chain from root servers to authoritative -- invaluable for diagnosing delegation issues. <span class="ic">dig -x 93.184.216.34</span> performs reverse lookup via PTR record.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Troubleshooting pattern</div>
+            If a user reports "can't reach website.com" -- first <span class="ic">ping website.com</span>. If ping resolves the IP but fails, the problem is connectivity. If ping says "could not find host," the problem is DNS. Verify with <span class="ic">nslookup website.com</span>. If the default DNS server fails but <span class="ic">nslookup website.com 8.8.8.8</span> works, the local DNS server is the issue. If both fail, the domain itself may be down or the record does not exist.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- NETSTAT, ARP, IPCONFIG ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="ic">netstat</span>, <span class="ic">arp</span>, and <span class="accent">IP Configuration</span></div>
+        <div class="slide-subtitle">These tools inspect the local machine's network state -- active connections, ARP cache, IP configuration, and routing table.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">netstat</div>
+                <div class="card-desc"><span class="ic">netstat -an</span> shows all connections (a) in numeric format (n). <span class="ic">netstat -b</span> (Windows) shows which process owns each connection. <span class="ic">netstat -r</span> displays the routing table. <span class="ic">netstat -s</span> shows protocol statistics (TCP retransmissions, UDP errors). Linux alternative: <span class="ic">ss -tulnp</span> (faster, more detailed).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">arp</div>
+                <div class="card-desc"><span class="ic">arp -a</span> displays the local ARP cache -- mappings of IP addresses to MAC addresses. If a host's IP resolves to the wrong MAC, ARP poisoning may be occurring. <span class="ic">arp -d *</span> clears the cache. Static entries can be added with <span class="ic">arp -s</span> but are impractical at scale -- use Dynamic ARP Inspection on the switch instead.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">ipconfig / ifconfig / ip</div>
+                <div class="card-desc"><span class="ic">ipconfig</span> (Windows): shows IP, subnet, gateway. <span class="ic">ipconfig /all</span> adds MAC, DHCP server, DNS servers, lease times. <span class="ic">ipconfig /release</span> and <span class="ic">/renew</span> reset the DHCP lease. <span class="ic">ipconfig /flushdns</span> clears the local DNS cache. Linux: <span class="ic">ip addr</span> (replaces ifconfig), <span class="ic">ip route</span> shows routing table.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam strategy</div>
+            When a question describes a connectivity issue, the first diagnostic step is usually <span class="ic">ipconfig /all</span> (Windows) or <span class="ic">ip addr</span> (Linux) -- verify the machine has a valid IP, subnet mask, gateway, and DNS servers. An IP in the 169.254.x.x range (APIPA) means DHCP failed. No default gateway means the machine can reach the local subnet but nothing beyond it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- SNMP AND SYSLOG ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">SNMP, Syslog &amp; <span class="accent">Network Monitoring</span></div>
+        <div class="slide-subtitle">Monitoring protocols collect telemetry from network devices. SNMP polls device metrics, syslog collects event logs, and NetFlow tracks traffic flows.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SNMPv3</div>
+                <div class="card-desc">Simple Network Management Protocol polls device OIDs (Object Identifiers) for metrics: CPU, memory, interface utilization, error counters. <strong>SNMPv1/v2c</strong> use community strings (plaintext passwords) -- insecure. <strong>SNMPv3</strong> adds authentication (SHA) and encryption (AES). Components: Manager (NMS), Agent (on device), MIB (database of OIDs). SNMP traps are unsolicited alerts from agent to manager. Port 161 (polling), 162 (traps).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Syslog</div>
+                <div class="card-desc">Centralized logging protocol on UDP 514 (TCP 514 for reliable delivery). Devices send log messages to a syslog server. Severity levels 0-7: Emergency (0), Alert (1), Critical (2), Error (3), Warning (4), Notice (5), Informational (6), Debug (7). Lower number = higher severity. A syslog server aggregates logs from every router, switch, and firewall into one searchable database. Essential for incident investigation and compliance.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NetFlow / sFlow / IPFIX</div>
+                <div class="card-desc">Flow-based monitoring records metadata about traffic conversations: source/destination IP, ports, protocol, byte count, duration. Does NOT capture packet content -- only metadata. Used for: bandwidth analysis (who is consuming the most?), security (detecting exfiltration patterns), capacity planning. <strong>NetFlow</strong> (Cisco), <strong>sFlow</strong> (sampling-based, multi-vendor), <strong>IPFIX</strong> (standardized NetFlow v10).</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Packet Capture</div>
+                <div class="card-desc">Full packet capture records every byte of traffic. Tools: <span class="ic">tcpdump</span> (CLI), Wireshark (GUI). Capture at a mirror/SPAN port to see all traffic on a segment. Use capture filters to limit data: <span class="ic">tcpdump -i eth0 port 80</span>. Display filters in Wireshark: <span class="ic">http.request.method == "GET"</span>. Captures are large -- use targeted time windows.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SIEM Integration</div>
+                <div class="card-desc">Security Information and Event Management systems aggregate syslog, SNMP traps, NetFlow, and packet capture alerts into a single dashboard. SIEM performs correlation -- connecting a firewall deny log, an IDS alert, and an abnormal NetFlow pattern into one incident. Examples: Splunk, Microsoft Sentinel, Elastic SIEM. The SIEM is where monitoring data becomes actionable intelligence.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">SNMP Walk vs Get</div>
+                <div class="card-desc"><span class="ic">snmpget</span> retrieves a single OID value. <span class="ic">snmpwalk</span> traverses an entire OID subtree -- useful for discovering all interfaces or all error counters on a device. <span class="ic">snmpbulkget</span> (SNMPv2/v3) retrieves multiple OIDs in a single request for efficiency. For monitoring tools, SNMP polling intervals are typically 5 minutes for performance, 30 seconds for critical alerts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- CABLE AND PHYSICAL ISSUES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Physical Layer <span class="accent">Connectivity Issues</span></div>
+        <div class="slide-subtitle">More than 70% of network problems are physical layer issues. Before chasing complex routing problems, check the cables, connectors, and interface status LEDs.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">Cable Faults</div>
+                <div class="hex-desc">Opens (broken conductor), shorts (conductors touching), and crosstalk (signal interference between pairs). Test with a cable tester or TDR (Time-Domain Reflectometer) to locate the fault distance. Replace rather than repair.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Duplex Mismatch</div>
+                <div class="hex-desc">One end set to full-duplex, the other to half-duplex. Causes late collisions, CRC errors, and intermittent slow performance. Check with show interface on the switch. Fix: set both ends to auto-negotiate or manually match. One of the most common exam scenarios.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Speed Mismatch</div>
+                <div class="hex-desc">One end negotiates 100 Mbps, the other 1 Gbps. The link may not come up at all, or may negotiate to the slower speed with errors. Check interface status and speed/duplex settings. If a Gigabit device links at 100 Mbps, suspect a bad cable (Gigabit requires all 4 pairs).</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Fiber Issues</div>
+                <div class="hex-desc">Dirty connectors, bent cables (exceeding bend radius), and SFP module mismatches. Clean connectors with lint-free wipes and IPA. Check light levels with an optical power meter. Excessive attenuation means the signal is too weak to be read by the receiver. Use OTDR for long fiber runs.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">Interface Errors</div>
+                <div class="hex-desc">CRC errors, runts (frames too small), giants (frames too large), input errors, and output drops. All visible in <span class="ic">show interface</span> output. Rising CRC errors indicate a physical layer problem -- bad cable, failing NIC, or electromagnetic interference.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">PoE Issues</div>
+                <div class="hex-desc">Power over Ethernet failures: device cycles on/off (insufficient power budget), no power (wrong PoE standard, Cat5 vs Cat5e minimum), or port not PoE-enabled. Check switch PoE power budget and per-port power allocation. 802.3af provides 15.4W, 802.3at provides 30W, 802.3bt provides 60-100W.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- WIRELESS ISSUES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Wireless <span class="accent">Connectivity Issues</span></div>
+        <div class="slide-subtitle">Wireless troubleshooting adds RF-specific variables: signal strength, channel interference, and client roaming behavior that wired networks do not have.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Interference</div>
+                <div class="card-desc">2.4 GHz has only 3 non-overlapping channels (1, 6, 11). Adjacent APs on the same or overlapping channels cause co-channel interference. Microwave ovens, Bluetooth devices, and cordless phones add noise. Solution: site survey with a spectrum analyzer, proper channel planning, and using 5 GHz or 6 GHz (Wi-Fi 6E) bands where possible.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Signal Strength (RSSI)</div>
+                <div class="card-desc">Received Signal Strength Indicator measured in dBm (negative values). -30 dBm = excellent, -67 dBm = good for VoIP, -70 dBm = minimum for data, -80 dBm = unreliable. Every 3 dB doubles or halves the signal power. Walls, floors, and metal structures attenuate signal. A heat map from a site survey shows coverage dead zones.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Authentication Failures</div>
+                <div class="card-desc">Wrong PSK, expired certificate (802.1X), RADIUS server unreachable, or client not in the correct security group. Check: is the SSID visible? Does the client support WPA3/WPA2? Is the RADIUS server responding? Event logs on the RADIUS server show exactly why authentication was rejected -- always check there first.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Roaming issues</div>
+            Client "sticks" to a distant AP instead of roaming to a closer one -- the device maintains a weak connection because it has not hit the roaming threshold. Solutions: enable 802.11k (neighbor reports), 802.11r (fast BSS transition), and 802.11v (BSS transition management) on the controller. Reduce transmit power on APs so clients are forced to roam when signal drops.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- ROUTING AND SWITCHING ISSUES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Routing &amp; <span class="accent">Switching Issues</span></div>
+        <div class="slide-subtitle">When physical layer checks out, the problem moves up the stack. Routing and switching issues manifest as unreachable subnets, loops, and asymmetric paths.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Missing or Incorrect Routes</div>
+                <div class="card-desc">Check with <span class="ic">show ip route</span> (Cisco) or <span class="ic">ip route</span> (Linux). If the destination subnet is not in the routing table, the router has no path and drops the packet. Causes: missing static route, OSPF neighbor not formed, redistributed route filtered. The default route (0.0.0.0/0) is the gateway of last resort -- if it is missing, the router cannot reach anything not in its directly connected subnets.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Routing Loops</div>
+                <div class="card-desc">Two routers point to each other for the same destination. Packets bounce back and forth until TTL expires. Symptoms: high latency to specific destinations, TTL exceeded messages in traceroute. Prevention: route poisoning (set metric to infinity when a route is withdrawn), split horizon (do not advertise a route back to the interface it was learned from), hold-down timers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VLAN Misconfiguration</div>
+                <div class="card-desc">Host cannot reach other hosts in the same VLAN: check port VLAN assignment with <span class="ic">show vlan brief</span>. Host cannot reach other VLANs: check inter-VLAN routing (router-on-a-stick or L3 switch SVI). Trunk link issues: <span class="ic">show interface trunk</span> -- verify allowed VLANs, native VLAN match, and encapsulation (802.1Q).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Spanning Tree Issues</div>
+                <div class="card-desc">STP blocks redundant paths to prevent loops. If STP is misconfigured, it may block the wrong port (causing suboptimal paths) or fail to converge (causing a broadcast storm). Check: <span class="ic">show spanning-tree</span> -- verify root bridge election (lowest priority wins), port states (forwarding, blocking), and convergence time. Rapid PVST+ converges in under 1 second.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- DNS AND DHCP ISSUES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">DNS &amp; DHCP <span class="accent">Troubleshooting</span></div>
+        <div class="slide-subtitle">DNS and DHCP failures affect every user on the network. A misconfigured DHCP scope or a down DNS server produces symptoms that mimic connectivity failures.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">DHCP Failures</div>
+                <div class="card-desc"><strong>APIPA address (169.254.x.x):</strong> The client could not reach a DHCP server. Check: is the DHCP server running? Is the scope exhausted (no available IPs)? Is the DHCP relay agent (ip helper-address) configured on the router if the server is on a different subnet? Renew with <span class="ic">ipconfig /release</span> then <span class="ic">ipconfig /renew</span>. Check <span class="ic">ipconfig /all</span> for the DHCP server field.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scope Exhaustion</div>
+                <div class="card-desc">All IP addresses in the DHCP scope are leased. New clients get no address. Solution: expand the scope, shorten lease duration, or add a second scope. Check for ghost leases -- devices that disconnected without releasing their lease. An IP conflict (two devices with the same IP) can occur if a static IP overlaps with the DHCP range -- always exclude static IPs from the DHCP scope.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">DNS Resolution Failures</div>
+                <div class="card-desc">Symptoms: "Server not found" in the browser but <span class="ic">ping 8.8.8.8</span> works (IP reachability is fine, name resolution is broken). Diagnose: <span class="ic">nslookup</span> to test the configured DNS server. Try an alternate server: <span class="ic">nslookup example.com 1.1.1.1</span>. If the alternate works, the problem is the local DNS server. Flush the local cache: <span class="ic">ipconfig /flushdns</span>. Check for stale or incorrect DNS records.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">DNS Cache Poisoning</div>
+                <div class="card-desc">A resolver's cache contains a fraudulent record, redirecting users to a malicious IP. Symptoms: users reach the wrong website despite typing the correct URL. Diagnose: <span class="ic">nslookup example.com</span> and compare the returned IP to the known-good IP. If they differ, the cache or upstream server is compromised. Flush cache, switch to a trusted resolver, implement DNSSEC.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- PERFORMANCE METRICS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Performance <span class="accent">Metrics</span></div>
+        <div class="slide-subtitle">Network performance is defined by these four metrics. The exam expects you to diagnose which metric is degraded based on user symptoms and tool output.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Throughput vs Bandwidth</div>
+                <div class="card-desc"><strong>Bandwidth</strong> is the theoretical maximum capacity (1 Gbps link). <strong>Throughput</strong> is the actual data transfer rate achieved -- always lower due to protocol overhead, congestion, and errors. A 1 Gbps link may deliver 850 Mbps of application throughput. Measure with <span class="ic">iperf3</span>. If throughput is significantly below bandwidth, look for duplex mismatches, CRC errors, or congestion.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Latency</div>
+                <div class="card-desc">The time for a packet to travel from source to destination. Measured in milliseconds with <span class="ic">ping</span>. Acceptable: LAN &lt; 1ms, WAN &lt; 50ms, intercontinental &lt; 150ms. High latency makes interactive applications (SSH, RDP, VoIP) feel sluggish. Causes: geographic distance, congestion, routing inefficiency, overloaded devices. VoIP requires &lt; 150ms one-way latency for acceptable call quality.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Jitter</div>
+                <div class="card-desc">Variation in latency between packets. If packets arrive at 10ms, 12ms, 45ms, 11ms -- the jitter is high. Jitter destroys real-time applications: VoIP calls become choppy, video freezes and stutters. Acceptable jitter for VoIP: &lt; 30ms. Measured with <span class="ic">iperf3 -u</span> (UDP mode) or dedicated VoIP monitoring tools. Mitigate with QoS priority queuing (DSCP EF for voice).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Packet Loss</div>
+                <div class="card-desc">Percentage of packets that never reach the destination. <span class="ic">ping -c 100</span> and check the loss percentage. Even 1% packet loss degrades TCP performance significantly because of retransmissions. 5%+ makes VoIP unusable. Causes: congestion (buffer overflow), failing hardware (bad cable, dying interface), wireless interference. Diagnose with <span class="ic">mtr</span> or <span class="ic">pathping</span> to identify the lossy hop.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">QoS basics</div>
+            Quality of Service prioritizes traffic classes to protect latency-sensitive applications. DSCP marks in the IP header classify traffic: EF (Expedited Forwarding, decimal 46) for voice, AF (Assured Forwarding) for video, BE (Best Effort, 0) for general data. Switches and routers read DSCP marks and place packets into priority queues. Without QoS, a large file transfer can starve a VoIP call of bandwidth.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Network Troubleshooting and Tools -- key concepts for N10-009.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>7-Step Process:</strong> Identify, Theorize, Test, Plan, Implement, Verify, Document. The order matters. Documentation (step 7) is not optional.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><code>ping</code> tests reachability (ICMP). <code>traceroute</code> maps the path and identifies the failing hop. <code>pathping</code>/<code>mtr</code> combine both with packet loss stats per hop.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><code>nslookup</code>/<code>dig</code> query DNS directly. <code>netstat -an</code> shows connections. <code>arp -a</code> shows MAC-to-IP mappings. <code>ipconfig /all</code> is always the first local check.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>SNMP</strong> polls device metrics (use v3 only). <strong>Syslog</strong> centralizes logs (severity 0-7). <strong>NetFlow</strong> tracks traffic flows (metadata, not content). All feed into a SIEM for correlation.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Physical layer first:</strong> check cables, link lights, duplex/speed settings, and interface error counters before investigating routing or DNS.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>APIPA (169.254.x.x)</strong> means DHCP failed. No default gateway means local-only access. Wrong DNS server means name resolution fails but IP connectivity works.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Performance:</strong> Bandwidth (theoretical max) vs Throughput (actual). Latency &lt; 150ms for VoIP. Jitter &lt; 30ms. Packet loss above 1% triggers TCP retransmissions. QoS DSCP EF protects voice traffic.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Supplement Complete</strong> &nbsp;|&nbsp; Review both chapters, then test your knowledge with the chapter quizzes and labs.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; N10-009</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'n10009-ch02-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
