@@ -73,6 +73,15 @@ const SignalData = {
             color: '#94a3b8',
             description: 'Standard PC or laptop. No special hardware — just a computer and common peripherals.'
         },
+        'beagle-zepto': {
+            name: 'BeagleConnect Zepto',
+            kit: 'BeagleConnect Zepto + mikroBUS Click Boards',
+            approxCost: 20,
+            icon: '../../assets/images/icons/icon-memory.webp',
+            color: '#06d6a0',
+            availability: 'prototype',
+            description: 'ARM Cortex-M0+ board (target $1). Zephyr RTOS, mikroBUS expansion, Qwiic I2C. PROTOTYPE — not yet retail. Track will go live when hardware ships.'
+        },
         'rp2040-pico': {
             name: 'Raspberry Pi Pico',
             kit: 'RP2040-Zero or Pi Pico + MicroSD Breakout',
@@ -110,7 +119,12 @@ const SignalData = {
         'tor-privacy': 'Tor / Privacy Tools',
         'ids-ips': 'IDS / IPS',
         'physical-security': 'Physical Security',
-        'firmware-dev': 'Firmware Development'
+        'firmware-dev': 'Firmware Development',
+        'zephyr-rtos': 'Zephyr RTOS',
+        'mikrobus': 'mikroBUS Expansion',
+        'arm-bare-metal': 'ARM Bare-Metal',
+        'iot-mesh': 'IoT Mesh Networking',
+        'greybus': 'Greybus Protocol'
     },
 
     // -------------------------------------------------------------------------
@@ -280,6 +294,16 @@ const SignalData = {
             color: '#8b5cf6',
             colorDim: 'rgba(139, 92, 246, 0.15)',
             sections: ['drone-security']
+        },
+        {
+            id: 'iot-sensor-mesh',
+            name: 'IoT Sensor Mesh',
+            tagline: 'Deploy the swarm.',
+            description: 'ARM Cortex-M0+ boards running Zephyr RTOS — sensor nodes, mesh networks, and Greybus bridges. COMING SOON — hardware is in prototype stage.',
+            icon: '../../assets/images/icons/icon-plug.webp',
+            color: '#06d6a0',
+            colorDim: 'rgba(6, 214, 160, 0.15)',
+            sections: ['iot-sensor-mesh']
         }
     ],
 
@@ -1586,6 +1610,142 @@ const SignalData = {
                 { id: 'sg-90', title: 'Autonomous Waypoint Mission', type: 'build', difficulty: 'field_agent', platform: 'raspberry-pi', buildTime: '3h', cost: '$0', status: 'ready', href: 'sg-90-autonomous-mission.html', skills: ['autopilot', 'waypoints', 'mission-planning', 'ardupilot'], prerequisites: ['sg-87'], parts: [{ component: 'ArduPilot SITL simulator', qty: 1, inKit: false }, { component: 'QGroundControl or Mission Planner', qty: 1, inKit: false }], outcomes: ['Plan a multi-waypoint mission in QGroundControl', 'Upload and execute mission via MAVLink', 'Monitor telemetry during autonomous flight', 'Implement return-to-launch and failsafe behaviors'] },
                 { id: 'sg-91', title: 'Drone Forensics Lab', type: 'build', difficulty: 'field_agent', platform: 'raspberry-pi', buildTime: '3h', cost: '$0', status: 'ready', href: 'sg-91-drone-forensics.html', skills: ['forensics', 'flight-logs', 'data-recovery', 'evidence'], prerequisites: ['sg-83'], parts: [{ component: 'Drone with flight logs (any model)', qty: 1, inKit: false }, { component: 'SD card reader', qty: 1, inKit: false }], outcomes: ['Extract flight logs from drone SD card and internal storage', 'Parse .bin and .log files with Mission Planner', 'Reconstruct flight path on a map from GPS data', 'Identify pilot location from takeoff coordinates and telemetry'] },
                 { id: 'sg-92', title: 'Swarm Communication Simulator', type: 'build', difficulty: 'field_agent', platform: 'raspberry-pi', buildTime: '3h', cost: '$0', status: 'ready', href: 'sg-92-swarm-sim.html', skills: ['swarm', 'multi-agent', 'mesh-networking', 'simulation'], prerequisites: ['sg-87', 'sg-90'], parts: [{ component: 'Python 3 with matplotlib', qty: 1, inKit: false }, { component: 'ArduPilot SITL (multiple instances)', qty: 1, inKit: false }], outcomes: ['Simulate multiple drones communicating via MAVLink', 'Implement basic swarm behaviors (formation, follow-the-leader)', 'Visualize swarm positions in real time', 'Analyze communication overhead and failure modes'] }
+            ]
+        },
+
+        // =================================================================
+        // IOT SENSOR MESH — BeagleConnect Zepto, Zephyr, mikroBUS
+        // =================================================================
+        {
+            id: 'iot-sensor-mesh',
+            name: 'IoT Sensor Mesh',
+            track: 'iot-sensor-mesh',
+            icon: '../../assets/images/icons/icon-plug.webp',
+            description: 'BeagleConnect Zepto projects — ARM Cortex-M0+ boards running Zephyr RTOS with mikroBUS sensor expansion. PROTOTYPE — projects go live when hardware ships.',
+            color: '#06d6a0',
+            projects: [
+                {
+                    id: 'sg-93',
+                    title: 'Zepto Blink: Your First Zephyr RTOS Program',
+                    type: 'build',
+                    difficulty: 'recruit',
+                    platform: 'beagle-zepto',
+                    buildTime: '45m',
+                    cost: '$5',
+                    status: 'coming-soon',
+                    href: 'sg-93-zepto-blink.html',
+                    skills: ['zephyr-rtos', 'gpio', 'cpp'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'BeagleConnect Zepto', qty: 1, inKit: false },
+                        { component: 'USB-C Cable', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Set up the Zephyr RTOS development environment',
+                        'Understand the Cortex-M0+ boot process',
+                        'Write and flash a blink program via USB bootloader',
+                        'Control the onboard RGB LED with GPIO'
+                    ]
+                },
+                {
+                    id: 'sg-94',
+                    title: 'mikroBUS Sensor Click: I2C Temperature + Humidity',
+                    type: 'build',
+                    difficulty: 'recruit',
+                    platform: 'beagle-zepto',
+                    buildTime: '60m',
+                    cost: '$20',
+                    status: 'coming-soon',
+                    href: 'sg-94-mikrobus-sensor.html',
+                    skills: ['mikrobus', 'sensor-integration', 'serial-comms', 'zephyr-rtos'],
+                    prerequisites: ['sg-93'],
+                    parts: [
+                        { component: 'BeagleConnect Zepto', qty: 1, inKit: false },
+                        { component: 'Weather Click Board (BME280)', qty: 1, inKit: false },
+                        { component: 'USB-C Cable', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Install a mikroBUS Click board without soldering',
+                        'Read temperature, humidity, and pressure over I2C',
+                        'Output sensor data over USB serial',
+                        'Understand the mikroBUS pin standard'
+                    ]
+                },
+                {
+                    id: 'sg-95',
+                    title: 'Multi-Node Sensor Array: 3 Zeptos, 1 Dashboard',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'beagle-zepto',
+                    buildTime: '90m',
+                    cost: '$75',
+                    status: 'coming-soon',
+                    href: 'sg-95-multi-node-array.html',
+                    skills: ['iot-mesh', 'sensor-integration', 'python', 'serial-comms'],
+                    prerequisites: ['sg-94'],
+                    parts: [
+                        { component: 'BeagleConnect Zepto', qty: 3, inKit: false },
+                        { component: 'Weather Click Board (BME280)', qty: 1, inKit: false },
+                        { component: 'Light Sensor Click Board', qty: 1, inKit: false },
+                        { component: 'Motion Click Board (PIR)', qty: 1, inKit: false },
+                        { component: 'USB Hub (4-port)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Deploy 3 sensor nodes reading different environmental data',
+                        'Collect data from all nodes via a Python aggregator script',
+                        'Build a live terminal dashboard showing all sensors',
+                        'Understand distributed sensor architectures'
+                    ]
+                },
+                {
+                    id: 'sg-96',
+                    title: 'Greybus Bridge: Zepto Peripherals on Linux (Experimental)',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'beagle-zepto',
+                    buildTime: '2h',
+                    cost: '$60',
+                    status: 'coming-soon',
+                    href: 'sg-96-greybus-bridge.html',
+                    skills: ['greybus', 'linux-admin', 'zephyr-rtos', 'mikrobus'],
+                    prerequisites: ['sg-94'],
+                    parts: [
+                        { component: 'BeagleConnect Zepto', qty: 1, inKit: false },
+                        { component: 'Raspberry Pi 4/5', qty: 1, inKit: false },
+                        { component: 'Any mikroBUS Click Board', qty: 1, inKit: false },
+                        { component: 'USB-C Cable', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Flash BeagleConnect Greybus firmware to the Zepto',
+                        'Connect Zepto to Raspberry Pi via USB',
+                        'Access Click board sensors as native Linux devices',
+                        'Understand Greybus protocol and hardware abstraction'
+                    ]
+                },
+                {
+                    id: 'sg-97',
+                    title: 'IoT Security Audit: Sniff, Analyze, Harden',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'beagle-zepto',
+                    buildTime: '2h',
+                    cost: '$80',
+                    status: 'coming-soon',
+                    href: 'sg-97-iot-security-audit.html',
+                    skills: ['iot-mesh', 'packet-capture', 'python', 'encryption'],
+                    prerequisites: ['sg-95', 'sg-96'],
+                    parts: [
+                        { component: 'BeagleConnect Zepto', qty: 3, inKit: false },
+                        { component: 'Raspberry Pi 4/5', qty: 1, inKit: false },
+                        { component: 'USB Hub', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Capture serial traffic between Zepto nodes',
+                        'Identify plaintext sensor data as a vulnerability',
+                        'Implement a simple encryption layer on sensor payloads',
+                        'Write a security audit report for the IoT deployment'
+                    ]
+                }
             ]
         }
 

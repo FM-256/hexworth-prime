@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Management and Governance | AZ-900 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        /* code inline in fact rows uses gold accent */
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent for code highlights */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes lockBounce {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-3px); }
+        }
+        @keyframes shieldPulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50%      { opacity: 1; transform: scale(1.04); }
+        }
+        @keyframes gearSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes tagFloat {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-4px); }
+        }
+        @keyframes extendArm {
+            from { stroke-dashoffset: 60; opacity: 0; }
+            to   { stroke-dashoffset: 0; opacity: 1; }
+        }
+        @keyframes codeTransform {
+            0%   { opacity: 0.4; transform: translateX(-6px); }
+            50%  { opacity: 1; }
+            100% { opacity: 0.4; transform: translateX(6px); }
+        }
+        @keyframes celebratePop {
+            from { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+            to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; } /* comment */
+        .code-block .kw { color: #93c5fd; } /* keyword / property */
+        .code-block .st { color: #86efac; } /* string value */
+        .code-block .nu { color: #fdba74; } /* number */
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Azure Management and Governance — AZ-900 Chapter 3</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-900 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Management and Governance</div>
+        <div class="title-hero">
+            <!-- Governance shield with gear icons -->
+            <svg width="420" height="140" viewBox="0 0 420 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central shield shape -->
+                <path d="M210,12 L260,32 L260,72 Q260,108 210,128 Q160,108 160,72 L160,32 Z" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: shieldPulse 3s ease-in-out infinite;"/>
+                <!-- Inner shield detail -->
+                <path d="M210,28 L246,42 L246,72 Q246,100 210,116 Q174,100 174,72 L174,42 Z" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                <!-- Shield text -->
+                <text x="210" y="60" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.5s ease forwards 0.2s; opacity:0;">GOVERN</text>
+                <text x="210" y="75" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.5s ease forwards 0.35s; opacity:0;">MANAGE</text>
+                <text x="210" y="90" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.5s ease forwards 0.5s; opacity:0;">MONITOR</text>
+
+                <!-- Gear top-left -->
+                <g transform="translate(120,20)" style="animation: gearSpin 6s linear infinite;">
+                    <circle cx="0" cy="0" r="16" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.2"/>
+                    <circle cx="0" cy="0" r="6" fill="none" stroke="#c9a83a" stroke-width="1"/>
+                    <line x1="0" y1="-16" x2="0" y2="-12" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="0" y1="12" x2="0" y2="16" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="-16" y1="0" x2="-12" y2="0" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="12" y1="0" x2="16" y2="0" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="-11" y1="-11" x2="-8.5" y2="-8.5" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="8.5" y1="8.5" x2="11" y2="11" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="11" y1="-11" x2="8.5" y2="-8.5" stroke="#c9a83a" stroke-width="2"/>
+                    <line x1="-8.5" y1="8.5" x2="-11" y2="11" stroke="#c9a83a" stroke-width="2"/>
+                </g>
+
+                <!-- Gear top-right -->
+                <g transform="translate(300,20)" style="animation: gearSpin 8s linear infinite reverse;">
+                    <circle cx="0" cy="0" r="14" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"/>
+                    <circle cx="0" cy="0" r="5" fill="none" stroke="#3ab577" stroke-width="1"/>
+                    <line x1="0" y1="-14" x2="0" y2="-10" stroke="#3ab577" stroke-width="2"/>
+                    <line x1="0" y1="10" x2="0" y2="14" stroke="#3ab577" stroke-width="2"/>
+                    <line x1="-14" y1="0" x2="-10" y2="0" stroke="#3ab577" stroke-width="2"/>
+                    <line x1="10" y1="0" x2="14" y2="0" stroke="#3ab577" stroke-width="2"/>
+                    <line x1="-10" y1="-10" x2="-7" y2="-7" stroke="#3ab577" stroke-width="2"/>
+                    <line x1="7" y1="7" x2="10" y2="10" stroke="#3ab577" stroke-width="2"/>
+                </g>
+
+                <!-- Gear bottom-left -->
+                <g transform="translate(115,110)" style="animation: gearSpin 7s linear infinite;">
+                    <circle cx="0" cy="0" r="12" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.2"/>
+                    <circle cx="0" cy="0" r="4" fill="none" stroke="#06b6d4" stroke-width="1"/>
+                    <line x1="0" y1="-12" x2="0" y2="-8" stroke="#06b6d4" stroke-width="2"/>
+                    <line x1="0" y1="8" x2="0" y2="12" stroke="#06b6d4" stroke-width="2"/>
+                    <line x1="-12" y1="0" x2="-8" y2="0" stroke="#06b6d4" stroke-width="2"/>
+                    <line x1="8" y1="0" x2="12" y2="0" stroke="#06b6d4" stroke-width="2"/>
+                </g>
+
+                <!-- Gear bottom-right -->
+                <g transform="translate(305,110)" style="animation: gearSpin 5s linear infinite reverse;">
+                    <circle cx="0" cy="0" r="12" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.2"/>
+                    <circle cx="0" cy="0" r="4" fill="none" stroke="#a78bfa" stroke-width="1"/>
+                    <line x1="0" y1="-12" x2="0" y2="-8" stroke="#a78bfa" stroke-width="2"/>
+                    <line x1="0" y1="8" x2="0" y2="12" stroke="#a78bfa" stroke-width="2"/>
+                    <line x1="-12" y1="0" x2="-8" y2="0" stroke="#a78bfa" stroke-width="2"/>
+                    <line x1="8" y1="0" x2="12" y2="0" stroke="#a78bfa" stroke-width="2"/>
+                </g>
+
+                <!-- Connecting lines from gears to shield -->
+                <line x1="136" y1="28" x2="162" y2="40" stroke="rgba(201,168,58,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <line x1="286" y1="28" x2="258" y2="40" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="127" y1="102" x2="164" y2="90" stroke="rgba(6,182,212,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <line x1="293" y1="102" x2="256" y2="90" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.2s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+
+                <!-- Labels -->
+                <text x="120" y="52" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.4s ease forwards 0.4s; opacity:0;">Cost</text>
+                <text x="300" y="52" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.4s ease forwards 0.5s; opacity:0;">Policy</text>
+                <text x="115" y="90" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.4s ease forwards 0.6s; opacity:0;">Monitor</text>
+                <text x="305" y="90" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.4s ease forwards 0.7s; opacity:0;">Arc</text>
+            </svg>
+            <div class="big-title">
+                Management and <span class="accent">Governance</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Cost Management &nbsp;&bull;&nbsp; Tags &nbsp;&bull;&nbsp; Azure Policy &nbsp;&bull;&nbsp; Locks &nbsp;&bull;&nbsp; Blueprints &nbsp;&bull;&nbsp; ARM &nbsp;&bull;&nbsp; Monitoring &nbsp;&bull;&nbsp; Advisor &nbsp;&bull;&nbsp; Arc
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Chapter 3 covers the tools and practices that keep Azure environments organized, compliant, and cost-effective. From setting budgets and tagging resources to enforcing policies, deploying infrastructure as code, and monitoring health &mdash; this is how real organizations govern the cloud.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-900 Exam Objectives</span>
+            <span>Chapter 3 of 3</span>
+            <span>Azure Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AZURE COST MANAGEMENT ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Cost Management</span></div>
+        <div class="slide-subtitle">Plan, track, and optimize your Azure spending. Cost Management + Billing is built directly into the Azure portal at no extra charge.</div>
+
+        <!-- SVG: Dashboard with cost trend graph -->
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Dashboard frame -->
+                <rect x="20" y="8" width="560" height="114" rx="10" fill="rgba(59,130,246,0.05)" stroke="rgba(59,130,246,0.25)" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="50" y="26" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Cost Analysis Dashboard</text>
+
+                <!-- Cost trend line chart area -->
+                <rect x="40" y="34" width="260" height="78" rx="6" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <!-- Grid lines -->
+                <line x1="40" y1="54" x2="300" y2="54" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+                <line x1="40" y1="74" x2="300" y2="74" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+                <line x1="40" y1="94" x2="300" y2="94" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+                <!-- Trend line — actual cost -->
+                <polyline points="50,100 90,92 130,88 170,78 210,70 250,58 290,48" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"
+                    stroke-dasharray="240" stroke-dashoffset="240">
+                    <animate attributeName="stroke-dashoffset" from="240" to="0" dur="1.5s" fill="freeze" begin="0.3s"/>
+                </polyline>
+                <!-- Budget line — dashed gold -->
+                <line x1="50" y1="68" x2="290" y2="68" stroke="#c9a83a" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.6"/>
+                <text x="292" y="66" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">Budget</text>
+                <!-- Alert threshold -->
+                <line x1="50" y1="56" x2="290" y2="56" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+                <text x="292" y="54" font-size="5.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Alert 80%</text>
+                <!-- Y-axis labels -->
+                <text x="36" y="102" font-size="5.5" fill="#475569" text-anchor="end" font-family="Segoe UI,sans-serif">$0</text>
+                <text x="36" y="56" font-size="5.5" fill="#475569" text-anchor="end" font-family="Segoe UI,sans-serif">$5k</text>
+                <!-- X-axis labels -->
+                <text x="50" y="116" font-size="5" fill="#475569" font-family="Segoe UI,sans-serif">Jan</text>
+                <text x="130" y="116" font-size="5" fill="#475569" font-family="Segoe UI,sans-serif">Mar</text>
+                <text x="210" y="116" font-size="5" fill="#475569" font-family="Segoe UI,sans-serif">May</text>
+                <text x="290" y="116" font-size="5" fill="#475569" font-family="Segoe UI,sans-serif">Jul</text>
+
+                <!-- Right panel — tools list -->
+                <rect x="320" y="34" width="240" height="78" rx="6" fill="rgba(0,0,0,0.15)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <text x="340" y="50" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.5s; opacity:0;">Pricing Calculator</text>
+                <text x="340" y="62" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.6s; opacity:0;">Estimate costs before deploying</text>
+                <text x="340" y="78" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.7s; opacity:0;">TCO Calculator</text>
+                <text x="340" y="90" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.8s; opacity:0;">Compare on-prem vs Azure cost</text>
+                <text x="340" y="106" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif"
+                    style="animation: labelSlide 0.3s ease forwards 0.9s; opacity:0;">Cost Alerts &amp; Budgets</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Cost Analysis</div>
+                <div class="card-desc">Visualize spending by resource, resource group, subscription, or tag. Drill down into daily/monthly breakdowns to find cost drivers.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Budgets &amp; Alerts</div>
+                <div class="card-desc">Set spending thresholds and configure alerts at 50%, 80%, and 100% of budget. Alerts notify via email or trigger action groups.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pricing Calculator</div>
+                <div class="card-desc">Estimate monthly costs before deploying. Select regions, tiers, and quantities. Shareable estimates for stakeholder approval.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            <strong>Pricing Calculator</strong> estimates cost for new deployments. <strong>TCO Calculator</strong> compares on-premises vs Azure cost over time. Know the difference &mdash; both appear on the exam.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — AZURE RESOURCE TAGS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Resource Tags</span></div>
+        <div class="slide-subtitle">Key-value metadata pairs applied to resources for cost tracking, governance, and automation. Up to 50 tags per resource.</div>
+
+        <!-- SVG: Tag icons attached to resource boxes -->
+        <div class="diagram-center">
+            <svg width="580" height="130" viewBox="0 0 580 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Resource Group -->
+                <rect x="180" y="10" width="220" height="110" rx="10" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1.2" stroke-dasharray="6,3"/>
+                <text x="290" y="28" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Resource Group: rg-prod-web</text>
+
+                <!-- VM resource box -->
+                <rect x="195" y="40" width="90" height="36" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="240" y="56" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">VM</text>
+                <text x="240" y="68" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">web-server-01</text>
+
+                <!-- Storage resource box -->
+                <rect x="300" y="40" width="90" height="36" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="345" y="56" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Storage</text>
+                <text x="345" y="68" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">prodblob01</text>
+
+                <!-- SQL resource box -->
+                <rect x="248" y="84" width="90" height="30" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="293" y="100" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">SQL Database</text>
+
+                <!-- Tag labels floating near resources -->
+                <g style="animation: tagFloat 2.5s ease-in-out infinite;">
+                    <!-- Tag on VM -->
+                    <rect x="195" y="80" width="72" height="14" rx="3" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="0.8"/>
+                    <text x="231" y="90" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Courier New,monospace">env : prod</text>
+                </g>
+                <g style="animation: tagFloat 2.5s ease-in-out infinite 0.3s;">
+                    <!-- Tag on Storage -->
+                    <rect x="308" y="80" width="80" height="14" rx="3" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="0.8"/>
+                    <text x="348" y="90" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Courier New,monospace">dept : finance</text>
+                </g>
+                <g style="animation: tagFloat 2.5s ease-in-out infinite 0.6s;">
+                    <!-- Tag on SQL -->
+                    <rect x="340" y="90" width="76" height="14" rx="3" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="0.8"/>
+                    <text x="378" y="100" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Courier New,monospace">owner : ops</text>
+                </g>
+
+                <!-- Left panel — tag icon -->
+                <g style="animation: entityPop 0.4s ease forwards 0.15s; opacity:0;">
+                    <rect x="30" y="30" width="120" height="70" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"/>
+                    <text x="90" y="48" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Tag Structure</text>
+                    <text x="90" y="62" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Courier New,monospace">key : value</text>
+                    <text x="90" y="76" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Max 50 per resource</text>
+                    <text x="90" y="88" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Not inherited by default</text>
+                </g>
+
+                <!-- Arrow from tag structure to RG -->
+                <line x1="150" y1="65" x2="178" y2="65" stroke="rgba(201,168,58,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- Right panel — uses -->
+                <g style="animation: entityPop 0.4s ease forwards 0.4s; opacity:0;">
+                    <rect x="430" y="20" width="130" height="90" rx="8" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                    <text x="495" y="38" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Common Uses</text>
+                    <text x="445" y="52" font-size="6.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Cost tracking</text>
+                    <text x="445" y="64" font-size="6.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Governance</text>
+                    <text x="445" y="76" font-size="6.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Automation</text>
+                    <text x="445" y="88" font-size="6.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Security grouping</text>
+                    <text x="445" y="100" font-size="6.5" fill="#cbd5e1" font-family="Segoe UI,sans-serif">SLA management</text>
+                </g>
+
+                <!-- Arrow from RG to uses -->
+                <line x1="402" y1="65" x2="428" y2="65" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Point</div>
+            Tags are <strong>not inherited</strong> by child resources unless Azure Policy enforces tag inheritance. Use the built-in policy <span class="ic">Inherit a tag from the resource group</span> to propagate tags automatically.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Cost Reporting</div>
+                <div class="card-desc">Filter Cost Analysis by tag to see spending per department, project, or environment. Essential for chargeback and showback models.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Automation</div>
+                <div class="card-desc">Scripts and runbooks can target resources by tag. Example: shut down all VMs tagged <span class="ic">env:dev</span> at 6 PM to save costs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — AZURE POLICY ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Policy</span></div>
+        <div class="slide-subtitle">Enforce organizational standards and assess compliance at scale. Policies evaluate resources and flag or block non-compliant configurations.</div>
+
+        <!-- SVG: Policy shield gating resource creation flow -->
+        <div class="diagram-center">
+            <svg width="620" height="120" viewBox="0 0 620 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Request -->
+                <rect x="10" y="34" width="100" height="52" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="54" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Create</text>
+                <text x="60" y="66" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Resource</text>
+                <text x="60" y="80" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">ARM Request</text>
+
+                <!-- Arrow to policy gate -->
+                <line x1="112" y1="60" x2="180" y2="60" stroke="rgba(201,168,58,0.5)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- Policy Shield Gate -->
+                <path d="M260,10 L320,28 L320,72 Q320,102 260,115 Q200,102 200,72 L200,28 Z" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: shieldPulse 3s ease-in-out infinite;"/>
+                <text x="260" y="45" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="260" y="58" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Policy</text>
+                <text x="260" y="72" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Evaluate</text>
+                <!-- Checkmark -->
+                <polyline points="248,82 256,90 272,76" fill="none" stroke="#3ab577" stroke-width="2" stroke-linecap="round"
+                    style="animation: fadeUp 0.4s ease forwards 0.5s; opacity:0;"/>
+
+                <!-- Compliant path — green arrow -->
+                <line x1="322" y1="45" x2="400" y2="45" stroke="rgba(58,181,119,0.6)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <text x="360" y="38" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Compliant</text>
+
+                <!-- Deployed resource -->
+                <rect x="405" y="26" width="90" height="38" rx="7" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="450" y="44" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Resource</text>
+                <text x="450" y="56" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Deployed</text>
+
+                <!-- Denied path — red arrow -->
+                <line x1="322" y1="85" x2="400" y2="85" stroke="rgba(239,68,68,0.6)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <text x="360" y="78" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">Non-Compliant</text>
+
+                <!-- Denied resource -->
+                <rect x="405" y="70" width="90" height="38" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="450" y="88" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Denied</text>
+                <text x="450" y="100" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">or Flagged</text>
+
+                <!-- Compliance dashboard -->
+                <rect x="520" y="20" width="90" height="90" rx="8" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="565" y="38" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Compliance</text>
+                <!-- Mini bar chart -->
+                <rect x="532" y="76" width="14" height="28" rx="2" fill="rgba(58,181,119,0.4)" style="animation: barRise 0.6s ease forwards 0.8s; transform-origin: bottom; transform: scaleY(0);"/>
+                <rect x="550" y="62" width="14" height="42" rx="2" fill="rgba(58,181,119,0.6)" style="animation: barRise 0.6s ease forwards 0.9s; transform-origin: bottom; transform: scaleY(0);"/>
+                <rect x="568" y="86" width="14" height="18" rx="2" fill="rgba(239,68,68,0.4)" style="animation: barRise 0.6s ease forwards 1.0s; transform-origin: bottom; transform: scaleY(0);"/>
+                <text x="565" y="50" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Dashboard</text>
+
+                <!-- Arrow to compliance -->
+                <line x1="497" y1="60" x2="518" y2="60" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Policy Definition</div>
+                <div class="card-desc">A rule written in JSON that defines what is evaluated and what action to take. Azure provides hundreds of built-in definitions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Policy Assignment</div>
+                <div class="card-desc">Assign a policy to a scope: management group, subscription, or resource group. Policies are inherited by child resources.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Initiative</div>
+                <div class="card-desc">A collection of related policy definitions grouped together. Example: the "ISO 27001" initiative bundles dozens of security policies.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Effects</div>
+            <strong>Deny</strong> &mdash; blocks non-compliant creation. <strong>Audit</strong> &mdash; allows but flags it. <strong>Modify</strong> &mdash; adds or changes properties (e.g., append a required tag). <strong>Append</strong> &mdash; adds required fields during creation. <strong>DeployIfNotExists</strong> &mdash; auto-remediates by deploying a missing resource. <strong>Disabled</strong> &mdash; turns off the policy.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — RESOURCE LOCKS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Resource <span class="accent">Locks</span></div>
+        <div class="slide-subtitle">Prevent accidental deletion or modification of critical resources. Locks override RBAC permissions &mdash; even Owners cannot delete a locked resource without first removing the lock.</div>
+
+        <!-- SVG: Padlock on resource group with cascading lock indicators -->
+        <div class="diagram-center">
+            <svg width="520" height="140" viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Resource Group container -->
+                <rect x="130" y="10" width="260" height="120" rx="12" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1.2" stroke-dasharray="6,3"/>
+                <text x="260" y="28" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Resource Group: rg-production</text>
+
+                <!-- Main padlock on RG -->
+                <g style="animation: lockBounce 2s ease-in-out infinite;" transform="translate(260, 58)">
+                    <!-- Lock body -->
+                    <rect x="-14" y="0" width="28" height="20" rx="4" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                    <!-- Lock shackle -->
+                    <path d="M-8,-2 L-8,-10 Q-8,-18 0,-18 Q8,-18 8,-10 L8,-2" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Keyhole -->
+                    <circle cx="0" cy="10" r="3" fill="#ef4444" opacity="0.6"/>
+                </g>
+                <text x="260" y="88" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">CanNotDelete</text>
+
+                <!-- Child resources with inherited lock indicators -->
+                <!-- VM -->
+                <rect x="148" y="98" width="70" height="24" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="183" y="114" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">VM</text>
+                <!-- Mini lock -->
+                <rect x="210" y="100" width="8" height="6" rx="1" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+
+                <!-- Storage -->
+                <rect x="228" y="98" width="70" height="24" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="263" y="114" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">Storage</text>
+                <!-- Mini lock -->
+                <rect x="290" y="100" width="8" height="6" rx="1" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+
+                <!-- SQL -->
+                <rect x="308" y="98" width="70" height="24" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="343" y="114" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">SQL DB</text>
+                <!-- Mini lock -->
+                <rect x="370" y="100" width="8" height="6" rx="1" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.6"
+                    style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+
+                <!-- Left panel: CanNotDelete -->
+                <rect x="10" y="20" width="100" height="50" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="60" y="38" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">CanNotDelete</text>
+                <text x="60" y="52" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Read + Update OK</text>
+                <text x="60" y="62" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Delete blocked</text>
+
+                <!-- Right panel: ReadOnly -->
+                <rect x="410" y="20" width="100" height="50" rx="7" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="460" y="38" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">ReadOnly</text>
+                <text x="460" y="52" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">Read only</text>
+                <text x="460" y="62" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">No update or delete</text>
+
+                <!-- Inheritance label -->
+                <text x="260" y="136" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif" font-style="italic">Locks inherit to all child resources</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">CanNotDelete</div>
+                <div class="card-desc">Authorized users can still read and modify the resource, but they cannot delete it. The lock must be removed first before deletion is possible.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">ReadOnly</div>
+                <div class="card-desc">Authorized users can read the resource, but cannot modify or delete it. Behaves like the Reader RBAC role. Can break automation that writes to the resource.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Locks <strong>override RBAC</strong>. Even an Owner cannot delete a CanNotDelete-locked resource. The lock must be removed first. Locks are <strong>inherited</strong> by child resources within the scope.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — AZURE BLUEPRINTS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Blueprints</span></div>
+        <div class="slide-subtitle">Package ARM templates, policies, RBAC assignments, and resource groups into a single deployable definition. Version-controlled governance that tracks what was deployed.</div>
+
+        <!-- SVG: Blueprint document with nested component icons -->
+        <div class="diagram-center">
+            <svg width="560" height="140" viewBox="0 0 560 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Blueprint document shape -->
+                <rect x="160" y="8" width="240" height="124" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <!-- Blueprint title bar -->
+                <rect x="160" y="8" width="240" height="24" rx="10" fill="rgba(59,130,246,0.12)"/>
+                <text x="280" y="24" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Blueprint Definition</text>
+
+                <!-- Nested artifact boxes -->
+                <!-- ARM Templates -->
+                <rect x="174" y="40" width="105" height="36" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="226" y="55" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">ARM Templates</text>
+                <text x="226" y="68" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Infrastructure as Code</text>
+
+                <!-- Policy Assignments -->
+                <rect x="286" y="40" width="105" height="36" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="338" y="55" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Policy Assignments</text>
+                <text x="338" y="68" text-anchor="middle" font-size="6" fill="#d1fae5" font-family="Segoe UI,sans-serif">Compliance rules</text>
+
+                <!-- RBAC -->
+                <rect x="174" y="84" width="105" height="36" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="226" y="99" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">RBAC Assignments</text>
+                <text x="226" y="112" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Role assignments</text>
+
+                <!-- Resource Groups -->
+                <rect x="286" y="84" width="105" height="36" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="338" y="99" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Resource Groups</text>
+                <text x="338" y="112" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">Organizational scope</text>
+
+                <!-- Left: Version arrow -->
+                <g style="animation: fadeUp 0.4s ease forwards 0.6s; opacity:0;">
+                    <rect x="20" y="40" width="110" height="56" rx="7" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)" stroke-width="1"/>
+                    <text x="75" y="56" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Version Control</text>
+                    <text x="75" y="70" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">v1.0 -&gt; v1.1 -&gt; v2.0</text>
+                    <text x="75" y="84" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Track what was deployed</text>
+                </g>
+
+                <!-- Right: Assignment target -->
+                <g style="animation: fadeUp 0.4s ease forwards 0.7s; opacity:0;">
+                    <rect x="430" y="40" width="110" height="56" rx="7" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                    <text x="485" y="56" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Assign To</text>
+                    <text x="485" y="70" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Subscription scope</text>
+                    <text x="485" y="84" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Repeatable environments</text>
+                </g>
+
+                <!-- Connecting arrows -->
+                <line x1="132" y1="68" x2="158" y2="68" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="402" y1="68" x2="428" y2="68" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">How It Works</div>
+            <strong>1. Define</strong> &mdash; create a blueprint definition with artifacts (templates, policies, RBAC, RGs). <strong>2. Publish</strong> &mdash; assign a version number. <strong>3. Assign</strong> &mdash; deploy the blueprint to a subscription. The assignment relationship is tracked, so you always know what was deployed and when.
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            Azure Blueprints differ from ARM templates because blueprints <strong>maintain the relationship</strong> between the definition and the deployment. ARM templates have no built-in tracking of what was deployed. Note: Blueprints is being superseded by <strong>Deployment Stacks</strong> for new designs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — AZURE RESOURCE MANAGER (ARM) ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Azure Resource Manager <span class="accent">(ARM)</span></div>
+        <div class="slide-subtitle">The control plane for all Azure operations. Every request &mdash; portal, CLI, PowerShell, SDK, REST &mdash; routes through ARM at management.azure.com.</div>
+
+        <!-- SVG: ARM request flow from client through ARM to resource providers -->
+        <div class="diagram-center">
+            <svg width="640" height="120" viewBox="0 0 640 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Clients column -->
+                <rect x="10" y="6" width="80" height="22" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="50" y="20" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Portal</text>
+
+                <rect x="10" y="34" width="80" height="22" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="50" y="48" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">PowerShell</text>
+
+                <rect x="10" y="62" width="80" height="22" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="50" y="76" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI</text>
+
+                <rect x="10" y="90" width="80" height="22" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="50" y="104" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">REST API / SDK</text>
+
+                <!-- Converging arrows to ARM -->
+                <line x1="92" y1="17" x2="188" y2="55" stroke="rgba(201,168,58,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="92" y1="45" x2="188" y2="58" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="92" y1="73" x2="188" y2="62" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="92" y1="101" x2="188" y2="68" stroke="rgba(6,182,212,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- ARM central block -->
+                <rect x="190" y="25" width="140" height="70" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: glowPulse 3s ease-in-out infinite;"/>
+                <text x="260" y="48" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Resource</text>
+                <text x="260" y="62" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Manager</text>
+                <text x="260" y="80" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Courier New,monospace">management.azure.com</text>
+
+                <!-- ARM features listed -->
+                <text x="260" y="18" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Authentication &bull; Authorization &bull; Validation</text>
+
+                <!-- Diverging arrows to Resource Providers -->
+                <line x1="332" y1="45" x2="418" y2="22" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <line x1="332" y1="60" x2="418" y2="60" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.5s"/>
+                </line>
+                <line x1="332" y1="75" x2="418" y2="98" stroke="rgba(59,130,246,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+
+                <!-- Resource Providers -->
+                <rect x="420" y="6" width="105" height="30" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="472" y="18" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft.Compute</text>
+                <text x="472" y="30" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">VMs, Scale Sets</text>
+
+                <rect x="420" y="44" width="105" height="30" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="472" y="56" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft.Storage</text>
+                <text x="472" y="68" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Blob, Files, Tables</text>
+
+                <rect x="420" y="82" width="105" height="30" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="472" y="94" text-anchor="middle" font-size="6.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft.Network</text>
+                <text x="472" y="106" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">VNets, Load Balancers</text>
+
+                <!-- Final deployed resources -->
+                <rect x="548" y="30" width="80" height="60" rx="8" fill="rgba(59,130,246,0.05)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: entityPop 0.4s ease forwards 0.8s; opacity:0;"/>
+                <text x="588" y="52" text-anchor="middle" font-size="7" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="588" y="64" text-anchor="middle" font-size="7" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Resources</text>
+                <text x="588" y="80" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Deployed</text>
+
+                <line x1="527" y1="60" x2="546" y2="60" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Declarative</div>
+                <div class="card-desc">ARM templates describe the desired end-state. ARM figures out the operations needed to get there. Same template deployed twice produces the same result (idempotent).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">JSON or Bicep</div>
+                <div class="card-desc">ARM templates use JSON. Bicep is a cleaner syntax that compiles to ARM JSON. Both deploy through the same ARM API. Bicep is preferred for readability.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Parallel Deployment</div>
+                <div class="card-desc">ARM deploys resources in parallel when there are no dependencies. A single template can orchestrate an entire environment faster than sequential scripts.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Point</div>
+            ARM provides <strong>authentication, authorization, and auditing</strong> for every Azure operation. It validates requests against RBAC, Azure Policy, and resource locks before forwarding to the resource provider.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — MONITORING TOOLS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Monitoring <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">Azure Monitor collects metrics and logs from every layer of your stack. Log Analytics, Application Insights, and Service Health complete the observability picture.</div>
+
+        <!-- SVG: Monitoring dashboard with alert bell and metric graphs -->
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central monitor hub -->
+                <rect x="220" y="8" width="160" height="114" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="300" y="26" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Monitor</text>
+
+                <!-- Metrics mini chart -->
+                <rect x="232" y="34" width="60" height="36" rx="4" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+                <polyline points="238,62 248,55 258,58 268,44 278,48 288,38" fill="none" stroke="#3ab577" stroke-width="1.5" stroke-linecap="round"
+                    stroke-dasharray="60" stroke-dashoffset="60">
+                    <animate attributeName="stroke-dashoffset" from="60" to="0" dur="1.2s" fill="freeze" begin="0.4s"/>
+                </polyline>
+                <text x="262" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Metrics</text>
+
+                <!-- Logs mini chart -->
+                <rect x="306" y="34" width="60" height="36" rx="4" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+                <text x="314" y="44" font-size="5" fill="#c9a83a" font-family="Courier New,monospace">KQL Query</text>
+                <text x="314" y="52" font-size="5" fill="#86efac" font-family="Courier New,monospace">| where ...</text>
+                <text x="314" y="60" font-size="5" fill="#86efac" font-family="Courier New,monospace">| summarize</text>
+                <text x="336" y="78" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">Logs</text>
+
+                <!-- Alert bell -->
+                <g transform="translate(300, 100)" style="animation: pulse 2s ease-in-out infinite;">
+                    <path d="M-8,0 Q-8,-10 0,-14 Q8,-10 8,0 L8,2 L-8,2 Z" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>
+                    <circle cx="0" cy="5" r="2" fill="#ef4444"/>
+                    <line x1="-10" y1="2" x2="10" y2="2" stroke="#ef4444" stroke-width="0.8"/>
+                </g>
+                <text x="300" y="116" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Alerts</text>
+
+                <!-- Left: Data sources -->
+                <rect x="14" y="14" width="100" height="26" rx="5" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="64" y="30" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">App Insights</text>
+
+                <rect x="14" y="48" width="100" height="26" rx="5" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="64" y="64" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Log Analytics</text>
+
+                <rect x="14" y="82" width="100" height="26" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="64" y="98" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Service Health</text>
+
+                <!-- Arrows from sources to monitor -->
+                <line x1="116" y1="27" x2="218" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="116" y1="61" x2="218" y2="60" stroke="rgba(201,168,58,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="116" y1="95" x2="218" y2="72" stroke="rgba(6,182,212,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- Right: Outputs -->
+                <rect x="420" y="14" width="110" height="26" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="475" y="30" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Dashboards</text>
+
+                <rect x="420" y="48" width="110" height="26" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="475" y="64" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Alert Actions</text>
+
+                <rect x="420" y="82" width="110" height="26" rx="5" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="475" y="98" text-anchor="middle" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Autoscale</text>
+
+                <!-- Arrows from monitor to outputs -->
+                <line x1="382" y1="50" x2="418" y2="30" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.5s"/>
+                </line>
+                <line x1="382" y1="60" x2="418" y2="60" stroke="rgba(239,68,68,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <line x1="382" y1="72" x2="418" y2="92" stroke="rgba(249,115,22,0.4)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.7s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Azure Monitor</div>
+                <div class="card-desc">Central platform for metrics (numeric time-series data) and logs (structured event data). Collects from VMs, apps, networking, and platform services automatically.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Log Analytics</div>
+                <div class="card-desc">Workspace that stores log data. Query with Kusto Query Language (KQL). Powers dashboards, alerts, and workbooks for deep analysis of operational data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Application Insights</div>
+                <div class="card-desc">APM for web applications. Tracks request rates, response times, failure rates, and dependencies. Detects anomalies and performance bottlenecks automatically.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Azure Service Health</div>
+                <div class="card-desc">Three tiers: <strong>Azure Status</strong> (global), <strong>Service Health</strong> (your services), <strong>Resource Health</strong> (individual resource status). Planned maintenance notifications included.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AZURE ADVISOR ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Advisor</span></div>
+        <div class="slide-subtitle">Free, personalized recommendations across five categories: Reliability, Security, Performance, Cost, and Operational Excellence.</div>
+
+        <!-- SVG: Advisor icon with 5 recommendation category cards -->
+        <div class="diagram-center">
+            <svg width="560" height="140" viewBox="0 0 560 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Advisor hub -->
+                <circle cx="280" cy="70" r="36" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: glowPulse 3s ease-in-out infinite;"/>
+                <text x="280" y="62" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="280" y="76" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Advisor</text>
+                <!-- Star icon in center -->
+                <polygon points="280,42 282,48 288,48 283,52 285,58 280,54 275,58 277,52 272,48 278,48" fill="#c9a83a" opacity="0.7"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- 5 Category spokes -->
+                <!-- Reliability — top-left -->
+                <rect x="40" y="8" width="110" height="40" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: bubblePop 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="95" y="26" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Reliability</text>
+                <text x="95" y="40" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">HA, redundancy, backups</text>
+                <line x1="152" y1="36" x2="248" y2="56" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- Security — top-right -->
+                <rect x="410" y="8" width="110" height="40" rx="7" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: bubblePop 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="465" y="26" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Security</text>
+                <text x="465" y="40" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Threat detection, hardening</text>
+                <line x1="408" y1="36" x2="312" y2="56" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Performance — bottom-left -->
+                <rect x="40" y="92" width="110" height="40" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: bubblePop 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="95" y="110" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Performance</text>
+                <text x="95" y="124" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Speed, scaling, caching</text>
+                <line x1="152" y1="104" x2="248" y2="84" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+
+                <!-- Cost — bottom-right -->
+                <rect x="410" y="92" width="110" height="40" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: bubblePop 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="465" y="110" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Cost</text>
+                <text x="465" y="124" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Right-size, reserved instances</text>
+                <line x1="408" y1="104" x2="312" y2="84" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+
+                <!-- Operational Excellence — center bottom -->
+                <rect x="215" y="116" width="130" height="22" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: bubblePop 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="280" y="131" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Operational Excellence</text>
+                <line x1="280" y1="106" x2="280" y2="114" stroke="rgba(167,139,250,0.4)" stroke-width="1" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="1s" repeatCount="indefinite" begin="0.8s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Reliability:</strong> Ensure high availability. Recommendations include enabling backups, using availability zones, and deploying redundant resources.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Security:</strong> Reduce attack surface. Recommendations include enabling MFA, applying network security groups, and encrypting data at rest.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Performance:</strong> Improve speed and responsiveness. Recommendations include right-sizing VMs, enabling caching, and optimizing queries.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Cost:</strong> Reduce spending without sacrificing capability. Recommendations include shutting down idle resources, using reserved instances, and resizing over-provisioned services.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Operational Excellence:</strong> Improve workflow efficiency. Recommendations include setting up alerts, enforcing tagging policies, and automating deployments.</span></div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">Exam Tip</div>
+            Azure Advisor is <strong>free</strong> and requires no setup. It analyzes your deployed resources and provides actionable recommendations you can implement directly from the Advisor dashboard. Know all five categories.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AZURE ARC ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Arc</span></div>
+        <div class="slide-subtitle">Extend Azure management to on-premises, multi-cloud, and edge environments. Manage servers, Kubernetes clusters, data services, and SQL Server from a single pane of glass.</div>
+
+        <!-- SVG: Azure cloud with extension arms reaching to on-prem and other clouds -->
+        <div class="diagram-center">
+            <svg width="580" height="140" viewBox="0 0 580 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Azure cloud -->
+                <ellipse cx="290" cy="70" rx="80" ry="50" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: glowPulse 3.5s ease-in-out infinite;"/>
+                <text x="290" y="58" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="290" y="72" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Arc</text>
+                <text x="290" y="88" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Single control plane</text>
+
+                <!-- On-premises datacenter — left -->
+                <rect x="16" y="20" width="120" height="46" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="76" y="38" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises</text>
+                <text x="76" y="52" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Windows &amp; Linux Servers</text>
+                <!-- Extension arm -->
+                <line x1="138" y1="43" x2="210" y2="58" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="8,4" opacity="0">
+                    <animate attributeName="opacity" values="0;0.7" dur="0.5s" fill="freeze" begin="0.5s"/>
+                    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.5s" fill="freeze" begin="0.5s"/>
+                </line>
+
+                <!-- AWS — top right -->
+                <rect x="444" y="6" width="120" height="46" rx="8" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="504" y="24" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">AWS / GCP</text>
+                <text x="504" y="38" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Multi-Cloud Servers</text>
+                <!-- Extension arm -->
+                <line x1="442" y1="36" x2="370" y2="52" stroke="#f97316" stroke-width="1.5" stroke-dasharray="8,4" opacity="0">
+                    <animate attributeName="opacity" values="0;0.7" dur="0.5s" fill="freeze" begin="0.6s"/>
+                    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.5s" fill="freeze" begin="0.6s"/>
+                </line>
+
+                <!-- Edge — bottom left -->
+                <rect x="16" y="80" width="120" height="46" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="76" y="98" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Edge</text>
+                <text x="76" y="112" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">IoT &amp; Remote Sites</text>
+                <!-- Extension arm -->
+                <line x1="138" y1="95" x2="210" y2="82" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="8,4" opacity="0">
+                    <animate attributeName="opacity" values="0;0.7" dur="0.5s" fill="freeze" begin="0.7s"/>
+                    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.5s" fill="freeze" begin="0.7s"/>
+                </line>
+
+                <!-- Kubernetes — bottom right -->
+                <rect x="444" y="80" width="120" height="46" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="504" y="98" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Kubernetes</text>
+                <text x="504" y="112" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Any K8s Cluster</text>
+                <!-- Extension arm -->
+                <line x1="442" y1="96" x2="370" y2="82" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="8,4" opacity="0">
+                    <animate attributeName="opacity" values="0;0.7" dur="0.5s" fill="freeze" begin="0.8s"/>
+                    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.5s" fill="freeze" begin="0.8s"/>
+                </line>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Arc-Enabled Servers</div>
+                <div class="card-desc">Install the Connected Machine agent on any Windows or Linux server. Manage it like an Azure VM &mdash; apply Azure Policy, run extensions, and collect logs via Azure Monitor.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Arc-Enabled Kubernetes</div>
+                <div class="card-desc">Attach any conformant Kubernetes cluster to Azure. Deploy configurations with GitOps, enforce policies, and monitor from the Azure portal regardless of where the cluster runs.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Arc-Enabled Data Services</div>
+                <div class="card-desc">Run Azure SQL Managed Instance or PostgreSQL Hyperscale anywhere. Get Azure billing, patching, and management for databases on-premises or in other clouds.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Consistent Governance</div>
+                <div class="card-desc">Apply the same Azure Policy, RBAC, tags, and monitoring to resources regardless of location. One control plane for hybrid and multi-cloud infrastructure.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Point</div>
+            Azure Arc does not move workloads into Azure. It <strong>projects non-Azure resources into ARM</strong> so they appear in the Azure portal and can be governed with Azure tools. The resources stay where they are.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — INFRASTRUCTURE AS CODE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Infrastructure as <span class="accent">Code</span></div>
+        <div class="slide-subtitle">Define and deploy infrastructure through machine-readable files instead of manual configuration. Repeatable, version-controlled, and auditable.</div>
+
+        <!-- SVG: Code document transforming into cloud resources -->
+        <div class="diagram-center">
+            <svg width="600" height="120" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Code document — left -->
+                <rect x="20" y="10" width="150" height="100" rx="8" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <rect x="20" y="10" width="150" height="22" rx="8" fill="rgba(201,168,58,0.12)"/>
+                <text x="95" y="25" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">IaC Template</text>
+                <!-- Code lines -->
+                <text x="30" y="44" font-size="6" fill="#93c5fd" font-family="Courier New,monospace">resource storageAccount</text>
+                <text x="30" y="54" font-size="6" fill="#86efac" font-family="Courier New,monospace">  name: 'myStorage'</text>
+                <text x="30" y="64" font-size="6" fill="#86efac" font-family="Courier New,monospace">  location: 'eastus'</text>
+                <text x="30" y="74" font-size="6" fill="#86efac" font-family="Courier New,monospace">  sku: 'Standard_LRS'</text>
+                <text x="30" y="84" font-size="6" fill="#64748b" font-family="Courier New,monospace">// Declarative syntax</text>
+                <text x="30" y="94" font-size="6" fill="#64748b" font-family="Courier New,monospace">// Idempotent deploy</text>
+                <!-- Pulsing code icon -->
+                <rect x="140" y="90" width="22" height="14" rx="3" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="0.8"
+                    style="animation: pulse 2s ease-in-out infinite;"/>
+                <text x="151" y="100" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Courier New,monospace">{}</text>
+
+                <!-- Transformation arrow -->
+                <g>
+                    <line x1="180" y1="60" x2="260" y2="60" stroke="#3b82f6" stroke-width="2" stroke-dasharray="8,4">
+                        <animate attributeName="stroke-dashoffset" values="24;0" dur="1s" repeatCount="indefinite"/>
+                    </line>
+                    <polygon points="258,54 270,60 258,66" fill="#3b82f6" style="animation: codeTransform 2s ease-in-out infinite;"/>
+                    <text x="225" y="52" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Deploy</text>
+                </g>
+
+                <!-- ARM processor -->
+                <rect x="268" y="34" width="80" height="52" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="308" y="56" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">ARM</text>
+                <text x="308" y="70" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Validate &amp; Deploy</text>
+
+                <!-- Output arrow -->
+                <line x1="350" y1="60" x2="420" y2="60" stroke="#3ab577" stroke-width="2" stroke-dasharray="8,4">
+                    <animate attributeName="stroke-dashoffset" values="24;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="418,54 430,60 418,66" fill="#3ab577"/>
+
+                <!-- Cloud resources — right -->
+                <rect x="432" y="6" width="150" height="108" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="507" y="22" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Deployed Resources</text>
+
+                <!-- Mini resource icons -->
+                <rect x="446" y="30" width="56" height="22" rx="4" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="474" y="44" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Storage</text>
+
+                <rect x="510" y="30" width="56" height="22" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="538" y="44" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">VM</text>
+
+                <rect x="446" y="58" width="56" height="22" rx="4" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="474" y="72" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">SQL DB</text>
+
+                <rect x="510" y="58" width="56" height="22" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.8s; opacity:0;"/>
+                <text x="538" y="72" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">VNet</text>
+
+                <rect x="446" y="86" width="120" height="22" rx="4" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="0.8"
+                    style="animation: entityPop 0.3s ease forwards 0.9s; opacity:0;"/>
+                <text x="506" y="100" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">All from one template</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">ARM Templates (JSON)</div>
+                <div class="card-desc">Native Azure IaC format. Declarative JSON that defines resources, parameters, variables, and outputs. Verbose but fully featured. Supports linked templates.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Bicep</div>
+                <div class="card-desc">Microsoft's DSL that compiles to ARM JSON. Dramatically cleaner syntax. First-class VS Code support. No state file needed. Preferred for new projects.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Terraform</div>
+                <div class="card-desc">HashiCorp's multi-cloud IaC tool. Uses HCL syntax and manages state files. Works across Azure, AWS, GCP. Community provider ecosystem. Not Azure-native.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Concepts</div>
+            <strong>Declarative</strong> = describe what you want, not how to build it. <strong>Idempotent</strong> = deploy the same template multiple times and get the same result. <strong>What-If</strong> = preview changes before deploying. <strong>Deployment Stacks</strong> = new feature that tracks deployed resources and prevents orphans.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — KEY TAKEAWAYS + COURSE SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; Chapter 3 Summary &nbsp;|&nbsp; AZ-900 Course Complete</div>
+        <div class="slide-title">Key Takeaways + <span class="accent">Course Summary</span></div>
+
+        <!-- SVG: Graduation cap with course milestone icons -->
+        <div class="diagram-center">
+            <svg width="520" height="110" viewBox="0 0 520 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Graduation cap -->
+                <g style="animation: celebratePop 0.6s ease forwards 0.1s; opacity:0;">
+                    <!-- Cap top -->
+                    <polygon points="260,8 330,30 260,44 190,30" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5"/>
+                    <!-- Tassel line -->
+                    <line x1="260" y1="30" x2="260" y2="52" stroke="#c9a83a" stroke-width="1.5"/>
+                    <circle cx="260" cy="55" r="3" fill="#c9a83a"/>
+                    <!-- Cap band -->
+                    <rect x="218" y="38" width="84" height="8" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.8"/>
+                </g>
+
+                <!-- 3 Chapter milestone markers -->
+                <!-- Ch1 -->
+                <g style="animation: entityPop 0.4s ease forwards 0.3s; opacity:0;">
+                    <rect x="60" y="68" width="110" height="36" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"/>
+                    <text x="115" y="84" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Ch1: Cloud Concepts</text>
+                    <text x="115" y="98" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Cloud models, benefits, types</text>
+                </g>
+
+                <!-- Ch2 -->
+                <g style="animation: entityPop 0.4s ease forwards 0.5s; opacity:0;">
+                    <rect x="205" y="68" width="110" height="36" rx="7" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"/>
+                    <text x="260" y="84" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Ch2: Services</text>
+                    <text x="260" y="98" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Compute, network, storage</text>
+                </g>
+
+                <!-- Ch3 -->
+                <g style="animation: entityPop 0.4s ease forwards 0.7s; opacity:0;">
+                    <rect x="350" y="68" width="110" height="36" rx="7" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+                    <text x="405" y="84" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Ch3: Governance</text>
+                    <text x="405" y="98" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">Cost, policy, monitoring</text>
+                </g>
+
+                <!-- Connecting line through milestones -->
+                <line x1="172" y1="86" x2="203" y2="86" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="317" y1="86" x2="348" y2="86" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+
+                <!-- Celebration sparkles -->
+                <circle cx="160" cy="20" r="2" fill="#c9a83a" style="animation: pulse 1.5s ease-in-out infinite;"/>
+                <circle cx="360" cy="18" r="2" fill="#3ab577" style="animation: pulse 1.5s ease-in-out infinite 0.3s;"/>
+                <circle cx="200" cy="10" r="1.5" fill="#a78bfa" style="animation: pulse 1.5s ease-in-out infinite 0.6s;"/>
+                <circle cx="320" cy="12" r="1.5" fill="#06b6d4" style="animation: pulse 1.5s ease-in-out infinite 0.9s;"/>
+                <circle cx="140" cy="40" r="1.5" fill="#ef4444" style="animation: pulse 1.5s ease-in-out infinite 1.2s;"/>
+                <circle cx="380" cy="38" r="1.5" fill="#f97316" style="animation: pulse 1.5s ease-in-out infinite 1.5s;"/>
+            </svg>
+        </div>
+
+        <div class="section-label">Chapter 3 &mdash; Five Key Facts</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Cost Management is free.</strong> Use the Pricing Calculator to estimate new deployments, the TCO Calculator to compare on-prem vs cloud, and Cost Analysis to monitor actual spend with budget alerts.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Azure Policy enforces standards at scale.</strong> Policies evaluate resources on creation and periodically. Effects include Deny, Audit, and DeployIfNotExists. Initiatives bundle policies for compliance frameworks.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Resource Locks override RBAC.</strong> <code>CanNotDelete</code> prevents deletion; <code>ReadOnly</code> prevents modification. Locks inherit to child resources. Remove the lock first to regain access.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Azure Monitor is the observability platform.</strong> It collects metrics and logs, powers alerts and dashboards, and feeds Application Insights (APM) and Log Analytics (KQL queries).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Azure Arc extends Azure governance everywhere.</strong> Install an agent on any server or K8s cluster to project it into ARM. Same policies, same RBAC, same monitoring &mdash; regardless of location.</span></div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="section-label">AZ-900 Course Summary &mdash; All 3 Chapters</div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Ch1: Cloud Concepts</div>
+                <div class="card-desc">Shared responsibility, cloud deployment models (public/private/hybrid), cloud benefits (scalability, elasticity, reliability), service types (IaaS, PaaS, SaaS).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ch2: Azure Services</div>
+                <div class="card-desc">Compute (VMs, App Service, Containers, AKS), Networking (VNets, VPN, ExpressRoute), Storage (Blob, Files, Queues, Tables), Identity (Entra ID, RBAC).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Ch3: Management</div>
+                <div class="card-desc">Cost Management, Tags, Azure Policy, Resource Locks, Blueprints, ARM/Bicep, Azure Monitor, Advisor, Azure Arc, Infrastructure as Code.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.85rem; text-align:center;">
+            <strong>AZ-900 Course Complete.</strong> You have covered all three domains of the Azure Fundamentals certification. Review each chapter, practice with the exam prep tools, and schedule your exam when ready.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az900-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

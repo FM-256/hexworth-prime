@@ -1,0 +1,2377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Concepts Explorer Lab — AZ-900 Chapter 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; AZ-900</a>
+            <span class="lab-title">Cloud Concepts Explorer Lab</span>
+            <span class="lab-badge">AZ-900</span>
+            <span class="lab-badge-ch">CH 1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Subscriptions and Regions</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your Subscription</div>
+                    <div class="task-desc">Run <code>az account show</code> to inspect your active subscription -- the billing boundary for all Azure resources.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">List Azure Regions</div>
+                    <div class="task-desc">Run <code>az account list-locations --output table</code> to browse all 60+ Azure global regions and understand geo-distribution.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — IaaS vs PaaS</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Explore IaaS VM Sizes</div>
+                    <div class="task-desc">Run <code>az vm list-sizes --location eastus --output table</code> to see IaaS compute specs -- vCPUs, RAM, and disk capacity.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">PaaS Runtimes</div>
+                    <div class="task-desc">Run <code>az webapp list-runtimes</code> to see App Service runtimes -- PaaS abstracts the OS so you just pick a runtime.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Cloud Environments</div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Cloud Environment</div>
+                    <div class="task-desc">Run <code>az cloud show --output json</code> to inspect the current cloud environment -- public, government, or sovereign clouds.</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Advisor Recommendations</div>
+                    <div class="task-desc">Run <code>az advisor recommendation list --output table</code> to see cost optimization suggestions from Azure Advisor.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Cost and Billing Models</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Consumption Billing</div>
+                    <div class="task-desc">Run <code>az consumption usage list --start-date 2025-01-01 --end-date 2025-01-31 --output table</code> to view pay-as-you-go billing data.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Reserved Pricing</div>
+                    <div class="task-desc">Run <code>az reservations catalog show --reserved-resource-type VirtualMachines --location eastus --output table</code> to compare reserved pricing.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 5 — Resource Providers</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Compute Features</div>
+                    <div class="task-desc">Run <code>az feature list --namespace Microsoft.Compute --output table</code> to see compute features and how resource providers expose capabilities.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Resource Providers</div>
+                    <div class="task-desc">Run <code>az provider list --output table</code> to list all Azure resource providers that back IaaS, PaaS, and SaaS services.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">azlearner@cloud-shell — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure Cloud Shell Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">azlearner@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AZ-900 Chapter 1 Complete!</div>
+                    <div class="success-message">
+                        You explored Azure subscriptions, global regions, IaaS VM sizes, PaaS runtimes,
+                        cloud environments, Advisor cost optimization, consumption-based billing,
+                        reserved instance pricing, compute features, and resource providers.
+                        You now understand the core cloud concepts that form the foundation
+                        of every Azure deployment.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER      = 'azlearner';
+        var HOST      = 'cloud-shell';
+        var HOME      = '/home/azlearner';
+        var SUB_ID    = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var TENANT_ID = '72f988bf-86f1-41af-91ab-2d7cd011db47';
+        var SUB_NAME  = 'Azure Learning Subscription';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ═══��════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/azlearner',
+                '/home/azlearner/docs',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-21 08:00:01] INFO  Azure CLI 2.67.0 initialised',
+                        '[2026-04-21 08:00:02] INFO  Subscription: ' + SUB_NAME + ' (' + SUB_ID + ')',
+                        '[2026-04-21 08:00:03] INFO  Tenant: ' + TENANT_ID,
+                        '[2026-04-21 08:00:04] INFO  Cloud Shell environment ready'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/azlearner/docs/cloud-models.txt': {
+                    c: [
+                        'Azure Cloud Service Models',
+                        '==========================',
+                        '',
+                        'IaaS (Infrastructure as a Service)',
+                        '  - You manage: OS, runtime, middleware, apps, data',
+                        '  - Azure manages: physical host, network, storage',
+                        '  - Example: Virtual Machines, Virtual Networks',
+                        '',
+                        'PaaS (Platform as a Service)',
+                        '  - You manage: apps, data',
+                        '  - Azure manages: OS, runtime, middleware, host, network',
+                        '  - Example: App Service, Azure SQL Database',
+                        '',
+                        'SaaS (Software as a Service)',
+                        '  - You manage: data, access',
+                        '  - Azure manages: everything else',
+                        '  - Example: Microsoft 365, Dynamics 365'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/azlearner/docs/shared-responsibility.txt': {
+                    c: [
+                        'Shared Responsibility Model',
+                        '===========================',
+                        '',
+                        'On-Premises: Customer responsible for EVERYTHING',
+                        'IaaS:        Azure handles physical security, host, network',
+                        'PaaS:        Azure handles OS, runtime; customer handles apps/data',
+                        'SaaS:        Azure handles almost everything; customer handles data/access',
+                        '',
+                        'ALWAYS customer responsibility (regardless of model):',
+                        '  - Information and data',
+                        '  - Devices (mobile and PCs)',
+                        '  - Accounts and identities'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ── */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* ── Table printer ──
+           Renders an array of flat objects as a padded ASCII table,
+           similar to az --output table. */
+        function printTable(rows, columns) {
+            if (!rows || !rows.length) {
+                addLine('(empty result set)', 'term-line-dim');
+                return;
+            }
+            /* Determine column order */
+            var cols = columns || Object.keys(rows[0]);
+            /* Compute widths */
+            var widths = {};
+            cols.forEach(function (c) { widths[c] = c.length; });
+            rows.forEach(function (r) {
+                cols.forEach(function (c) {
+                    var v = String(r[c] !== undefined && r[c] !== null ? r[c] : '');
+                    if (v.length > widths[c]) widths[c] = v.length;
+                });
+            });
+            /* Header */
+            var header = cols.map(function (c) {
+                return pad(formatColHeader(c), widths[c]);
+            }).join('  ');
+            addLine(header, 'term-line-info');
+            /* Separator */
+            var sep = cols.map(function (c) {
+                return repeat('-', widths[c]);
+            }).join('  ');
+            addLine(sep, 'term-line-dim');
+            /* Rows */
+            rows.forEach(function (r) {
+                var line = cols.map(function (c) {
+                    var v = String(r[c] !== undefined && r[c] !== null ? r[c] : '');
+                    return pad(v, widths[c]);
+                }).join('  ');
+                addLine(line, 'term-line-out');
+            });
+        }
+
+        function pad(s, w) {
+            while (s.length < w) s += ' ';
+            return s;
+        }
+
+        function repeat(ch, n) {
+            var s = '';
+            for (var i = 0; i < n; i++) s += ch;
+            return s;
+        }
+
+        function formatColHeader(key) {
+            /* camelCase -> Title Case with spaces */
+            return key.replace(/([A-Z])/g, ' $1').replace(/^./, function (m) {
+                return m.toUpperCase();
+            }).trim();
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* Check if any flag matches */
+        function hasFlag(args, flag) {
+            return args.indexOf(flag) >= 0;
+        }
+
+        /* Determine output format from --output flag */
+        function getOutputFormat(args) {
+            var val = flagVal(args, '--output') || flagVal(args, '-o');
+            if (val === 'table') return 'table';
+            if (val === 'json') return 'json';
+            return 'json'; /* default */
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var path = args[0] ? resolve(args[0]) : cwd;
+            var long = args.indexOf('-l') >= 0 || args.indexOf('-la') >= 0 || args.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (args[0] || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 21 08:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 21 08:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return 'catted';
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            addLine(args.join(' '), 'term-line-out');
+            return 'echoed';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                         'term-line-out');
+            addLine('USER=' + USER,                         'term-line-out');
+            addLine('SHELL=/bin/bash',                      'term-line-out');
+            addLine('TERM=xterm-256color',                  'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,      'term-line-out');
+            addLine('AZURE_TENANT_ID=' + TENANT_ID,         'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az account
+        ════════════════════════════════════════════════ */
+        function cmd_az_account(args) {
+            if (!args.length) {
+                addLine('az account: usage: az account <show|list|list-locations>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az account show — Task 1 ── */
+            if (sub === 'show') {
+                var showResult = {
+                    cloudName:       'AzureCloud',
+                    environmentName: 'AzureCloud',
+                    homeTenantId:    TENANT_ID,
+                    id:              SUB_ID,
+                    isDefault:       true,
+                    managedByTenants: [],
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        TENANT_ID,
+                    user: {
+                        name: USER + '@hexworthprime.onmicrosoft.com',
+                        type: 'user'
+                    }
+                };
+                printJSON(showResult);
+                addBlank();
+                addLine('  Subscription: ' + SUB_NAME + '  |  State: Enabled', 'term-line-info');
+                addLine('  Subscriptions are the billing boundary -- all resource costs roll up here.', 'term-line-info');
+                addLine('  Tenant: ' + TENANT_ID, 'term-line-dim');
+                return { account_shown: true };
+            }
+
+            /* ── az account list ── */
+            if (sub === 'list') {
+                printJSON([{
+                    cloudName:  'AzureCloud',
+                    id:         SUB_ID,
+                    isDefault:  true,
+                    name:       SUB_NAME,
+                    state:      'Enabled',
+                    tenantId:   TENANT_ID,
+                    user: { name: USER + '@hexworthprime.onmicrosoft.com', type: 'user' }
+                }]);
+                addBlank();
+                addLine('  1 subscription found.', 'term-line-info');
+                return { account_listed: true };
+            }
+
+            /* ── az account list-locations — Task 2 ── */
+            if (sub === 'list-locations') {
+                var fmt = getOutputFormat(args);
+                var regions = [
+                    { displayName: 'East US',                name: 'eastus',             regionalDisplayName: '(US) East US' },
+                    { displayName: 'East US 2',              name: 'eastus2',            regionalDisplayName: '(US) East US 2' },
+                    { displayName: 'West US',                name: 'westus',             regionalDisplayName: '(US) West US' },
+                    { displayName: 'West US 2',              name: 'westus2',            regionalDisplayName: '(US) West US 2' },
+                    { displayName: 'West US 3',              name: 'westus3',            regionalDisplayName: '(US) West US 3' },
+                    { displayName: 'Central US',             name: 'centralus',          regionalDisplayName: '(US) Central US' },
+                    { displayName: 'North Central US',       name: 'northcentralus',     regionalDisplayName: '(US) North Central US' },
+                    { displayName: 'South Central US',       name: 'southcentralus',     regionalDisplayName: '(US) South Central US' },
+                    { displayName: 'West Central US',        name: 'westcentralus',      regionalDisplayName: '(US) West Central US' },
+                    { displayName: 'Canada Central',         name: 'canadacentral',      regionalDisplayName: '(Canada) Canada Central' },
+                    { displayName: 'Canada East',            name: 'canadaeast',         regionalDisplayName: '(Canada) Canada East' },
+                    { displayName: 'Brazil South',           name: 'brazilsouth',        regionalDisplayName: '(South America) Brazil South' },
+                    { displayName: 'Brazil Southeast',       name: 'brazilsoutheast',    regionalDisplayName: '(South America) Brazil Southeast' },
+                    { displayName: 'North Europe',           name: 'northeurope',        regionalDisplayName: '(Europe) North Europe' },
+                    { displayName: 'West Europe',            name: 'westeurope',         regionalDisplayName: '(Europe) West Europe' },
+                    { displayName: 'UK South',               name: 'uksouth',            regionalDisplayName: '(Europe) UK South' },
+                    { displayName: 'UK West',                name: 'ukwest',             regionalDisplayName: '(Europe) UK West' },
+                    { displayName: 'France Central',         name: 'francecentral',      regionalDisplayName: '(Europe) France Central' },
+                    { displayName: 'France South',           name: 'francesouth',        regionalDisplayName: '(Europe) France South' },
+                    { displayName: 'Germany West Central',   name: 'germanywestcentral', regionalDisplayName: '(Europe) Germany West Central' },
+                    { displayName: 'Germany North',          name: 'germanynorth',       regionalDisplayName: '(Europe) Germany North' },
+                    { displayName: 'Switzerland North',      name: 'switzerlandnorth',   regionalDisplayName: '(Europe) Switzerland North' },
+                    { displayName: 'Switzerland West',       name: 'switzerlandwest',    regionalDisplayName: '(Europe) Switzerland West' },
+                    { displayName: 'Norway East',            name: 'norwayeast',         regionalDisplayName: '(Europe) Norway East' },
+                    { displayName: 'Norway West',            name: 'norwaywest',         regionalDisplayName: '(Europe) Norway West' },
+                    { displayName: 'Sweden Central',         name: 'swedencentral',      regionalDisplayName: '(Europe) Sweden Central' },
+                    { displayName: 'Poland Central',         name: 'polandcentral',      regionalDisplayName: '(Europe) Poland Central' },
+                    { displayName: 'Italy North',            name: 'italynorth',         regionalDisplayName: '(Europe) Italy North' },
+                    { displayName: 'Spain Central',          name: 'spaincentral',       regionalDisplayName: '(Europe) Spain Central' },
+                    { displayName: 'East Asia',              name: 'eastasia',           regionalDisplayName: '(Asia Pacific) East Asia' },
+                    { displayName: 'Southeast Asia',         name: 'southeastasia',      regionalDisplayName: '(Asia Pacific) Southeast Asia' },
+                    { displayName: 'Japan East',             name: 'japaneast',          regionalDisplayName: '(Asia Pacific) Japan East' },
+                    { displayName: 'Japan West',             name: 'japanwest',          regionalDisplayName: '(Asia Pacific) Japan West' },
+                    { displayName: 'Australia East',         name: 'australiaeast',      regionalDisplayName: '(Asia Pacific) Australia East' },
+                    { displayName: 'Australia Southeast',    name: 'australiasoutheast', regionalDisplayName: '(Asia Pacific) Australia Southeast' },
+                    { displayName: 'Australia Central',      name: 'australiacentral',   regionalDisplayName: '(Asia Pacific) Australia Central' },
+                    { displayName: 'Central India',          name: 'centralindia',       regionalDisplayName: '(Asia Pacific) Central India' },
+                    { displayName: 'South India',            name: 'southindia',         regionalDisplayName: '(Asia Pacific) South India' },
+                    { displayName: 'West India',             name: 'westindia',          regionalDisplayName: '(Asia Pacific) West India' },
+                    { displayName: 'Korea Central',          name: 'koreacentral',       regionalDisplayName: '(Asia Pacific) Korea Central' },
+                    { displayName: 'Korea South',            name: 'koreasouth',         regionalDisplayName: '(Asia Pacific) Korea South' },
+                    { displayName: 'China East',             name: 'chinaeast',          regionalDisplayName: '(Asia Pacific) China East' },
+                    { displayName: 'China North',            name: 'chinanorth',         regionalDisplayName: '(Asia Pacific) China North' },
+                    { displayName: 'South Africa North',     name: 'southafricanorth',   regionalDisplayName: '(Africa) South Africa North' },
+                    { displayName: 'South Africa West',      name: 'southafricawest',    regionalDisplayName: '(Africa) South Africa West' },
+                    { displayName: 'UAE North',              name: 'uaenorth',           regionalDisplayName: '(Middle East) UAE North' },
+                    { displayName: 'UAE Central',            name: 'uaecentral',         regionalDisplayName: '(Middle East) UAE Central' },
+                    { displayName: 'Qatar Central',          name: 'qatarcentral',       regionalDisplayName: '(Middle East) Qatar Central' },
+                    { displayName: 'Israel Central',         name: 'israelcentral',      regionalDisplayName: '(Middle East) Israel Central' },
+                    { displayName: 'Mexico Central',         name: 'mexicocentral',      regionalDisplayName: '(Mexico) Mexico Central' },
+                    { displayName: 'New Zealand North',      name: 'newzealandnorth',    regionalDisplayName: '(New Zealand) New Zealand North' },
+                    { displayName: 'Indonesia Central',      name: 'indonesiacentral',   regionalDisplayName: '(Asia Pacific) Indonesia Central' },
+                    { displayName: 'Malaysia West',          name: 'malaysiawest',       regionalDisplayName: '(Asia Pacific) Malaysia West' },
+                    { displayName: 'Taiwan North',           name: 'taiwannorth',        regionalDisplayName: '(Asia Pacific) Taiwan North' },
+                    { displayName: 'Greece Central',         name: 'greececentral',      regionalDisplayName: '(Europe) Greece Central' },
+                    { displayName: 'Finland Central',        name: 'finlandcentral',     regionalDisplayName: '(Europe) Finland Central' },
+                    { displayName: 'Austria East',           name: 'austriaeast',        regionalDisplayName: '(Europe) Austria East' },
+                    { displayName: 'Chile Central',          name: 'chilecentral',       regionalDisplayName: '(South America) Chile Central' },
+                    { displayName: 'US Gov Virginia',        name: 'usgovvirginia',      regionalDisplayName: '(US Gov) US Gov Virginia' },
+                    { displayName: 'US Gov Arizona',         name: 'usgovarizona',       regionalDisplayName: '(US Gov) US Gov Arizona' },
+                    { displayName: 'US Gov Texas',           name: 'usgovtexas',         regionalDisplayName: '(US Gov) US Gov Texas' },
+                    { displayName: 'US DoD Central',         name: 'usdodcentral',       regionalDisplayName: '(US DoD) US DoD Central' },
+                    { displayName: 'US DoD East',            name: 'usdodeast',          regionalDisplayName: '(US DoD) US DoD East' }
+                ];
+
+                if (fmt === 'table') {
+                    printTable(regions, ['displayName', 'name', 'regionalDisplayName']);
+                } else {
+                    printJSON(regions);
+                }
+                addBlank();
+                addLine('  ' + regions.length + ' regions listed. Azure has 60+ regions worldwide.', 'term-line-info');
+                addLine('  Deploy close to users for lower latency. Region pairs provide DR failover.', 'term-line-dim');
+                return { locations_listed: true, count: regions.length };
+            }
+
+            addLine('az account: unknown subcommand "' + sub + '". Try "show", "list", or "list-locations".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az vm — Task 3
+        ════════════════════════════════════════════════ */
+        function cmd_az_vm(args) {
+            if (!args.length) {
+                addLine('az vm: usage: az vm list-sizes --location <location>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list-sizes') {
+                var loc = flagVal(args, '--location') || flagVal(args, '-l');
+                if (!loc) {
+                    addLine('az vm list-sizes: --location is required.', 'term-line-err');
+                    addLine('Example: az vm list-sizes --location eastus --output table', 'term-line-info');
+                    return null;
+                }
+                var fmt = getOutputFormat(args);
+                var sizes = [
+                    { maxDataDiskCount: 2,  memoryInMb: 1024,   name: 'Standard_B1s',      numberOfCores: 1,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 4,  memoryInMb: 4096,   name: 'Standard_B2s',      numberOfCores: 2,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 4,  memoryInMb: 8192,   name: 'Standard_D2s_v3',   numberOfCores: 2,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 8,  memoryInMb: 16384,  name: 'Standard_D4s_v3',   numberOfCores: 4,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 16, memoryInMb: 32768,  name: 'Standard_D8s_v3',   numberOfCores: 8,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 32, memoryInMb: 65536,  name: 'Standard_D16s_v3',  numberOfCores: 16, osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 8,  memoryInMb: 32768,  name: 'Standard_E4s_v5',   numberOfCores: 4,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 16, memoryInMb: 65536,  name: 'Standard_E8s_v5',   numberOfCores: 8,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 32, memoryInMb: 131072, name: 'Standard_E16s_v5',  numberOfCores: 16, osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 8,  memoryInMb: 8192,   name: 'Standard_F4s_v2',   numberOfCores: 4,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 16, memoryInMb: 16384,  name: 'Standard_F8s_v2',   numberOfCores: 8,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 32, memoryInMb: 32768,  name: 'Standard_F16s_v2',  numberOfCores: 16, osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 24, memoryInMb: 57344,  name: 'Standard_NC6',      numberOfCores: 6,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 48, memoryInMb: 114688, name: 'Standard_NC12',     numberOfCores: 12, osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 16, memoryInMb: 65536,  name: 'Standard_L8s_v2',   numberOfCores: 8,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 32, memoryInMb: 131072, name: 'Standard_L16s_v2',  numberOfCores: 16, osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 8,  memoryInMb: 16384,  name: 'Standard_A4_v2',    numberOfCores: 4,  osDiskSizeInMb: 1047552 },
+                    { maxDataDiskCount: 16, memoryInMb: 32768,  name: 'Standard_A8_v2',    numberOfCores: 8,  osDiskSizeInMb: 1047552 }
+                ];
+
+                addLine('Querying VM sizes in ' + loc + '...', 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(sizes, ['maxDataDiskCount', 'memoryInMb', 'name', 'numberOfCores', 'osDiskSizeInMb']);
+                } else {
+                    printJSON(sizes);
+                }
+                addBlank();
+                addLine('  IaaS: YOU manage OS, runtime, apps. Azure manages the physical host.', 'term-line-info');
+                addLine('  VM families: B=burstable, D=general, E=memory, F=compute, NC=GPU, L=storage', 'term-line-dim');
+                return { vm_sizes_listed: true, location: loc };
+            }
+
+            addLine('az vm: unknown subcommand "' + sub + '". Try "list-sizes --location eastus".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az webapp — Task 4
+        ════════════════════════════════════════════════ */
+        function cmd_az_webapp(args) {
+            if (!args.length) {
+                addLine('az webapp: usage: az webapp list-runtimes', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list-runtimes') {
+                var runtimes = {
+                    linux: [
+                        'DOTNETCORE|8.0', 'DOTNETCORE|7.0', 'DOTNETCORE|6.0',
+                        'NODE|20-lts', 'NODE|18-lts', 'NODE|16-lts',
+                        'PYTHON|3.12', 'PYTHON|3.11', 'PYTHON|3.10', 'PYTHON|3.9',
+                        'JAVA|17-java17', 'JAVA|11-java11',
+                        'PHP|8.3', 'PHP|8.2', 'PHP|8.1',
+                        'RUBY|3.2', 'RUBY|3.1',
+                        'GO|1.22', 'GO|1.21'
+                    ],
+                    windows: [
+                        'dotnet|v8.0', 'dotnet|v7.0', 'dotnet|v6.0',
+                        'node|20LTS', 'node|18LTS', 'node|16LTS',
+                        'java|17', 'java|11',
+                        'php|8.3', 'php|8.2'
+                    ]
+                };
+
+                addLine('Fetching PaaS App Service runtimes...', 'term-line-info');
+                addBlank();
+                printJSON(runtimes);
+                addBlank();
+                addLine('  PaaS: Azure manages the OS, runtime patches, and scaling.', 'term-line-info');
+                addLine('  You just pick a runtime and deploy your code -- no VM management needed.', 'term-line-info');
+                addLine('  Compare: IaaS (VMs) = you manage OS. PaaS (App Service) = Azure manages OS.', 'term-line-dim');
+                return { runtimes_listed: true };
+            }
+
+            addLine('az webapp: unknown subcommand "' + sub + '". Try "list-runtimes".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az cloud — Task 5
+        ════════════════════════════════════════════════ */
+        function cmd_az_cloud(args) {
+            if (!args.length) {
+                addLine('az cloud: usage: az cloud <show|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'show') {
+                var fmt = getOutputFormat(args);
+                var cloudInfo = {
+                    name:      'AzureCloud',
+                    isActive:  true,
+                    profile:   'latest',
+                    endpoints: {
+                        management:                  'https://management.core.windows.net/',
+                        resourceManager:             'https://management.azure.com/',
+                        gallery:                     'https://gallery.azure.com/',
+                        activeDirectory:             'https://login.microsoftonline.com/',
+                        activeDirectoryGraphResourceId: 'https://graph.windows.net/',
+                        microsoftGraphResourceId:    'https://graph.microsoft.com/',
+                        sqlManagement:               'https://management.core.windows.net:8443/',
+                        batchResourceId:             'https://batch.core.windows.net/',
+                        mediaResourceId:             'https://rest.media.azure.net',
+                        activeDirectoryDataLakeResourceId: 'https://datalake.azure.net/'
+                    },
+                    suffixes: {
+                        storageEndpoint:        'core.windows.net',
+                        keyVaultDns:            'vault.azure.net',
+                        sqlServerHostname:      'database.windows.net',
+                        azureFrontDoorEndpointSuffix: 'azurefd.net',
+                        acrLoginServerEndpoint: 'azurecr.io'
+                    }
+                };
+
+                if (fmt === 'json') {
+                    printJSON(cloudInfo);
+                } else {
+                    /* Table not typical for cloud show but handle it gracefully */
+                    printJSON(cloudInfo);
+                }
+                addBlank();
+                addLine('  Azure Cloud Environments:', 'term-line-info');
+                addLine('    AzureCloud        -- Public cloud (most common, worldwide)', 'term-line-dim');
+                addLine('    AzureUSGovernment  -- US Gov (FedRAMP, ITAR, DoD compliance)', 'term-line-dim');
+                addLine('    AzureChinaCloud    -- China (operated by 21Vianet)', 'term-line-dim');
+                addLine('  Each environment has isolated endpoints and identity services.', 'term-line-dim');
+                return { cloud_shown: true };
+            }
+
+            if (sub === 'list') {
+                var clouds = [
+                    { name: 'AzureCloud',          isActive: true,  profile: 'latest' },
+                    { name: 'AzureUSGovernment',   isActive: false, profile: 'latest' },
+                    { name: 'AzureChinaCloud',     isActive: false, profile: 'latest' }
+                ];
+                printJSON(clouds);
+                return { cloud_listed: true };
+            }
+
+            addLine('az cloud: unknown subcommand "' + sub + '". Try "show" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az advisor — Task 6
+        ════════════════════════════════════════════════ */
+        function cmd_az_advisor(args) {
+            if (!args.length) {
+                addLine('az advisor: usage: az advisor recommendation list', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'recommendation') {
+                var sub2 = args[1];
+                if (sub2 !== 'list') {
+                    addLine('az advisor recommendation: unknown subcommand "' + (sub2 || '') + '". Try "list".', 'term-line-err');
+                    return null;
+                }
+                var fmt = getOutputFormat(args);
+                var recommendations = [
+                    {
+                        category:        'Cost',
+                        impact:          'High',
+                        impactedField:   'Microsoft.Compute/virtualMachines',
+                        impactedValue:   'web-prod-vm-03',
+                        shortDescription: 'Right-size or shutdown underutilized virtual machines',
+                        estimatedSavings: '$127.40/month'
+                    },
+                    {
+                        category:        'Cost',
+                        impact:          'High',
+                        impactedField:   'Microsoft.Compute/virtualMachines',
+                        impactedValue:   'db-staging-vm-01',
+                        shortDescription: 'Buy reserved VM instances to save over pay-as-you-go costs',
+                        estimatedSavings: '$892.00/year (1-yr term)'
+                    },
+                    {
+                        category:        'Cost',
+                        impact:          'Medium',
+                        impactedField:   'Microsoft.Compute/disks',
+                        impactedValue:   'disk-orphaned-4f2a',
+                        shortDescription: 'Delete unattached managed disks to eliminate waste',
+                        estimatedSavings: '$23.50/month'
+                    },
+                    {
+                        category:        'Cost',
+                        impact:          'Medium',
+                        impactedField:   'Microsoft.Compute/virtualMachines',
+                        impactedValue:   'batch-processing-pool',
+                        shortDescription: 'Use Azure Spot VMs for fault-tolerant batch workloads',
+                        estimatedSavings: 'Up to 90% discount'
+                    },
+                    {
+                        category:        'Cost',
+                        impact:          'Medium',
+                        impactedField:   'Microsoft.Web/serverfarms',
+                        impactedValue:   'app-plan-prod-east',
+                        shortDescription: 'Right-size App Service plans based on CPU/memory metrics',
+                        estimatedSavings: '$64.20/month'
+                    },
+                    {
+                        category:        'Cost',
+                        impact:          'Low',
+                        impactedField:   'Microsoft.Storage/storageAccounts',
+                        impactedValue:   'logsarchive2024',
+                        shortDescription: 'Move infrequently accessed blobs to Cool or Archive tier',
+                        estimatedSavings: '$31.00/month'
+                    }
+                ];
+
+                addLine('Fetching Azure Advisor cost recommendations...', 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(recommendations, ['category', 'impact', 'impactedValue', 'shortDescription', 'estimatedSavings']);
+                } else {
+                    printJSON(recommendations);
+                }
+                addBlank();
+                addLine('  Azure Advisor provides personalized best practices across 5 pillars:', 'term-line-info');
+                addLine('  Cost, Security, Reliability, Operational Excellence, Performance', 'term-line-dim');
+                addLine('  These recommendations help optimize your cloud spend (OpEx model).', 'term-line-dim');
+                return { advisor_listed: true };
+            }
+
+            addLine('az advisor: unknown subcommand "' + sub + '". Try "recommendation list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az consumption — Task 7
+        ════════════════════════════════════════════════ */
+        function cmd_az_consumption(args) {
+            if (!args.length) {
+                addLine('az consumption: usage: az consumption usage list --start-date <date> --end-date <date>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'usage') {
+                var sub2 = args[1];
+                if (sub2 !== 'list') {
+                    addLine('az consumption usage: unknown subcommand "' + (sub2 || '') + '". Try "list".', 'term-line-err');
+                    return null;
+                }
+
+                var startDate = flagVal(args, '--start-date');
+                var endDate   = flagVal(args, '--end-date');
+                if (!startDate || !endDate) {
+                    addLine('az consumption usage list: --start-date and --end-date are required.', 'term-line-err');
+                    addLine('Example: az consumption usage list --start-date 2025-01-01 --end-date 2025-01-31 --output table', 'term-line-info');
+                    return null;
+                }
+
+                var fmt = getOutputFormat(args);
+                var usageData = [
+                    { usageStart: '2025-01-03', resourceType: 'Microsoft.Compute/virtualMachines',      instanceName: 'web-prod-vm-01',    quantity: 744.00, unit: 'Hours',  pretaxCost: 178.56, currency: 'USD' },
+                    { usageStart: '2025-01-03', resourceType: 'Microsoft.Compute/virtualMachines',      instanceName: 'web-prod-vm-02',    quantity: 744.00, unit: 'Hours',  pretaxCost: 178.56, currency: 'USD' },
+                    { usageStart: '2025-01-01', resourceType: 'Microsoft.Storage/storageAccounts',      instanceName: 'appdatastorage01',  quantity: 256.40, unit: 'GB',     pretaxCost: 5.38,   currency: 'USD' },
+                    { usageStart: '2025-01-01', resourceType: 'Microsoft.Storage/storageAccounts',      instanceName: 'logsarchive2024',   quantity: 1024.00, unit: 'GB',    pretaxCost: 10.24,  currency: 'USD' },
+                    { usageStart: '2025-01-01', resourceType: 'Microsoft.Sql/servers',                  instanceName: 'sqldb-prod-east',   quantity: 744.00, unit: 'Hours',  pretaxCost: 297.60, currency: 'USD' },
+                    { usageStart: '2025-01-05', resourceType: 'Microsoft.Network/publicIPAddresses',    instanceName: 'pip-web-prod',      quantity: 744.00, unit: 'Hours',  pretaxCost: 3.72,   currency: 'USD' },
+                    { usageStart: '2025-01-01', resourceType: 'Microsoft.Network/applicationGateways',  instanceName: 'appgw-prod-east',   quantity: 744.00, unit: 'Hours',  pretaxCost: 167.40, currency: 'USD' },
+                    { usageStart: '2025-01-10', resourceType: 'Microsoft.Web/serverfarms',              instanceName: 'app-plan-prod-east', quantity: 744.00, unit: 'Hours', pretaxCost: 73.00,  currency: 'USD' },
+                    { usageStart: '2025-01-01', resourceType: 'Microsoft.ContainerService/managedClusters', instanceName: 'aks-prod-01',   quantity: 744.00, unit: 'Hours',  pretaxCost: 73.00,  currency: 'USD' },
+                    { usageStart: '2025-01-15', resourceType: 'Microsoft.CognitiveServices/accounts',   instanceName: 'openai-prod',       quantity: 2500000, unit: 'Tokens', pretaxCost: 45.00, currency: 'USD' }
+                ];
+
+                addLine('Fetching consumption data for ' + startDate + ' to ' + endDate + '...', 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(usageData, ['usageStart', 'instanceName', 'resourceType', 'quantity', 'unit', 'pretaxCost', 'currency']);
+                } else {
+                    printJSON(usageData);
+                }
+
+                var totalCost = 0;
+                usageData.forEach(function (u) { totalCost += u.pretaxCost; });
+
+                addBlank();
+                addLine('  Total pretax cost: $' + totalCost.toFixed(2) + ' USD', 'term-line-info');
+                addLine('  Consumption-based billing (OpEx): You pay only for what you use.', 'term-line-info');
+                addLine('  Compare to on-premises (CapEx): Large upfront investment in hardware.', 'term-line-dim');
+                addLine('  Cloud = OpEx model. No upfront cost, pay monthly based on usage.', 'term-line-dim');
+                return { consumption_listed: true };
+            }
+
+            addLine('az consumption: unknown subcommand "' + sub + '". Try "usage list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az reservations — Task 8
+        ════════════════════════════════════════════════ */
+        function cmd_az_reservations(args) {
+            if (!args.length) {
+                addLine('az reservations: usage: az reservations catalog show --reserved-resource-type <type> --location <loc>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'catalog') {
+                var sub2 = args[1];
+                if (sub2 !== 'show') {
+                    addLine('az reservations catalog: unknown subcommand "' + (sub2 || '') + '". Try "show".', 'term-line-err');
+                    return null;
+                }
+
+                var resType = flagVal(args, '--reserved-resource-type');
+                var loc     = flagVal(args, '--location') || flagVal(args, '-l');
+
+                if (!resType) {
+                    addLine('az reservations catalog show: --reserved-resource-type is required.', 'term-line-err');
+                    addLine('Example: az reservations catalog show --reserved-resource-type VirtualMachines --location eastus', 'term-line-info');
+                    return null;
+                }
+                if (!loc) {
+                    addLine('az reservations catalog show: --location is required.', 'term-line-err');
+                    return null;
+                }
+
+                var fmt = getOutputFormat(args);
+                var catalog = [
+                    { skuName: 'Standard_B2s',    payAsYouGo: '$35.04/mo',  oneYearReserved: '$22.78/mo',  oneYearSavings: '35%', threeYearReserved: '$14.60/mo',  threeYearSavings: '58%' },
+                    { skuName: 'Standard_D2s_v3', payAsYouGo: '$70.08/mo',  oneYearReserved: '$43.07/mo',  oneYearSavings: '39%', threeYearReserved: '$27.38/mo',  threeYearSavings: '61%' },
+                    { skuName: 'Standard_D4s_v3', payAsYouGo: '$140.16/mo', oneYearReserved: '$86.14/mo',  oneYearSavings: '39%', threeYearReserved: '$54.75/mo',  threeYearSavings: '61%' },
+                    { skuName: 'Standard_E4s_v5', payAsYouGo: '$182.50/mo', oneYearReserved: '$115.34/mo', oneYearSavings: '37%', threeYearReserved: '$73.00/mo',  threeYearSavings: '60%' },
+                    { skuName: 'Standard_F4s_v2', payAsYouGo: '$121.18/mo', oneYearReserved: '$76.28/mo',  oneYearSavings: '37%', threeYearReserved: '$48.47/mo',  threeYearSavings: '60%' },
+                    { skuName: 'Standard_NC6',    payAsYouGo: '$657.00/mo', oneYearReserved: '$414.00/mo', oneYearSavings: '37%', threeYearReserved: '$262.80/mo', threeYearSavings: '60%' }
+                ];
+
+                addLine('Fetching reserved pricing for ' + resType + ' in ' + loc + '...', 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(catalog, ['skuName', 'payAsYouGo', 'oneYearReserved', 'oneYearSavings', 'threeYearReserved', 'threeYearSavings']);
+                } else {
+                    printJSON(catalog);
+                }
+                addBlank();
+                addLine('  Reserved Instances: Commit to 1 or 3 years for significant discounts.', 'term-line-info');
+                addLine('  Pay-as-you-go = maximum flexibility, higher per-unit cost.', 'term-line-dim');
+                addLine('  Reserved = lower cost, requires commitment (still OpEx, not CapEx).', 'term-line-dim');
+                addLine('  Savings Plans are an alternative -- commit to $/hr spend, not specific VM sizes.', 'term-line-dim');
+                return { reservations_shown: true };
+            }
+
+            addLine('az reservations: unknown subcommand "' + sub + '". Try "catalog show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az feature — Task 9
+        ════════════════════════════════════════════════ */
+        function cmd_az_feature(args) {
+            if (!args.length) {
+                addLine('az feature: usage: az feature list --namespace <namespace>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var ns = flagVal(args, '--namespace');
+                if (!ns) {
+                    addLine('az feature list: --namespace is required.', 'term-line-err');
+                    addLine('Example: az feature list --namespace Microsoft.Compute --output table', 'term-line-info');
+                    return null;
+                }
+
+                var fmt = getOutputFormat(args);
+                var features = [
+                    { name: 'Microsoft.Compute/AutomaticOSUpgradeWithGallery',   registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/EncryptionAtHost',                registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/DiskControllerTypes',             registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/TrustedLaunch',                   registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/ConfidentialVMPreview',           registrationState: 'NotRegistered' },
+                    { name: 'Microsoft.Compute/UltraSSDWithVMSS',               registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/InGuestAutoAssessmentVMPreview',  registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/SharedDisksAzureSiteRecovery',    registrationState: 'NotRegistered' },
+                    { name: 'Microsoft.Compute/CommunityGalleries',             registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/RestorePointsReplication',         registrationState: 'NotRegistered' },
+                    { name: 'Microsoft.Compute/CapacityReservation',             registrationState: 'Registered' },
+                    { name: 'Microsoft.Compute/HibernatePreview',                registrationState: 'NotRegistered' }
+                ];
+
+                addLine('Listing features for namespace: ' + ns, 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(features, ['name', 'registrationState']);
+                } else {
+                    printJSON(features);
+                }
+                addBlank();
+                addLine('  Resource providers expose features that map to IaaS/PaaS capabilities.', 'term-line-info');
+                addLine('  Registered = available in your subscription. NotRegistered = opt-in required.', 'term-line-dim');
+                addLine('  New Azure capabilities often start as preview features you must register.', 'term-line-dim');
+                return { features_listed: true, namespace: ns };
+            }
+
+            addLine('az feature: unknown subcommand "' + sub + '". Try "list --namespace Microsoft.Compute".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az provider — Task 10
+        ════════════════════════════════════════════════ */
+        function cmd_az_provider(args) {
+            if (!args.length) {
+                addLine('az provider: usage: az provider list', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var fmt = getOutputFormat(args);
+                var providers = [
+                    { namespace: 'Microsoft.Compute',              registrationState: 'Registered',    resourceTypes: 'virtualMachines, disks, snapshots, galleries, vmScaleSets' },
+                    { namespace: 'Microsoft.Storage',              registrationState: 'Registered',    resourceTypes: 'storageAccounts, blobServices, fileServices, queueServices' },
+                    { namespace: 'Microsoft.Network',              registrationState: 'Registered',    resourceTypes: 'virtualNetworks, publicIPAddresses, loadBalancers, applicationGateways' },
+                    { namespace: 'Microsoft.Web',                  registrationState: 'Registered',    resourceTypes: 'sites, serverfarms, certificates, staticSites' },
+                    { namespace: 'Microsoft.Sql',                  registrationState: 'Registered',    resourceTypes: 'servers, databases, elasticPools, managedInstances' },
+                    { namespace: 'Microsoft.KeyVault',             registrationState: 'Registered',    resourceTypes: 'vaults, managedHSMs, keys, secrets, certificates' },
+                    { namespace: 'Microsoft.ContainerService',     registrationState: 'Registered',    resourceTypes: 'managedClusters, fleets, snapshots' },
+                    { namespace: 'Microsoft.ContainerRegistry',    registrationState: 'Registered',    resourceTypes: 'registries, replications, webhooks' },
+                    { namespace: 'Microsoft.Authorization',        registrationState: 'Registered',    resourceTypes: 'roleAssignments, roleDefinitions, policyAssignments' },
+                    { namespace: 'Microsoft.Monitor',              registrationState: 'Registered',    resourceTypes: 'accounts, pipelineGroups, dataCollectionRules' },
+                    { namespace: 'Microsoft.Insights',             registrationState: 'Registered',    resourceTypes: 'components, workbooks, metricAlerts, activityLogAlerts' },
+                    { namespace: 'Microsoft.CognitiveServices',    registrationState: 'Registered',    resourceTypes: 'accounts (OpenAI, Speech, Vision, Language)' },
+                    { namespace: 'Microsoft.DocumentDB',           registrationState: 'Registered',    resourceTypes: 'databaseAccounts (Cosmos DB), mongoDBDatabases' },
+                    { namespace: 'Microsoft.EventHub',             registrationState: 'Registered',    resourceTypes: 'namespaces, eventhubs, consumergroups' },
+                    { namespace: 'Microsoft.ServiceBus',           registrationState: 'Registered',    resourceTypes: 'namespaces, queues, topics, subscriptions' },
+                    { namespace: 'Microsoft.Logic',                registrationState: 'Registered',    resourceTypes: 'workflows, integrationAccounts' },
+                    { namespace: 'Microsoft.MachineLearningServices', registrationState: 'Registered', resourceTypes: 'workspaces, computes, models, endpoints' },
+                    { namespace: 'Microsoft.App',                  registrationState: 'Registered',    resourceTypes: 'containerApps, managedEnvironments, jobs' },
+                    { namespace: 'Microsoft.ManagedIdentity',      registrationState: 'Registered',    resourceTypes: 'userAssignedIdentities' },
+                    { namespace: 'Microsoft.OperationalInsights',  registrationState: 'Registered',    resourceTypes: 'workspaces, savedSearches, linkedServices' }
+                ];
+
+                addLine('Listing registered resource providers...', 'term-line-info');
+                addBlank();
+
+                if (fmt === 'table') {
+                    printTable(providers, ['namespace', 'registrationState', 'resourceTypes']);
+                } else {
+                    printJSON(providers);
+                }
+                addBlank();
+                addLine('  ' + providers.length + ' resource providers shown.', 'term-line-info');
+                addLine('  Every Azure service is backed by a resource provider (namespace).', 'term-line-info');
+                addLine('  IaaS: Microsoft.Compute, Microsoft.Network, Microsoft.Storage', 'term-line-dim');
+                addLine('  PaaS: Microsoft.Web, Microsoft.Sql, Microsoft.App', 'term-line-dim');
+                addLine('  SaaS: Microsoft 365, Dynamics 365 (not managed via ARM providers)', 'term-line-dim');
+                return { providers_listed: true };
+            }
+
+            addLine('az provider: unknown subcommand "' + sub + '". Try "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addLine('Cloud Concepts Explorer Lab -- Available Commands', 'term-line-info');
+            addBlank();
+            addLine('AZURE CLI:', 'term-line-warn');
+            addLine('  az account show                                          Show active subscription', 'term-line-dim');
+            addLine('  az account list                                          List subscriptions', 'term-line-dim');
+            addLine('  az account list-locations [--output table]               List Azure regions', 'term-line-dim');
+            addLine('  az vm list-sizes --location <loc> [--output table]       List VM sizes (IaaS)', 'term-line-dim');
+            addLine('  az webapp list-runtimes                                  List PaaS runtimes', 'term-line-dim');
+            addLine('  az cloud show [--output json]                            Show cloud environment', 'term-line-dim');
+            addLine('  az cloud list                                            List all cloud environments', 'term-line-dim');
+            addLine('  az advisor recommendation list [--output table]          Cost recommendations', 'term-line-dim');
+            addLine('  az consumption usage list --start-date <d>               Consumption billing data', 'term-line-dim');
+            addLine('    --end-date <d> [--output table]', 'term-line-dim');
+            addLine('  az reservations catalog show --reserved-resource-type    Reserved pricing', 'term-line-dim');
+            addLine('    <type> --location <loc> [--output table]', 'term-line-dim');
+            addLine('  az feature list --namespace <ns> [--output table]        List features', 'term-line-dim');
+            addLine('  az provider list [--output table]                        List resource providers', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   echo <text>   env', 'term-line-dim');
+            addBlank();
+            addLine('FLAGS:', 'term-line-warn');
+            addLine('  --output table    Format output as ASCII table', 'term-line-dim');
+            addLine('  --output json     Format output as JSON (default)', 'term-line-dim');
+            addBlank();
+            addLine('LAB FILES:', 'term-line-warn');
+            addLine('  Reference docs: ~/docs/  (cloud-models.txt, shared-responsibility.txt)', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'az') {
+                result = execAz(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route az sub-commands */
+        function execAz(args) {
+            if (!args.length) {
+                addLine('Welcome to Azure CLI (simulated). Type "help" for commands.', 'term-line-info');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'account') {
+                return cmd_az_account(args.slice(1));
+            }
+            if (sub === 'vm') {
+                return cmd_az_vm(args.slice(1));
+            }
+            if (sub === 'webapp') {
+                return cmd_az_webapp(args.slice(1));
+            }
+            if (sub === 'cloud') {
+                return cmd_az_cloud(args.slice(1));
+            }
+            if (sub === 'advisor') {
+                return cmd_az_advisor(args.slice(1));
+            }
+            if (sub === 'consumption') {
+                return cmd_az_consumption(args.slice(1));
+            }
+            if (sub === 'reservations') {
+                return cmd_az_reservations(args.slice(1));
+            }
+            if (sub === 'feature') {
+                return cmd_az_feature(args.slice(1));
+            }
+            if (sub === 'provider') {
+                return cmd_az_provider(args.slice(1));
+            }
+            if (sub === 'version' || sub === '--version') {
+                addLine('azure-cli                         2.67.0', 'term-line-out');
+                addLine('core                              2.67.0', 'term-line-out');
+                addLine('telemetry                          1.1.0', 'term-line-out');
+                addBlank();
+                addLine('Extensions: None installed', 'term-line-dim');
+                return { version: true };
+            }
+
+            addLine('az: unknown command "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Tasks must be completed in order (task N requires 1..N-1 complete).
+        ════════════════════════════════════════════════ */
+        function allPriorDone(n) {
+            for (var i = 1; i < n; i++) {
+                if (!taskDone[i]) return false;
+            }
+            return true;
+        }
+
+        function checkTasks(cmd, raw, result) {
+            if (!result || typeof result !== 'object') return;
+
+            /* ── Task 1: az account show ── */
+            if (!taskDone[1] && result.account_shown === true) {
+                completeTask(1);
+            }
+
+            /* ── Task 2: az account list-locations --output table ── */
+            if (!taskDone[2] && allPriorDone(2) && result.locations_listed === true) {
+                completeTask(2);
+            }
+
+            /* ── Task 3: az vm list-sizes --location eastus --output table ── */
+            if (!taskDone[3] && allPriorDone(3) && result.vm_sizes_listed === true) {
+                completeTask(3);
+            }
+
+            /* ── Task 4: az webapp list-runtimes ── */
+            if (!taskDone[4] && allPriorDone(4) && result.runtimes_listed === true) {
+                completeTask(4);
+            }
+
+            /* ── Task 5: az cloud show --output json ── */
+            if (!taskDone[5] && allPriorDone(5) && result.cloud_shown === true) {
+                completeTask(5);
+            }
+
+            /* ── Task 6: az advisor recommendation list --output table ── */
+            if (!taskDone[6] && allPriorDone(6) && result.advisor_listed === true) {
+                completeTask(6);
+            }
+
+            /* ── Task 7: az consumption usage list ... ── */
+            if (!taskDone[7] && allPriorDone(7) && result.consumption_listed === true) {
+                completeTask(7);
+            }
+
+            /* ── Task 8: az reservations catalog show ... ── */
+            if (!taskDone[8] && allPriorDone(8) && result.reservations_shown === true) {
+                completeTask(8);
+            }
+
+            /* ── Task 9: az feature list --namespace Microsoft.Compute --output table ── */
+            if (!taskDone[9] && allPriorDone(9) && result.features_listed === true) {
+                completeTask(9);
+            }
+
+            /* ── Task 10: az provider list --output table ── */
+            if (!taskDone[10] && allPriorDone(10) && result.providers_listed === true) {
+                completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your Subscription',
+                2:  'List Azure Regions',
+                3:  'Explore IaaS VM Sizes',
+                4:  'PaaS Runtimes',
+                5:  'Cloud Environment',
+                6:  'Advisor Recommendations',
+                7:  'Consumption Billing',
+                8:  'Reserved Pricing',
+                9:  'Compute Features',
+                10: 'Resource Providers'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Run this command to inspect your active subscription:\n<code>az account show</code>\n\nLook at the output carefully. The <code>id</code> field is your subscription ID -- a GUID that uniquely identifies your Azure subscription. The <code>tenantId</code> is your Microsoft Entra ID tenant. The <code>state</code> should be "Enabled". The <code>isDefault</code> field confirms this is your active subscription.',
+                hint: 'The subscription is the billing boundary in Azure. Every resource must belong to a subscription, and all costs roll up to the subscription level. A single Microsoft Entra ID tenant can have multiple subscriptions -- this is common in enterprises to separate production, dev/test, and sandbox costs. The subscription ID appears in every resource ID: /subscriptions/{id}/resourceGroups/{rg}/providers/{type}/{name}.',
+                cmd: 'az account show'
+            },
+            2: {
+                step: 'List all Azure regions to see global cloud infrastructure:\n<code>az account list-locations --output table</code>\n\nThe <code>--output table</code> flag formats the output as a readable ASCII table instead of JSON. Look at the <code>displayName</code> and <code>name</code> columns -- you use the <code>name</code> value (like "eastus") in CLI commands.',
+                hint: 'Azure has 60+ regions across every inhabited continent. Regions are paired for disaster recovery (eastus <-> westus). When choosing a region, consider: latency to your users, data residency laws (GDPR requires EU data stay in EU), available services (not all regions have all services), and pricing (some regions cost more). Availability Zones within a region provide additional fault isolation.',
+                cmd: 'az account list-locations --output table'
+            },
+            3: {
+                step: 'Explore Infrastructure as a Service (IaaS) by listing VM sizes:\n<code>az vm list-sizes --location eastus --output table</code>\n\nThe table shows CPU cores, memory, disk capacity, and data disk count for each VM SKU. These are the compute specs YOU choose and manage in the IaaS model.',
+                hint: 'IaaS gives you the most control but the most responsibility. VM families are designed for different workloads: B-series = burstable (dev/test), D-series = general purpose (web servers), E-series = memory-optimized (databases), F-series = compute-optimized (batch), NC-series = GPU (ML/AI), L-series = storage-optimized (big data). Scale up = larger VM. Scale out = more VM instances. This is the "shared responsibility" model in action -- you manage the OS and everything above it.',
+                cmd: 'az vm list-sizes --location eastus --output table'
+            },
+            4: {
+                step: 'Now explore Platform as a Service (PaaS) runtimes:\n<code>az webapp list-runtimes</code>\n\nCompare this to the IaaS VM list. With PaaS, you do not choose CPU cores or manage an OS. You simply select a runtime (Node.js, Python, .NET, Java, etc.) and deploy your code. Azure handles everything underneath.',
+                hint: 'PaaS abstracts the OS layer entirely. With Azure App Service, you pick a language runtime and a pricing tier -- Azure handles OS patches, load balancing, and scaling. The tradeoff: less control but less operational burden. PaaS is ideal when you want to focus on code, not infrastructure. Compare: IaaS (VMs) = you patch the OS. PaaS (App Service) = Azure patches the OS. SaaS (Microsoft 365) = Azure manages everything, you just use it.',
+                cmd: 'az webapp list-runtimes'
+            },
+            5: {
+                step: 'Inspect the cloud environment configuration:\n<code>az cloud show --output json</code>\n\nThe output shows endpoints for management, authentication, and services. These endpoints define which Azure cloud you are connected to. The <code>suffixes</code> section shows the DNS suffixes for storage, Key Vault, and SQL.',
+                hint: 'Azure operates multiple isolated cloud environments: AzureCloud (public, worldwide), AzureUSGovernment (FedRAMP/ITAR/DoD compliant, physically isolated US datacenters), and AzureChinaCloud (operated by 21Vianet, compliant with Chinese data regulations). Each has its own endpoints, identity infrastructure, and compliance certifications. Government and sovereign clouds never mix data with the public cloud.',
+                cmd: 'az cloud show --output json'
+            },
+            6: {
+                step: 'View Azure Advisor cost optimization recommendations:\n<code>az advisor recommendation list --output table</code>\n\nAdvisor analyzes your resource usage and provides actionable recommendations. The <code>impact</code> column shows severity. The <code>estimatedSavings</code> shows potential cost reduction.',
+                hint: 'Azure Advisor is a free service that analyzes your deployed resources and provides recommendations across five pillars: Cost, Security, Reliability, Operational Excellence, and Performance. For cost: it identifies underutilized VMs, suggests reserved instances, flags orphaned disks, and recommends right-sizing. This is a key benefit of the cloud -- the platform itself helps you optimize spend. On-premises, you would need third-party tools to get similar insights.',
+                cmd: 'az advisor recommendation list --output table'
+            },
+            7: {
+                step: 'View consumption-based billing data:\n<code>az consumption usage list --start-date 2025-01-01 --end-date 2025-01-31 --output table</code>\n\nThe table shows resource usage by type, quantity, and cost. Notice how each resource is billed separately based on actual usage -- this is the pay-as-you-go (consumption) model.',
+                hint: 'Cloud computing shifts IT spending from CapEx (Capital Expenditure -- buying servers upfront) to OpEx (Operational Expenditure -- paying monthly for what you use). Benefits of OpEx/consumption model: no upfront investment, scale up/down as needed, stop paying when you stop using, predictable monthly bills. The consumption model aligns costs with value -- you pay more when business is booming (more traffic = more resources = more revenue), less during quiet periods.',
+                cmd: 'az consumption usage list --start-date 2025-01-01 --end-date 2025-01-31 --output table'
+            },
+            8: {
+                step: 'Compare reserved pricing vs pay-as-you-go:\n<code>az reservations catalog show --reserved-resource-type VirtualMachines --location eastus --output table</code>\n\nThe table shows pay-as-you-go vs 1-year and 3-year reserved pricing. Reserved instances offer 35-61% savings in exchange for a commitment.',
+                hint: 'Azure offers three pricing models: Pay-as-you-go (maximum flexibility, highest per-unit cost), Reserved Instances (1 or 3 year commitment, 35-61% savings), and Spot VMs (use spare capacity at up to 90% discount, but can be evicted). Savings Plans are a newer alternative -- you commit to a dollar amount per hour, applicable across VM families and regions. All of these are still OpEx (monthly payments), not CapEx. Even reserved instances are billed monthly -- you commit to usage, not hardware.',
+                cmd: 'az reservations catalog show --reserved-resource-type VirtualMachines --location eastus --output table'
+            },
+            9: {
+                step: 'List features exposed by the Microsoft.Compute resource provider:\n<code>az feature list --namespace Microsoft.Compute --output table</code>\n\nEach feature represents a capability that can be enabled in your subscription. "Registered" means active; "NotRegistered" means you must opt in.',
+                hint: 'Resource providers are the namespaces that expose Azure services via the Azure Resource Manager (ARM) API. Microsoft.Compute exposes features like TrustedLaunch (secure boot for VMs), EncryptionAtHost (server-side encryption), and ConfidentialVMPreview (encrypted in-use data). New Azure features often launch as preview features that require explicit registration. This model lets Microsoft release features gradually and collect feedback before GA (General Availability).',
+                cmd: 'az feature list --namespace Microsoft.Compute --output table'
+            },
+            10: {
+                step: 'List all Azure resource providers to see the full service catalog:\n<code>az provider list --output table</code>\n\nEach provider namespace maps to an Azure service family. The <code>registrationState</code> shows whether the provider is active in your subscription. The <code>resourceTypes</code> column shows what each provider manages.',
+                hint: 'Every Azure service is backed by a resource provider. The provider namespace follows the pattern Microsoft.{ServiceName}. IaaS providers: Microsoft.Compute (VMs), Microsoft.Network (VNets, Load Balancers), Microsoft.Storage (Blob, Files, Queues). PaaS providers: Microsoft.Web (App Service), Microsoft.Sql (Azure SQL), Microsoft.App (Container Apps). Understanding providers helps you map the AZ-900 service model concepts (IaaS/PaaS/SaaS) to actual Azure services.',
+                cmd: 'az provider list --output table'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                          ['account', 'vm', 'webapp', 'cloud', 'advisor', 'consumption', 'reservations', 'feature', 'provider', 'version'],
+            'az account ':                                  ['show', 'list', 'list-locations'],
+            'az account list-locations ':                    ['--output'],
+            'az vm ':                                       ['list-sizes'],
+            'az vm list-sizes ':                             ['--location', '-l', '--output'],
+            'az webapp ':                                   ['list-runtimes'],
+            'az cloud ':                                    ['show', 'list'],
+            'az cloud show ':                                ['--output'],
+            'az advisor ':                                  ['recommendation'],
+            'az advisor recommendation ':                   ['list'],
+            'az advisor recommendation list ':               ['--output'],
+            'az consumption ':                               ['usage'],
+            'az consumption usage ':                         ['list'],
+            'az consumption usage list ':                    ['--start-date', '--end-date', '--output'],
+            'az reservations ':                              ['catalog'],
+            'az reservations catalog ':                      ['show'],
+            'az reservations catalog show ':                 ['--reserved-resource-type', '--location', '-l', '--output'],
+            'az feature ':                                   ['list'],
+            'az feature list ':                              ['--namespace', '--output'],
+            'az provider ':                                  ['list'],
+            'az provider list ':                             ['--output']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'az900-ch01-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Cloud Concepts Explorer Lab -- Azure Cloud Shell Simulation', 'term-welcome');
+            addLine('Azure CLI 2.67.0   AZ-900 Chapter 1 -- Cloud Concepts', 'term-welcome');
+            addBlank();
+            addLine('[SIM] This is a simulated Azure Cloud Shell environment for learning.', 'term-line-warn');
+            addLine('[SIM] Commands return realistic but synthetic data. In production,', 'term-line-warn');
+            addLine('[SIM] use Azure Cloud Shell (shell.azure.com) or install the Azure CLI.', 'term-line-warn');
+            addBlank();
+            addLine('Your subscription is pre-configured: ' + SUB_NAME, 'term-line-info');
+            addLine('This lab explores the core cloud concepts tested on the AZ-900 exam:', 'term-line-info');
+            addLine('  -- Cloud service models (IaaS, PaaS, SaaS)', 'term-line-dim');
+            addLine('  -- Cloud deployment models and global regions', 'term-line-dim');
+            addLine('  -- Cost management (OpEx vs CapEx, consumption model)', 'term-line-dim');
+            addLine('  -- Resource providers and the Azure service catalog', 'term-line-dim');
+            addBlank();
+            addLine('Reference docs available: cat ~/docs/cloud-models.txt', 'term-line-dim');
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks in order to finish the lab.', 'term-line-info');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

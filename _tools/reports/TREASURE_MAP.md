@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-09 2:43:34 AM
+                    Scanned: 2026-04-21 1:59:58 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 4119 |
-| Directories | 1015 |
-| Content Files | 4119 |
-| Scan Duration | 442ms |
+| Files Scanned | 4372 |
+| Directories | 1086 |
+| Content Files | 4372 |
+| Scan Duration | 2143ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 1880 |
-| html | 1384 |
-| lab | 430 |
-| quiz | 248 |
-| applet | 177 |
+| presentation | 1959 |
+| html | 1442 |
+| lab | 447 |
+| quiz | 333 |
+| applet | 191 |
 
 ### ContentCatalog Validation
 
@@ -31,8 +31,8 @@
 |--------|-------|
 | Total Modules | 1894 |
 | Available | 1889 |
-| Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 361 |
+| Missing Hrefs (CAT-001) | 8 |
+| Undeclared Files (CAT-002) | 448 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
-| Suspect | 55 |
-| Warning | 2157 |
-| Info | 447 |
-| **Total** | **13842** |
+| Critical | 24 |
+| Suspect | 58 |
+| Warning | 2360 |
+| Info | 460 |
+| **Total** | **14892** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 2726 |
-| Not Ready | 9 |
-| Unknown | 1384 |
+| Ready | 2861 |
+| Not Ready | 69 |
+| Unknown | 1442 |
 
 
 ## FILE HIERARCHY
@@ -339,6 +339,10 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 f14-fractured-consensus
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 f15-silent-include
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 f16-billion-laughs
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 f2-inherent-flaw
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 f3-adaptive-predator
@@ -511,8 +515,15 @@
 │   │   │   └── 📍 index.html
 │   │   └── 📁 rev-05-android
 │   │       └── 📍 index.html
+│   ├── 📄 discord-activity.html
 │   ├── 📁 engine
 │   ├── 📍 index.html
+│   ├── 📁 mockups
+│   │   ├── 📁 archive
+│   │   │   ├── 📄 arena-mockup-a.html
+│   │   │   └── 📄 arena-mockup-b.html
+│   │   └── 📄 arena-mockup-c.html
+│   ├── 📄 spectator.html
 │   ├── 📄 tournament-board.html
 │   ├── 📄 tournament-lobby.html
 │   └── 📄 tournament-podium.html
@@ -520,6 +531,7 @@
 ├── 📄 bot-knowledge-ai.html
 ├── 📄 bot-knowledge-cloud.html
 ├── 📄 bot-knowledge-code.html
+├── 📄 bot-knowledge-combined.html
 ├── 📄 bot-knowledge-dark-arts.html
 ├── 📄 bot-knowledge-divergent.html
 ├── 📄 bot-knowledge-eye.html
@@ -565,6 +577,8 @@
 │   ├── 📁 profile
 │   │   ├── 📄 privacy-settings.html
 │   │   └── 📄 profile.html
+│   ├── 📁 slides
+│   │   └── 📄 admissions-2026.html
 │   ├── 📁 styles [styles]
 │   ├── 📄 tourist-sort-redirect.html
 │   └── 📄 tourist-visa-prompt.html
@@ -608,7 +622,9 @@
 │       │   │   ├── 🔬 bh-lab-source.html
 │       │   │   ├── 🔬 bh-lab-sqli.html
 │       │   │   ├── 🔬 bh-lab-subdomain.html
-│       │   │   └── 🔬 bh-lab-xss.html
+│       │   │   ├── 🔬 bh-lab-xml-bombs.html
+│       │   │   ├── 🔬 bh-lab-xss.html
+│       │   │   └── 🔬 bh-lab-xssi.html
 │       │   ├── 📁 modules [modules]
 │       │   │   ├── 📄 bh-mod-advanced-web.html
 │       │   │   ├── 📄 bh-mod-ai-bounty.html
@@ -638,6 +654,8 @@
 │       │   │   ├── 📄 bh-mod-supply-chain.html
 │       │   │   ├── 📄 bh-mod-vuln-reporting.html
 │       │   │   ├── 📄 bh-mod-web-vulns.html
+│       │   │   ├── 📄 bh-mod-xml-bombs.html
+│       │   │   ├── 📄 bh-mod-xssi.html
 │       │   │   └── 📍 index.html
 │       │   ├── 📁 quizzes [quizzes]
 │       │   │   ├── ❓ bh-quiz-ai.html
@@ -646,7 +664,9 @@
 │       │   │   ├── ❓ bh-quiz-mastery.html
 │       │   │   ├── ❓ bh-quiz-platform.html
 │       │   │   ├── ❓ bh-quiz-practical.html
-│       │   │   └── ❓ bh-quiz-web.html
+│       │   │   ├── ❓ bh-quiz-web.html
+│       │   │   ├── ❓ bh-quiz-xml-bombs.html
+│       │   │   └── ❓ bh-quiz-xssi.html
 │       │   └── 📁 tools
 │       │       ├── 📄 bh-tool-ai.html
 │       │       ├── 📄 bh-tool-methodology.html
@@ -1147,6 +1167,29 @@
 │   │   │   ├── 📄 ai13-07-vector-databases.html
 │   │   │   ├── 📄 ai13-08-agent-eval.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 ai-900
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 ai900-ch01-intro-ai.lab.html
+│   │   │   │   ├── 🔬 ai900-ch02-computer-vision.lab.html
+│   │   │   │   ├── 🔬 ai900-ch03-nlp.lab.html
+│   │   │   │   ├── 🔬 ai900-ch04-generative-ai.lab.html
+│   │   │   │   ├── 🔬 ai900-ch05-predictive-models.lab.html
+│   │   │   │   └── 🔬 ai900-ch06-ai-services.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 ai900-ch01-intro-ai.presentation.html
+│   │   │   │   ├── 📊 ai900-ch02-computer-vision.presentation.html
+│   │   │   │   ├── 📊 ai900-ch03-nlp.presentation.html
+│   │   │   │   ├── 📊 ai900-ch04-generative-ai.presentation.html
+│   │   │   │   ├── 📊 ai900-ch05-predictive-models.presentation.html
+│   │   │   │   └── 📊 ai900-ch06-ai-services.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ ai900-ch01.quiz.html
+│   │   │       ├── ❓ ai900-ch02.quiz.html
+│   │   │       ├── ❓ ai900-ch03.quiz.html
+│   │   │       ├── ❓ ai900-ch04.quiz.html
+│   │   │       ├── ❓ ai900-ch05.quiz.html
+│   │   │       └── ❓ ai900-ch06.quiz.html
 │   │   ├── 📁 automation
 │   │   │   ├── 📄 ai15-01-n8n-fundamentals.html
 │   │   │   ├── 📄 ai15-02-ai-workflows.html
@@ -1530,6 +1573,43 @@
 │   │   │   ├── 📁 fundamentals [applets]
 │   │   │   │   └── 📄 cloud-provider-comparison.applet.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 az-104
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 az104-ch01-prerequisites.lab.html
+│   │   │   │   ├── 🔬 az104-ch02-identities-governance.lab.html
+│   │   │   │   ├── 🔬 az104-ch03-storage.lab.html
+│   │   │   │   ├── 🔬 az104-ch04-compute.lab.html
+│   │   │   │   ├── 🔬 az104-ch05-networking.lab.html
+│   │   │   │   └── 🔬 az104-ch06-monitor-backup.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 az104-ch01-prerequisites.presentation.html
+│   │   │   │   ├── 📊 az104-ch02-identities-governance.presentation.html
+│   │   │   │   ├── 📊 az104-ch03-storage.presentation.html
+│   │   │   │   ├── 📊 az104-ch04-compute.presentation.html
+│   │   │   │   ├── 📊 az104-ch05-networking.presentation.html
+│   │   │   │   └── 📊 az104-ch06-monitor-backup.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ az104-ch01.quiz.html
+│   │   │       ├── ❓ az104-ch02.quiz.html
+│   │   │       ├── ❓ az104-ch03.quiz.html
+│   │   │       ├── ❓ az104-ch04.quiz.html
+│   │   │       ├── ❓ az104-ch05.quiz.html
+│   │   │       └── ❓ az104-ch06.quiz.html
+│   │   ├── 📁 az-900
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 az900-ch01-cloud-concepts.lab.html
+│   │   │   │   ├── 🔬 az900-ch02-azure-architecture.lab.html
+│   │   │   │   └── 🔬 az900-ch03-management-governance.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 az900-ch01-cloud-concepts.presentation.html
+│   │   │   │   ├── 📊 az900-ch02-azure-architecture.presentation.html
+│   │   │   │   └── 📊 az900-ch03-management-governance.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ az900-ch01.quiz.html
+│   │   │       ├── ❓ az900-ch02.quiz.html
+│   │   │       └── ❓ az900-ch03.quiz.html
 │   │   ├── 📁 cse
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📁 reviews
@@ -1761,6 +1841,8 @@
 │   │   │   ├── ❓ cloud-cse-module07.quiz.html
 │   │   │   ├── ❓ cloud-cse-module08.quiz.html
 │   │   │   └── ❓ cloud-quiz.quiz.html
+│   │   ├── 📁 server-plus
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 speaker-notes
 │   │   └── 📁 tools
 │   │       ├── 📄 cloud-aws-service.tool.html
@@ -2378,6 +2460,7 @@
 │   │   │   ├── 📊 code-terraform-fundamentals.presentation.html
 │   │   │   └── 📊 code-unit-testing.presentation.html
 │   │   ├── 📁 python-for-it
+│   │   │   ├── 📄 builtins-reference.html
 │   │   │   ├── 📄 cheatsheet-w1.html
 │   │   │   ├── 📄 cheatsheet-w2.html
 │   │   │   ├── 📄 cheatsheet-w3.html
@@ -2408,12 +2491,14 @@
 │   │   │   │   ├── 📊 pfi-w1-conditionals.presentation.html
 │   │   │   │   ├── 📊 pfi-w1-datatypes.presentation.html
 │   │   │   │   ├── 📊 pfi-w1-loops.presentation.html
+│   │   │   │   ├── 📊 pfi-w2-builtins.presentation.html
 │   │   │   │   ├── 📊 pfi-w2-dicts.presentation.html
 │   │   │   │   ├── 📊 pfi-w2-lists.presentation.html
 │   │   │   │   ├── 📊 pfi-w2-strings.presentation.html
 │   │   │   │   ├── 📊 pfi-w3-functions.presentation.html
 │   │   │   │   ├── 📊 pfi-w3-graphics.presentation.html
 │   │   │   │   ├── 📊 pfi-w3-oop.presentation.html
+│   │   │   │   ├── 📊 pfi-w3-random.presentation.html
 │   │   │   │   ├── 📊 pfi-w4-applied.presentation.html
 │   │   │   │   └── 📊 pfi-w4-gui.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
@@ -2437,7 +2522,8 @@
 │   │   │   │   └── 📁 week4
 │   │   │   │       ├── 📁 __pycache__
 │   │   │   │       └── 📁 data
-│   │   │   └── 📄 starter-kit.html
+│   │   │   ├── 📄 starter-kit.html
+│   │   │   └── 📄 upgrade-guide.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   │   ├── ❓ code-agile.quiz.html
 │   │   │   ├── ❓ code-cicd.quiz.html
@@ -2522,6 +2608,68 @@
 │   │       └── 📁 ehe
 │   │           └── 🔬 da-ad-attack-lab.lab.html
 │   ├── 📁 devops-fundamentals
+│   │   └── 📍 index.html
+│   ├── 🏠 divergent [house:divergent]
+│   │   ├── 📁 ethics-it
+│   │   │   ├── 📄 eth-01.html
+│   │   │   ├── 📄 eth-02.html
+│   │   │   ├── 📄 eth-03.html
+│   │   │   ├── 📄 eth-04.html
+│   │   │   ├── 📄 eth-05.html
+│   │   │   ├── 📄 eth-06.html
+│   │   │   ├── 📄 eth-07.html
+│   │   │   ├── 📄 eth-08.html
+│   │   │   ├── 📄 eth-09.html
+│   │   │   ├── 📄 eth-10.html
+│   │   │   ├── 📄 eth-11.html
+│   │   │   ├── 📄 eth-12.html
+│   │   │   ├── 📄 eth-13.html
+│   │   │   ├── 📄 eth-14.html
+│   │   │   ├── 📄 eth-15.html
+│   │   │   ├── 📄 eth-r1.html
+│   │   │   ├── 📄 eth-r2.html
+│   │   │   ├── 📄 eth-r3.html
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 eth-final.exam.html
+│   │   │   │   └── 📄 eth-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 eth-l01-vw-emissions [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l02-sony-breach [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l03-snowden-files [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l04-ip-war [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l05-autonomous-decision [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l06-the-algorithm [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l07-the-platform [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l08-the-whistleblower [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l09-the-gig [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 eth-l10-the-code [labs]
+│   │   │   │       └── 📍 index.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 eth-w1-cybersecurity-ethics.presentation.html
+│   │   │   │   ├── 📊 eth-w1-ethics-overview.presentation.html
+│   │   │   │   ├── 📊 eth-w1-it-professionals.presentation.html
+│   │   │   │   ├── 📊 eth-w2-freedom-expression.presentation.html
+│   │   │   │   ├── 📊 eth-w2-intellectual-property.presentation.html
+│   │   │   │   ├── 📊 eth-w2-privacy.presentation.html
+│   │   │   │   ├── 📊 eth-w3-it-impact.presentation.html
+│   │   │   │   ├── 📊 eth-w3-software-ethics.presentation.html
+│   │   │   │   ├── 📊 eth-w4-codes-of-ethics.presentation.html
+│   │   │   │   ├── 📊 eth-w4-it-organizations.presentation.html
+│   │   │   │   └── 📊 eth-w4-social-media.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ eth-w1.quiz.html
+│   │   │       ├── ❓ eth-w2.quiz.html
+│   │   │       └── ❓ eth-w3.quiz.html
 │   │   └── 📍 index.html
 │   ├── 🏠 eye [house:eye]
 │   │   ├── 📁 applets [applets]
@@ -2984,9 +3132,7 @@
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
 │   │   │   ├── 🔬 forge-control-panel.lab.html
-│   │   │   ├── 🔬 forge-core2-roleplay.lab.html
 │   │   │   ├── 🔬 forge-hardware-essentials.lab.html
-│   │   │   ├── 🔬 forge-lab-macos-linux.lab.html
 │   │   │   ├── 🔬 forge-system-tools.lab.html
 │   │   │   ├── 🔬 forge-windows-editions.lab.html
 │   │   │   └── 🔬 forge-windows-settings.lab.html
@@ -3086,12 +3232,6 @@
 │   │   │       ├── 📄 forge-md101-midterm-review.html
 │   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📊 forge-admin-tools.presentation.html
-│   │   │   ├── 📊 forge-control-panel.presentation.html
-│   │   │   ├── 📊 forge-macos-linux-basics.presentation.html
-│   │   │   ├── 📊 forge-system-tools.presentation.html
-│   │   │   ├── 📊 forge-windows-editions.presentation.html
-│   │   │   └── 📊 forge-windows-settings.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   │   ├── ❓ forge-aplus-core2-ch19-22.quiz.html
 │   │   │   ├── ❓ forge-aplus-core2.quiz.html
@@ -3174,6 +3314,81 @@
 │   │       ├── 📄 key-lifecycle.tool.html
 │   │       └── 📄 key-pqc.tool.html
 │   ├── 🏠 matrix [house:matrix]
+│   │   ├── 📁 adv-linux
+│   │   │   ├── 📄 ala-01.html
+│   │   │   ├── 📄 ala-02.html
+│   │   │   ├── 📄 ala-03.html
+│   │   │   ├── 📄 ala-04.html
+│   │   │   ├── 📄 ala-05.html
+│   │   │   ├── 📄 ala-06.html
+│   │   │   ├── 📄 ala-07.html
+│   │   │   ├── 📄 ala-08.html
+│   │   │   ├── 📄 ala-09.html
+│   │   │   ├── 📄 ala-10.html
+│   │   │   ├── 📄 ala-11.html
+│   │   │   ├── 📄 ala-12.html
+│   │   │   ├── 📄 ala-13.html
+│   │   │   ├── 📄 ala-14.html
+│   │   │   ├── 📄 ala-15.html
+│   │   │   ├── 📄 ala-16.html
+│   │   │   ├── 📄 ala-17.html
+│   │   │   ├── 📄 ala-18.html
+│   │   │   ├── 📄 ala-19.html
+│   │   │   ├── 📄 ala-r1.html
+│   │   │   ├── 📄 ala-r2.html
+│   │   │   ├── 📄 ala-r3.html
+│   │   │   ├── 📄 ala-r4.html
+│   │   │   ├── 📄 ala-r5.html
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 ala-final.exam.html
+│   │   │   │   └── 📄 ala-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 ala-l01-dead-cell-recovery [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l02-grid-handshake [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l03-signal-in-the-noise [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l04-lockdown-protocol [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l05-the-insider [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l06-field-assembly [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l07-name-authority [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l08-the-night-shift [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l09-poisoned-records [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l10-ghost-in-the-cell [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-l11-flatline [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 ala-l12-full-cell-audit [labs]
+│   │   │   │       └── 📍 index.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 ala-w1-cli-operations.presentation.html
+│   │   │   │   ├── 📊 ala-w1-network-config.presentation.html
+│   │   │   │   ├── 📊 ala-w1-network-diag.presentation.html
+│   │   │   │   ├── 📊 ala-w1-systemd.presentation.html
+│   │   │   │   ├── 📊 ala-w2-antivirus.presentation.html
+│   │   │   │   ├── 📊 ala-w2-authentication.presentation.html
+│   │   │   │   ├── 📊 ala-w2-firewalls.presentation.html
+│   │   │   │   ├── 📊 ala-w2-packages.presentation.html
+│   │   │   │   ├── 📊 ala-w3-automation.presentation.html
+│   │   │   │   ├── 📊 ala-w3-bash-scripting.presentation.html
+│   │   │   │   ├── 📊 ala-w3-bind-deployment.presentation.html
+│   │   │   │   ├── 📊 ala-w3-dns-fundamentals.presentation.html
+│   │   │   │   ├── 📊 ala-w4-file-integrity.presentation.html
+│   │   │   │   ├── 📊 ala-w4-log-management.presentation.html
+│   │   │   │   └── 📊 ala-w4-performance.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ ala-w1.quiz.html
+│   │   │       ├── ❓ ala-w2.quiz.html
+│   │   │       ├── ❓ ala-w3.quiz.html
+│   │   │       └── ❓ ala-w4.quiz.html
 │   │   └── 📍 index.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
@@ -4058,6 +4273,87 @@
 │   │   │   ├── 📄 shield-tor-darkweb.html
 │   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
 │   │   ├── 📍 index.html
+│   │   ├── 📁 infosec
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 pis-final.exam.html
+│   │   │   │   └── 📄 pis-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 pis-l01-specimen-classification [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l02-human-vector-drill [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l03-outbreak-intelligence [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l04-injection-vector [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l05-field-equipment-audit [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l06-vault-seal-operations [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l07-lab-isolation-protocol [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l08-clearance-forge [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l09-outbreak-detection [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l10-dual-integrity-access [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 pis-l11-containment-breach [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 pis-l12-full-facility-inspection [labs]
+│   │   │   │       └── 📍 index.html
+│   │   │   ├── 📄 pis-01.html
+│   │   │   ├── 📄 pis-02.html
+│   │   │   ├── 📄 pis-03.html
+│   │   │   ├── 📄 pis-04.html
+│   │   │   ├── 📄 pis-05.html
+│   │   │   ├── 📄 pis-06.html
+│   │   │   ├── 📄 pis-07.html
+│   │   │   ├── 📄 pis-08.html
+│   │   │   ├── 📄 pis-09.html
+│   │   │   ├── 📄 pis-10.html
+│   │   │   ├── 📄 pis-11.html
+│   │   │   ├── 📄 pis-12.html
+│   │   │   ├── 📄 pis-13.html
+│   │   │   ├── 📄 pis-14.html
+│   │   │   ├── 📄 pis-15.html
+│   │   │   ├── 📄 pis-16.html
+│   │   │   ├── 📄 pis-17.html
+│   │   │   ├── 📄 pis-18.html
+│   │   │   ├── 📄 pis-19.html
+│   │   │   ├── 📄 pis-20.html
+│   │   │   ├── 📄 pis-21.html
+│   │   │   ├── 📄 pis-r1.html
+│   │   │   ├── 📄 pis-r2.html
+│   │   │   ├── 📄 pis-r3.html
+│   │   │   ├── 📄 pis-r4.html
+│   │   │   ├── 📄 pis-r5.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 pis-w1-cia-triad.presentation.html
+│   │   │   │   ├── 📊 pis-w1-malware.presentation.html
+│   │   │   │   ├── 📊 pis-w1-security-controls.presentation.html
+│   │   │   │   ├── 📊 pis-w1-social-engineering.presentation.html
+│   │   │   │   ├── 📊 pis-w1-threat-actors.presentation.html
+│   │   │   │   ├── 📊 pis-w2-app-attacks.presentation.html
+│   │   │   │   ├── 📊 pis-w2-cryptography.presentation.html
+│   │   │   │   ├── 📊 pis-w2-device-security.presentation.html
+│   │   │   │   ├── 📊 pis-w2-network-attacks.presentation.html
+│   │   │   │   ├── 📊 pis-w3-network-architecture.presentation.html
+│   │   │   │   ├── 📊 pis-w3-pki.presentation.html
+│   │   │   │   ├── 📊 pis-w3-security-operations.presentation.html
+│   │   │   │   ├── 📊 pis-w3-wireless-cloud.presentation.html
+│   │   │   │   ├── 📊 pis-w4-authentication.presentation.html
+│   │   │   │   ├── 📊 pis-w4-identity-management.presentation.html
+│   │   │   │   ├── 📊 pis-w4-incident-response.presentation.html
+│   │   │   │   └── 📊 pis-w4-risk-governance.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ pis-w1.quiz.html
+│   │   │       ├── ❓ pis-w2.quiz.html
+│   │   │       ├── ❓ pis-w3.quiz.html
+│   │   │       └── ❓ pis-w4.quiz.html
+│   │   ├── 📁 isc2-cc
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📁 linux [labs]
 │   │   │   │   ├── 📍 index.html
@@ -4131,6 +4427,8 @@
 │   │   │   ├── 📊 shield-sec101-m06.presentation.html
 │   │   │   ├── 📊 shield-sec101-m07.presentation.html
 │   │   │   └── 📊 shield-sec101-m08.presentation.html
+│   │   ├── 📁 security-plus
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -4770,6 +5068,10 @@
 │       ├── 📄 linux-fs-03.mission.html
 │       ├── 📄 log-analysis-01.mission.html
 │       ├── 📄 log-analysis-02.mission.html
+│       ├── 📄 pfi-op-01.mission.html
+│       ├── 📄 pfi-op-02.mission.html
+│       ├── 📄 pfi-op-03.mission.html
+│       ├── 📄 pfi-op-04.mission.html
 │       ├── 📄 python-01.mission.html
 │       ├── 📄 python-02.mission.html
 │       ├── 📄 python-03.mission.html
@@ -4871,6 +5173,7 @@
 │   ├── 📄 darkarts-web-scraping.html
 │   ├── 📄 darkarts-wifi-scanner.html
 │   ├── 📄 divergent-discord-bot.html
+│   ├── 📄 divergent-faceless-youtube.html
 │   ├── 📄 divergent-field-terminal.html
 │   ├── 📄 divergent-manim.html
 │   ├── 📄 divergent-multi-tool.html
@@ -4921,7 +5224,21 @@
 │   ├── 📄 shield-perimeter-alarm.html
 │   ├── 📄 shield-pi-ids.html
 │   ├── 📄 starter-calculator.html
+│   ├── 📄 starter-first-api.html
+│   ├── 📄 starter-first-app.html
+│   ├── 📄 starter-first-bot.html
+│   ├── 📄 starter-first-container.html
+│   ├── 📄 starter-first-database.html
+│   ├── 📄 starter-first-firewall.html
+│   ├── 📄 starter-first-gui.html
+│   ├── 📄 starter-first-hack.html
+│   ├── 📄 starter-first-network.html
+│   ├── 📄 starter-first-pipeline.html
 │   ├── 📄 starter-first-repo.html
+│   ├── 📄 starter-first-scan.html
+│   ├── 📄 starter-first-script.html
+│   ├── 📄 starter-first-server.html
+│   ├── 📄 starter-first-webpage.html
 │   ├── 📄 starter-github-profile.html
 │   ├── 📄 starter-portfolio-site.html
 │   ├── 📄 web-elearning-flask.html
@@ -5014,6 +5331,13 @@
 │   │   │   ├── 📄 sg-70-firmware-extract.html
 │   │   │   ├── 🔬 sg-71-coap-lab.html
 │   │   │   └── 📄 sg-72-uart-hacking.html
+│   │   ├── 📁 iot-sensor-mesh
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-93-zepto-blink.html
+│   │   │   ├── 📄 sg-94-mikrobus-sensor.html
+│   │   │   ├── 📄 sg-95-multi-node-array.html
+│   │   │   ├── 📄 sg-96-greybus-bridge.html
+│   │   │   └── 📄 sg-97-iot-security-audit.html
 │   │   ├── 📁 network-recon
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 sg-06-wifi-recon.html
@@ -5220,6 +5544,25 @@
 | ai13-06-rag | presentation | ✓ | 0 |
 | ai13-07-vector-databases | presentation | ✓ | 0 |
 | ai13-08-agent-eval | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| ai900-ch01-intro-ai.lab | lab | ✓ | 0 |
+| ai900-ch02-computer-vision.lab | lab | ✓ | 0 |
+| ai900-ch03-nlp.lab | lab | ✓ | 0 |
+| ai900-ch04-generative-ai.lab | lab | ✓ | 0 |
+| ai900-ch05-predictive-models.lab | lab | ✓ | 0 |
+| ai900-ch06-ai-services.lab | lab | ✓ | 0 |
+| ai900-ch01-intro-ai.presentation | presentation | ✓ | 0 |
+| ai900-ch02-computer-vision.presentation | presentation | ✓ | 0 |
+| ai900-ch03-nlp.presentation | presentation | ✓ | 0 |
+| ai900-ch04-generative-ai.presentation | presentation | ✓ | 0 |
+| ai900-ch05-predictive-models.presentation | presentation | ✓ | 0 |
+| ai900-ch06-ai-services.presentation | presentation | ✓ | 0 |
+| ai900-ch01-quiz | quiz | ✓ | 0 |
+| ai900-ch02-quiz | quiz | ✓ | 0 |
+| ai900-ch03-quiz | quiz | ✓ | 0 |
+| ai900-ch04-quiz | quiz | ✓ | 0 |
+| ai900-ch05-quiz | quiz | ✓ | 1 |
+| ai900-ch06-quiz | quiz | ✓ | 0 |
 | ai15-01-n8n-fundamentals | presentation | ✓ | 0 |
 | ai15-02-ai-workflows | presentation | ✓ | 0 |
 | ai15-03-webhooks | presentation | ✓ | 0 |
@@ -5523,6 +5866,35 @@
 | cloud-comparison.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
+| az104-ch01-prerequisites.lab | lab | ✓ | 0 |
+| az104-ch02-identities-governance.lab | lab | ✓ | 0 |
+| az104-ch03-storage.lab | lab | ✓ | 0 |
+| az104-ch04-compute.lab | lab | ✓ | 0 |
+| az104-ch05-networking.lab | lab | ✓ | 0 |
+| az104-ch06-monitor-backup.lab | lab | ✓ | 0 |
+| az104-ch01-prerequisites.presentation | presentation | ✓ | 0 |
+| az104-ch02-identities-governance.presentation | presentation | ✓ | 0 |
+| az104-ch03-storage.presentation | presentation | ✓ | 0 |
+| az104-ch04-compute.presentation | presentation | ✓ | 0 |
+| az104-ch05-networking.presentation | presentation | ✓ | 0 |
+| az104-ch06-monitor-backup.presentation | presentation | ✓ | 0 |
+| az104-ch01-quiz | quiz | ✓ | 1 |
+| az104-ch02-quiz | quiz | ✓ | 0 |
+| az104-ch03-quiz | quiz | ✓ | 0 |
+| az104-ch04-quiz | quiz | ✓ | 1 |
+| az104-ch05-quiz | quiz | ✓ | 1 |
+| az104-ch06-quiz | quiz | ✓ | 1 |
+| index | applet | ✓ | 1 |
+| az900-ch01-cloud-concepts.lab | lab | ✓ | 0 |
+| az900-ch02-azure-architecture.lab | lab | ✓ | 0 |
+| az900-ch03-management-governance.lab | lab | ✓ | 0 |
+| az900-ch01-cloud-concepts.presentation | presentation | ✓ | 0 |
+| az900-ch02-azure-architecture.presentation | presentation | ✓ | 0 |
+| az900-ch03-management-governance.presentation | presentation | ✓ | 0 |
+| az900-ch01-quiz | quiz | ✓ | 0 |
+| az900-ch02-quiz | quiz | ✓ | 0 |
+| az900-ch03-quiz | quiz | ✓ | 1 |
 | cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-api-foundations-lab.applet | applet | ✓ | 1 |
@@ -5651,6 +6023,7 @@
 | cse-module07 | quiz | ✓ | 0 |
 | cse-module08 | quiz | ✓ | 1 |
 | cloud-quiz | quiz | ✓ | 0 |
+| index | presentation | ✓ | 1 |
 | cloud-aws-service.tool | presentation | ✓ | 0 |
 | cloud-ch01-cloud-models.tool | presentation | ✓ | 0 |
 | cloud-ch02-aws-account.tool | presentation | ✓ | 0 |
@@ -6164,18 +6537,21 @@
 | pfi-w1-conditionals.presentation | presentation | ✓ | 0 |
 | pfi-w1-datatypes.presentation | presentation | ✓ | 0 |
 | pfi-w1-loops.presentation | presentation | ✓ | 0 |
+| pfi-w2-builtins.presentation | presentation | ✓ | 0 |
 | pfi-w2-dicts.presentation | presentation | ✓ | 0 |
 | pfi-w2-lists.presentation | presentation | ✓ | 0 |
 | pfi-w2-strings.presentation | presentation | ✓ | 0 |
 | pfi-w3-functions.presentation | presentation | ✓ | 0 |
 | pfi-w3-graphics.presentation | presentation | ✓ | 0 |
 | pfi-w3-oop.presentation | presentation | ✓ | 0 |
+| pfi-w3-random.presentation | presentation | ✓ | 0 |
 | pfi-w4-applied.presentation | presentation | ✓ | 0 |
 | pfi-w4-gui.presentation | presentation | ✓ | 0 |
 | pfi-w1-quiz.quiz | presentation | ✓ | 0 |
 | pfi-w2-quiz.quiz | presentation | ✓ | 0 |
 | pfi-w3-quiz.quiz | presentation | ✓ | 0 |
 | setup-guide | presentation | ✓ | 0 |
+| upgrade-guide | applet | ✓ | 1 |
 | agile | quiz | ✓ | 0 |
 | cicd | quiz | ✓ | 0 |
 | cloudformation | quiz | ✓ | 0 |
@@ -6187,6 +6563,46 @@
 | code-ansible-playbook.tool | presentation | ✓ | 0 |
 | code-automation.tool | presentation | ✓ | 0 |
 | code-sprint.tool | presentation | ✓ | 0 |
+
+### DIVERGENT
+──────────────────────────────────────────────────
+
+| ID/Name | Type | Sync | Issues |
+|---------|------|------|--------|
+| eth-01 | quiz | ✓ | 1 |
+| eth-02 | quiz | ✓ | 1 |
+| eth-03 | quiz | ✓ | 1 |
+| eth-04 | quiz | ✓ | 1 |
+| eth-05 | quiz | ✓ | 1 |
+| eth-06 | quiz | ✓ | 1 |
+| eth-07 | quiz | ✓ | 1 |
+| eth-08 | quiz | ✓ | 1 |
+| eth-09 | quiz | ✓ | 1 |
+| eth-10 | quiz | ✓ | 1 |
+| eth-11 | quiz | ✓ | 1 |
+| eth-12 | quiz | ✓ | 1 |
+| eth-13 | quiz | ✓ | 1 |
+| eth-14 | quiz | ✓ | 1 |
+| eth-15 | quiz | ✓ | 1 |
+| eth-r1 | presentation | ✓ | 0 |
+| eth-r2 | presentation | ✓ | 0 |
+| eth-r3 | presentation | ✓ | 0 |
+| eth-final.exam | presentation | ✓ | 0 |
+| eth-midterm.exam | presentation | ✓ | 0 |
+| eth-w1-cybersecurity-ethics.presentation | presentation | ✓ | 0 |
+| eth-w1-ethics-overview.presentation | presentation | ✓ | 0 |
+| eth-w1-it-professionals.presentation | presentation | ✓ | 0 |
+| eth-w2-freedom-expression.presentation | presentation | ✓ | 0 |
+| eth-w2-intellectual-property.presentation | presentation | ✓ | 0 |
+| eth-w2-privacy.presentation | presentation | ✓ | 0 |
+| eth-w3-it-impact.presentation | presentation | ✓ | 0 |
+| eth-w3-software-ethics.presentation | presentation | ✓ | 0 |
+| eth-w4-codes-of-ethics.presentation | presentation | ✓ | 0 |
+| eth-w4-it-organizations.presentation | presentation | ✓ | 0 |
+| eth-w4-social-media.presentation | presentation | ✓ | 0 |
+| eth-w1-quiz | quiz | ✓ | 0 |
+| eth-w2-quiz | quiz | ✓ | 0 |
+| eth-w3-quiz | quiz | ✓ | 0 |
 
 ### EYE (Monitoring)
 ──────────────────────────────────────────────────
@@ -6362,6 +6778,7 @@
 | forge-dns-config.lab | lab | ✓ | 0 |
 | forge-docking-config.lab | presentation | ✓ | 0 |
 | forge-email-config.lab | presentation | ✓ | 0 |
+| forge-esd-workspace.lab | presentation | ✓ | 0 |
 | forge-hardware-diagnosis.lab | lab | ✓ | 0 |
 | forge-laptop-memory.lab | presentation | ✓ | 0 |
 | forge-mdm-config.lab | lab | ✓ | 0 |
@@ -6378,16 +6795,19 @@
 | forge-post-beep-codes.lab | presentation | ✓ | 0 |
 | forge-printer-troubleshoot.lab | lab | ✓ | 0 |
 | forge-protocol-analysis.lab | lab | ✓ | 0 |
+| forge-psu-connectors.lab | presentation | ✓ | 0 |
 | forge-raid-config.lab | lab | ✓ | 0 |
 | forge-ram-identification.lab | lab | ✓ | 0 |
 | forge-router-config.lab | presentation | ✓ | 0 |
 | forge-server-roles.lab | presentation | ✓ | 0 |
 | forge-soho-designer.lab | lab | ✓ | 0 |
+| forge-soho-rescue.lab | presentation | ✓ | 0 |
 | forge-storage-upgrade.lab | presentation | ✓ | 0 |
 | forge-subnet-calculator.lab | lab | ✓ | 0 |
 | forge-topology-builder.lab | lab | ✓ | 0 |
 | forge-troubleshooting-flowchart.lab | lab | ✓ | 0 |
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
+| forge-troubleshooting.lab | presentation | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
 | forge-wireless-security.lab | presentation | ✓ | 0 |
 | forge-aplus-core1-prep-round-1.quiz | quiz | ✓ | 0 |
@@ -6539,9 +6959,9 @@
 | forge-md101-m04-application-management.presentation | presentation | ✓ | 0 |
 | forge-md101-m05-auth-compliance.presentation | presentation | ✓ | 0 |
 | forge-md101-m06-managing-security.presentation | presentation | ✓ | 0 |
-| forge-md101-m07-deployment-part1.presentation | presentation | ✓ | 0 |
-| forge-md101-m08-deployment-part2.presentation | presentation | ✓ | 0 |
-| forge-md101-m09-managing-updates.presentation | presentation | ✓ | 0 |
+| forge-md101-m07-deployment-part1.presentation | presentation | ✓ | 1 |
+| forge-md101-m08-deployment-part2.presentation | presentation | ✓ | 1 |
+| forge-md101-m09-managing-updates.presentation | presentation | ✓ | 1 |
 | md101-m01 | quiz | ✓ | 0 |
 | md101-m02 | quiz | ✓ | 0 |
 | md101-m03 | quiz | ✓ | 0 |
@@ -6554,12 +6974,6 @@
 | forge-md101-comprehensive-review | presentation | ✓ | 0 |
 | forge-md101-final-review | presentation | ✓ | 0 |
 | forge-md101-midterm-review | presentation | ✓ | 0 |
-| forge-admin-tools.presentation | presentation | ✓ | 0 |
-| forge-control-panel.presentation | presentation | ✓ | 0 |
-| forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
-| forge-system-tools.presentation | presentation | ✓ | 0 |
-| forge-windows-editions.presentation | presentation | ✓ | 0 |
-| forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-ch19-22 | quiz | ✓ | 0 |
 | aplus-core2 | quiz | ✓ | 0 |
 | hardware-essentials | quiz | ✓ | 0 |
@@ -6623,6 +7037,58 @@
 | key-kdf.tool | presentation | ✓ | 0 |
 | key-lifecycle.tool | presentation | ✓ | 0 |
 | key-pqc.tool | presentation | ✓ | 0 |
+
+### MATRIX
+──────────────────────────────────────────────────
+
+| ID/Name | Type | Sync | Issues |
+|---------|------|------|--------|
+| ala-01 | quiz | ✓ | 1 |
+| ala-02 | quiz | ✓ | 1 |
+| ala-03 | quiz | ✓ | 1 |
+| ala-04 | quiz | ✓ | 1 |
+| ala-05 | quiz | ✓ | 1 |
+| ala-06 | quiz | ✓ | 1 |
+| ala-07 | quiz | ✓ | 1 |
+| ala-08 | quiz | ✓ | 1 |
+| ala-09 | quiz | ✓ | 1 |
+| ala-10 | quiz | ✓ | 1 |
+| ala-11 | quiz | ✓ | 1 |
+| ala-12 | quiz | ✓ | 1 |
+| ala-13 | quiz | ✓ | 1 |
+| ala-14 | quiz | ✓ | 1 |
+| ala-15 | quiz | ✓ | 1 |
+| ala-16 | quiz | ✓ | 1 |
+| ala-17 | quiz | ✓ | 1 |
+| ala-18 | quiz | ✓ | 1 |
+| ala-19 | quiz | ✓ | 1 |
+| ala-r1 | presentation | ✓ | 0 |
+| ala-r2 | presentation | ✓ | 0 |
+| ala-r3 | presentation | ✓ | 0 |
+| ala-r4 | presentation | ✓ | 0 |
+| ala-r5 | presentation | ✓ | 0 |
+| ala-final | quiz | ✓ | 0 |
+| ala-midterm | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| ala-w1-cli-operations.presentation | presentation | ✓ | 0 |
+| ala-w1-network-config.presentation | presentation | ✓ | 0 |
+| ala-w1-network-diag.presentation | presentation | ✓ | 0 |
+| ala-w1-systemd.presentation | presentation | ✓ | 0 |
+| ala-w2-antivirus.presentation | presentation | ✓ | 0 |
+| ala-w2-authentication.presentation | presentation | ✓ | 0 |
+| ala-w2-firewalls.presentation | presentation | ✓ | 0 |
+| ala-w2-packages.presentation | presentation | ✓ | 0 |
+| ala-w3-automation.presentation | presentation | ✓ | 0 |
+| ala-w3-bash-scripting.presentation | presentation | ✓ | 0 |
+| ala-w3-bind-deployment.presentation | presentation | ✓ | 0 |
+| ala-w3-dns-fundamentals.presentation | presentation | ✓ | 0 |
+| ala-w4-file-integrity.presentation | presentation | ✓ | 0 |
+| ala-w4-log-management.presentation | presentation | ✓ | 0 |
+| ala-w4-performance.presentation | presentation | ✓ | 0 |
+| ala-w1-quiz | quiz | ✓ | 0 |
+| ala-w2-quiz | quiz | ✓ | 0 |
+| ala-w3-quiz | quiz | ✓ | 0 |
+| ala-w4-quiz | quiz | ✓ | 0 |
 
 ### SCRIPT (Automation)
 ──────────────────────────────────────────────────
@@ -7171,6 +7637,57 @@
 | shield-threat-swarm.applet | applet | ✓ | 1 |
 | shield-threatdex.applet | applet | ✓ | 1 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
+| pis-final | quiz | ✓ | 0 |
+| pis-midterm | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| pis-01 | quiz | ✓ | 1 |
+| pis-02 | quiz | ✓ | 1 |
+| pis-03 | quiz | ✓ | 1 |
+| pis-04 | quiz | ✓ | 1 |
+| pis-05 | quiz | ✓ | 1 |
+| pis-06 | quiz | ✓ | 1 |
+| pis-07 | quiz | ✓ | 1 |
+| pis-08 | quiz | ✓ | 1 |
+| pis-09 | quiz | ✓ | 1 |
+| pis-10 | quiz | ✓ | 1 |
+| pis-11 | quiz | ✓ | 1 |
+| pis-12 | quiz | ✓ | 1 |
+| pis-13 | quiz | ✓ | 1 |
+| pis-14 | quiz | ✓ | 1 |
+| pis-15 | quiz | ✓ | 1 |
+| pis-16 | quiz | ✓ | 1 |
+| pis-17 | quiz | ✓ | 1 |
+| pis-18 | quiz | ✓ | 1 |
+| pis-19 | quiz | ✓ | 1 |
+| pis-20 | quiz | ✓ | 1 |
+| pis-21 | quiz | ✓ | 1 |
+| pis-r1 | presentation | ✓ | 0 |
+| pis-r2 | presentation | ✓ | 0 |
+| pis-r3 | presentation | ✓ | 0 |
+| pis-r4 | presentation | ✓ | 0 |
+| pis-r5 | presentation | ✓ | 0 |
+| pis-w1-cia-triad.presentation | presentation | ✓ | 0 |
+| pis-w1-malware.presentation | presentation | ✓ | 0 |
+| pis-w1-security-controls.presentation | presentation | ✓ | 0 |
+| pis-w1-social-engineering.presentation | presentation | ✓ | 0 |
+| pis-w1-threat-actors.presentation | presentation | ✓ | 0 |
+| pis-w2-app-attacks.presentation | presentation | ✓ | 0 |
+| pis-w2-cryptography.presentation | presentation | ✓ | 0 |
+| pis-w2-device-security.presentation | presentation | ✓ | 0 |
+| pis-w2-network-attacks.presentation | presentation | ✓ | 0 |
+| pis-w3-network-architecture.presentation | presentation | ✓ | 0 |
+| pis-w3-pki.presentation | presentation | ✓ | 0 |
+| pis-w3-security-operations.presentation | presentation | ✓ | 0 |
+| pis-w3-wireless-cloud.presentation | presentation | ✓ | 0 |
+| pis-w4-authentication.presentation | presentation | ✓ | 0 |
+| pis-w4-identity-management.presentation | presentation | ✓ | 0 |
+| pis-w4-incident-response.presentation | presentation | ✓ | 0 |
+| pis-w4-risk-governance.presentation | presentation | ✓ | 0 |
+| pis-w1-quiz | quiz | ✓ | 0 |
+| pis-w2-quiz | quiz | ✓ | 0 |
+| pis-w3-quiz | quiz | ✓ | 0 |
+| pis-w4-quiz | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
 | shield-linux-file-integrity.lab | lab | ✓ | 0 |
@@ -7229,6 +7746,7 @@
 | shield-sec101-m06.presentation | presentation | ✓ | 0 |
 | shield-sec101-m07.presentation | presentation | ✓ | 0 |
 | shield-sec101-m08.presentation | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -7243,6 +7761,7 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| about | applet | ✓ | 1 |
 | audit-tool | applet | ✓ | 1 |
 | console | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
@@ -7253,7 +7772,9 @@
 | bot-knowledge-ai | applet | ✓ | 1 |
 | bot-knowledge-cloud | applet | ✓ | 1 |
 | bot-knowledge-code | applet | ✓ | 1 |
+| bot-knowledge-combined | applet | ✓ | 1 |
 | bot-knowledge-dark-arts | applet | ✓ | 1 |
+| bot-knowledge-divergent | applet | ✓ | 1 |
 | bot-knowledge-eye | applet | ✓ | 1 |
 | bot-knowledge-forge | applet | ✓ | 1 |
 | bot-knowledge-key | applet | ✓ | 1 |
@@ -7265,6 +7786,7 @@
 | career-quiz | applet | ✓ | 1 |
 | privacy-settings | presentation | ✓ | 1 |
 | profile | presentation | ✓ | 1 |
+| admissions-2026 | presentation | ✓ | 2 |
 | ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
 | buffer-overflow-lab | presentation | ✓ | 0 |
@@ -7291,7 +7813,9 @@
 | bh-lab-source | lab | ✓ | 0 |
 | bh-lab-sqli | presentation | ✓ | 0 |
 | bh-lab-subdomain | lab | ✓ | 0 |
+| bh-lab-xml-bombs | lab | ✓ | 0 |
 | bh-lab-xss | presentation | ✓ | 0 |
+| bh-lab-xssi | lab | ✓ | 0 |
 | bh-mod-advanced-web | presentation | ✓ | 0 |
 | bh-mod-ai-bounty | presentation | ✓ | 0 |
 | bh-mod-ai-exploit | presentation | ✓ | 0 |
@@ -7320,6 +7844,8 @@
 | bh-mod-supply-chain | presentation | ✓ | 0 |
 | bh-mod-vuln-reporting | presentation | ✓ | 0 |
 | bh-mod-web-vulns | presentation | ✓ | 0 |
+| bh-mod-xml-bombs | presentation | ✓ | 0 |
+| bh-mod-xssi | presentation | ✓ | 0 |
 | bh-quiz-ai | presentation | ✓ | 0 |
 | bh-quiz-final | presentation | ✓ | 0 |
 | bh-quiz-fundamentals | presentation | ✓ | 0 |
@@ -7327,6 +7853,8 @@
 | bh-quiz-platform | presentation | ✓ | 0 |
 | bh-quiz-practical | presentation | ✓ | 0 |
 | bh-quiz-web | presentation | ✓ | 0 |
+| bh-quiz-xml-bombs | presentation | ✓ | 0 |
+| bh-quiz-xssi | presentation | ✓ | 0 |
 | bh-tool-ai | presentation | ✓ | 0 |
 | bh-tool-methodology | presentation | ✓ | 0 |
 | bh-tool-mobile | presentation | ✓ | 0 |
@@ -7563,6 +8091,9 @@
 | shield-fake-news | applet | ✓ | 1 |
 | shield-log-analyzer | applet | ✓ | 1 |
 | starter-calculator | applet | ✓ | 1 |
+| starter-first-bot | applet | ✓ | 1 |
+| starter-first-database | applet | ✓ | 1 |
+| starter-first-gui | applet | ✓ | 1 |
 | web-online-portfolio | applet | ✓ | 1 |
 | web-pi-network-probe | applet | ✓ | 1 |
 | web-topology-visualizer | applet | ✓ | 1 |
@@ -7998,7 +8529,96 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (55) — heuristic, needs review
+### CRITICAL (24)
+
+**[REG-ORPHAN-001]** Registry declares 'forge-windows-editions' but file is missing: houses/forge/presentations/forge-windows-editions.presentation.html
+  Fix: Remove entry 'forge-windows-editions' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-windows-settings' but file is missing: houses/forge/presentations/forge-windows-settings.presentation.html
+  Fix: Remove entry 'forge-windows-settings' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-control-panel' but file is missing: houses/forge/presentations/forge-control-panel.presentation.html
+  Fix: Remove entry 'forge-control-panel' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-admin-tools' but file is missing: houses/forge/presentations/forge-admin-tools.presentation.html
+  Fix: Remove entry 'forge-admin-tools' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-system-tools' but file is missing: houses/forge/presentations/forge-system-tools.presentation.html
+  Fix: Remove entry 'forge-system-tools' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-basics' but file is missing: houses/forge/presentations/forge-macos-linux-basics.presentation.html
+  Fix: Remove entry 'forge-macos-linux-basics' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-basics' but file is missing: houses/forge/labs/forge-lab-macos-linux.lab.html
+  Fix: Remove entry 'forge-macos-linux-basics' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-macos-linux-lab' but file is missing: houses/forge/labs/forge-lab-macos-linux.lab.html
+  Fix: Remove entry 'forge-macos-linux-lab' from content-registry.js OR restore the missing file
+
+**[REG-ORPHAN-001]** Registry declares 'forge-core2-roleplay' but file is missing: houses/forge/labs/forge-core2-roleplay.lab.html
+  Fix: Remove entry 'forge-core2-roleplay' from content-registry.js OR restore the missing file
+
+**[ASGN-001]** Item assignment for 'forge-windows-editions' resolves to nonexistent file: houses/forge/presentations/forge-windows-editions.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-windows-editions.presentation.html
+
+**[ASGN-001]** Item assignment for 'forge-windows-settings' resolves to nonexistent file: houses/forge/presentations/forge-windows-settings.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-windows-settings.presentation.html
+
+**[ASGN-001]** Item assignment for 'forge-control-panel' resolves to nonexistent file: houses/forge/presentations/forge-control-panel.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-control-panel.presentation.html
+
+**[ASGN-001]** Item assignment for 'forge-admin-tools' resolves to nonexistent file: houses/forge/presentations/forge-admin-tools.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-admin-tools.presentation.html
+
+**[ASGN-001]** Item assignment for 'forge-system-tools' resolves to nonexistent file: houses/forge/presentations/forge-system-tools.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-system-tools.presentation.html
+
+**[ASGN-001]** Item assignment for 'forge-macos-linux-basics' resolves to nonexistent file: houses/forge/presentations/forge-macos-linux-basics.presentation.html
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/forge/presentations/forge-macos-linux-basics.presentation.html
+
+**[CAT-001]** Module 'forge-windows-editions' href 'presentations/forge-windows-editions.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-windows-editions'
+
+**[CAT-001]** Module 'forge-windows-settings' href 'presentations/forge-windows-settings.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-windows-settings'
+
+**[CAT-001]** Module 'forge-control-panel' href 'presentations/forge-control-panel.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-control-panel'
+
+**[CAT-001]** Module 'forge-admin-tools' href 'presentations/forge-admin-tools.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-admin-tools'
+
+**[CAT-001]** Module 'forge-system-tools' href 'presentations/forge-system-tools.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-system-tools'
+
+**[CAT-001]** Module 'forge-macos-linux-basics' href 'presentations/forge-macos-linux-basics.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-macos-linux-basics'
+
+**[CAT-001]** Module 'forge-macos-linux-lab' href 'labs/forge-lab-macos-linux.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-macos-linux-lab'
+
+**[CAT-001]** Module 'forge-core2-roleplay-lab' href 'labs/forge-core2-roleplay.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-core2-roleplay-lab'
+
+**[QUIZ-005]** Answer key has 15 answers but quiz has 16 questions for moduleId "az104-ch06-quiz" — grading will be wrong
+  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
+  Fix: Update quiz_keys.json to have exactly 16 answers for "az104-ch06-quiz"
+
+### SUSPECT (58) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -8027,6 +8647,10 @@
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `arena/boxes/ops-05-operation-blackwire/gateway.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `arena/spectator.html`
+  Fix: Remove console.log or replace with proper logging
 
 **[HEUR-001]** Excessive inline scripts: 12 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/dojo/blue-belt.html`
@@ -8071,6 +8695,14 @@
 **[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
   File: `dark-arts/vault/session-hijacking-lab.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/code/armory/compare.html`
@@ -8220,7 +8852,11 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2157)
+### WARNING (2360)
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `about.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/console.html`
@@ -8251,7 +8887,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-combined.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `bot-knowledge-dark-arts.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-divergent.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -8304,6 +8948,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `components/profile/profile.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `components/slides/admissions-2026.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `components/slides/admissions-2026.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -8391,7 +9043,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-xml-bombs.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-xssi.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -8507,6 +9167,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xssi.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-ai.html`
   Fix: Add entry to content-registry.js
 
@@ -8532,6 +9200,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-web.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-xml-bombs.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -8796,6 +9472,78 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/agents/ai13-08-agent-eval.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch01-intro-ai.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch02-computer-vision.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch03-nlp.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch04-generative-ai.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch05-predictive-models.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/labs/ai900-ch06-ai-services.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch01-intro-ai.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch02-computer-vision.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch03-nlp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch04-generative-ai.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch05-predictive-models.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/presentations/ai900-ch06-ai-services.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/ai-900/quizzes/ai900-ch06.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -9955,8 +10703,120 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch02-identities-governance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch03-storage.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch04-compute.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/labs/az104-ch06-monitor-backup.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch01-prerequisites.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch02-identities-governance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch03-storage.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch04-compute.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch05-networking.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/presentations/az104-ch06-monitor-backup.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch04.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch05.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/labs/az900-ch01-cloud-concepts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/labs/az900-ch02-azure-architecture.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/labs/az900-ch03-management-governance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/presentations/az900-ch01-cloud-concepts.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/presentations/az900-ch02-azure-architecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/presentations/az900-ch03-management-governance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/quizzes/az900-ch01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/quizzes/az900-ch02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/az-900/quizzes/az900-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
   Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/server-plus/index.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/algorithm-chamber/capstone/ac-cap-01.html`
@@ -11759,6 +12619,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-for-it/presentations/pfi-w2-builtins.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/presentations/pfi-w2-dicts.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -11783,6 +12647,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-for-it/presentations/pfi-w3-random.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/presentations/pfi-w4-applied.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -11804,6 +12672,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/setup-guide.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-for-it/upgrade-guide.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -11844,6 +12716,142 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-12.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-13.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-14.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-15.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-r1.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-r2.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/eth-r3.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/exams/eth-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/exams/eth-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w2-freedom-expression.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w2-intellectual-property.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w3-it-impact.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w3-software-ethics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w4-codes-of-ethics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w4-it-organizations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w4-social-media.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/quizzes/eth-w1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/quizzes/eth-w2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/quizzes/eth-w3.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12002,13 +13010,25 @@
   File: `houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html`
   Fix: Add entry to content-registry.js
 
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
   Fix: Add entry to content-registry.js
 
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
   Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
@@ -12060,6 +13080,186 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/reviews/forge-md101-midterm-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-12.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-13.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-14.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-15.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-16.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-17.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-18.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-19.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-r1.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-r2.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-r3.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-r4.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-r5.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/exams/ala-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/exams/ala-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w1-cli-operations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w1-network-config.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w1-network-diag.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w1-systemd.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w2-antivirus.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w2-authentication.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w2-firewalls.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w2-packages.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w3-automation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w3-bash-scripting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w3-bind-deployment.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w3-dns-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w4-file-integrity.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w4-log-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/presentations/ala-w4-performance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/quizzes/ala-w1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/quizzes/ala-w2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/quizzes/ala-w3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/quizzes/ala-w4.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12476,6 +13676,202 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/exams/pis-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/exams/pis-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-12.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-13.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-14.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-15.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-16.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-17.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-18.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-19.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-20.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-21.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-r1.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-r2.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-r3.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-r4.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/pis-r5.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-malware.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-security-controls.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-social-engineering.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-threat-actors.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w2-app-attacks.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w2-cryptography.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w2-device-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-pki.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-security-operations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-wireless-cloud.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-authentication.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-identity-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-risk-governance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/quizzes/pis-w1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/quizzes/pis-w2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/quizzes/pis-w3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/quizzes/pis-w4.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13907,6 +15303,18 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/starter-first-bot.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/starter-first-database.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/starter-first-gui.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/web-online-portfolio.html`
   Fix: Add entry to content-registry.js
 
@@ -14795,10 +16203,6 @@
   Fix: Reduce "../" depth to match file location (expected max 3 levels for house root)
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/ai/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/ai/modules/ai-nocode-platforms.applet.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -14820,10 +16224,6 @@
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/cloud/games/cloud-destroyer.applet.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/index.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
@@ -15363,6 +16763,78 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-08.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-09.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-10.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-11.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-12.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-13.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-14.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/eth-15.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l01-vw-emissions/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l02-sony-breach/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l03-snowden-files/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l04-ip-war/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l05-autonomous-decision/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l06-the-algorithm/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l07-the-platform/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l08-the-whistleblower/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l09-the-gig/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/divergent/ethics-it/labs/eth-l10-the-code/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -15487,18 +16959,6 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/labs/forge-core2-roleplay.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/labs/forge-lab-macos-linux.lab.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
-  File: `houses/forge/labs/forge-lab-macos-linux.lab.html`
-  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/forge/labs/forge-system-tools.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -15513,26 +16973,6 @@
 **[HEUR-022]** Over-deep relative link: "../../../dispatch/boxes/nt1-network-troubleshoot/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
   File: `houses/forge/md-100/index.html`
   Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/presentations/forge-control-panel.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/presentations/forge-system-tools.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-022]** Over-deep relative link: "../../../index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
   File: `houses/forge/reviews/forge-aplus-jeopardy.applet.html`
@@ -16339,6 +17779,10 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/shield/presentations/shield-cia-triad.presentation.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -16718,7 +18162,11 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (447)
+### INFO (460)
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `about.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -16757,7 +18205,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-combined.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `bot-knowledge-dark-arts.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-divergent.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -16794,6 +18250,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `career-quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `components/slides/admissions-2026.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -16861,6 +18321,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/ai-900/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/ai-900/quizzes/ai900-ch05.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/ai/cortex/capstone/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -16894,6 +18362,34 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/applets/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/quizzes/az104-ch01.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/quizzes/az104-ch04.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/quizzes/az104-ch05.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-900/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-900/quizzes/az900-ch03.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -16970,6 +18466,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/python-for-it/upgrade-guide.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -17109,6 +18609,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/adv-linux/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -17174,6 +18678,18 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/infosec/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/security-plus/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -17366,6 +18882,18 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/starter-calculator.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-bot.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-database.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-gui.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -17630,6 +19158,22 @@
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
@@ -18172,34 +19716,6 @@
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
   Fix: Manual review required - path is constructed dynamically
 
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
   File: `houses/forge/applets/forge-admin-tools.tool.html`
   Fix: Manual review required - path is constructed dynamically
@@ -18254,62 +19770,6 @@
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/forge/md-100/labs/forge-md100-m09-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/md-100/presentations/forge-md100-m10-troubleshoot-os-apps.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
@@ -18440,6 +19900,22 @@
   File: `houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html`
   Fix: Manual review required - path is constructed dynamically
 
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/shield/labs/shield-gpg-encryption.lab.html`
   Fix: Manual review required - path is constructed dynamically
@@ -18454,6 +19930,26 @@
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/shield/presentations/shield-social-engineering.presentation.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/security-plus/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/security-plus/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/security-plus/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/security-plus/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
+  File: `houses/shield/security-plus/index.html`
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
@@ -18504,10 +20000,11 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1436)
+### Unregistered Content (1625)
 
 | Path | Type | House |
 |------|------|-------|
+| about.html | applet | - |
 | admin/console.html | presentation | - |
 | arena/boxes/ow-01-mole-hunt/siem.html | applet | - |
 | arena/boxes/ow-01-mole-hunt/workstation.html | applet | - |
@@ -18515,7 +20012,9 @@
 | bot-knowledge-ai.html | applet | - |
 | bot-knowledge-cloud.html | applet | - |
 | bot-knowledge-code.html | applet | - |
+| bot-knowledge-combined.html | applet | - |
 | bot-knowledge-dark-arts.html | applet | - |
+| bot-knowledge-divergent.html | applet | - |
 | bot-knowledge-eye.html | applet | - |
 | bot-knowledge-forge.html | applet | - |
 | bot-knowledge-key.html | applet | - |
@@ -18527,6 +20026,7 @@
 | career-quiz.html | applet | - |
 | components/profile/privacy-settings.html | presentation | - |
 | components/profile/profile.html | presentation | - |
+| components/slides/admissions-2026.html | presentation | - |
 | dark-arts/vault/bug-hunting/dojo/black-belt.html | presentation | - |
 | dark-arts/vault/bug-hunting/dojo/blue-belt.html | presentation | - |
 | dark-arts/vault/bug-hunting/dojo/brown-belt.html | presentation | - |
@@ -18548,7 +20048,9 @@
 | dark-arts/vault/bug-hunting/labs/bh-lab-source.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-sqli.html | presentation | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-subdomain.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-xml-bombs.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-xss.html | presentation | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-xssi.html | lab | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-advanced-web.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-ai-bounty.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html | presentation | - |
@@ -18577,6 +20079,8 @@
 | dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-vuln-reporting.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-xssi.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-ai.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-final.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-fundamentals.html | presentation | - |
@@ -18584,6 +20088,8 @@
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-platform.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-practical.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-web.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-xml-bombs.html | presentation | - |
+| dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-ai.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html | presentation | - |
@@ -18650,6 +20156,24 @@
 | houses/ai/agents/ai13-06-rag.html | presentation | ai |
 | houses/ai/agents/ai13-07-vector-databases.html | presentation | ai |
 | houses/ai/agents/ai13-08-agent-eval.html | presentation | ai |
+| houses/ai/ai-900/labs/ai900-ch01-intro-ai.lab.html | lab | ai |
+| houses/ai/ai-900/labs/ai900-ch02-computer-vision.lab.html | lab | ai |
+| houses/ai/ai-900/labs/ai900-ch03-nlp.lab.html | lab | ai |
+| houses/ai/ai-900/labs/ai900-ch04-generative-ai.lab.html | lab | ai |
+| houses/ai/ai-900/labs/ai900-ch05-predictive-models.lab.html | lab | ai |
+| houses/ai/ai-900/labs/ai900-ch06-ai-services.lab.html | lab | ai |
+| houses/ai/ai-900/presentations/ai900-ch01-intro-ai.presentation.html | presentation | ai |
+| houses/ai/ai-900/presentations/ai900-ch02-computer-vision.presentation.html | presentation | ai |
+| houses/ai/ai-900/presentations/ai900-ch03-nlp.presentation.html | presentation | ai |
+| houses/ai/ai-900/presentations/ai900-ch04-generative-ai.presentation.html | presentation | ai |
+| houses/ai/ai-900/presentations/ai900-ch05-predictive-models.presentation.html | presentation | ai |
+| houses/ai/ai-900/presentations/ai900-ch06-ai-services.presentation.html | presentation | ai |
+| houses/ai/ai-900/quizzes/ai900-ch01.quiz.html | quiz | ai |
+| houses/ai/ai-900/quizzes/ai900-ch02.quiz.html | quiz | ai |
+| houses/ai/ai-900/quizzes/ai900-ch03.quiz.html | quiz | ai |
+| houses/ai/ai-900/quizzes/ai900-ch04.quiz.html | quiz | ai |
+| houses/ai/ai-900/quizzes/ai900-ch05.quiz.html | quiz | ai |
+| houses/ai/ai-900/quizzes/ai900-ch06.quiz.html | quiz | ai |
 | houses/ai/automation/ai15-01-n8n-fundamentals.html | presentation | ai |
 | houses/ai/automation/ai15-02-ai-workflows.html | presentation | ai |
 | houses/ai/automation/ai15-03-webhooks.html | presentation | ai |
@@ -18938,6 +20462,33 @@
 | houses/cloud/api/rate-limiting/capi-rl-08.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-09.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-10.html | presentation | cloud |
+| houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html | lab | cloud |
+| houses/cloud/az-104/labs/az104-ch02-identities-governance.lab.html | lab | cloud |
+| houses/cloud/az-104/labs/az104-ch03-storage.lab.html | lab | cloud |
+| houses/cloud/az-104/labs/az104-ch04-compute.lab.html | lab | cloud |
+| houses/cloud/az-104/labs/az104-ch05-networking.lab.html | lab | cloud |
+| houses/cloud/az-104/labs/az104-ch06-monitor-backup.lab.html | lab | cloud |
+| houses/cloud/az-104/presentations/az104-ch01-prerequisites.presentation.html | presentation | cloud |
+| houses/cloud/az-104/presentations/az104-ch02-identities-governance.presentation.html | presentation | cloud |
+| houses/cloud/az-104/presentations/az104-ch03-storage.presentation.html | presentation | cloud |
+| houses/cloud/az-104/presentations/az104-ch04-compute.presentation.html | presentation | cloud |
+| houses/cloud/az-104/presentations/az104-ch05-networking.presentation.html | presentation | cloud |
+| houses/cloud/az-104/presentations/az104-ch06-monitor-backup.presentation.html | presentation | cloud |
+| houses/cloud/az-104/quizzes/az104-ch01.quiz.html | quiz | cloud |
+| houses/cloud/az-104/quizzes/az104-ch02.quiz.html | quiz | cloud |
+| houses/cloud/az-104/quizzes/az104-ch03.quiz.html | quiz | cloud |
+| houses/cloud/az-104/quizzes/az104-ch04.quiz.html | quiz | cloud |
+| houses/cloud/az-104/quizzes/az104-ch05.quiz.html | quiz | cloud |
+| houses/cloud/az-104/quizzes/az104-ch06.quiz.html | quiz | cloud |
+| houses/cloud/az-900/labs/az900-ch01-cloud-concepts.lab.html | lab | cloud |
+| houses/cloud/az-900/labs/az900-ch02-azure-architecture.lab.html | lab | cloud |
+| houses/cloud/az-900/labs/az900-ch03-management-governance.lab.html | lab | cloud |
+| houses/cloud/az-900/presentations/az900-ch01-cloud-concepts.presentation.html | presentation | cloud |
+| houses/cloud/az-900/presentations/az900-ch02-azure-architecture.presentation.html | presentation | cloud |
+| houses/cloud/az-900/presentations/az900-ch03-management-governance.presentation.html | presentation | cloud |
+| houses/cloud/az-900/quizzes/az900-ch01.quiz.html | quiz | cloud |
+| houses/cloud/az-900/quizzes/az900-ch02.quiz.html | quiz | cloud |
+| houses/cloud/az-900/quizzes/az900-ch03.quiz.html | quiz | cloud |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
 | houses/code/algorithm-chamber/capstone/ac-cap-01.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-02.html | presentation | code |
@@ -19389,18 +20940,21 @@
 | houses/code/python-for-it/presentations/pfi-w1-conditionals.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w1-datatypes.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w1-loops.presentation.html | presentation | code |
+| houses/code/python-for-it/presentations/pfi-w2-builtins.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w2-dicts.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w2-lists.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w2-strings.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w3-functions.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w3-graphics.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w3-oop.presentation.html | presentation | code |
+| houses/code/python-for-it/presentations/pfi-w3-random.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w4-applied.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w4-gui.presentation.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/setup-guide.html | presentation | code |
+| houses/code/python-for-it/upgrade-guide.html | applet | code |
 | houses/dark-arts/games/dark-ids-evasion-lab.applet.html | lab | - |
 | houses/dark-arts/games/dark-m365-attack-lab.applet.html | applet | - |
 | houses/dark-arts/games/dark-malware-specimen-lab.applet.html | applet | - |
@@ -19408,6 +20962,40 @@
 | houses/dark-arts/games/dark-osint-recon-lab.applet.html | lab | - |
 | houses/dark-arts/games/dark-slowloris-dos-lab.applet.html | applet | - |
 | houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html | lab | - |
+| houses/divergent/ethics-it/eth-01.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-02.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-03.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-04.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-05.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-06.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-07.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-08.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-09.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-10.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-11.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-12.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-13.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-14.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-15.html | quiz | divergent |
+| houses/divergent/ethics-it/eth-r1.html | presentation | divergent |
+| houses/divergent/ethics-it/eth-r2.html | presentation | divergent |
+| houses/divergent/ethics-it/eth-r3.html | presentation | divergent |
+| houses/divergent/ethics-it/exams/eth-final.exam.html | presentation | divergent |
+| houses/divergent/ethics-it/exams/eth-midterm.exam.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w2-freedom-expression.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w2-intellectual-property.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w3-it-impact.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w3-software-ethics.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w4-codes-of-ethics.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w4-it-organizations.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w4-social-media.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/quizzes/eth-w1.quiz.html | quiz | divergent |
+| houses/divergent/ethics-it/quizzes/eth-w2.quiz.html | quiz | divergent |
+| houses/divergent/ethics-it/quizzes/eth-w3.quiz.html | quiz | divergent |
 | houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html | presentation | eye |
 | houses/eye/games/eye-detection-engineering.applet.html | applet | eye |
 | houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
@@ -19462,6 +21050,51 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
+| houses/matrix/adv-linux/ala-01.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-02.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-03.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-04.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-05.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-06.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-07.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-08.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-09.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-10.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-11.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-12.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-13.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-14.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-15.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-16.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-17.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-18.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-19.html | quiz | matrix |
+| houses/matrix/adv-linux/ala-r1.html | presentation | matrix |
+| houses/matrix/adv-linux/ala-r2.html | presentation | matrix |
+| houses/matrix/adv-linux/ala-r3.html | presentation | matrix |
+| houses/matrix/adv-linux/ala-r4.html | presentation | matrix |
+| houses/matrix/adv-linux/ala-r5.html | presentation | matrix |
+| houses/matrix/adv-linux/exams/ala-final.exam.html | quiz | matrix |
+| houses/matrix/adv-linux/exams/ala-midterm.exam.html | quiz | matrix |
+| houses/matrix/adv-linux/presentations/ala-w1-cli-operations.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w1-network-config.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w1-network-diag.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w1-systemd.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w2-antivirus.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w2-authentication.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w2-firewalls.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w2-packages.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w3-automation.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w3-bash-scripting.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w3-bind-deployment.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w3-dns-fundamentals.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w4-file-integrity.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w4-log-management.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w4-performance.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/quizzes/ala-w1.quiz.html | quiz | matrix |
+| houses/matrix/adv-linux/quizzes/ala-w2.quiz.html | quiz | matrix |
+| houses/matrix/adv-linux/quizzes/ala-w3.quiz.html | quiz | matrix |
+| houses/matrix/adv-linux/quizzes/ala-w4.quiz.html | quiz | matrix |
 | houses/script/clh/script-clh-001.lab.html | lab | script |
 | houses/script/clh/script-clh-031-intro.applet.html | presentation | script |
 | houses/script/courses/clh/modules/clh-001/script-intro.module.html | presentation | script |
@@ -19565,6 +21198,55 @@
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
 | houses/shield/games/shield-threatdex.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
+| houses/shield/infosec/exams/pis-final.exam.html | quiz | shield |
+| houses/shield/infosec/exams/pis-midterm.exam.html | quiz | shield |
+| houses/shield/infosec/pis-01.html | quiz | shield |
+| houses/shield/infosec/pis-02.html | quiz | shield |
+| houses/shield/infosec/pis-03.html | quiz | shield |
+| houses/shield/infosec/pis-04.html | quiz | shield |
+| houses/shield/infosec/pis-05.html | quiz | shield |
+| houses/shield/infosec/pis-06.html | quiz | shield |
+| houses/shield/infosec/pis-07.html | quiz | shield |
+| houses/shield/infosec/pis-08.html | quiz | shield |
+| houses/shield/infosec/pis-09.html | quiz | shield |
+| houses/shield/infosec/pis-10.html | quiz | shield |
+| houses/shield/infosec/pis-11.html | quiz | shield |
+| houses/shield/infosec/pis-12.html | quiz | shield |
+| houses/shield/infosec/pis-13.html | quiz | shield |
+| houses/shield/infosec/pis-14.html | quiz | shield |
+| houses/shield/infosec/pis-15.html | quiz | shield |
+| houses/shield/infosec/pis-16.html | quiz | shield |
+| houses/shield/infosec/pis-17.html | quiz | shield |
+| houses/shield/infosec/pis-18.html | quiz | shield |
+| houses/shield/infosec/pis-19.html | quiz | shield |
+| houses/shield/infosec/pis-20.html | quiz | shield |
+| houses/shield/infosec/pis-21.html | quiz | shield |
+| houses/shield/infosec/pis-r1.html | presentation | shield |
+| houses/shield/infosec/pis-r2.html | presentation | shield |
+| houses/shield/infosec/pis-r3.html | presentation | shield |
+| houses/shield/infosec/pis-r4.html | presentation | shield |
+| houses/shield/infosec/pis-r5.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-malware.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-security-controls.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-social-engineering.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-threat-actors.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w2-app-attacks.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w2-cryptography.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w2-device-security.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-pki.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-security-operations.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-wireless-cloud.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-authentication.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-identity-management.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-risk-governance.presentation.html | presentation | shield |
+| houses/shield/infosec/quizzes/pis-w1.quiz.html | quiz | shield |
+| houses/shield/infosec/quizzes/pis-w2.quiz.html | quiz | shield |
+| houses/shield/infosec/quizzes/pis-w3.quiz.html | quiz | shield |
+| houses/shield/infosec/quizzes/pis-w4.quiz.html | quiz | shield |
 | houses/shield/ms-security/ms-sec-01.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-02.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-03.html | presentation | shield |
@@ -19921,6 +21603,9 @@
 | projects/shield-fake-news.html | applet | - |
 | projects/shield-log-analyzer.html | applet | - |
 | projects/starter-calculator.html | applet | - |
+| projects/starter-first-bot.html | applet | - |
+| projects/starter-first-database.html | applet | - |
+| projects/starter-first-gui.html | applet | - |
 | projects/web-online-portfolio.html | applet | - |
 | projects/web-pi-network-probe.html | applet | - |
 | projects/web-topology-visualizer.html | applet | - |
