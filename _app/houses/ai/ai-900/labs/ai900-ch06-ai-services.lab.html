@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AI Services Lab — AI-900 Chapter 6</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #c4b5d4;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #e8d5f5;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-final {
+            padding: 4px 12px;
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #fbbf24;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #8b7a9e;
+        }
+
+        .task-count {
+            color: #a78bfa;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(167, 139, 250, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #7c3aed);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(15, 12, 20, 0.95);
+            border-right: 1px solid rgba(167, 139, 250, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5b7e;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(25, 20, 35, 0.8);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(167, 139, 250, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #a78bfa;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #e8d5f5;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #8b7a9e;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(167, 139, 250, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #a78bfa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(20, 15, 30, 0.9);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8b7a9e;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(167, 139, 250, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #a78bfa; }
+        .term-prompt-sep    { color: #6b5b7e; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #e8d5f5; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e8d5f5;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #a78bfa;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #c4b5d4; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #4b3f5e; }
+        .term-welcome   { color: #a78bfa; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #a78bfa; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #6b5b7e; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #a78bfa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #60a5fa; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #a78bfa;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(167, 139, 250, 0.2);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(167, 139, 250, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #c4b5d4;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(167, 139, 250, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #a78bfa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #6b5b7e;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(167, 139, 250, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 5px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(167, 139, 250, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #c4b5d4;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(52, 211, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #a0d4a0;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(167, 139, 250, 0.15);
+            color: #e8d5f5;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure AI Services Lab</span>
+            <span class="lab-badge">AI-900 CH.6</span>
+            <span class="lab-badge-final">FINAL LAB</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Provision Resources</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Create a Speech Service</div>
+                    <div class="task-desc">Use <code>az cognitiveservices account create</code> with <code>--kind SpeechServices --sku F0</code> to provision an individual Speech resource</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Retrieve and Inspect Keys</div>
+                    <div class="task-desc">Run <code>az cognitiveservices account keys list</code> to retrieve the two API keys. Understand why two keys exist and how rotation works.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Speech Services</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Speech-to-Text</div>
+                    <div class="task-desc">Use <code>az speech recognize</code> to transcribe <code>~/audio/greeting.wav</code> and <code>~/audio/meeting-clip.wav</code>. See timestamps per utterance in the meeting transcript.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Text-to-Speech</div>
+                    <div class="task-desc">Use <code>az speech synthesize</code> with voice <code>en-US-JennyNeural</code> to generate audio output and save it to <code>~/results/welcome.wav</code></div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Document Intelligence</div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Create Document Intelligence</div>
+                    <div class="task-desc">Provision a Document Intelligence resource using <code>--kind FormRecognizer</code>. Note: the API kind name is FormRecognizer even though the service is now called Document Intelligence.</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Analyze a Document</div>
+                    <div class="task-desc">Use <code>az docint analyze</code> with <code>--model prebuilt-invoice</code> on <code>~/documents/invoice-scan.png</code> to extract structured fields</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Multi-Service and Ops</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Create Multi-Service Resource</div>
+                    <div class="task-desc">Provision <code>--kind CognitiveServices</code> and then list all resources. Compare individual vs multi-service: different kinds, different billing granularity.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Key Rotation</div>
+                    <div class="task-desc">Use <code>az cognitiveservices account keys regenerate --key-name key1</code> on your Speech resource. Understand the zero-downtime rotation strategy.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 5 — Containers and Comparison</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Pull and Run a Container</div>
+                    <div class="task-desc">Simulate <code>az cognitiveservices container pull</code> then <code>az cognitiveservices container run</code> for the Speech service. Understand offline + billing check-in requirements.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Compare Individual vs Multi-Service</div>
+                    <div class="task-desc">Run <code>az cognitiveservices account show</code> on both <code>speech-lab</code> and <code>ai-hub</code>. Compare kind, endpoint, and billing model side-by-side.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">student@ai-services-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure AI Services Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">student@ai-services-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AI-900 Complete!</div>
+                    <div class="success-message">
+                        You provisioned individual and multi-service Azure AI resources, retrieved and rotated
+                        API keys, transcribed speech and synthesized audio with neural voices, extracted
+                        structured fields from documents using Document Intelligence, compared resource kinds
+                        and billing models, and deployed a containerized AI service. This lab ties together
+                        everything from Chapters 1 through 6. You are ready for the AI-900 certification exam.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER     = 'student';
+        var HOST     = 'ai-services-vm';
+        var HOME     = '/home/student';
+        var RG_NAME  = 'ai-fundamentals-rg';
+        var LOCATION = 'eastus';
+        var SUB_ID   = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var SUB_NAME = 'Azure-AI900-Lab-Subscription';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-command tasks */
+        var task3_greeting  = false;  /* greeting.wav transcribed */
+        var task3_meeting   = false;  /* meeting-clip.wav transcribed */
+        var task7_created   = false;  /* ai-hub (CognitiveServices) created */
+        var task7_listed    = false;  /* resource list run after creation */
+        var task9_pulled    = false;  /* container pull run */
+        var task9_running   = false;  /* container run run */
+        var task10_speech   = false;  /* speech-lab shown */
+        var task10_hub      = false;  /* ai-hub shown */
+
+        /* Simulated resource registry — keyed by resource name */
+        var csResources = {};
+
+        /* Simulated key store — keyed by resource name */
+        var csKeys = {};
+
+        /* Track synthesized audio files */
+        var synthesizedFiles = {};
+
+        /* Track container state */
+        var containerPulled  = false;
+        var containerRunning = false;
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            /* Directories */
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/student',
+                '/home/student/audio',
+                '/home/student/documents',
+                '/home/student/text',
+                '/home/student/results',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-ai.log': {
+                    c: [
+                        '[2026-04-19 08:00:01] INFO  Azure CLI 2.58.0 initialised',
+                        '[2026-04-19 08:00:02] INFO  Subscription: ' + SUB_NAME,
+                        '[2026-04-19 08:00:03] INFO  Resource group: ' + RG_NAME + ' (eastus)',
+                        '[2026-04-19 08:00:04] INFO  Lab environment ready'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Audio files ── */
+                '/home/student/audio/greeting.wav': {
+                    c: '[WAV audio file — 2.1 seconds, 16kHz mono]\nContent: "Hello, welcome to Azure AI Services"\nFile size: 67,584 bytes',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/audio/meeting-clip.wav': {
+                    c: '[WAV audio file — 30 seconds, 16kHz mono]\nContent: Meeting transcript audio clip\nFile size: 960,000 bytes\nSpeakers: 2 detected',
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Document files ── */
+                '/home/student/documents/invoice-scan.png': {
+                    c: '[PNG image — 2480 x 3508 px, scanned invoice]\nContent: Contoso Tech Solutions invoice\nFile size: 1,243,648 bytes',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/documents/id-card-scan.png': {
+                    c: '[PNG image — 856 x 540 px, scanned ID card]\nContent: Sample government ID\nFile size: 418,816 bytes',
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Text file ── */
+                '/home/student/text/speech-input.txt': {
+                    c: 'Welcome to the Azure AI fundamentals course. This is chapter six.',
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serialises a JS object to indented JSON and colourises each token type.
+           Writes directly to terminal output. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Write serialised JSON to a VFS path */
+        function saveJSON(obj, path) {
+            var rp  = resolve(path);
+            var par = parentOf(rp);
+            if (!exists(par)) {
+                vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+            }
+            vfs[rp] = {
+                type:    'file',
+                content: JSON.stringify(obj, null, 2),
+                mode:    '-rw-r--r--'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and flag extraction.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        function splitRedirect(args) {
+            var rIdx = args.indexOf('>');
+            if (rIdx < 0) return { clean: args, redirect: null };
+            return {
+                clean:    args.slice(0, rIdx),
+                redirect: args[rIdx + 1] || null
+            };
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           SIMULATED AZURE AI SERVICES DATA
+        ════════════════════════════════════════════════ */
+
+        /* Build a standard cognitive services resource object */
+        function buildCSResource(name, kind, sku, loc) {
+            return {
+                id:                '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME +
+                                   '/providers/Microsoft.CognitiveServices/accounts/' + name,
+                name:              name,
+                type:              'Microsoft.CognitiveServices/accounts',
+                kind:              kind,
+                sku:               { name: sku },
+                location:          loc,
+                resourceGroup:     RG_NAME,
+                provisioningState: 'Succeeded',
+                endpoint:          'https://' + loc + '.api.cognitive.microsoft.com/',
+                networkAcls:       { defaultAction: 'Allow' },
+                publicNetworkAccess: 'Enabled',
+                tags:              { environment: 'lab', course: 'AI-900', chapter: '6' },
+                createdAt:         '2026-04-19T09:00:00Z'
+            };
+        }
+
+        /* Keyset — two keys always generated per resource */
+        function buildKeySet(name) {
+            /* Deterministic-looking but distinct keys per resource name */
+            var seed = 0;
+            for (var i = 0; i < name.length; i++) seed += name.charCodeAt(i);
+            var hex = function (n, len) {
+                var s = (n >>> 0).toString(16);
+                while (s.length < len) s = '0' + s;
+                return s;
+            };
+            return {
+                key1: hex(seed * 0xdeadbeef + 0x1, 8) + hex(seed * 0xcafebabe + 0x2, 8) +
+                      hex(seed * 0xf00df00d + 0x3, 8) + hex(seed * 0xbaadf00d + 0x4, 8),
+                key2: hex(seed * 0x1337c0de + 0x5, 8) + hex(seed * 0xfeedface + 0x6, 8) +
+                      hex(seed * 0xabad1dea + 0x7, 8) + hex(seed * 0x8badf00d + 0x8, 8)
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var sr   = splitRedirect(args);
+            var path = sr.clean[0] ? resolve(sr.clean[0]) : cwd;
+            var long = sr.clean.indexOf('-l') >= 0 || sr.clean.indexOf('-la') >= 0 || sr.clean.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + args[0] + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' + (f.content || '').length + ' Apr 19 09:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' + String(size).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            var sr   = splitRedirect(args);
+            var text = sr.clean.join(' ');
+            if (sr.redirect) {
+                var rp = resolve(sr.redirect);
+                vfs[rp] = { type: 'file', content: text, mode: '-rw-r--r--' };
+                addLine('(output redirected to ' + sr.redirect + ')', 'term-line-info');
+            } else {
+                addLine(text, 'term-line-out');
+            }
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_cp(args) {
+            if (args.length < 2) {
+                addLine('cp: missing destination file operand', 'term-line-err');
+                return null;
+            }
+            var src  = resolve(args[0]);
+            var dest = resolve(args[1]);
+            if (!exists(src)) {
+                addLine('cp: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            vfs[dest] = JSON.parse(JSON.stringify(vfs[src]));
+            addLine('(copied ' + args[0] + ' -> ' + args[1] + ')', 'term-line-info');
+            return 'copied';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                          'term-line-out');
+            addLine('USER=' + USER,                          'term-line-out');
+            addLine('SHELL=/bin/bash',                       'term-line-out');
+            addLine('TERM=xterm-256color',                   'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,       'term-line-out');
+            addLine('AZURE_DEFAULT_LOCATION=' + LOCATION,    'term-line-out');
+            addLine('AZURE_RESOURCE_GROUP=' + RG_NAME,       'term-line-out');
+            return 'env';
+        }
+
+        function cmd_diff(args) {
+            /* Simplified diff — compare two az show outputs by name extraction */
+            if (args.length < 2) {
+                addLine('diff: usage: diff <file1> <file2>', 'term-line-err');
+                return null;
+            }
+            /* Accept both file args and raw resource names for simulated process substitution */
+            var a = args[0];
+            var b = args[1];
+
+            /* Strip process substitution syntax if present: <(az ... --name X ...) */
+            var nameA = null;
+            var nameB = null;
+            var matchA = a.match(/--name\s+([^\s\)]+)/);
+            var matchB = b.match(/--name\s+([^\s\)]+)/);
+            if (matchA) nameA = matchA[1];
+            if (matchB) nameB = matchB[1];
+
+            if (!nameA || !nameB) {
+                addLine('diff: comparing ' + a + ' against ' + b, 'term-line-info');
+                addLine('(use "az cognitiveservices account show --name <name> --resource-group ' + RG_NAME + '" to inspect each resource individually)', 'term-line-info');
+                return { diff_attempted: true };
+            }
+
+            var resA = csResources[nameA];
+            var resB = csResources[nameB];
+
+            if (!resA) {
+                addLine('diff: resource "' + nameA + '" not found. Create it first.', 'term-line-err');
+                return null;
+            }
+            if (!resB) {
+                addLine('diff: resource "' + nameB + '" not found. Create it first.', 'term-line-err');
+                return null;
+            }
+
+            addLine('--- ' + nameA + ' (individual)', 'term-line-err');
+            addLine('+++ ' + nameB + ' (multi-service)', 'term-line-out');
+            addLine('@@ resource kind @@', 'term-line-warn');
+            addLine('- "kind": "' + resA.kind + '"', 'term-line-err');
+            addLine('+ "kind": "' + resB.kind + '"', 'term-line-out');
+            addLine('@@ endpoint @@', 'term-line-warn');
+            addLine('- "endpoint": "https://' + nameA + '.cognitiveservices.azure.com/"', 'term-line-err');
+            addLine('+ "endpoint": "https://' + nameB + '.cognitiveservices.azure.com/"', 'term-line-out');
+            addBlank();
+            addLine('  Key differences:', 'term-line-info');
+            addLine('  kind=SpeechServices   -> single API access, billed per speech transaction', 'term-line-dim');
+            addLine('  kind=CognitiveServices -> all-in-one key, unified billing across all AI APIs', 'term-line-dim');
+            addLine('  Endpoint granularity   -> SpeechServices endpoint is service-specific', 'term-line-dim');
+            addLine('                         -> CognitiveServices endpoint is region-scoped', 'term-line-dim');
+            return { diff_run: true, nameA: nameA, nameB: nameB };
+        }
+
+        function cmd_help() {
+            addBlank();
+            addLine('Azure AI Services Lab — Available Commands', 'term-welcome');
+            addLine('─'.repeat(60), 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM', 'term-line-warn');
+            addLine('  ls [path]              List directory contents', 'term-line-out');
+            addLine('  ls -l [path]           Long listing with permissions', 'term-line-out');
+            addLine('  cat <file>             Display file contents', 'term-line-out');
+            addLine('  cd <path>              Change directory', 'term-line-out');
+            addLine('  pwd                    Print working directory', 'term-line-out');
+            addLine('  mkdir <dir>            Create directory', 'term-line-out');
+            addLine('  cp <src> <dst>         Copy file', 'term-line-out');
+            addLine('  echo <text>            Print text (supports > redirect)', 'term-line-out');
+            addLine('  env                    Show environment variables', 'term-line-out');
+            addLine('  diff <a> <b>           Compare two resources or files', 'term-line-out');
+            addBlank();
+            addLine('COGNITIVE SERVICES', 'term-line-warn');
+            addLine('  az cognitiveservices account create \\', 'term-line-out');
+            addLine('    --name <name> --resource-group <rg> \\', 'term-line-out');
+            addLine('    --kind <kind> --sku <sku> --location <loc>', 'term-line-out');
+            addLine('  az cognitiveservices account list --resource-group <rg>', 'term-line-out');
+            addLine('  az cognitiveservices account show --name <name> --resource-group <rg>', 'term-line-out');
+            addLine('  az cognitiveservices account keys list --name <name> --resource-group <rg>', 'term-line-out');
+            addLine('  az cognitiveservices account keys regenerate \\', 'term-line-out');
+            addLine('    --name <name> --resource-group <rg> --key-name key1', 'term-line-out');
+            addBlank();
+            addLine('SPEECH', 'term-line-warn');
+            addLine('  az speech recognize --audio <file> --resource <name>', 'term-line-out');
+            addLine('  az speech synthesize --text <text> --resource <name> \\', 'term-line-out');
+            addLine('    --voice <voice> --output <file>', 'term-line-out');
+            addBlank();
+            addLine('DOCUMENT INTELLIGENCE', 'term-line-warn');
+            addLine('  az docint analyze --image <file> --model <model> --resource <name>', 'term-line-out');
+            addBlank();
+            addLine('CONTAINERS', 'term-line-warn');
+            addLine('  az cognitiveservices container pull --kind <kind>', 'term-line-out');
+            addLine('  az cognitiveservices container run --kind <kind> --port <port>', 'term-line-out');
+            addBlank();
+            addLine('  Supports: ~ expansion, command history (arrows), Tab completion', 'term-line-dim');
+            addBlank();
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az
+        ════════════════════════════════════════════════ */
+        function cmd_az(args) {
+            if (!args.length) {
+                addLine('az: command not found. Try "az --help" or just "help".', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'cognitiveservices') return cmd_az_cogs(args.slice(1));
+            if (sub === 'speech')            return cmd_az_speech(args.slice(1));
+            if (sub === 'docint')            return cmd_az_docint(args.slice(1));
+
+            /* az account show */
+            if (sub === 'account' && args[1] === 'show') {
+                printJSON({
+                    id:              SUB_ID,
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        'f9e8d7c6-b5a4-3210-fedc-ba9876543210',
+                    isDefault:       true,
+                    environmentName: 'AzureCloud'
+                });
+                return 'account_shown';
+            }
+
+            addLine('az ' + args.join(' ') + ': unrecognised command. Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az cognitiveservices
+        ════════════════════════════════════════════════ */
+        function cmd_az_cogs(args) {
+            if (!args.length) {
+                addLine('az cognitiveservices: usage: az cognitiveservices account <create|list|show|keys|container>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'account')   return cmd_cogs_account(args.slice(1));
+            if (sub === 'container') return cmd_cogs_container(args.slice(1));
+
+            addLine('az cognitiveservices: unrecognised subcommand "' + sub + '". Try "account" or "container".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az cognitiveservices account ... ── */
+        function cmd_cogs_account(args) {
+            if (!args.length) {
+                addLine('az cognitiveservices account: usage: az cognitiveservices account <create|list|show|keys>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            /* ── create ── */
+            if (sub === 'create') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+                var kind = flagVal(args, '--kind');
+                var sku  = flagVal(args, '--sku');
+                var loc  = flagVal(args, '--location');
+
+                if (!name) { addLine('az cognitiveservices account create: --name is required.', 'term-line-err'); return null; }
+                if (!rg)   { addLine('az cognitiveservices account create: --resource-group is required.', 'term-line-err'); return null; }
+                if (!kind) { addLine('az cognitiveservices account create: --kind is required.', 'term-line-err'); return null; }
+                if (!sku)  { addLine('az cognitiveservices account create: --sku is required.', 'term-line-err'); return null; }
+                if (!loc)  { addLine('az cognitiveservices account create: --location is required.', 'term-line-err'); return null; }
+
+                /* Validate kind */
+                var validKinds = [
+                    'SpeechServices', 'FormRecognizer', 'CognitiveServices',
+                    'TextAnalytics', 'ComputerVision', 'Face', 'LUIS',
+                    'OpenAI', 'ContentModerator', 'AnomalyDetector'
+                ];
+                if (validKinds.indexOf(kind) < 0) {
+                    addLine('ERROR: Invalid --kind "' + kind + '".', 'term-line-err');
+                    addLine('Valid kinds include: ' + validKinds.join(', '), 'term-line-info');
+                    return null;
+                }
+
+                /* Warn on invalid SKUs for free tier */
+                if (sku !== 'F0' && sku !== 'S0' && sku !== 'S1') {
+                    addLine('WARNING: SKU "' + sku + '" is not standard. Expected F0 (free) or S0/S1 (standard).', 'term-line-warn');
+                }
+
+                if (Object.prototype.hasOwnProperty.call(csResources, name)) {
+                    addLine('ERROR: A resource named "' + name + '" already exists in resource group "' + rg + '".', 'term-line-err');
+                    return null;
+                }
+
+                addLine('Creating Cognitive Services account "' + name + '"...', 'term-line-info');
+                addLine('  Kind     : ' + kind, 'term-line-dim');
+                addLine('  SKU      : ' + sku, 'term-line-dim');
+                addLine('  Location : ' + loc, 'term-line-dim');
+                addLine('  Resource Group: ' + rg, 'term-line-dim');
+                addBlank();
+                addLine('Provisioning...  [################]  Succeeded', 'term-line-out');
+                addBlank();
+
+                var resource = buildCSResource(name, kind, sku, loc);
+                csResources[name] = resource;
+                csKeys[name]      = buildKeySet(name);
+
+                /* Add service-specific endpoint override */
+                if (kind !== 'CognitiveServices') {
+                    resource.endpoint = 'https://' + name + '.cognitiveservices.azure.com/';
+                } else {
+                    resource.endpoint = 'https://' + loc + '.api.cognitive.microsoft.com/';
+                }
+
+                printJSON(resource);
+
+                /* Note about FormRecognizer naming */
+                if (kind === 'FormRecognizer') {
+                    addBlank();
+                    addLine('NOTE: --kind FormRecognizer is the API identifier inherited from the original product name.', 'term-line-warn');
+                    addLine('      The service was renamed to Azure AI Document Intelligence in 2023.', 'term-line-warn');
+                    addLine('      The CLI and REST API still use FormRecognizer as the kind identifier.', 'term-line-warn');
+                }
+
+                if (kind === 'CognitiveServices') {
+                    addBlank();
+                    addLine('NOTE: kind=CognitiveServices is the multi-service resource. One endpoint and one', 'term-line-warn');
+                    addLine('      key pair gives access to Speech, Vision, Language, and Decision APIs.', 'term-line-warn');
+                }
+
+                return { resource_created: true, name: name, kind: kind, sku: sku };
+            }
+
+            /* ── list ── */
+            if (sub === 'list') {
+                var rgFilter = flagVal(args, '--resource-group');
+                var names    = Object.keys(csResources);
+
+                if (!names.length) {
+                    printJSON({
+                        resources: [],
+                        message:   'No Cognitive Services resources found in resource group "' + (rgFilter || RG_NAME) + '". Create one first.'
+                    });
+                    return { resource_listed: true };
+                }
+
+                var arr = names.map(function (n) {
+                    var r = csResources[n];
+                    return {
+                        name:              r.name,
+                        kind:              r.kind,
+                        sku:               r.sku.name,
+                        location:          r.location,
+                        endpoint:          r.endpoint,
+                        provisioningState: r.provisioningState,
+                        resourceGroup:     r.resourceGroup
+                    };
+                });
+                printJSON({ resources: arr, count: arr.length });
+                return { resource_listed: true, count: arr.length };
+            }
+
+            /* ── show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                if (!showName) {
+                    addLine('az cognitiveservices account show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(csResources, showName)) {
+                    addLine('ERROR: Resource "' + showName + '" not found.', 'term-line-err');
+                    if (Object.keys(csResources).length) {
+                        addLine('Existing resources: ' + Object.keys(csResources).join(', '), 'term-line-info');
+                    } else {
+                        addLine('No resources created yet. Run az cognitiveservices account create first.', 'term-line-info');
+                    }
+                    return null;
+                }
+                printJSON(csResources[showName]);
+                return { resource_shown: true, name: showName, kind: csResources[showName].kind };
+            }
+
+            /* ── keys list ── */
+            if (sub === 'keys') {
+                var keySub = args[1];
+                var keyName = flagVal(args, '--name');
+
+                if (!keyName) {
+                    addLine('az cognitiveservices account keys: --name is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (keySub === 'list') {
+                    if (!Object.prototype.hasOwnProperty.call(csKeys, keyName)) {
+                        addLine('ERROR: Resource "' + keyName + '" not found. Create it first.', 'term-line-err');
+                        return null;
+                    }
+                    printJSON({
+                        key1: csKeys[keyName].key1,
+                        key2: csKeys[keyName].key2
+                    });
+                    addBlank();
+                    addLine('  Two keys are provided to enable zero-downtime rotation:', 'term-line-info');
+                    addLine('  1. Applications use key1 for API calls.', 'term-line-dim');
+                    addLine('  2. When rotation is needed: switch apps to key2, then regenerate key1.', 'term-line-dim');
+                    addLine('  3. Apps now use key2. Regenerate key2 to complete the cycle.', 'term-line-dim');
+                    addLine('  This ensures no service interruption during key rotation.', 'term-line-dim');
+                    return { keys_listed: true, name: keyName };
+                }
+
+                if (keySub === 'regenerate') {
+                    var keyToRegen = flagVal(args, '--key-name');
+                    if (!keyToRegen) {
+                        addLine('az cognitiveservices account keys regenerate: --key-name key1|key2 is required.', 'term-line-err');
+                        return null;
+                    }
+                    if (!Object.prototype.hasOwnProperty.call(csKeys, keyName)) {
+                        addLine('ERROR: Resource "' + keyName + '" not found. Create it first.', 'term-line-err');
+                        return null;
+                    }
+
+                    /* Regenerate only the specified key */
+                    var oldKeys  = csKeys[keyName];
+                    var newKeys  = buildKeySet(keyName + Date.now().toString());
+                    var updatedKeys;
+                    if (keyToRegen === 'key1') {
+                        updatedKeys = { key1: newKeys.key1, key2: oldKeys.key2 };
+                        csKeys[keyName] = updatedKeys;
+                    } else if (keyToRegen === 'key2') {
+                        updatedKeys = { key1: oldKeys.key1, key2: newKeys.key2 };
+                        csKeys[keyName] = updatedKeys;
+                    } else {
+                        addLine('ERROR: --key-name must be "key1" or "key2".', 'term-line-err');
+                        return null;
+                    }
+
+                    addLine('Regenerating ' + keyToRegen + ' for resource "' + keyName + '"...', 'term-line-info');
+                    addLine('Key regenerated successfully.', 'term-line-out');
+                    addBlank();
+                    printJSON({ key1: csKeys[keyName].key1, key2: csKeys[keyName].key2 });
+                    addBlank();
+                    addLine('  Zero-downtime rotation strategy:', 'term-line-info');
+                    addLine('  Step 1 — Update all applications to use key2 (unchanged).', 'term-line-dim');
+                    addLine('  Step 2 — Regenerate key1 (done above). key1 is now a new value.', 'term-line-dim');
+                    addLine('  Step 3 — Update applications to switch back to key1.', 'term-line-dim');
+                    addLine('  Step 4 — Regenerate key2 to retire the old value.', 'term-line-dim');
+                    addLine('  Result  — Both keys are rotated; no request was ever rejected.', 'term-line-dim');
+                    return { keys_regenerated: true, name: keyName, keyName: keyToRegen };
+                }
+
+                addLine('az cognitiveservices account keys: subcommand must be "list" or "regenerate".', 'term-line-err');
+                return null;
+            }
+
+            addLine('az cognitiveservices account: unknown subcommand "' + sub + '". Try "create", "list", "show", or "keys".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az cognitiveservices container ... ── */
+        function cmd_cogs_container(args) {
+            if (!args.length) {
+                addLine('az cognitiveservices container: usage: az cognitiveservices container <pull|run>', 'term-line-err');
+                return null;
+            }
+
+            var sub  = args[0];
+            var kind = flagVal(args, '--kind');
+
+            /* ── pull ── */
+            if (sub === 'pull') {
+                if (!kind) {
+                    addLine('az cognitiveservices container pull: --kind is required.', 'term-line-err');
+                    return null;
+                }
+
+                var imageTag = kindToImageTag(kind);
+                if (!imageTag) {
+                    addLine('ERROR: No container image available for kind "' + kind + '".', 'term-line-err');
+                    addLine('Container images are available for: SpeechServices, ComputerVision, TextAnalytics, Face', 'term-line-info');
+                    return null;
+                }
+
+                addLine('Pulling container image: mcr.microsoft.com/azure-cognitive-services/' + imageTag, 'term-line-info');
+                addBlank();
+                addLine('latest: Pulling from azure-cognitive-services/' + imageTag, 'term-line-dim');
+                addLine('a39c84e1a7f5: Pull complete   [=================] 142 MB', 'term-line-dim');
+                addLine('c5d1ab5e6e4b: Pull complete   [=================]  38 MB', 'term-line-dim');
+                addLine('7d4e08e8f1c9: Pull complete   [=================] 520 MB', 'term-line-dim');
+                addLine('f1a2b3c4d5e6: Pull complete   [=================]  11 MB', 'term-line-dim');
+                addLine('9b8a7f6e5d4c: Pull complete   [=================]   2 MB', 'term-line-dim');
+                addBlank();
+                addLine('Digest: sha256:3a8bf29dc4e1f672b5c09ab84d7e1f3c92ab8e4d1f2c5b6a9e8d7f6c5b4a3e2d', 'term-line-out');
+                addLine('Status: Downloaded newer image for mcr.microsoft.com/azure-cognitive-services/' + imageTag, 'term-line-out');
+                addBlank();
+                addLine('Image size: 713 MB — includes model weights and inference runtime.', 'term-line-info');
+                addLine('Container runs fully locally — no internet required for inference.', 'term-line-info');
+                addLine('NOTE: Billing still requires periodic check-in with Azure (see "run" step).', 'term-line-warn');
+
+                containerPulled = true;
+                return { container_pulled: true, kind: kind, image: imageTag };
+            }
+
+            /* ── run ── */
+            if (sub === 'run') {
+                if (!kind) {
+                    addLine('az cognitiveservices container run: --kind is required.', 'term-line-err');
+                    return null;
+                }
+
+                var port = flagVal(args, '--port') || '5000';
+
+                if (!containerPulled) {
+                    addLine('ERROR: No container image found for kind "' + kind + '".', 'term-line-err');
+                    addLine('Pull the image first: az cognitiveservices container pull --kind ' + kind, 'term-line-info');
+                    return null;
+                }
+
+                var imgTag = kindToImageTag(kind);
+                addLine('Starting container for ' + kind + '...', 'term-line-info');
+                addBlank();
+                addLine('docker run --rm -it \\', 'term-line-dim');
+                addLine('  -p ' + port + ':5000 \\', 'term-line-dim');
+                addLine('  -e Eula=accept \\', 'term-line-dim');
+                addLine('  -e Billing=https://' + LOCATION + '.api.cognitive.microsoft.com/ \\', 'term-line-dim');
+                addLine('  -e ApiKey=<your-api-key> \\', 'term-line-dim');
+                addLine('  mcr.microsoft.com/azure-cognitive-services/' + imgTag, 'term-line-dim');
+                addBlank();
+                addLine('Container initialising...', 'term-line-out');
+                addLine('  Loading model weights...         [OK]', 'term-line-out');
+                addLine('  Binding to port ' + port + '...          [OK]', 'term-line-out');
+                addLine('  Contacting Azure billing API...  [OK]', 'term-line-out');
+                addBlank();
+                addLine('Container running at: http://localhost:' + port, 'term-line-info');
+                addLine('Swagger UI available: http://localhost:' + port + '/swagger', 'term-line-info');
+                addLine('Health check:         http://localhost:' + port + '/status', 'term-line-info');
+                addBlank();
+                addLine('IMPORTANT — Container billing requirements:', 'term-line-warn');
+                addLine('  - The container runs inference LOCALLY without sending audio to Azure.', 'term-line-dim');
+                addLine('  - However, the Billing endpoint and ApiKey flags are MANDATORY.', 'term-line-dim');
+                addLine('  - Azure counts API calls for billing even when inference is local.', 'term-line-dim');
+                addLine('  - The container periodically contacts Azure to report usage.', 'term-line-dim');
+                addLine('  - If the container cannot reach Azure billing, it will stop accepting requests.', 'term-line-dim');
+                addLine('  - Use case: secure/offline environments where data must not leave the network.', 'term-line-dim');
+
+                containerRunning = true;
+                return { container_running: true, kind: kind, port: port };
+            }
+
+            addLine('az cognitiveservices container: unknown subcommand "' + sub + '". Try "pull" or "run".', 'term-line-err');
+            return null;
+        }
+
+        /* Map service kind to container image tag */
+        function kindToImageTag(kind) {
+            var map = {
+                'SpeechServices': 'speech/cognitive-services-speech-onpremise',
+                'ComputerVision': 'vision/read',
+                'TextAnalytics':  'language/sentiment-analysis',
+                'Face':           'vision/face'
+            };
+            return map[kind] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az speech
+        ════════════════════════════════════════════════ */
+        function cmd_az_speech(args) {
+            if (!args.length) {
+                addLine('az speech: usage: az speech <recognize|synthesize>', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            /* ── az speech recognize ── */
+            if (sub === 'recognize') {
+                var audioArg    = flagVal(args, '--audio');
+                var resourceArg = flagVal(args, '--resource');
+
+                if (!audioArg) {
+                    addLine('az speech recognize: --audio <file> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!resourceArg) {
+                    addLine('az speech recognize: --resource <name> is required.', 'term-line-err');
+                    return null;
+                }
+
+                var audioPath = resolve(audioArg);
+                if (!exists(audioPath)) {
+                    addLine('ERROR: Audio file not found: ' + audioArg, 'term-line-err');
+                    addLine('Available audio files: ls ~/audio/', 'term-line-info');
+                    return null;
+                }
+
+                /* Verify resource exists and has correct kind */
+                if (!Object.prototype.hasOwnProperty.call(csResources, resourceArg)) {
+                    addLine('ERROR: Speech resource "' + resourceArg + '" not found.', 'term-line-err');
+                    addLine('Create it first: az cognitiveservices account create --name ' + resourceArg + ' --kind SpeechServices ...', 'term-line-info');
+                    return null;
+                }
+                var resKind = csResources[resourceArg].kind;
+                if (resKind !== 'SpeechServices' && resKind !== 'CognitiveServices') {
+                    addLine('ERROR: Resource "' + resourceArg + '" is kind=' + resKind + '. Speech requires kind=SpeechServices or kind=CognitiveServices.', 'term-line-err');
+                    return null;
+                }
+
+                addLine('Sending audio to Speech service...', 'term-line-info');
+                addLine('Resource : ' + resourceArg, 'term-line-dim');
+                addLine('Audio    : ' + audioArg, 'term-line-dim');
+                addBlank();
+
+                var isGreeting = audioPath.indexOf('greeting') >= 0;
+                var isMeeting  = audioPath.indexOf('meeting') >= 0;
+
+                if (isGreeting) {
+                    printJSON({
+                        requestId:          'req-stt-a1b2c3d4',
+                        resource:           resourceArg,
+                        audioFile:          audioArg,
+                        languageDetected:   'en-US',
+                        durationSeconds:    2.14,
+                        recognitionStatus:  'Success',
+                        confidence:         0.96,
+                        text:               'Hello, welcome to Azure AI Services.',
+                        words: [
+                            { word: 'Hello',    offsetMs: 0,    durationMs: 280 },
+                            { word: 'welcome',  offsetMs: 340,  durationMs: 320 },
+                            { word: 'to',       offsetMs: 680,  durationMs: 100 },
+                            { word: 'Azure',    offsetMs: 800,  durationMs: 260 },
+                            { word: 'AI',       offsetMs: 1080, durationMs: 180 },
+                            { word: 'Services', offsetMs: 1280, durationMs: 380 }
+                        ]
+                    });
+                    addBlank();
+                    addLine('  Transcription complete.  Confidence: 0.96 (excellent)', 'term-line-info');
+                    return { speech_recognized: true, file: audioPath, isGreeting: true, resource: resourceArg };
+                }
+
+                if (isMeeting) {
+                    printJSON({
+                        requestId:         'req-stt-b2c3d4e5',
+                        resource:          resourceArg,
+                        audioFile:         audioArg,
+                        languageDetected:  'en-US',
+                        durationSeconds:   30.0,
+                        recognitionStatus: 'Success',
+                        speakersDetected:  2,
+                        utterances: [
+                            {
+                                speaker:     'Speaker 1',
+                                offsetMs:    0,
+                                durationMs:  4200,
+                                confidence:  0.94,
+                                text:        'Good morning everyone. Let us begin the quarterly review.'
+                            },
+                            {
+                                speaker:     'Speaker 2',
+                                offsetMs:    4800,
+                                durationMs:  5600,
+                                confidence:  0.91,
+                                text:        'Thanks. Revenue for Q1 came in at fourteen point two million, up eight percent year-over-year.'
+                            },
+                            {
+                                speaker:     'Speaker 1',
+                                offsetMs:    10600,
+                                durationMs:  4100,
+                                confidence:  0.95,
+                                text:        'Excellent. Can you walk us through the breakdown by region?'
+                            },
+                            {
+                                speaker:     'Speaker 2',
+                                offsetMs:    14900,
+                                durationMs:  7200,
+                                confidence:  0.89,
+                                text:        'North America leads at sixty two percent. EMEA is at twenty four. APAC is thirteen and growing fast.'
+                            },
+                            {
+                                speaker:     'Speaker 1',
+                                offsetMs:    22300,
+                                durationMs:  5400,
+                                confidence:  0.93,
+                                text:        'Great results. Action item for next week is to prepare the APAC expansion proposal.'
+                            }
+                        ],
+                        totalWords:     78,
+                        processingMs:   1240
+                    });
+                    addBlank();
+                    addLine('  Multi-speaker transcript complete.  2 speakers identified.', 'term-line-info');
+                    addLine('  NOTE: Speaker diarization assigns utterances to numbered speakers,', 'term-line-dim');
+                    addLine('  not to named individuals. Matching names requires enrollment data.', 'term-line-dim');
+                    return { speech_recognized: true, file: audioPath, isMeeting: true, resource: resourceArg };
+                }
+
+                /* Generic fallback for any other audio file */
+                printJSON({
+                    requestId:         'req-stt-c3d4e5f6',
+                    resource:          resourceArg,
+                    audioFile:         audioArg,
+                    recognitionStatus: 'Success',
+                    confidence:        0.88,
+                    text:              '[audio transcribed — content depends on file]'
+                });
+                return { speech_recognized: true, file: audioPath, resource: resourceArg };
+            }
+
+            /* ── az speech synthesize ── */
+            if (sub === 'synthesize') {
+                var textArg     = flagVal(args, '--text');
+                var resArg      = flagVal(args, '--resource');
+                var voiceArg    = flagVal(args, '--voice');
+                var outputArg   = flagVal(args, '--output');
+
+                if (!textArg) {
+                    addLine('az speech synthesize: --text "<text>" is required.', 'term-line-err');
+                    return null;
+                }
+                if (!resArg) {
+                    addLine('az speech synthesize: --resource <name> is required.', 'term-line-err');
+                    return null;
+                }
+                if (!voiceArg) {
+                    addLine('az speech synthesize: --voice <voice-name> is required.', 'term-line-err');
+                    addLine('Example: --voice en-US-JennyNeural', 'term-line-info');
+                    return null;
+                }
+                if (!outputArg) {
+                    addLine('az speech synthesize: --output <file.wav> is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(csResources, resArg)) {
+                    addLine('ERROR: Speech resource "' + resArg + '" not found.', 'term-line-err');
+                    addLine('Create it first: az cognitiveservices account create --name ' + resArg + ' --kind SpeechServices ...', 'term-line-info');
+                    return null;
+                }
+                var synthKind = csResources[resArg].kind;
+                if (synthKind !== 'SpeechServices' && synthKind !== 'CognitiveServices') {
+                    addLine('ERROR: Resource "' + resArg + '" is kind=' + synthKind + '. Speech synthesis requires kind=SpeechServices or kind=CognitiveServices.', 'term-line-err');
+                    return null;
+                }
+
+                var outPath   = resolve(outputArg);
+                var wordCount = textArg.split(/\s+/).length;
+                var estimatedDuration = (wordCount * 0.38).toFixed(2);
+                var fileSizeBytes     = Math.round(parseFloat(estimatedDuration) * 22050 * 2 * 16 / 8);
+
+                addLine('Synthesising speech...', 'term-line-info');
+                addLine('Voice    : ' + voiceArg, 'term-line-dim');
+                addLine('Resource : ' + resArg, 'term-line-dim');
+                addLine('Output   : ' + outputArg, 'term-line-dim');
+                addBlank();
+
+                var synthResult = {
+                    requestId:        'req-tts-d4e5f6a7',
+                    resource:         resArg,
+                    status:           'Succeeded',
+                    inputText:        textArg,
+                    voice:            voiceArg,
+                    outputFile:       outputArg,
+                    audioFormat:      'Riff16Khz16BitMonoPcm',
+                    durationSeconds:  parseFloat(estimatedDuration),
+                    fileSizeBytes:    fileSizeBytes,
+                    sampleRate:       '16000 Hz',
+                    encoding:         '16-bit PCM',
+                    ssmlOptionsAvailable: ['rate', 'pitch', 'emphasis', 'break', 'prosody', 'phoneme'],
+                    neuralVoiceFeatures: {
+                        naturalProsody:  true,
+                        emotionStyles:   ['cheerful', 'sad', 'angry', 'excited', 'empathetic'],
+                        speakingRateRange: '0.5x – 3.0x'
+                    }
+                };
+
+                /* Save the synthesized file to VFS */
+                var par = parentOf(outPath);
+                if (!exists(par)) {
+                    vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+                }
+                vfs[outPath] = {
+                    type:    'file',
+                    content: '[WAV audio file — synthesized]\nVoice: ' + voiceArg + '\nText: ' + textArg + '\nDuration: ' + estimatedDuration + 's\nFile size: ' + fileSizeBytes + ' bytes',
+                    mode:    '-rw-r--r--'
+                };
+                synthesizedFiles[outPath] = synthResult;
+
+                printJSON(synthResult);
+                addBlank();
+                addLine('  Audio saved to: ' + outputArg, 'term-line-info');
+                return { speech_synthesized: true, output: outPath, voice: voiceArg, resource: resArg };
+            }
+
+            addLine('az speech: unknown subcommand "' + sub + '". Try "recognize" or "synthesize".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az docint
+        ════════════════════════════════════════════════ */
+        function cmd_az_docint(args) {
+            if (!args.length || args[0] !== 'analyze') {
+                addLine('az docint: usage: az docint analyze --image <file> --model <model> --resource <name>', 'term-line-err');
+                return null;
+            }
+
+            var imageArg    = flagVal(args, '--image');
+            var modelArg    = flagVal(args, '--model');
+            var resourceArg = flagVal(args, '--resource');
+
+            if (!imageArg) {
+                addLine('az docint analyze: --image <file> is required.', 'term-line-err');
+                return null;
+            }
+            if (!modelArg) {
+                addLine('az docint analyze: --model <model> is required.', 'term-line-err');
+                addLine('Available models: prebuilt-invoice, prebuilt-idDocument, prebuilt-receipt, prebuilt-layout', 'term-line-info');
+                return null;
+            }
+            if (!resourceArg) {
+                addLine('az docint analyze: --resource <name> is required.', 'term-line-err');
+                return null;
+            }
+
+            var imagePath = resolve(imageArg);
+            if (!exists(imagePath)) {
+                addLine('ERROR: Image file not found: ' + imageArg, 'term-line-err');
+                addLine('Available documents: ls ~/documents/', 'term-line-info');
+                return null;
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(csResources, resourceArg)) {
+                addLine('ERROR: Document Intelligence resource "' + resourceArg + '" not found.', 'term-line-err');
+                addLine('Create it first: az cognitiveservices account create --name ' + resourceArg + ' --kind FormRecognizer ...', 'term-line-info');
+                return null;
+            }
+
+            /* Validate the resource kind */
+            if (csResources[resourceArg].kind !== 'FormRecognizer' &&
+                csResources[resourceArg].kind !== 'CognitiveServices') {
+                addLine('ERROR: Resource "' + resourceArg + '" has kind=' + csResources[resourceArg].kind + '.', 'term-line-err');
+                addLine('Document Intelligence requires kind=FormRecognizer or kind=CognitiveServices.', 'term-line-info');
+                return null;
+            }
+
+            addLine('Submitting document for analysis...', 'term-line-info');
+            addLine('Model    : ' + modelArg, 'term-line-dim');
+            addLine('Image    : ' + imageArg, 'term-line-dim');
+            addLine('Resource : ' + resourceArg, 'term-line-dim');
+            addBlank();
+            addLine('Analysing layout...     [OK]', 'term-line-dim');
+            addLine('Running field extractor...[OK]', 'term-line-dim');
+            addLine('Confidence scoring...    [OK]', 'term-line-dim');
+            addBlank();
+
+            var isInvoice  = imagePath.indexOf('invoice') >= 0 || modelArg.indexOf('invoice') >= 0;
+            var isIdCard   = imagePath.indexOf('id-card') >= 0 || modelArg.indexOf('idDocument') >= 0;
+
+            if (isInvoice || modelArg === 'prebuilt-invoice') {
+                printJSON({
+                    requestId:    'req-di-e5f6a7b8',
+                    resource:     resourceArg,
+                    model:        'prebuilt-invoice',
+                    documentType: 'invoice',
+                    status:       'succeeded',
+                    confidence:   0.97,
+                    fields: {
+                        VendorName: {
+                            value:      'Contoso Tech Solutions LLC',
+                            confidence: 0.99
+                        },
+                        VendorAddress: {
+                            value:      '1 Microsoft Way, Redmond, WA 98052',
+                            confidence: 0.96
+                        },
+                        CustomerName: {
+                            value:      'Hexworth Prime Academy',
+                            confidence: 0.98
+                        },
+                        CustomerAddress: {
+                            value:      '123 Learning Blvd, Orlando, FL 32801',
+                            confidence: 0.94
+                        },
+                        InvoiceId: {
+                            value:      'INV-2026-04190042',
+                            confidence: 0.99
+                        },
+                        InvoiceDate: {
+                            value:      '2026-04-19',
+                            confidence: 0.99
+                        },
+                        DueDate: {
+                            value:      '2026-05-19',
+                            confidence: 0.97
+                        },
+                        InvoiceTotal: {
+                            value:      'USD 14,850.00',
+                            confidence: 0.99
+                        },
+                        SubTotal: {
+                            value:      'USD 13,500.00',
+                            confidence: 0.98
+                        },
+                        TaxAmount: {
+                            value:      'USD 1,350.00',
+                            confidence: 0.97
+                        },
+                        Items: [
+                            {
+                                Description: 'Azure AI Platform License — Annual',
+                                Quantity:    1,
+                                UnitPrice:   'USD 8,000.00',
+                                Amount:      'USD 8,000.00',
+                                confidence:  0.95
+                            },
+                            {
+                                Description: 'Cognitive Services API Calls — Block 10M',
+                                Quantity:    2,
+                                UnitPrice:   'USD 2,500.00',
+                                Amount:      'USD 5,000.00',
+                                confidence:  0.93
+                            },
+                            {
+                                Description: 'Professional Services (8 hrs)',
+                                Quantity:    8,
+                                UnitPrice:   'USD 62.50',
+                                Amount:      'USD 500.00',
+                                confidence:  0.91
+                            }
+                        ]
+                    }
+                });
+                addBlank();
+                addLine('  Fields extracted using prebuilt-invoice model.', 'term-line-info');
+                addLine('  Confidence 0.97 — field values highly reliable.', 'term-line-dim');
+                addLine('  NOTE: PascalCase field names (VendorName, InvoiceDate, etc.)', 'term-line-dim');
+                addLine('  are the Document Intelligence standard field schema for invoices.', 'term-line-dim');
+                return { docint_analyzed: true, model: modelArg, image: imagePath, isInvoice: true, resource: resourceArg };
+            }
+
+            if (isIdCard || modelArg === 'prebuilt-idDocument') {
+                printJSON({
+                    requestId:    'req-di-f6a7b8c9',
+                    resource:     resourceArg,
+                    model:        'prebuilt-idDocument',
+                    documentType: 'driverLicense',
+                    status:       'succeeded',
+                    confidence:   0.95,
+                    fields: {
+                        FirstName:    { value: 'Alex',         confidence: 0.98 },
+                        LastName:     { value: 'Reyes',        confidence: 0.98 },
+                        DocumentNumber: { value: 'D123-456-78901', confidence: 0.96 },
+                        DateOfBirth:  { value: '1992-07-15',   confidence: 0.97 },
+                        DateOfExpiry: { value: '2030-07-14',   confidence: 0.96 },
+                        Address:      { value: '456 Oak Ave, Tampa, FL 33601', confidence: 0.91 },
+                        Region:       { value: 'Florida',      confidence: 0.99 },
+                        Country:      { value: 'USA',          confidence: 0.99 }
+                    }
+                });
+                return { docint_analyzed: true, model: modelArg, image: imagePath, isIdCard: true, resource: resourceArg };
+            }
+
+            /* Generic layout fallback */
+            printJSON({
+                requestId:    'req-di-g7a8b9c0',
+                resource:     resourceArg,
+                model:        modelArg,
+                status:       'succeeded',
+                pageCount:    1,
+                lines:        42,
+                words:        287,
+                tables:       1,
+                selectionMarks: 0
+            });
+            return { docint_analyzed: true, model: modelArg, image: imagePath, resource: resourceArg };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+        ════════════════════════════════════════════════ */
+        function execLine(line) {
+            addPromptLine(line);
+
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            switch (cmd) {
+                case 'ls':
+                    result = cmd_ls(rest);
+                    break;
+                case 'cat':
+                    result = cmd_cat(rest);
+                    break;
+                case 'cd':
+                    result = cmd_cd(rest);
+                    break;
+                case 'pwd':
+                    result = cmd_pwd();
+                    break;
+                case 'echo':
+                    result = cmd_echo(rest);
+                    break;
+                case 'mkdir':
+                    result = cmd_mkdir(rest);
+                    break;
+                case 'cp':
+                    result = cmd_cp(rest);
+                    break;
+                case 'env':
+                    result = cmd_env();
+                    break;
+                case 'diff':
+                    result = cmd_diff(rest);
+                    break;
+                case 'az':
+                    result = cmd_az(rest);
+                    break;
+                case 'clear':
+                    outputEl.innerHTML = '';
+                    return;
+                case 'help':
+                    cmd_help();
+                    return;
+                case 'history':
+                    if (!cmdHistory.length) {
+                        addLine('(no history)', 'term-line-info');
+                    } else {
+                        cmdHistory.forEach(function (h, i) {
+                            addLine(String(i + 1).padStart(4) + '  ' + h, 'term-line-out');
+                        });
+                    }
+                    return;
+                case 'exit':
+                    addLine('Use "Exit Lab" in the header to leave the lab.', 'term-line-info');
+                    return;
+                case 'sudo':
+                    addLine('student is not in the sudoers file. This incident will be reported.', 'term-line-err');
+                    return;
+                default:
+                    addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+                    return;
+            }
+
+            checkTaskCompletion(line, result, args);
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks for a specific result signature
+           that can only come from running the correct command.
+        ════════════════════════════════════════════════ */
+        function checkTaskCompletion(line, result, args) {
+            var cmd = args[0];
+
+            /* ── Task 1: Create speech-lab resource (SpeechServices) ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_created === true && result.kind === 'SpeechServices' &&
+                    result.name === 'speech-lab') {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: List keys for speech-lab ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.keys_listed === true && result.name === 'speech-lab') {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: Both greeting AND meeting-clip recognized ── */
+            if (!taskDone[3] && taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.speech_recognized === true && result.resource === 'speech-lab') {
+                    if (result.isGreeting)  task3_greeting = true;
+                    if (result.isMeeting)   task3_meeting  = true;
+                }
+                if (task3_greeting && task3_meeting) completeTask(3);
+            }
+
+            /* ── Task 4: Synthesize with JennyNeural to ~/results/welcome.wav ── */
+            if (!taskDone[4] && taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.speech_synthesized === true && result.resource === 'speech-lab') {
+                    var voiceLower  = (result.voice || '').toLowerCase();
+                    var outputLower = (result.output || '').toLowerCase();
+                    if (voiceLower.indexOf('neural') >= 0 && outputLower.indexOf('results') >= 0) {
+                        completeTask(4);
+                    }
+                }
+            }
+
+            /* ── Task 5: Create docint-lab (FormRecognizer) ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_created === true && result.kind === 'FormRecognizer' &&
+                    result.name === 'docint-lab') {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: Analyze invoice-scan.png with prebuilt-invoice ── */
+            if (!taskDone[6] && taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.docint_analyzed === true && result.isInvoice === true &&
+                    result.resource === 'docint-lab') {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: Create ai-hub (CognitiveServices) AND run list ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_created === true && result.kind === 'CognitiveServices' &&
+                    result.name === 'ai-hub') {
+                    task7_created = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_listed === true && result.count >= 2) {
+                    task7_listed = true;
+                }
+                if (task7_created && task7_listed) completeTask(7);
+            }
+
+            /* ── Task 8: Regenerate key1 for speech-lab ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.keys_regenerated === true && result.name === 'speech-lab') {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: Container pulled AND container running ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.container_pulled === true) {
+                    task9_pulled = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.container_running === true) {
+                    task9_running = true;
+                }
+                if (task9_pulled && task9_running) completeTask(9);
+            }
+
+            /* ── Task 10: Show both speech-lab AND ai-hub (individual vs multi-service) ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.resource_shown === true) {
+                    if (result.name === 'speech-lab' && result.kind === 'SpeechServices') {
+                        task10_speech = true;
+                    }
+                    if (result.name === 'ai-hub' && result.kind === 'CognitiveServices') {
+                        task10_hub = true;
+                    }
+                }
+                /* Also accept diff output */
+                if (cmd === 'diff' && result && typeof result === 'object' &&
+                    result.diff_run === true) {
+                    task10_speech = true;
+                    task10_hub    = true;
+                }
+                if (task10_speech && task10_hub) completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#6b5b7e">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Create a Speech Service',
+                2:  'Retrieve and Inspect Keys',
+                3:  'Speech-to-Text',
+                4:  'Text-to-Speech',
+                5:  'Create Document Intelligence',
+                6:  'Analyze a Document',
+                7:  'Create Multi-Service Resource',
+                8:  'Key Rotation',
+                9:  'Pull and Run a Container',
+                10: 'Compare Individual vs Multi-Service'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Provision an individual Speech Service resource:\n<code>az cognitiveservices account create --name speech-lab --resource-group ai-fundamentals-rg --kind SpeechServices --sku F0 --location eastus</code>\n\nNote: <code>--kind SpeechServices</code> creates a single-purpose resource — only Speech APIs. <code>--sku F0</code> is the free tier (5 audio hours/month). Inspect the <code>endpoint</code> field in the response — it is specific to this resource.',
+                hint: 'Azure AI Services can be provisioned as individual resources (one kind = one service) or as multi-service resources (kind=CognitiveServices = all services, one key). Individual resources give precise cost tracking per service. Multi-service resources simplify key management across multiple APIs. The endpoint URL pattern also differs: individual resources get a named endpoint; multi-service uses a regional endpoint.',
+                cmd:  'az cognitiveservices account create --name speech-lab --resource-group ai-fundamentals-rg --kind SpeechServices --sku F0 --location eastus'
+            },
+            2: {
+                step: 'Retrieve the API keys for your Speech resource:\n<code>az cognitiveservices account keys list --name speech-lab --resource-group ai-fundamentals-rg</code>\n\nEvery Cognitive Services resource has exactly two keys. Read the rotation explanation printed after the keys. Understanding zero-downtime rotation is an AI-900 exam concept.',
+                hint: 'The two-key design is a fundamental Azure pattern for credentials. If you had only one key, rotating it would instantly break all applications using that key until they were updated. With two keys: switch all apps to key2, then regenerate key1 (apps still working on key2). Update apps to key1, then regenerate key2. Result: continuous operation, both keys are fresh. This applies to Azure Storage, Key Vault, Event Hubs, and all Cognitive Services.',
+                cmd:  'az cognitiveservices account keys list --name speech-lab --resource-group ai-fundamentals-rg'
+            },
+            3: {
+                step: 'Two commands required:\n1. <code>az speech recognize --audio ~/audio/greeting.wav --resource speech-lab</code> — Short clip, single-speaker, high confidence.\n2. <code>az speech recognize --audio ~/audio/meeting-clip.wav --resource speech-lab</code> — 30-second clip with multiple speakers and per-utterance timestamps.\n\nCompare the output structures. The meeting response includes <code>utterances</code> with per-speaker attribution.',
+                hint: 'The Speech-to-Text API (also called speech recognition) converts audio to text in real time or batch mode. Confidence (0.0–1.0) reflects how certain the model is. Speaker diarization identifies who is speaking — critical for meeting transcription. The word-level timestamps enable features like synchronized captions and audio search. In production you would use the SDK or REST API directly, not the CLI.',
+                cmd:  'az speech recognize --audio ~/audio/greeting.wav --resource speech-lab\naz speech recognize --audio ~/audio/meeting-clip.wav --resource speech-lab'
+            },
+            4: {
+                step: 'Synthesise speech from text using a Neural voice:\n<code>az speech synthesize --text "Welcome to the Azure AI fundamentals course. This is chapter six." --resource speech-lab --voice en-US-JennyNeural --output ~/results/welcome.wav</code>\n\nNote the <code>ssmlOptionsAvailable</code> and <code>neuralVoiceFeatures</code> in the response. SSML (Speech Synthesis Markup Language) lets you control rate, pitch, and emphasis per-word.',
+                hint: 'Neural voices (names ending in Neural) use deep learning to produce human-like speech with natural prosody — intonation, rhythm, and stress patterns. Standard voices sound robotic by comparison. Azure offers 400+ neural voices across 140 languages. SSML is the W3C standard for controlling speech synthesis output — you can make a voice pause, whisper, spell out acronyms, or emphasise specific words. The output .wav file is PCM audio that can be played directly.',
+                cmd:  'az speech synthesize --text "Welcome to the Azure AI fundamentals course. This is chapter six." --resource speech-lab --voice en-US-JennyNeural --output ~/results/welcome.wav'
+            },
+            5: {
+                step: 'Provision a Document Intelligence resource:\n<code>az cognitiveservices account create --name docint-lab --resource-group ai-fundamentals-rg --kind FormRecognizer --sku F0 --location eastus</code>\n\nNotice the warning printed after creation: <code>--kind FormRecognizer</code> is the API identifier. The product was renamed from Azure Form Recognizer to Azure AI Document Intelligence in 2023, but the CLI and REST API still use the original kind identifier.',
+                hint: 'Product renames in Azure are common — the API kind often lags the marketing name by months or years. FormRecognizer is still valid and fully functional. Document Intelligence provides three model types: prebuilt (invoice, receipt, ID, tax form — ready to use), custom (train on your own documents), and composed (multiple custom models combined). The prebuilt-invoice model understands 20+ invoice formats globally without any training data.',
+                cmd:  'az cognitiveservices account create --name docint-lab --resource-group ai-fundamentals-rg --kind FormRecognizer --sku F0 --location eastus'
+            },
+            6: {
+                step: 'Analyze an invoice scan:\n<code>az docint analyze --image ~/documents/invoice-scan.png --model prebuilt-invoice --resource docint-lab</code>\n\nStudy the <code>fields</code> object. Each extracted field has a <code>value</code> and a <code>confidence</code> score. Note the PascalCase field names — this is the Document Intelligence field schema standard. The <code>Items</code> array extracts every line item from the invoice table.',
+                hint: 'Document Intelligence uses pre-trained models that understand document layouts across many vendors and formats. The prebuilt-invoice model extracts 20+ fields including line items. Confidence below 0.5 is typically flagged for human review. Unlike OCR (which just extracts text), Document Intelligence understands the semantic meaning of fields — it knows that "14,850.00" next to "Total" is the invoice total, not just a number in the document. This is field-aware extraction.',
+                cmd:  'az docint analyze --image ~/documents/invoice-scan.png --model prebuilt-invoice --resource docint-lab'
+            },
+            7: {
+                step: 'Two commands required:\n1. <code>az cognitiveservices account create --name ai-hub --resource-group ai-fundamentals-rg --kind CognitiveServices --sku S0 --location eastus</code> — the multi-service resource.\n2. <code>az cognitiveservices account list --resource-group ai-fundamentals-rg</code> — see all three resources.\n\nCompare the <code>kind</code> values: speech-lab=SpeechServices (specific), docint-lab=FormRecognizer (specific), ai-hub=CognitiveServices (all-in-one).',
+                hint: 'A multi-service resource (kind=CognitiveServices) gives you one endpoint and one set of keys that work with Speech, Vision, Language, Decision, and OpenAI APIs simultaneously. Individual resources give granular cost tracking and allow different pricing tiers per service. For production: use individual resources when you need strict per-service cost allocation or different SKUs; use multi-service when you want simplicity and are building an app that uses multiple AI services.',
+                cmd:  'az cognitiveservices account create --name ai-hub --resource-group ai-fundamentals-rg --kind CognitiveServices --sku S0 --location eastus\naz cognitiveservices account list --resource-group ai-fundamentals-rg'
+            },
+            8: {
+                step: 'Rotate key1 for speech-lab:\n<code>az cognitiveservices account keys regenerate --name speech-lab --resource-group ai-fundamentals-rg --key-name key1</code>\n\nThe output shows the new key1 and the unchanged key2. Read the rotation strategy printed below the keys. Note that key2 remains valid throughout — this is the zero-downtime guarantee.',
+                hint: 'Key rotation is a security best practice required by compliance frameworks (SOC 2, HIPAA, PCI-DSS). Old keys can be compromised without your knowledge if they appear in logs, git history, or error messages. Regular rotation (e.g., every 90 days) limits the exposure window. In production, keys are typically stored in Azure Key Vault with automatic rotation policies — your application retrieves the current key from Key Vault at startup, not from configuration files or environment variables.',
+                cmd:  'az cognitiveservices account keys regenerate --name speech-lab --resource-group ai-fundamentals-rg --key-name key1'
+            },
+            9: {
+                step: 'Two commands required:\n1. <code>az cognitiveservices container pull --kind SpeechServices</code> — downloads the Docker image (~713 MB).\n2. <code>az cognitiveservices container run --kind SpeechServices --port 5000</code> — starts the container locally.\n\nRead the billing requirements carefully. The container runs inference locally (audio never leaves your network) but still needs periodic check-in with Azure billing.',
+                hint: 'Azure Cognitive Services containers are Docker images that run the AI models on your own infrastructure. Use cases: regulated industries (healthcare, finance) where data must not leave the on-premises network; edge deployments with intermittent connectivity; air-gapped government networks. The mandatory Billing parameter means Azure still tracks usage for cost reporting — the container will refuse requests if it cannot reach the billing endpoint after a grace period. This is by design to prevent unbilled usage.',
+                cmd:  'az cognitiveservices container pull --kind SpeechServices\naz cognitiveservices container run --kind SpeechServices --port 5000'
+            },
+            10: {
+                step: 'Show both resources and compare:\n1. <code>az cognitiveservices account show --name speech-lab --resource-group ai-fundamentals-rg</code>\n2. <code>az cognitiveservices account show --name ai-hub --resource-group ai-fundamentals-rg</code>\n\nKey differences to note: <code>kind</code> (SpeechServices vs CognitiveServices), <code>endpoint</code> URL pattern (named vs regional), and what the keys unlock (single API vs all APIs).',
+                hint: 'This is the capstone comparison. Individual resources: predictable per-service billing, isolated quotas, can be in different regions, SKU can be different per service (e.g., Speech on F0, Vision on S1). Multi-service: one key, one endpoint, one unified bill, must all be in the same region, same SKU tier for all services. For exam: know that CognitiveServices is the kind name for multi-service. Both types support the same REST API structure — the difference is in management, not in how you call the APIs.',
+                cmd:  'az cognitiveservices account show --name speech-lab --resource-group ai-fundamentals-rg\naz cognitiveservices account show --name ai-hub --resource-group ai-fundamentals-rg'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                                        ['cognitiveservices', 'speech', 'docint', 'account'],
+            'az cognitiveservices ':                                      ['account', 'container'],
+            'az cognitiveservices account ':                              ['create', 'list', 'show', 'keys'],
+            'az cognitiveservices account create ':                       ['--name', '--resource-group', '--kind', '--sku', '--location'],
+            'az cognitiveservices account list ':                         ['--resource-group'],
+            'az cognitiveservices account show ':                         ['--name', '--resource-group'],
+            'az cognitiveservices account keys ':                         ['list', 'regenerate'],
+            'az cognitiveservices account keys list ':                    ['--name', '--resource-group'],
+            'az cognitiveservices account keys regenerate ':              ['--name', '--resource-group', '--key-name'],
+            'az cognitiveservices container ':                            ['pull', 'run'],
+            'az cognitiveservices container pull ':                       ['--kind'],
+            'az cognitiveservices container run ':                        ['--kind', '--port'],
+            'az speech ':                                                 ['recognize', 'synthesize'],
+            'az speech recognize ':                                       ['--audio', '--resource'],
+            'az speech synthesize ':                                      ['--text', '--resource', '--voice', '--output'],
+            'az docint ':                                                  ['analyze'],
+            'az docint analyze ':                                          ['--image', '--model', '--resource']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('ai', 'ai900-ch06-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure AI Services Lab — Final Lab — Hexworth Prime', 'term-welcome');
+            addLine('Azure CLI 2.58.0   Ubuntu 22.04 LTS   AI-900 Chapter 6', 'term-welcome');
+            addBlank();
+            addLine('This is the capstone lab for AI-900. You will provision, authenticate,', 'term-line-info');
+            addLine('and use multiple Azure AI services through a simulated CLI environment.', 'term-line-info');
+            addLine('This lab ties together concepts from all previous chapters.', 'term-line-info');
+            addBlank();
+            addLine('Files in this environment:', 'term-line-warn');
+            addLine('  Audio      : ls ~/audio/         (greeting.wav, meeting-clip.wav)', 'term-line-dim');
+            addLine('  Documents  : ls ~/documents/     (invoice-scan.png, id-card-scan.png)', 'term-line-dim');
+            addLine('  Text       : ls ~/text/          (speech-input.txt)', 'term-line-dim');
+            addLine('  Results    : ls ~/results/       (output directory)', 'term-line-dim');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the course.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: All "az" commands are simulated for this lab. In production, use the', 'term-line-warn');
+            addLine('Azure Portal, Azure CLI, REST API, or the service-specific SDKs.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

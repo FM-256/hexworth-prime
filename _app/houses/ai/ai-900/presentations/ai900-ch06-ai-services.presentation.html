@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AI Services | AI-900 Chapter 6</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(201, 168, 58, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #c9a83a; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(201,168,58,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(201,168,58,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
+        /* Step-by-step flow table used in provisioning slide */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(201,168,58,0.12); border: 1px solid rgba(201,168,58,0.4);
+            color: #c9a83a; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Exam review chapter grid */
+        .chapter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .ch-card {
+            background: rgba(255,255,255,0.04); border-radius: 8px;
+            padding: 11px 13px; border: 1px solid rgba(255,255,255,0.07);
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .ch-card:nth-child(1) { animation-delay: 0.1s; border-top: 2px solid #6366f1; }
+        .ch-card:nth-child(2) { animation-delay: 0.2s; border-top: 2px solid #06b6d4; }
+        .ch-card:nth-child(3) { animation-delay: 0.3s; border-top: 2px solid #3ab577; }
+        .ch-card:nth-child(4) { animation-delay: 0.4s; border-top: 2px solid #a78bfa; }
+        .ch-card:nth-child(5) { animation-delay: 0.5s; border-top: 2px solid #f97316; }
+        .ch-card:nth-child(6) { animation-delay: 0.6s; border-top: 2px solid #c9a83a; }
+        .ch-card .ch-num  { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; margin-bottom: 3px; }
+        .ch-card .ch-name { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin-bottom: 5px; }
+        .ch-card .ch-keys { font-size: 0.76rem; color: #94a3b8; line-height: 1.5; }
+        .ch-card .ch-pct  { font-size: 0.72rem; color: #c9a83a; margin-top: 5px; font-weight: 700; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .chapter-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Azure AI Services — AI-900 Chapter 6</h1>
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AI-900 &nbsp;|&nbsp; Chapter 6 of 6 &nbsp;|&nbsp; Final Chapter</div>
+        <div class="title-hero">
+            <!-- Azure cloud with AI service icons orbiting -->
+            <svg width="380" height="130" viewBox="0 0 380 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central Azure cloud shape -->
+                <ellipse cx="190" cy="65" rx="46" ry="34" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.8"/>
+                <text x="190" y="60" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI</text>
+                <text x="190" y="72" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">Services</text>
+                <!-- Pulse ring around hub -->
+                <ellipse cx="190" cy="65" rx="54" ry="42" fill="none" stroke="rgba(201,168,58,0.12)" stroke-width="1.4" style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Orbit track — dashed ellipse -->
+                <ellipse cx="190" cy="65" rx="88" ry="56" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,4"/>
+
+                <!-- Orbiting service 1: Vision (top) -->
+                <g style="animation: none;">
+                    <circle cx="190" cy="9" r="16" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.2"
+                        style="animation: entityPop 0.35s ease forwards 0.1s; opacity:0;"/>
+                    <text x="190" y="7" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Vision</text>
+                    <text x="190" y="16" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">See</text>
+                </g>
+
+                <!-- Orbiting service 2: Language (top-right) -->
+                <circle cx="278" cy="24" r="16" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="278" y="22" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Language</text>
+                <text x="278" y="31" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Read</text>
+
+                <!-- Orbiting service 3: Speech (right) -->
+                <circle cx="312" cy="65" r="16" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="312" y="63" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Speech</text>
+                <text x="312" y="72" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Hear</text>
+
+                <!-- Orbiting service 4: Decision (bottom-right) -->
+                <circle cx="278" cy="106" r="16" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="278" y="104" text-anchor="middle" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Decision</text>
+                <text x="278" y="113" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">Decide</text>
+
+                <!-- Orbiting service 5: Document (bottom) -->
+                <circle cx="190" cy="121" r="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="190" y="119" text-anchor="middle" font-size="6.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Document</text>
+                <text x="190" y="128" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Extract</text>
+
+                <!-- Orbiting service 6: OpenAI (left) -->
+                <circle cx="68" cy="65" r="16" fill="rgba(99,102,241,0.1)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="68" y="63" text-anchor="middle" font-size="6.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">OpenAI</text>
+                <text x="68" y="72" text-anchor="middle" font-size="6" fill="#818cf8" font-family="Segoe UI,sans-serif">Generate</text>
+
+                <!-- Spoke connector lines, animated flow toward center -->
+                <line x1="190" y1="25" x2="190" y2="31" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="263" y1="32" x2="232" y2="44" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="296" y1="65" x2="238" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <line x1="263" y1="98" x2="232" y2="83" stroke="rgba(249,115,22,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.1s" repeatCount="indefinite" begin="0.45s"/>
+                </line>
+                <line x1="190" y1="105" x2="190" y2="99" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <line x1="84" y1="65" x2="144" y2="65" stroke="rgba(99,102,241,0.4)" stroke-width="1.2" stroke-dasharray="3,3">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="1.1s" repeatCount="indefinite" begin="0.75s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Azure <span class="accent">AI Services</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Pre-Built APIs &nbsp;&bull;&nbsp; Vision &nbsp;&bull;&nbsp; Speech &nbsp;&bull;&nbsp; Language &nbsp;&bull;&nbsp; Decision &nbsp;&bull;&nbsp; OpenAI &nbsp;&bull;&nbsp; Document Intelligence
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Azure AI Services are Microsoft's portfolio of pre-built, API-accessible AI capabilities. You don't train models — you call endpoints. This final chapter covers what they are, how to provision them, how to secure them, how to deploy them to the edge, and how to use them responsibly.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AI-900 Exam Objectives</span>
+            <span>Chapter 6 of 6 — Final</span>
+            <span>Azure AI Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — OVERVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure AI Services <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Pre-built, API-accessible AI capabilities. No model training required — provision a resource, grab your key, and call the endpoint.</div>
+
+        <!-- Hub-and-spoke: Azure AI Services center, 6 categories branching out -->
+        <div class="diagram-center">
+            <svg width="660" height="118" viewBox="0 0 660 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central hub -->
+                <rect x="252" y="22" width="156" height="74" rx="12" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.8"/>
+                <text x="330" y="47" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI Services</text>
+                <text x="330" y="61" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Pre-built API endpoints</text>
+                <text x="330" y="73" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">No training required</text>
+                <text x="330" y="85" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Managed by Microsoft</text>
+                <circle cx="330" cy="59" r="46" fill="none" stroke="rgba(201,168,58,0.07)" stroke-width="1.2" style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- Left spokes: Vision, Language, Speech -->
+                <!-- Vision -->
+                <line x1="250" y1="38" x2="178" y2="22" stroke="rgba(6,182,212,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite"/>
+                </line>
+                <rect x="52" y="6" width="124" height="32" rx="7" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="114" y="20" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Vision</text>
+                <text x="114" y="31" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Analyze images, OCR, faces</text>
+
+                <!-- Language -->
+                <line x1="252" y1="59" x2="186" y2="59" stroke="rgba(167,139,250,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <rect x="46" y="43" width="138" height="32" rx="7" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="115" y="57" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Language</text>
+                <text x="115" y="68" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">NLP, sentiment, translation</text>
+
+                <!-- Speech -->
+                <line x1="252" y1="80" x2="178" y2="96" stroke="rgba(58,181,119,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <rect x="50" y="80" width="126" height="32" rx="7" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="113" y="94" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Speech</text>
+                <text x="113" y="105" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">STT, TTS, translation</text>
+
+                <!-- Right spokes: Decision, OpenAI, Document Intelligence -->
+                <!-- Decision -->
+                <line x1="408" y1="38" x2="482" y2="22" stroke="rgba(249,115,22,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <rect x="484" y="6" width="130" height="32" rx="7" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="549" y="20" text-anchor="middle" font-size="8.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Decision</text>
+                <text x="549" y="31" text-anchor="middle" font-size="7" fill="#fdba74" font-family="Segoe UI,sans-serif">Anomaly, Content Safety</text>
+
+                <!-- Azure OpenAI -->
+                <line x1="408" y1="59" x2="476" y2="59" stroke="rgba(99,102,241,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+                <rect x="478" y="43" width="150" height="32" rx="7" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="553" y="57" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Azure OpenAI</text>
+                <text x="553" y="68" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">GPT-4, DALL-E, Embeddings</text>
+
+                <!-- Document Intelligence -->
+                <line x1="408" y1="80" x2="482" y2="96" stroke="rgba(239,68,68,0.45)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <rect x="484" y="80" width="160" height="32" rx="7" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.1"
+                    style="animation: boxGrow 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="564" y="94" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Document Intelligence</text>
+                <text x="564" y="105" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Forms, receipts, invoices</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Core Concept</div>
+                <div class="card-desc">You are a consumer, not a trainer. Microsoft has already trained the underlying models using massive datasets. You provision the resource, authenticate, and call the REST API. The result comes back as JSON. Your application does not need a GPU or a data scientist.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What All Six Categories Share</div>
+                <div class="card-desc">Every Azure AI Service follows the same pattern: <strong>endpoint URL</strong> + <strong>API key</strong> + <strong>REST call</strong> = AI result. They all support Azure Monitor logging, private endpoints, managed identity auth, and container deployment. The interface is consistent whether you use Vision or Speech.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Exam Angle</div>
+                <div class="card-desc">AI-900 tests whether you can match service to scenario. Vision for images. Language for text. Speech for audio. Decision for moderation and anomalies. Document Intelligence for structured extraction from scanned documents. Know which service maps to which problem — that is the exam.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Crawl: "These are ready-to-use APIs — you consume them, not train them." Walk: every call follows the same REST pattern regardless of which AI capability you're invoking. Master that pattern once and it applies to all six categories.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — SPEECH TO TEXT ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Speech Recognition <span class="accent">(Speech-to-Text)</span></div>
+        <div class="slide-subtitle">Converting spoken audio into written text. Two modes: real-time (streaming) and batch (file upload). Supports 100+ languages with customizable acoustic models.</div>
+
+        <!-- Microphone -> waves -> Speech service -> text -->
+        <div class="diagram-center">
+            <svg width="660" height="100" viewBox="0 0 660 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Microphone -->
+                <rect x="12" y="24" width="68" height="52" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="46" y="44" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Microphone</text>
+                <text x="46" y="55" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">or Audio File</text>
+                <text x="46" y="66" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">.wav .mp3 .ogg</text>
+                <text x="46" y="76" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">PCM stream</text>
+
+                <!-- Sound waves -->
+                <path d="M 90 50 Q 100 35 110 50 Q 120 65 130 50" stroke="rgba(58,181,119,0.6)" stroke-width="1.6" fill="none" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.8s" repeatCount="indefinite"/>
+                </path>
+                <path d="M 95 50 Q 108 28 120 50 Q 132 72 144 50" stroke="rgba(58,181,119,0.35)" stroke-width="1.3" fill="none" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </path>
+
+                <!-- Arrow -->
+                <line x1="152" y1="50" x2="188" y2="50" stroke="rgba(201,168,58,0.6)" stroke-width="1.6" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="188,46 196,50 188,54" fill="#c9a83a"/>
+
+                <!-- Azure Speech Service box (center) -->
+                <rect x="198" y="14" width="264" height="72" rx="11" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="330" y="32" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure Speech Service</text>
+                <text x="250" y="46" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">1. Acoustic Model</text>
+                <text x="250" y="57" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">audio signals -> phonemes</text>
+                <text x="330" y="46" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">2. Language Model</text>
+                <text x="330" y="57" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">phonemes -> words</text>
+                <text x="415" y="46" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">3. Custom Domain</text>
+                <text x="415" y="57" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">medical, legal vocabulary</text>
+                <!-- Internal divider lines -->
+                <line x1="283" y1="36" x2="283" y2="76" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <line x1="370" y1="36" x2="370" y2="76" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <text x="330" y="71" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">REST API &nbsp;|&nbsp; SDK &nbsp;|&nbsp; Real-time / Batch</text>
+
+                <!-- Arrow out -->
+                <line x1="462" y1="50" x2="498" y2="50" stroke="rgba(201,168,58,0.6)" stroke-width="1.6" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="498,46 506,50 498,54" fill="#c9a83a"/>
+
+                <!-- Text output -->
+                <rect x="508" y="10" width="148" height="80" rx="10" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="582" y="28" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Transcript Output</text>
+                <text x="582" y="40" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">"The patient</text>
+                <text x="582" y="50" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif"> presents with..."</text>
+                <text x="582" y="62" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">+ timestamps</text>
+                <text x="582" y="72" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">+ confidence score</text>
+                <text x="582" y="82" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">+ speaker ID</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Real-Time Mode</div>
+                <div class="card-desc">Audio is streamed continuously to the service over a WebSocket connection. Partial results arrive as you speak — ideal for live captions, voice assistants, and call center transcription. Latency is sub-second. The SDK handles the socket lifecycle for you.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Batch Mode</div>
+                <div class="card-desc">Upload an audio file (up to several hours) to Azure Blob Storage and submit a transcription job via the REST API. The service processes it asynchronously and writes the transcript back to blob storage. Cheaper per-minute rate than real-time. Used for recorded meetings, call archives, and podcast indexing.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Custom Speech Models</div>
+                <div class="card-desc">Standard models struggle with domain vocabulary — "metformin" sounds like "met for min" to a general model. Custom Speech lets you upload domain-specific pronunciation dictionaries and audio samples to fine-tune recognition accuracy. Critical for healthcare, legal, and manufacturing deployments.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Walk through the process: audio capture feeds an acoustic model that converts raw sound into phonemes. The language model then resolves phonemes into probable words using context. The output is a time-stamped transcript with a confidence score per utterance.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — TEXT TO SPEECH ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Speech Synthesis <span class="accent">(Text-to-Speech)</span></div>
+        <div class="slide-subtitle">Converting text to natural-sounding audio. Neural voices use deep learning to produce human-like intonation. SSML gives you fine-grained control over every aspect of the output.</div>
+
+        <!-- Text -> TTS engine -> speaker waves, with neural vs standard comparison -->
+        <div class="diagram-center">
+            <svg width="660" height="108" viewBox="0 0 660 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Text input -->
+                <rect x="6" y="20" width="110" height="68" rx="9" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="61" y="38" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Text Input</text>
+                <text x="61" y="50" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">"Hello, your</text>
+                <text x="61" y="60" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">appointment is</text>
+                <text x="61" y="70" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">at 3pm today."</text>
+                <text x="61" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">plain text or SSML</text>
+
+                <!-- Arrow with SSML label -->
+                <line x1="118" y1="54" x2="156" y2="54" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="156,50 164,54 156,58" fill="#c9a83a"/>
+                <text x="137" y="48" text-anchor="middle" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif">SSML</text>
+
+                <!-- TTS Engine box -->
+                <rect x="166" y="10" width="230" height="88" rx="11" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="281" y="28" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">TTS Engine</text>
+                <!-- Neural voice -->
+                <rect x="176" y="34" width="96" height="56" rx="7" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.4)" stroke-width="1"/>
+                <text x="224" y="50" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Neural Voice</text>
+                <text x="224" y="62" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Deep learning</text>
+                <text x="224" y="72" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Natural prosody</text>
+                <text x="224" y="82" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">450+ voices/70 langs</text>
+                <!-- Standard voice -->
+                <rect x="282" y="34" width="104" height="56" rx="7" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+                <text x="334" y="50" text-anchor="middle" font-size="8" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Standard Voice</text>
+                <text x="334" y="62" text-anchor="middle" font-size="6.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Concatenative</text>
+                <text x="334" y="72" text-anchor="middle" font-size="6.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Robotic cadence</text>
+                <text x="334" y="82" text-anchor="middle" font-size="6.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Legacy / lower cost</text>
+
+                <!-- Arrow out -->
+                <line x1="396" y1="54" x2="432" y2="54" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="432,50 440,54 432,58" fill="#c9a83a"/>
+
+                <!-- Speaker + waves output -->
+                <rect x="442" y="10" width="100" height="88" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="492" y="30" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Speaker</text>
+                <text x="492" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Audio stream</text>
+                <text x="492" y="53" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">.wav .mp3</text>
+                <text x="492" y="64" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">24 kHz stereo</text>
+                <text x="492" y="75" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">or live stream</text>
+                <!-- Sound wave arcs -->
+                <path d="M 548 38 Q 556 27 564 38 Q 572 49 580 38" stroke="rgba(58,181,119,0.6)" stroke-width="1.5" fill="none" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.7s" repeatCount="indefinite"/>
+                </path>
+                <path d="M 550 38 Q 562 20 575 38 Q 588 56 600 38" stroke="rgba(58,181,119,0.35)" stroke-width="1.2" fill="none" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.85s" repeatCount="indefinite" begin="0.1s"/>
+                </path>
+
+                <!-- SSML tag annotation on the right -->
+                <rect x="606" y="16" width="50" height="76" rx="7" fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>
+                <text x="631" y="30" text-anchor="middle" font-size="6.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">SSML</text>
+                <text x="631" y="42" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">rate=</text>
+                <text x="631" y="52" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">pitch=</text>
+                <text x="631" y="62" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">volume=</text>
+                <text x="631" y="72" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">voice=</text>
+                <text x="631" y="82" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">lang=</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Neural Voices — The Difference</div>
+                <div class="card-desc">Standard voices concatenate recorded phonemes — you hear the seams. Neural voices were trained end-to-end on hours of recorded speech and generate audio as a continuous waveform. The result has natural intonation, appropriate pausing, and emotional range. Microsoft's "Jenny" and "Guy" are commonly used English neural voices.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SSML — Speech Synthesis Markup Language</div>
+                <div class="card-desc">SSML is an XML dialect that wraps your text with pronunciation instructions. You can set speaking rate (<span class="ic">rate="slow"</span>), pitch (<span class="ic">pitch="+10%"</span>), add pauses (<span class="ic">&lt;break time="500ms"/&gt;</span>), force specific pronunciation (<span class="ic">&lt;phoneme&gt;</span>), and switch voices mid-sentence. Essential for IVR systems, audiobooks, and accessibility tools.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Custom Neural Voice</div>
+                <div class="card-desc">Organizations can train a neural voice on their own recorded samples to create a proprietary synthetic voice — a "brand voice". Requires Microsoft approval and a speaker's explicit consent. Used by banks, telcos, and media companies to maintain a consistent branded audio identity. This is distinct from standard voice customization.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            The visual comparison: Neural voice waveform is a smooth, continuous curve — natural rhythm and intonation. Standard voice waveform shows jagged concatenation artifacts — robotic cadence that listeners immediately notice. For any customer-facing application, neural is the correct choice.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — DOCUMENT INTELLIGENCE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Azure AI <span class="accent">Document Intelligence</span></div>
+        <div class="slide-subtitle">Extract structured, machine-readable data from unstructured documents. Receipts, invoices, ID cards, tax forms — pre-built models handle each. Custom models handle your proprietary formats.</div>
+
+        <!-- Scanned document -> Document Intelligence -> structured JSON -->
+        <div class="diagram-center">
+            <svg width="660" height="108" viewBox="0 0 660 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Scanned document -->
+                <rect x="6" y="10" width="100" height="88" rx="9" fill="rgba(99,102,241,0.07)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="56" y="26" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Scanned Doc</text>
+                <!-- Faux document lines -->
+                <rect x="16" y="32" width="80" height="5" rx="2" fill="rgba(99,102,241,0.2)"/>
+                <rect x="16" y="41" width="64" height="5" rx="2" fill="rgba(99,102,241,0.15)"/>
+                <rect x="16" y="50" width="72" height="5" rx="2" fill="rgba(99,102,241,0.2)"/>
+                <rect x="16" y="59" width="55" height="5" rx="2" fill="rgba(99,102,241,0.12)"/>
+                <rect x="16" y="68" width="78" height="5" rx="2" fill="rgba(99,102,241,0.18)"/>
+                <rect x="16" y="77" width="60" height="5" rx="2" fill="rgba(99,102,241,0.14)"/>
+                <rect x="16" y="86" width="68" height="5" rx="2" fill="rgba(99,102,241,0.12)"/>
+                <text x="56" y="101" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">PDF / JPG / TIFF</text>
+
+                <!-- Arrow -->
+                <line x1="108" y1="54" x2="144" y2="54" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="144,50 152,54 144,58" fill="#c9a83a"/>
+
+                <!-- Document Intelligence engine -->
+                <rect x="154" y="8" width="248" height="92" rx="11" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="278" y="26" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Document Intelligence</text>
+                <!-- Three sub-steps -->
+                <rect x="162" y="32" width="72" height="60" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="198" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Layout</text>
+                <text x="198" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">detect regions</text>
+                <text x="198" y="69" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">tables, headers</text>
+                <text x="198" y="79" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">paragraphs</text>
+                <text x="198" y="87" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">bounding boxes</text>
+                <rect x="242" y="32" width="76" height="60" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="280" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">OCR</text>
+                <text x="280" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">extract all text</text>
+                <text x="280" y="69" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">handwriting too</text>
+                <text x="280" y="79" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">multi-language</text>
+                <text x="280" y="87" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">confidence score</text>
+                <rect x="326" y="32" width="68" height="60" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="360" y="48" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Fields</text>
+                <text x="360" y="59" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">map labels</text>
+                <text x="360" y="69" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">to values</text>
+                <text x="360" y="79" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">semantic AI</text>
+                <text x="360" y="87" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">model-based</text>
+
+                <!-- Arrow out -->
+                <line x1="402" y1="54" x2="438" y2="54" stroke="rgba(201,168,58,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="438,50 446,54 438,58" fill="#c9a83a"/>
+
+                <!-- Structured JSON output -->
+                <rect x="448" y="8" width="206" height="92" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="551" y="24" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Structured JSON</text>
+                <text x="462" y="36" font-size="6.5" fill="#64748b" font-family="Courier New,monospace">&#123;</text>
+                <text x="462" y="46" font-size="6.5" fill="#86efac" font-family="Courier New,monospace"> "VendorName": "Contoso",</text>
+                <text x="462" y="56" font-size="6.5" fill="#86efac" font-family="Courier New,monospace"> "InvoiceTotal": "$142.50",</text>
+                <text x="462" y="66" font-size="6.5" fill="#86efac" font-family="Courier New,monospace"> "InvoiceDate": "2026-04-15",</text>
+                <text x="462" y="76" font-size="6.5" fill="#86efac" font-family="Courier New,monospace"> "TaxAmount": "$12.50",</text>
+                <text x="462" y="86" font-size="6.5" fill="#86efac" font-family="Courier New,monospace"> "Items": [...]</text>
+                <text x="462" y="96" font-size="6.5" fill="#64748b" font-family="Courier New,monospace">&#125;</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Critical Distinction from Basic OCR</div>
+                <div class="card-desc">Plain OCR returns a flat string of all text on the page — you still have to figure out which string is the vendor name vs the invoice total. Document Intelligence uses AI models trained on thousands of receipts, invoices, and tax forms to understand <em>what the text means</em>. It returns labeled key-value pairs: <span class="ic">"InvoiceTotal": "$142.50"</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pre-Built Models</div>
+                <div class="card-desc"><strong>Receipt</strong> — merchant name, line items, totals, tax. <strong>Invoice</strong> — vendor, customer, PO number, due date, line items. <strong>ID Document</strong> — passport, driver's license fields. <strong>Business Card</strong> — contact extraction. <strong>Tax (W-2)</strong> — IRS form fields. <strong>Health Insurance Card</strong>. All are ready to use with zero training.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Custom Models</div>
+                <div class="card-desc">Label 5+ sample documents in Document Intelligence Studio to train a custom model on your proprietary form — purchase orders, claims forms, work orders. The labeling UI is drag-and-drop. Once trained, the model extracts your custom fields with the same JSON structure as the pre-built models. No ML expertise required.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — PROVISIONING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Provisioning <span class="accent">Azure AI Services</span></div>
+        <div class="slide-subtitle">Two approaches: one resource per service (granular control, separate keys) or one multi-service resource (single endpoint for everything). The right choice depends on your architecture.</div>
+
+        <!-- Side-by-side: individual resources vs multi-service resource -->
+        <div class="diagram-center">
+            <svg width="660" height="118" viewBox="0 0 660 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- LEFT: 4 individual resources -->
+                <text x="150" y="12" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" font-weight="700" text-decoration="underline">Individual Resources</text>
+                <!-- Application box -->
+                <rect x="70" y="18" width="80" height="30" rx="7" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="110" y="30" text-anchor="middle" font-size="7.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="110" y="40" text-anchor="middle" font-size="6.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Your code</text>
+                <!-- 4 resource boxes with separate keys -->
+                <rect x="4" y="64" width="76" height="28" rx="6" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="42" y="75" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Vision</text>
+                <text x="42" y="85" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Key: a1b2c3d4</text>
+                <rect x="86" y="64" width="76" height="28" rx="6" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="124" y="75" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Language</text>
+                <text x="124" y="85" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Key: e5f6g7h8</text>
+                <rect x="4" y="96" width="76" height="18" rx="5" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="42" y="108" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Speech — Key: i9j0k1</text>
+                <rect x="86" y="96" width="76" height="18" rx="5" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="124" y="108" text-anchor="middle" font-size="6.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Document — Key: l2m3</text>
+                <!-- Lines from app to resources -->
+                <line x1="96" y1="48" x2="42" y2="64" stroke="rgba(99,102,241,0.35)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="110" y1="48" x2="110" y2="64" stroke="rgba(99,102,241,0.35)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="96" y1="48" x2="42" y2="96" stroke="rgba(99,102,241,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="124" y1="48" x2="124" y2="96" stroke="rgba(99,102,241,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                <!-- Label: 4 keys -->
+                <text x="83" y="60" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">4 keys, 4 endpoints</text>
+
+                <!-- Divider -->
+                <line x1="330" y1="5" x2="330" y2="115" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="5,4"/>
+                <text x="330" y="62" text-anchor="middle" font-size="8" fill="#475569" font-family="Segoe UI,sans-serif">vs</text>
+
+                <!-- RIGHT: multi-service resource -->
+                <text x="500" y="12" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Segoe UI,sans-serif" font-weight="700" text-decoration="underline">Multi-Service Resource</text>
+                <!-- Application box -->
+                <rect x="455" y="18" width="90" height="30" rx="7" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="500" y="30" text-anchor="middle" font-size="7.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Application</text>
+                <text x="500" y="40" text-anchor="middle" font-size="6.5" fill="#818cf8" font-family="Segoe UI,sans-serif">Your code</text>
+                <!-- One multi-service box -->
+                <rect x="410" y="58" width="180" height="50" rx="9" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="500" y="74" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI Services</text>
+                <text x="500" y="84" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">1 key &nbsp;|&nbsp; 1 endpoint</text>
+                <text x="500" y="96" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">Vision + Language + Speech + ...</text>
+                <!-- Single line from app to multi-service -->
+                <line x1="500" y1="48" x2="500" y2="58" stroke="rgba(201,168,58,0.5)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <!-- Label: 1 key -->
+                <text x="500" y="116" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">1 key, 1 endpoint — simpler</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">When to Use Individual Resources</div>
+                <div class="card-desc">
+                    <div class="step-list">
+                        <div class="step-row"><span class="step-num">1</span><span class="step-text">You need <strong>granular billing visibility</strong> — see exactly what each service costs per department or project.</span></div>
+                        <div class="step-row"><span class="step-num">2</span><span class="step-text">You need <strong>separate access control</strong> — one team gets Vision access, another gets Language, neither gets the other.</span></div>
+                        <div class="step-row"><span class="step-num">3</span><span class="step-text">You need a <strong>free tier</strong> for experimentation — each service has its own free SKU (F0). Multi-service has no free tier.</span></div>
+                        <div class="step-row"><span class="step-num">4</span><span class="step-text">You need service-specific <strong>regional compliance</strong> — deploy Speech in one region, Language in another.</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">When to Use the Multi-Service Resource</div>
+                <div class="card-desc">
+                    <div class="step-list">
+                        <div class="step-row"><span class="step-num">1</span><span class="step-text">You use <strong>multiple AI services in one application</strong> — one key to manage, one endpoint to configure, one resource to monitor.</span></div>
+                        <div class="step-row"><span class="step-num">2</span><span class="step-text">Your team values <strong>operational simplicity</strong> — fewer secrets to rotate, fewer resources to manage in Azure.</span></div>
+                        <div class="step-row"><span class="step-num">3</span><span class="step-text">You are building a <strong>prototype or proof of concept</strong> quickly — provision once and experiment with any service.</span></div>
+                        <div class="step-row"><span class="step-num">4</span><span class="step-text">You need <strong>cross-service features</strong> — some advanced capabilities only work when services share a resource.</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Exam tip: the AI-900 exam frequently tests the trade-off between individual and multi-service provisioning. Remember: individual = granular billing + free tiers + separate keys. Multi-service = simplicity + one key + no free tier.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — AUTHENTICATION ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Authentication <span class="accent">and Security</span></div>
+        <div class="slide-subtitle">Three ways to authenticate to Azure AI Services endpoints. API keys are simplest. Microsoft Entra ID is most secure. Managed identities eliminate secrets entirely.</div>
+
+        <!-- Client -> auth layer -> Azure AI endpoint security chain -->
+        <div class="diagram-center">
+            <svg width="660" height="110" viewBox="0 0 660 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Client application -->
+                <rect x="6" y="24" width="92" height="62" rx="9" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="52" y="42" text-anchor="middle" font-size="8.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Client App</text>
+                <text x="52" y="54" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">REST call</text>
+                <text x="52" y="64" text-anchor="middle" font-size="7" fill="#818cf8" font-family="Segoe UI,sans-serif">or SDK</text>
+                <text x="52" y="80" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">VM, App Service</text>
+                <text x="52" y="89" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Container, etc.</text>
+
+                <!-- Arrow -->
+                <line x1="100" y1="55" x2="132" y2="55" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="132,51 140,55 132,59" fill="#c9a83a"/>
+
+                <!-- Auth layer — three options stacked -->
+                <rect x="142" y="8" width="216" height="94" rx="11" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="250" y="23" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Authentication Layer</text>
+                <!-- Option 1: API Key -->
+                <rect x="150" y="28" width="200" height="20" rx="5" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="220" y="40" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">API Key</text>
+                <text x="307" y="40" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Ocp-Apim-Subscription-Key header</text>
+                <!-- Option 2: Entra ID -->
+                <rect x="150" y="52" width="200" height="20" rx="5" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.3)" stroke-width="1"/>
+                <text x="220" y="64" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID Token</text>
+                <text x="307" y="64" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Bearer token, RBAC role assignment</text>
+                <!-- Option 3: Managed Identity -->
+                <rect x="150" y="76" width="200" height="20" rx="5" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <text x="220" y="88" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Managed Identity</text>
+                <text x="307" y="88" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">No secret — Azure handles token exchange</text>
+
+                <!-- Arrow out -->
+                <line x1="358" y1="55" x2="392" y2="55" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="392,51 400,55 392,59" fill="#c9a83a"/>
+
+                <!-- Azure AI Endpoint -->
+                <rect x="402" y="16" width="130" height="78" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="467" y="32" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">AI Service</text>
+                <text x="467" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Endpoint</text>
+                <text x="467" y="54" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">{resource}.cognitiveservices</text>
+                <text x="467" y="63" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">.azure.com</text>
+                <text x="467" y="76" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">TLS 1.2 required</text>
+                <text x="467" y="86" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">HTTPS only</text>
+
+                <!-- Private endpoint path -->
+                <rect x="542" y="8" width="112" height="44" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="598" y="22" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Private Endpoint</text>
+                <text x="598" y="33" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">VNet integration</text>
+                <text x="598" y="43" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">No public internet</text>
+                <!-- Key rotation box -->
+                <rect x="542" y="60" width="112" height="44" rx="8" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.7s; opacity:0;"/>
+                <text x="598" y="74" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Key Rotation</text>
+                <text x="598" y="85" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">2 keys always</text>
+                <text x="598" y="95" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">rotate without downtime</text>
+                <line x1="532" y1="30" x2="542" y2="30" stroke="rgba(239,68,68,0.35)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="532" y1="70" x2="542" y2="82" stroke="rgba(249,115,22,0.35)" stroke-width="1" stroke-dasharray="3,3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">API Keys — Simple but Risky</div>
+                <div class="card-desc">Every Azure AI resource has two keys (primary and secondary). You pass the key in the <span class="ic">Ocp-Apim-Subscription-Key</span> HTTP header. Keys grant full access — there is no scope restriction. Never hardcode keys in source code. Store them in Azure Key Vault. Rotate them regularly. Use both keys alternately so rotation is zero-downtime.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Microsoft Entra ID (formerly Azure AD)</div>
+                <div class="card-desc">Assign the <strong>Cognitive Services User</strong> RBAC role to an Entra ID identity (user, group, or service principal). The client acquires an OAuth 2.0 bearer token and passes it in the <span class="ic">Authorization</span> header. Advantages: token expires, access is role-scoped, you get full audit logs in Entra ID, and you can use conditional access policies.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Managed Identities — The Gold Standard</div>
+                <div class="card-desc">Managed identities are Azure-managed service principals. Enable a system-assigned managed identity on your VM, App Service, or container. Assign it the Cognitive Services User role. Your code calls the local metadata endpoint to get a token — no secret stored anywhere. If the compute is compromised, the credential cannot be extracted because it never existed as a stored value.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — CONTAINERS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Containers for <span class="accent">Edge Deployment</span></div>
+        <div class="slide-subtitle">Run Azure AI Services inside Docker containers — on-premises, in disconnected environments, on factory floors, in hospitals, or on ships. Cloud intelligence at the edge.</div>
+
+        <!-- Cloud AI -> container image -> edge device progression -->
+        <div class="diagram-center">
+            <svg width="660" height="110" viewBox="0 0 660 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Step 1: Azure Cloud -->
+                <rect x="4" y="16" width="128" height="78" rx="10" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="68" y="32" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure Cloud</text>
+                <text x="68" y="44" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">AI Service hosted</text>
+                <text x="68" y="55" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Microsoft Managed</text>
+                <text x="68" y="68" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Billing + metering</text>
+                <text x="68" y="78" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">via API call back</text>
+                <text x="68" y="88" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">to Azure (required)</text>
+
+                <!-- Arrow 1 -->
+                <line x1="134" y1="55" x2="162" y2="55" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="162,51 170,55 162,59" fill="#c9a83a"/>
+                <text x="152" y="48" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">pull</text>
+
+                <!-- Step 2: Container Image -->
+                <rect x="172" y="16" width="134" height="78" rx="10" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="239" y="32" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Container Image</text>
+                <text x="239" y="44" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">mcr.microsoft.com</text>
+                <text x="239" y="55" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">/azure-cognitive-</text>
+                <text x="239" y="64" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">services/language</text>
+                <text x="239" y="76" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Docker / containerd</text>
+                <text x="239" y="86" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">arm64 or amd64</text>
+
+                <!-- Arrow 2 -->
+                <line x1="308" y1="55" x2="336" y2="55" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="336,51 344,55 336,59" fill="#c9a83a"/>
+                <text x="326" y="48" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">run</text>
+
+                <!-- Step 3: Edge Device types (3 stacked) -->
+                <rect x="346" y="8" width="120" height="28" rx="7" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.1"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="406" y="19" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Factory Floor</text>
+                <text x="406" y="29" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">No internet — quality vision</text>
+
+                <rect x="346" y="42" width="120" height="28" rx="7" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.1"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="406" y="53" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Hospital / Clinic</text>
+                <text x="406" y="63" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Data residency — PHI stays local</text>
+
+                <rect x="346" y="76" width="120" height="28" rx="7" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.1"
+                    style="animation: boxGrow 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="406" y="87" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Ship / Remote Site</text>
+                <text x="406" y="97" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Satellite link — low latency local</text>
+
+                <!-- Billing callout: must phone home -->
+                <rect x="480" y="16" width="174" height="78" rx="10" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.35)" stroke-width="1.3"
+                    style="animation: boxGrow 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="567" y="30" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Container Requirements</text>
+                <text x="567" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Must pass ApiKey + Billing URL</text>
+                <text x="567" y="53" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">at container startup time</text>
+                <text x="567" y="65" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Periodic billing call-back</text>
+                <text x="567" y="75" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">to Azure (1x/24h minimum)</text>
+                <text x="567" y="86" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Model stays on device</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Why Containers for Edge?</div>
+                <div class="card-desc">
+                    <strong>Latency:</strong> a cloud round-trip adds 50-200ms. For real-time quality inspection on a production line running 200 items/min, that round-trip fails the throughput requirement. The container runs locally — inference in under 10ms. <br>
+                    <strong>Data residency:</strong> healthcare data (PHI) and financial data may not legally transit to a public cloud region. The container keeps data within the facility.
+                </div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Disconnected Environments</div>
+                <div class="card-desc">Ships at sea, military forward-operating bases, and remote mining operations have intermittent or no internet. Azure AI containers run the AI model locally — no connectivity required for inference. The model is baked into the Docker image. The container only needs occasional network access to report usage back to Azure for billing purposes (at minimum once every 24 hours).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Available Container Services</div>
+                <div class="card-desc">Not all Azure AI Services are available as containers. Currently supported: <strong>Speech-to-Text, Text-to-Speech, Language Detection, Key Phrase Extraction, Sentiment Analysis, Named Entity Recognition, Text Analytics for Health, Document Intelligence, Custom Vision inference</strong>. Training is always cloud-only. Only the inference endpoint runs in the container.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — MONITORING ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Monitoring <span class="accent">and Logging</span></div>
+        <div class="slide-subtitle">Every Azure AI Service emits metrics and diagnostic logs to Azure Monitor. Track usage, catch errors, set alerts, and tune performance — all from one central platform.</div>
+
+        <!-- AI Service -> metrics flow -> Azure Monitor dashboard with animated chart bars -->
+        <div class="diagram-center">
+            <svg width="660" height="112" viewBox="0 0 660 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- AI Service box -->
+                <rect x="4" y="22" width="116" height="68" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="62" y="38" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI Service</text>
+                <text x="62" y="50" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Processing requests</text>
+                <text x="62" y="61" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Generating metrics</text>
+                <text x="62" y="72" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Emitting diag logs</text>
+                <text x="62" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">every ~1 minute</text>
+
+                <!-- Metrics flow arrow -->
+                <line x1="122" y1="56" x2="162" y2="56" stroke="rgba(6,182,212,0.6)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="162,52 170,56 162,60" fill="#06b6d4"/>
+                <text x="146" y="49" text-anchor="middle" font-size="6" fill="#06b6d4" font-family="Segoe UI,sans-serif">stream</text>
+
+                <!-- Azure Monitor box -->
+                <rect x="172" y="14" width="140" height="84" rx="10" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.6"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="242" y="30" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Azure Monitor</text>
+                <text x="242" y="42" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Metrics + Logs + Alerts</text>
+                <!-- Animated bar chart inside Azure Monitor box -->
+                <!-- Bar 1 -->
+                <rect x="184" y="88" width="12" height="1" rx="1" fill="#06b6d4" opacity="0.3"/>
+                <rect x="184" y="58" width="12" height="30" rx="1" fill="#06b6d4" opacity="0.7"
+                    style="transform-origin: 190px 88px; animation: barRise 0.8s ease forwards 0.5s; transform: scaleY(0);"/>
+                <!-- Bar 2 -->
+                <rect x="200" y="88" width="12" height="1" rx="1" fill="#06b6d4" opacity="0.3"/>
+                <rect x="200" y="65" width="12" height="23" rx="1" fill="#06b6d4" opacity="0.55"
+                    style="transform-origin: 206px 88px; animation: barRise 0.8s ease forwards 0.65s; transform: scaleY(0);"/>
+                <!-- Bar 3 -->
+                <rect x="216" y="88" width="12" height="1" rx="1" fill="#06b6d4" opacity="0.3"/>
+                <rect x="216" y="52" width="12" height="36" rx="1" fill="#06b6d4" opacity="0.85"
+                    style="transform-origin: 222px 88px; animation: barRise 0.8s ease forwards 0.8s; transform: scaleY(0);"/>
+                <!-- Bar 4 -->
+                <rect x="232" y="88" width="12" height="1" rx="1" fill="#ef4444" opacity="0.3"/>
+                <rect x="232" y="60" width="12" height="28" rx="1" fill="#ef4444" opacity="0.6"
+                    style="transform-origin: 238px 88px; animation: barRise 0.8s ease forwards 0.95s; transform: scaleY(0);"/>
+                <!-- Bar 5 (error spike) -->
+                <rect x="248" y="88" width="12" height="1" rx="1" fill="#ef4444" opacity="0.3"/>
+                <rect x="248" y="47" width="12" height="41" rx="1" fill="#ef4444" opacity="0.9"
+                    style="transform-origin: 254px 88px; animation: barRise 0.8s ease forwards 1.1s; transform: scaleY(0);"/>
+                <!-- Bar 6 (back to normal) -->
+                <rect x="264" y="88" width="12" height="1" rx="1" fill="#3ab577" opacity="0.3"/>
+                <rect x="264" y="61" width="12" height="27" rx="1" fill="#3ab577" opacity="0.65"
+                    style="transform-origin: 270px 88px; animation: barRise 0.8s ease forwards 1.25s; transform: scaleY(0);"/>
+                <!-- Bar 7 -->
+                <rect x="280" y="88" width="12" height="1" rx="1" fill="#3ab577" opacity="0.3"/>
+                <rect x="280" y="57" width="12" height="31" rx="1" fill="#3ab577" opacity="0.7"
+                    style="transform-origin: 286px 88px; animation: barRise 0.8s ease forwards 1.4s; transform: scaleY(0);"/>
+                <text x="237" y="98" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">requests/min over time</text>
+
+                <!-- Arrow to downstream sinks -->
+                <line x1="314" y1="56" x2="346" y2="56" stroke="rgba(201,168,58,0.55)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="346,52 354,56 346,60" fill="#c9a83a"/>
+
+                <!-- Four downstream destinations stacked -->
+                <rect x="356" y="8" width="134" height="24" rx="6" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="423" y="19" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Usage Metrics Dashboard</text>
+                <text x="423" y="28" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Calls, tokens, latency percentiles</text>
+
+                <rect x="356" y="37" width="134" height="24" rx="6" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="423" y="48" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Diagnostic Logs</text>
+                <text x="423" y="57" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Request/response, error codes</text>
+
+                <rect x="356" y="66" width="134" height="24" rx="6" fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.75s; opacity:0;"/>
+                <text x="423" y="77" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Alert Rules</text>
+                <text x="423" y="86" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Error rate &gt; 5% — email/Teams</text>
+
+                <rect x="356" y="95" width="134" height="14" rx="5" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.25)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.85s; opacity:0;"/>
+                <text x="423" y="105" text-anchor="middle" font-size="6.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Log Analytics — KQL queries</text>
+
+                <!-- Key metrics labels on far right -->
+                <rect x="502" y="8" width="154" height="96" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.07)" stroke-width="1"
+                    style="animation: boxGrow 0.4s ease forwards 0.9s; opacity:0;"/>
+                <text x="579" y="22" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Key Metrics to Watch</text>
+                <text x="512" y="34" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">TotalCalls — API request count</text>
+                <text x="512" y="46" font-size="7" fill="#ef4444" font-family="Segoe UI,sans-serif">TotalErrors — 4xx / 5xx responses</text>
+                <text x="512" y="58" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Latency — P50 / P95 / P99</text>
+                <text x="512" y="70" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">BlockedCalls — throttling events</text>
+                <text x="512" y="82" font-size="7" fill="#f97316" font-family="Segoe UI,sans-serif">DataIn / DataOut — byte volume</text>
+                <text x="512" y="94" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">All queryable via KQL in Log Analytics</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Enabling Diagnostic Logging</div>
+                <div class="card-desc">By default, Azure AI Services emit platform metrics automatically. Diagnostic logs (request/response details, error codes) must be explicitly enabled via <strong>Diagnostic Settings</strong> on the resource. You choose the destination: Log Analytics Workspace (for KQL queries), Azure Storage (for archival), or Event Hub (for real-time streaming to SIEM systems like Sentinel).</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Setting Up Alerts</div>
+                <div class="card-desc">Azure Monitor alert rules fire when a metric crosses a threshold. Example: if <strong>TotalErrors</strong> over a 5-minute window exceeds 10, send an email and post to a Teams channel. Alert rules can also trigger Logic Apps, Azure Functions, or runbooks for automated remediation. Alerts are configured on the resource or the resource group level.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why This Matters for Production</div>
+                <div class="card-desc">APIs get throttled. Networks have blips. Models return unexpected errors. Without monitoring, you find out from an angry user 3 hours after the fact. With proper alerting and dashboards, you are notified within 5 minutes, you have the exact request IDs in the logs, and you can diagnose whether it was a quota breach, a downstream model issue, or a client error.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — RESPONSIBLE AI ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Responsible AI with <span class="accent">Azure AI Services</span></div>
+        <div class="slide-subtitle">Every Azure AI Service ships with a transparency note, content filtering, privacy controls, and usage guidelines. Responsible AI is not an afterthought — it is baked into the product.</div>
+
+        <!-- Service box wrapped in guardrails -->
+        <div class="diagram-center">
+            <svg width="660" height="110" viewBox="0 0 660 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer responsible AI frame -->
+                <rect x="4" y="4" width="652" height="102" rx="14" fill="none" stroke="rgba(58,181,119,0.2)" stroke-width="2" stroke-dasharray="6,4">
+                    <animate attributeName="stroke-dashoffset" values="20;0" dur="3s" repeatCount="indefinite"/>
+                </rect>
+                <text x="330" y="14" text-anchor="middle" font-size="7.5" fill="rgba(58,181,119,0.5)" font-family="Segoe UI,sans-serif" font-weight="700" letter-spacing="2">RESPONSIBLE AI FRAMEWORK</text>
+
+                <!-- Central AI Service -->
+                <rect x="248" y="24" width="164" height="62" rx="10" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.7"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="330" y="42" text-anchor="middle" font-size="9.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure AI Service</text>
+                <text x="330" y="54" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Capabilities + Limitations</text>
+                <text x="330" y="66" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Trained on curated data</text>
+                <text x="330" y="76" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Regularly audited</text>
+
+                <!-- Guardrail 1: Transparency Note (top-left) -->
+                <rect x="18" y="20" width="154" height="34" rx="8" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="95" y="32" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Transparency Note</text>
+                <text x="95" y="46" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Purpose · Limitations · Use cases not supported</text>
+                <line x1="172" y1="37" x2="248" y2="45" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+
+                <!-- Guardrail 2: Content Filter (bottom-left) -->
+                <rect x="18" y="62" width="154" height="34" rx="8" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="95" y="74" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Content Safety Filter</text>
+                <text x="95" y="86" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Hate · Sexual · Violence · Self-harm categories</text>
+                <line x1="172" y1="79" x2="248" y2="72" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+
+                <!-- Guardrail 3: Privacy Shield (top-right) -->
+                <rect x="488" y="20" width="158" height="34" rx="8" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="567" y="32" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Privacy Shield</text>
+                <text x="567" y="46" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Data not used for training · GDPR · SOC2 · HIPAA</text>
+                <line x1="488" y1="37" x2="412" y2="45" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+
+                <!-- Guardrail 4: Data Handling Policy (bottom-right) -->
+                <rect x="488" y="62" width="158" height="34" rx="8" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="567" y="74" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Data Handling Policy</text>
+                <text x="567" y="86" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Input not retained · Audit logs · Encryption at rest</text>
+                <line x1="488" y1="79" x2="412" y2="72" stroke="rgba(249,115,22,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Transparency Notes — What They Are</div>
+                <div class="card-desc">Every Azure AI Service ships a <strong>Transparency Note</strong> — a public document on Microsoft Learn that explains: what the service does and how it works, what training data was used, what it is <em>not</em> designed for, known failure modes, and recommended use case patterns. For example, the Face API transparency note explicitly states it should not be used for sole-source law enforcement decisions.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Content Safety — Built In</div>
+                <div class="card-desc">Azure AI Content Safety is a standalone service (and also integrated into Azure OpenAI) that classifies content across four harm categories: <strong>Hate, Sexual, Violence, Self-harm</strong>. Each category is scored 0-7 (severity). You set thresholds. Content above your threshold is blocked before reaching your application or your users. This runs before, not after, your AI produces output.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Microsoft's Six AI Principles</div>
+                <div class="card-desc">The exam references these: <strong>Fairness</strong> (no demographic bias in outcomes), <strong>Reliability and Safety</strong> (works as expected across conditions), <strong>Privacy and Security</strong> (data is protected), <strong>Inclusiveness</strong> (accessible to all), <strong>Transparency</strong> (explainable behavior), <strong>Accountability</strong> (humans are responsible for AI decisions). These are not just values — they are design requirements baked into every Azure AI Service.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — EXAM REVIEW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">AI-900 <span class="accent">Exam Review</span></div>
+        <div class="slide-subtitle">All six chapters mapped to exam domains with weightings. This is the complete knowledge base — everything you need to pass. Study these, not just memorize them.</div>
+
+        <!-- 6 chapter blocks as learning path SVG -->
+        <div class="diagram-center">
+            <svg width="660" height="56" viewBox="0 0 660 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Six chapter blocks connected by arrows showing progression -->
+                <!-- Ch1 -->
+                <rect x="2" y="8" width="94" height="40" rx="7" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="49" y="23" text-anchor="middle" font-size="7.5" fill="#a5b4fc" font-weight="700" font-family="Segoe UI,sans-serif">Ch1: AI Concepts</text>
+                <text x="49" y="34" text-anchor="middle" font-size="6" fill="#818cf8" font-family="Segoe UI,sans-serif">ML, DL, NLP, CV</text>
+                <text x="49" y="43" text-anchor="middle" font-size="6" fill="#818cf8" font-family="Segoe UI,sans-serif">Responsible AI</text>
+                <!-- Arrow -->
+                <polygon points="98,24 104,28 98,32" fill="#475569"/>
+                <!-- Ch2 -->
+                <rect x="106" y="8" width="100" height="40" rx="7" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="156" y="23" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Ch2: Azure ML</text>
+                <text x="156" y="34" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">Workspace, Jobs</text>
+                <text x="156" y="43" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">Compute, Designer</text>
+                <!-- Arrow -->
+                <polygon points="208,24 214,28 208,32" fill="#475569"/>
+                <!-- Ch3 -->
+                <rect x="216" y="8" width="100" height="40" rx="7" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="266" y="23" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Ch3: Computer Vision</text>
+                <text x="266" y="34" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Object, OCR, Custom</text>
+                <text x="266" y="43" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Face, Video Indexer</text>
+                <!-- Arrow -->
+                <polygon points="318,24 324,28 318,32" fill="#475569"/>
+                <!-- Ch4 -->
+                <rect x="326" y="8" width="98" height="40" rx="7" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="375" y="23" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Ch4: NLP</text>
+                <text x="375" y="34" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">CLU, QA, Translate</text>
+                <text x="375" y="43" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Sentiment, Key Phrase</text>
+                <!-- Arrow -->
+                <polygon points="426,24 432,28 426,32" fill="#475569"/>
+                <!-- Ch5 -->
+                <rect x="434" y="8" width="102" height="40" rx="7" fill="rgba(249,115,22,0.07)" stroke="#f97316" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="485" y="23" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Ch5: Predictive ML</text>
+                <text x="485" y="34" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">AutoML, Designer</text>
+                <text x="485" y="43" text-anchor="middle" font-size="6" fill="#fdba74" font-family="Segoe UI,sans-serif">Reg/Class/Cluster</text>
+                <!-- Arrow -->
+                <polygon points="538,24 544,28 538,32" fill="#c9a83a"/>
+                <!-- Ch6 — highlighted as current -->
+                <rect x="546" y="4" width="110" height="48" rx="8" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="2"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="601" y="20" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Ch6: AI Services</text>
+                <text x="601" y="31" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Vision/Speech/Language</text>
+                <text x="601" y="40" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Provisioning/Auth/Edge</text>
+                <text x="601" y="48" text-anchor="middle" font-size="5.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">YOU ARE HERE</text>
+            </svg>
+        </div>
+
+        <div class="chapter-grid">
+            <div class="ch-card">
+                <div class="ch-num" style="color:#6366f1;">Chapter 1 · AI Fundamentals</div>
+                <div class="ch-name">Core AI Concepts</div>
+                <div class="ch-keys">ML vs DL vs AI. Training vs inference. Supervised, unsupervised, reinforcement learning. Six responsible AI principles: Fairness, Reliability, Privacy, Inclusiveness, Transparency, Accountability.</div>
+                <div class="ch-pct">Exam Weight: ~15-20%</div>
+            </div>
+            <div class="ch-card">
+                <div class="ch-num" style="color:#06b6d4;">Chapter 2 · Azure Machine Learning</div>
+                <div class="ch-name">The ML Workspace</div>
+                <div class="ch-keys">Workspace = central container. AutoML (auto algorithm selection). Designer (drag-drop pipeline). Compute types (clusters, instances). Model registry. Endpoints (online vs batch).</div>
+                <div class="ch-pct">Exam Weight: ~20-25%</div>
+            </div>
+            <div class="ch-card">
+                <div class="ch-num" style="color:#3ab577;">Chapter 3 · Computer Vision</div>
+                <div class="ch-name">Seeing with AI</div>
+                <div class="ch-keys">Azure AI Vision: analyze, describe, tag. Object detection (bounding boxes). Face API: detect, verify, identify. Custom Vision: classification + detection. Video Indexer: audio-visual analysis.</div>
+                <div class="ch-pct">Exam Weight: ~15-20%</div>
+            </div>
+            <div class="ch-card">
+                <div class="ch-num" style="color:#a78bfa;">Chapter 4 · Natural Language Processing</div>
+                <div class="ch-name">Understanding Text</div>
+                <div class="ch-keys">CLU (Conversational Language Understanding). Question Answering. Sentiment analysis. Key phrase extraction. Language detection. Translation. Named entity recognition. Azure AI Language is the umbrella service.</div>
+                <div class="ch-pct">Exam Weight: ~15-20%</div>
+            </div>
+            <div class="ch-card">
+                <div class="ch-num" style="color:#f97316;">Chapter 5 · Predictive ML</div>
+                <div class="ch-name">Training Custom Models</div>
+                <div class="ch-keys">Regression (predict value), Classification (predict category), Clustering (find groups). AutoML tries algorithm combinations. Evaluate: RMSE, R2, AUC, precision/recall. Deploy to real-time or batch endpoint.</div>
+                <div class="ch-pct">Exam Weight: ~20-25%</div>
+            </div>
+            <div class="ch-card">
+                <div class="ch-num" style="color:#c9a83a;">Chapter 6 · Azure AI Services</div>
+                <div class="ch-name">Pre-Built AI APIs</div>
+                <div class="ch-keys">Speech-to-Text / Text-to-Speech / SSML. Document Intelligence (structured extraction). Multi-service vs individual. API key / Entra ID / Managed Identity. Container deployment for edge. Monitoring. Content Safety. Transparency Notes.</div>
+                <div class="ch-pct">Exam Weight: ~15-20%</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.82rem; margin-top:2px;">
+            <strong>High-frequency exam scenarios:</strong> &nbsp;Match service to use case. Speech-to-Text vs Speech Synthesis. Individual vs multi-service resource trade-offs. Why containers for edge (latency + data residency). Managed identity vs API key (security). Transparency Notes and Responsible AI principles. These appear repeatedly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — COURSE COMPLETE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; AI-900 &nbsp;|&nbsp; Course Complete</div>
+        <div class="title-hero">
+            <!-- Trophy / completion badge with animated glow -->
+            <svg width="260" height="140" viewBox="0 0 260 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer glow ring — animated -->
+                <circle cx="130" cy="68" r="62" fill="none" stroke="rgba(201,168,58,0.15)" stroke-width="3" style="animation: pulse 2.2s ease-in-out infinite;"/>
+                <circle cx="130" cy="68" r="52" fill="none" stroke="rgba(201,168,58,0.25)" stroke-width="2" style="animation: pulse 2.2s ease-in-out infinite 0.4s;"/>
+
+                <!-- Badge shield body -->
+                <path d="M130 10 L172 30 L172 75 Q172 105 130 122 Q88 105 88 75 L88 30 Z"
+                    fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="2"
+                    style="animation: entityPop 0.5s ease forwards 0.1s; opacity:0;"/>
+
+                <!-- Inner shield accent -->
+                <path d="M130 22 L162 38 L162 74 Q162 98 130 112 Q98 98 98 74 L98 38 Z"
+                    fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+
+                <!-- Trophy cup shape inside shield -->
+                <rect x="118" y="46" width="24" height="22" rx="3" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="1.2"/>
+                <path d="M114 46 Q114 36 130 36 Q146 36 146 46" fill="none" stroke="#c9a83a" stroke-width="1.4"/>
+                <rect x="124" y="68" width="12" height="6" rx="1" fill="rgba(201,168,58,0.3)" stroke="#c9a83a" stroke-width="1"/>
+                <rect x="119" y="74" width="22" height="4" rx="2" fill="rgba(201,168,58,0.4)" stroke="#c9a83a" stroke-width="1.1"/>
+
+                <!-- Stars around badge -->
+                <text x="96" y="30" font-size="12" fill="#c9a83a" text-anchor="middle"
+                    style="animation: entityPop 0.4s ease forwards 0.5s; opacity:0;">&#9733;</text>
+                <text x="164" y="30" font-size="12" fill="#c9a83a" text-anchor="middle"
+                    style="animation: entityPop 0.4s ease forwards 0.65s; opacity:0;">&#9733;</text>
+                <text x="130" y="20" font-size="10" fill="#c9a83a" text-anchor="middle"
+                    style="animation: entityPop 0.4s ease forwards 0.8s; opacity:0;">&#9733;</text>
+
+                <!-- AI-900 text inside badge -->
+                <text x="130" y="97" text-anchor="middle" font-size="11" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.5s ease forwards 0.6s; opacity:0;">AI-900</text>
+                <text x="130" y="110" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.5s ease forwards 0.75s; opacity:0;">COMPLETE</text>
+
+                <!-- Confetti-style dots -->
+                <circle cx="58" cy="52" r="3.5" fill="#c9a83a" opacity="0" style="animation: entityPop 0.3s ease forwards 0.9s;"/>
+                <circle cx="202" cy="48" r="3.5" fill="#3ab577" opacity="0" style="animation: entityPop 0.3s ease forwards 1s;"/>
+                <circle cx="48" cy="84" r="2.5" fill="#06b6d4" opacity="0" style="animation: entityPop 0.3s ease forwards 1.1s;"/>
+                <circle cx="212" cy="88" r="2.5" fill="#a78bfa" opacity="0" style="animation: entityPop 0.3s ease forwards 1.2s;"/>
+                <circle cx="72" cy="110" r="2" fill="#f97316" opacity="0" style="animation: entityPop 0.3s ease forwards 1.3s;"/>
+                <circle cx="188" cy="112" r="2" fill="#ef4444" opacity="0" style="animation: entityPop 0.3s ease forwards 1.4s;"/>
+                <circle cx="38" cy="68" r="2" fill="#c9a83a" opacity="0" style="animation: entityPop 0.3s ease forwards 1.5s;"/>
+                <circle cx="222" cy="68" r="2" fill="#3ab577" opacity="0" style="animation: entityPop 0.3s ease forwards 1.6s;"/>
+            </svg>
+
+            <div class="big-title">
+                Azure AI Fundamentals <span class="accent">Complete</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.0rem; margin-top:4px;">
+                You have covered every domain the AI-900 exam tests. Here is what you know.
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What You Learned in This Course</div>
+                <div class="card-desc">
+                    <strong>Ch1</strong> — What AI is, types of ML, responsible AI principles.<br>
+                    <strong>Ch2</strong> — Azure ML workspace, AutoML, Designer, compute, endpoints.<br>
+                    <strong>Ch3</strong> — Vision: image analysis, OCR, face detection, custom models.<br>
+                    <strong>Ch4</strong> — Language: NLP, sentiment, CLU, QA, translation.<br>
+                    <strong>Ch5</strong> — Predictive ML: regression, classification, clustering, evaluation.<br>
+                    <strong>Ch6</strong> — AI Services: speech, documents, provisioning, auth, edge, monitoring.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Your Next Steps</div>
+                <div class="card-desc">
+                    <div class="step-list">
+                        <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Schedule your exam.</strong> Go to Microsoft Learn and book AI-900 through Pearson VUE or Certiport. The exam is available online proctored or at a testing center.</span></div>
+                        <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Do the official practice assessment</strong> on Microsoft Learn — it reveals gaps before the real exam with the same style of questions.</span></div>
+                        <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Complete the Hexworth labs.</strong> Hands-on time with the Azure portal, Speech Studio, and Document Intelligence Studio reinforces what you read.</span></div>
+                        <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Review the Exam Review slide</strong> (Slide 11) the morning of your exam — the domain weightings and key term lists are your last-minute reference.</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exam Day Tips</div>
+                <div class="card-desc">
+                    The AI-900 is 45 minutes, 40-60 questions, passing score 700/1000. Question types: multiple choice, drag-and-drop, case studies.
+                    <br><br>
+                    <strong>If stuck:</strong> eliminate wrong answers first. "Pre-built, no training" always points to Azure AI Services. "Training a custom model" always points to Azure ML or Custom Vision/Speech. "Edge / disconnected" always points to containers.
+                    <br><br>
+                    You are ready. Go get the certification.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.85rem; text-align:center;">
+            <strong>AI-900: Azure AI Fundamentals &mdash; 6 Chapters Complete</strong> &nbsp;|&nbsp; Vision &bull; Language &bull; Speech &bull; Decision &bull; OpenAI &bull; Document Intelligence
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AI-900</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai900-ch06-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
