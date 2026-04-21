@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure and Manage Virtual Networks | AZ-104 Chapter 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-12px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scaleX(0.4); transform-origin: left; }
+            to   { opacity: 1; transform: scaleX(1); transform-origin: left; }
+        }
+        @keyframes vmAppear {
+            from { opacity: 0; transform: translateY(12px) scale(0.8); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pingRing {
+            0%   { r: 8; opacity: 0.7; }
+            100% { r: 20; opacity: 0; }
+        }
+        @keyframes packetMove {
+            0%   { transform: translateX(0); opacity: 1; }
+            100% { transform: translateX(260px); opacity: 0.3; }
+        }
+        @keyframes packetBounce {
+            0%   { transform: translateX(0) translateY(0); opacity: 1; }
+            40%  { transform: translateX(80px) translateY(0); opacity: 1; }
+            41%  { transform: translateX(80px) translateY(0); opacity: 0.3; }
+            100% { transform: translateX(80px) translateY(0); opacity: 0; }
+        }
+        @keyframes dnsFlow {
+            0%   { stroke-dashoffset: 40; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes containerPop {
+            from { opacity: 0; transform: scale(0.65); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes trafficSplit {
+            0%   { stroke-dashoffset: 30; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Configure and Manage Virtual Networks — AZ-104 Chapter 5</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-104 &nbsp;|&nbsp; Chapter 5 &nbsp;|&nbsp; Configure and Manage Virtual Networks</div>
+        <div class="title-hero">
+            <!-- Network topology: two VNets with subnets, connected via peering, NSG attached -->
+            <svg width="560" height="138" viewBox="0 0 560 138" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- VNet A boundary -->
+                <rect x="6" y="10" width="218" height="118" rx="12"
+                    fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="115" y="26" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VNet A — 10.1.0.0/16</text>
+
+                <!-- Subnet A1 -->
+                <rect x="18" y="32" width="90" height="40" rx="6"
+                    fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="63" y="47" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Subnet A1</text>
+                <text x="63" y="57" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.1.1.0/24</text>
+                <text x="63" y="66" text-anchor="middle" font-size="5.5" fill="#475569" font-family="Segoe UI,sans-serif">Web Tier</text>
+
+                <!-- Subnet A2 -->
+                <rect x="120" y="32" width="90" height="40" rx="6"
+                    fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="165" y="47" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Subnet A2</text>
+                <text x="165" y="57" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.1.2.0/24</text>
+                <text x="165" y="66" text-anchor="middle" font-size="5.5" fill="#475569" font-family="Segoe UI,sans-serif">App Tier</text>
+
+                <!-- NSG badge on Subnet A1 -->
+                <rect x="22" y="78" width="82" height="16" rx="4"
+                    fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.45)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="63" y="89" text-anchor="middle" font-size="6" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">NSG: web-nsg</text>
+
+                <!-- NSG badge on Subnet A2 -->
+                <rect x="124" y="78" width="82" height="16" rx="4"
+                    fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.45)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.48s; opacity:0;"/>
+                <text x="165" y="89" text-anchor="middle" font-size="6" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">NSG: app-nsg</text>
+
+                <!-- Gateway subnet in VNet A -->
+                <rect x="18" y="100" width="192" height="20" rx="4"
+                    fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.35)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="114" y="114" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">GatewaySubnet — 10.1.255.0/27</text>
+
+                <!-- Peering link in the middle -->
+                <line x1="228" y1="64" x2="332" y2="64" stroke="rgba(59,130,246,0.5)" stroke-width="2" stroke-dasharray="6,3">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.4s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="324,59 336,64 324,69" fill="#3b82f6" opacity="0.85"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <polygon points="236,59 224,64 236,69" fill="#3b82f6" opacity="0.85"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="280" y="56" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VNet Peering</text>
+                <text x="280" y="78" text-anchor="middle" font-size="5.5" fill="#475569" font-family="Segoe UI,sans-serif">Azure backbone</text>
+
+                <!-- VNet B boundary -->
+                <rect x="336" y="10" width="218" height="118" rx="12"
+                    fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="445" y="26" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">VNet B — 10.2.0.0/16</text>
+
+                <!-- Subnet B1 -->
+                <rect x="348" y="32" width="90" height="40" rx="6"
+                    fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="393" y="47" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Subnet B1</text>
+                <text x="393" y="57" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.2.1.0/24</text>
+                <text x="393" y="66" text-anchor="middle" font-size="5.5" fill="#475569" font-family="Segoe UI,sans-serif">DB Tier</text>
+
+                <!-- Subnet B2 -->
+                <rect x="450" y="32" width="90" height="40" rx="6"
+                    fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.33s; opacity:0;"/>
+                <text x="495" y="47" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-weight="700" font-family="Segoe UI,sans-serif">Subnet B2</text>
+                <text x="495" y="57" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.2.2.0/24</text>
+                <text x="495" y="66" text-anchor="middle" font-size="5.5" fill="#475569" font-family="Segoe UI,sans-serif">Mgmt Tier</text>
+
+                <!-- UDR badge on B1 -->
+                <rect x="352" y="78" width="82" height="16" rx="4"
+                    fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.45)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="393" y="89" text-anchor="middle" font-size="6" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">UDR: db-routes</text>
+
+                <!-- Route Table badge on B2 -->
+                <rect x="454" y="78" width="82" height="16" rx="4"
+                    fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.45)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.52s; opacity:0;"/>
+                <text x="495" y="89" text-anchor="middle" font-size="6" fill="#d8b4fe" font-weight="700" font-family="Segoe UI,sans-serif">UDR: mgmt-routes</text>
+
+                <!-- Internet gateway on B side -->
+                <rect x="348" y="100" width="192" height="20" rx="4"
+                    fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: fadeUp 0.3s ease forwards 0.58s; opacity:0;"/>
+                <text x="444" y="114" text-anchor="middle" font-size="6" fill="#d1fae5" font-family="Segoe UI,sans-serif">GatewaySubnet — 10.2.255.0/27</text>
+
+                <!-- Bottom annotation -->
+                <text x="280" y="134" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.4s ease forwards 0.7s; opacity:0;">VNets &bull; Subnets &bull; NSGs &bull; UDRs &bull; Peering &bull; DNS &bull; Load Balancer &bull; App Gateway &bull; Network Watcher</text>
+            </svg>
+            <div class="big-title">
+                Configure and Manage <span class="accent">Virtual Networks</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                VNets &nbsp;&bull;&nbsp; Subnets &nbsp;&bull;&nbsp; NSGs &nbsp;&bull;&nbsp; UDRs &nbsp;&bull;&nbsp; VNet Peering &nbsp;&bull;&nbsp; Azure DNS &nbsp;&bull;&nbsp; Load Balancer &nbsp;&bull;&nbsp; App Gateway &nbsp;&bull;&nbsp; Network Watcher
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Networking is 20-25% of the AZ-104 exam — the heaviest single domain. NSG rule evaluation, VNet peering transitivity, UDR next-hop types, and Load Balancer vs. Application Gateway are the most consistently tested topics. Every scenario involving connectivity, traffic control, or firewall behavior traces back to this chapter.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-104 Exam Objectives</span>
+            <span>Chapter 5 of 8</span>
+            <span>20-25% of Exam Score</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — VIRTUAL NETWORKS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12 &nbsp;|&nbsp; Virtual Networks (VNets)</div>
+        <div class="slide-title">Azure <span class="accent">Virtual Networks</span></div>
+        <div class="slide-subtitle">A VNet is your private, isolated network in Azure. You define its address space using CIDR notation, then carve it into subnets. VNets are region-scoped — resources in the same VNet communicate freely; cross-VNet and cross-region communication requires peering or gateways.</div>
+
+        <!-- VNet anatomy: 10.0.0.0/16 split into three /24 subnets -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer VNet boundary -->
+                <rect x="4" y="8" width="692" height="100" rx="12"
+                    fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.45s ease forwards 0.05s; opacity:0;"/>
+                <text x="350" y="23" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Virtual Network — 10.0.0.0/16 (65,536 addresses)</text>
+
+                <!-- Region badge -->
+                <rect x="598" y="8" width="96" height="14" rx="4" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"/>
+                <text x="646" y="18" text-anchor="middle" font-size="6" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">East US (region-scoped)</text>
+
+                <!-- Subnet 1 -->
+                <rect x="20" y="30" width="196" height="68" rx="8"
+                    fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.22s; opacity:0;"/>
+                <text x="118" y="47" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Subnet 1 — 10.0.1.0/24</text>
+                <text x="118" y="59" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">256 total — 5 reserved = 251 usable</text>
+                <!-- VM icon inside subnet 1 -->
+                <rect x="44" y="66" width="36" height="24" rx="4" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="62" y="82" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">VM1</text>
+                <rect x="90" y="66" width="36" height="24" rx="4" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.48s; opacity:0;"/>
+                <text x="108" y="82" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">VM2</text>
+                <rect x="136" y="66" width="60" height="24" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.56s; opacity:0;"/>
+                <text x="166" y="82" text-anchor="middle" font-size="6" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">NSG: web-nsg</text>
+
+                <!-- Subnet 2 -->
+                <rect x="252" y="30" width="196" height="68" rx="8"
+                    fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="350" y="47" text-anchor="middle" font-size="8" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Subnet 2 — 10.0.2.0/24</text>
+                <text x="350" y="59" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">256 total — 5 reserved = 251 usable</text>
+                <rect x="276" y="66" width="36" height="24" rx="4" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="294" y="82" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">App1</text>
+                <rect x="322" y="66" width="36" height="24" rx="4" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.52s; opacity:0;"/>
+                <text x="340" y="82" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">App2</text>
+                <rect x="368" y="66" width="62" height="24" rx="4" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="399" y="82" text-anchor="middle" font-size="6" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">UDR attached</text>
+
+                <!-- Subnet 3 -->
+                <rect x="484" y="30" width="196" height="68" rx="8"
+                    fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.35s ease forwards 0.38s; opacity:0;"/>
+                <text x="582" y="47" text-anchor="middle" font-size="8" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Subnet 3 — 10.0.3.0/24</text>
+                <text x="582" y="59" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">256 total — 5 reserved = 251 usable</text>
+                <rect x="504" y="66" width="52" height="24" rx="4" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="530" y="82" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">SQL DB</text>
+                <rect x="566" y="66" width="100" height="24" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.4)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.58s; opacity:0;"/>
+                <text x="616" y="82" text-anchor="middle" font-size="6" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">NSG: db-nsg</text>
+
+                <!-- Pulse ring around VNet label -->
+                <ellipse cx="350" cy="15" rx="160" ry="10" fill="none" stroke="rgba(59,130,246,0.08)" stroke-width="1"
+                    style="animation: pulse 3s ease-in-out infinite;"/>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Crawl: <strong>VNet = your private cloud network.</strong> Nothing enters or leaves unless you explicitly allow it. VNets are free — you pay for gateways, peerings (per GB), and public IPs. Address spaces can be any RFC 1918 range (10.x, 172.16-31.x, 192.168.x). Plan your CIDR carefully — you cannot change the address space while resources are deployed.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">CIDR Notation — Know This</div>
+                <div class="card-desc"><strong>/16</strong> = 65,536 addresses (10.0.0.0 through 10.0.255.255). <strong>/24</strong> = 256 addresses per subnet — most common. <strong>/28</strong> = 16 addresses — minimum allowed subnet size in Azure (minus 5 reserved = 11 usable). The prefix length controls the size: each +1 halves the address count. Exam tip: Azure always reserves the first 4 and last 1 addresses in every subnet — subtract 5 from the total.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VNet Scope Rules</div>
+                <div class="card-desc"><strong>Region-scoped:</strong> A VNet lives in one Azure region. Resources in the same VNet communicate freely without any routing configuration. <strong>Subscription-scoped:</strong> VNets belong to a subscription and resource group. <strong>No internet access by default:</strong> Outbound to internet works (SNAT). Inbound from internet requires a public IP on the NIC or a load balancer. <strong>Cross-VNet = peering or VPN gateway.</strong></div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">System Routes — Azure Defaults</div>
+                <div class="card-desc">Azure automatically creates system routes when you create a VNet and subnets: <strong>10.0.0.0/16 via Local VNet</strong> (intra-VNet traffic), <strong>0.0.0.0/0 via Internet</strong> (default outbound). You cannot delete system routes, but you can override them with User Defined Routes (UDRs). If no route matches a destination, the packet is dropped.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — SUBNETS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12 &nbsp;|&nbsp; Subnets</div>
+        <div class="slide-title">Subnets &nbsp;<span class="accent">— Segmenting Your VNet</span></div>
+        <div class="slide-subtitle">Subnets divide a VNet into smaller, manageable segments. Each subnet gets a contiguous block of addresses from the parent VNet's address space. Azure reserves 5 addresses per subnet. NSGs attach to subnets (or individual NICs) to control traffic flow between segments.</div>
+
+        <!-- Subnet detail: address range + 5 reserved IPs + NSG -->
+        <div class="diagram-center">
+            <svg width="700" height="120" viewBox="0 0 700 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Subnet block -->
+                <rect x="4" y="8" width="360" height="104" rx="10"
+                    fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="184" y="24" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Subnet: app-subnet — 10.0.2.0/24 (256 addresses)</text>
+
+                <!-- Reserved IP cells -->
+                <!-- .0 -->
+                <rect x="16" y="32" width="62" height="36" rx="5" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.45)" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="47" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">10.0.2.0</text>
+                <text x="47" y="58" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Network addr</text>
+
+                <!-- .1 -->
+                <rect x="86" y="32" width="62" height="36" rx="5" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.45)" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="117" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">10.0.2.1</text>
+                <text x="117" y="58" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Default GW</text>
+
+                <!-- .2 -->
+                <rect x="156" y="32" width="62" height="36" rx="5" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.45)" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.36s; opacity:0;"/>
+                <text x="187" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">10.0.2.2</text>
+                <text x="187" y="58" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Azure DNS</text>
+
+                <!-- .3 -->
+                <rect x="226" y="32" width="62" height="36" rx="5" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.45)" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="257" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">10.0.2.3</text>
+                <text x="257" y="58" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Future use</text>
+
+                <!-- .255 -->
+                <rect x="296" y="32" width="62" height="36" rx="5" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.45)" stroke-width="1.2"
+                    style="animation: vmAppear 0.3s ease forwards 0.52s; opacity:0;"/>
+                <text x="327" y="46" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">10.0.2.255</text>
+                <text x="327" y="58" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Broadcast</text>
+
+                <!-- Summary row: usable range -->
+                <rect x="16" y="76" width="342" height="28" rx="5" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: fadeUp 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="187" y="90" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Usable: 10.0.2.4 – 10.0.2.254 (251 addresses)</text>
+                <text x="187" y="100" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">256 total − 5 reserved = 251 available for VMs, services, private endpoints</text>
+
+                <!-- NSG attachment visual on the right -->
+                <rect x="382" y="8" width="160" height="104" rx="10"
+                    fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.4)" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="462" y="24" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">NSG: app-nsg</text>
+
+                <!-- NSG attach line -->
+                <line x1="368" y1="60" x2="380" y2="60" stroke="rgba(239,68,68,0.6)" stroke-width="1.8" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="374,56 384,60 374,64" fill="#ef4444" opacity="0.8"/>
+
+                <!-- NSG rules listed -->
+                <rect x="390" y="32" width="144" height="16" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.38s; opacity:0;"/>
+                <text x="462" y="43" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Allow Port 443 (priority 100)</text>
+
+                <rect x="390" y="52" width="144" height="16" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.46s; opacity:0;"/>
+                <text x="462" y="63" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Allow Port 80 (priority 110)</text>
+
+                <rect x="390" y="72" width="144" height="16" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.54s; opacity:0;"/>
+                <text x="462" y="83" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Deny All (priority 65500)</text>
+
+                <!-- NIC-level NSG clarification -->
+                <rect x="562" y="8" width="134" height="104" rx="10"
+                    fill="rgba(168,85,247,0.07)" stroke="rgba(168,85,247,0.4)" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.25s; opacity:0;"/>
+                <text x="629" y="24" text-anchor="middle" font-size="7.5" fill="#d8b4fe" font-weight="700" font-family="Segoe UI,sans-serif">NSG on NIC</text>
+                <text x="629" y="40" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Subnet NSG</text>
+                <text x="629" y="50" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">evaluated first</text>
+                <line x1="608" y1="60" x2="650" y2="60" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>
+                <text x="629" y="74" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">NIC NSG</text>
+                <text x="629" y="84" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-family="Segoe UI,sans-serif">evaluated second</text>
+                <text x="629" y="100" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">both must allow</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The 5 Reserved Addresses — Memorize This</div>
+                <div class="card-desc">For any subnet (e.g., 10.0.2.0/24): <strong>.0</strong> = Network address. <strong>.1</strong> = Default gateway. <strong>.2 and .3</strong> = Azure DNS. <strong>.255</strong> = Broadcast. These 5 are always consumed regardless of subnet size. A /28 gives you 16 total, minus 5 = 11 usable. The exam tests this — always subtract 5 from the subnet size when calculating usable IPs.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Special Subnets</div>
+                <div class="card-desc"><strong>GatewaySubnet:</strong> Required for VPN Gateway and ExpressRoute. Must be named exactly "GatewaySubnet". Minimum /27, recommended /27. Cannot assign NSGs to GatewaySubnet. <strong>AzureFirewallSubnet:</strong> Must be named exactly "AzureFirewallSubnet". Minimum /26. <strong>AzureBastionSubnet:</strong> Named exactly "AzureBastionSubnet". Minimum /27. These special names are enforced by Azure — wrong name = service won't deploy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NSG — Subnet vs. NIC Attachment</div>
+                <div class="card-desc">An NSG can be attached to a <strong>subnet</strong> (applies to all resources in the subnet) or to an individual <strong>NIC</strong> (applies to one VM). When both are attached, traffic must pass both NSGs. Inbound: subnet NSG evaluated first, then NIC NSG. Outbound: NIC NSG evaluated first, then subnet NSG. Best practice: use subnet-level NSGs for broad segmentation, NIC-level for VM-specific rules.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — NSGs ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12 &nbsp;|&nbsp; Network Security Groups</div>
+        <div class="slide-title">Network Security Groups <span class="accent">(NSGs)</span></div>
+        <div class="slide-subtitle">NSGs are stateful firewalls containing inbound and outbound security rules. Each rule defines: priority, source, source port, destination, destination port, protocol, and action (Allow/Deny). Lower priority number = higher precedence. First matching rule wins.</div>
+
+        <!-- NSG rule table with animated packet -->
+        <div class="diagram-center">
+            <svg width="700" height="130" viewBox="0 0 700 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Table header -->
+                <rect x="4" y="8" width="692" height="18" rx="5" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.35)" stroke-width="1"/>
+                <text x="54"  y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Priority</text>
+                <text x="120" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Name</text>
+                <text x="240" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Source</text>
+                <text x="340" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Dest Port</text>
+                <text x="430" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Protocol</text>
+                <text x="530" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Direction</text>
+                <text x="628" y="20" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Action</text>
+
+                <!-- Row 1 — Allow 443 -->
+                <rect x="4" y="28" width="692" height="16" rx="3" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.2)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.2s; opacity:0;"/>
+                <text x="54"  y="39" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">100</text>
+                <text x="120" y="39" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Allow-HTTPS</text>
+                <text x="240" y="39" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="340" y="39" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">443</text>
+                <text x="430" y="39" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">TCP</text>
+                <text x="530" y="39" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Inbound</text>
+                <rect x="620" y="30" width="56" height="12" rx="3" fill="rgba(58,181,119,0.2)" stroke="rgba(58,181,119,0.5)" stroke-width="0.8"/>
+                <text x="648" y="39" text-anchor="middle" font-size="7" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">ALLOW</text>
+
+                <!-- Row 2 — Allow 80 -->
+                <rect x="4" y="46" width="692" height="16" rx="3" fill="rgba(58,181,119,0.05)" stroke="rgba(58,181,119,0.15)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.3s; opacity:0;"/>
+                <text x="54"  y="57" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">110</text>
+                <text x="120" y="57" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Allow-HTTP</text>
+                <text x="240" y="57" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="340" y="57" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">80</text>
+                <text x="430" y="57" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">TCP</text>
+                <text x="530" y="57" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Inbound</text>
+                <rect x="620" y="48" width="56" height="12" rx="3" fill="rgba(58,181,119,0.2)" stroke="rgba(58,181,119,0.5)" stroke-width="0.8"/>
+                <text x="648" y="57" text-anchor="middle" font-size="7" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">ALLOW</text>
+
+                <!-- Row 3 — Deny SSH from Internet -->
+                <rect x="4" y="64" width="692" height="16" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.4s; opacity:0;"/>
+                <text x="54"  y="75" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">200</text>
+                <text x="120" y="75" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Deny-SSH-Internet</text>
+                <text x="240" y="75" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Internet</text>
+                <text x="340" y="75" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">22</text>
+                <text x="430" y="75" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">TCP</text>
+                <text x="530" y="75" font-size="7" fill="#94a3b8" font-family="Segoe UI,sans-serif">Inbound</text>
+                <rect x="620" y="66" width="56" height="12" rx="3" fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.5)" stroke-width="0.8"/>
+                <text x="648" y="75" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">DENY</text>
+
+                <!-- Row 4 — Default AllowVNetInBound (65000) -->
+                <rect x="4" y="82" width="692" height="16" rx="3" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.5s; opacity:0;"/>
+                <text x="54"  y="93" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">65000</text>
+                <text x="120" y="93" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">AllowVnetInBound</text>
+                <text x="240" y="93" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">VirtualNetwork</text>
+                <text x="340" y="93" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="430" y="93" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="530" y="93" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Inbound</text>
+                <rect x="620" y="84" width="56" height="12" rx="3" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"/>
+                <text x="648" y="93" text-anchor="middle" font-size="7" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">ALLOW</text>
+
+                <!-- Row 5 — Default AllowAzureLoadBalancer (65001) -->
+                <rect x="4" y="100" width="692" height="16" rx="3" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.12)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.58s; opacity:0;"/>
+                <text x="54"  y="111" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">65001</text>
+                <text x="120" y="111" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">AllowAzureLB</text>
+                <text x="240" y="111" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">AzureLoadBalancer</text>
+                <text x="340" y="111" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="430" y="111" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Any</text>
+                <text x="530" y="111" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Inbound</text>
+                <rect x="620" y="102" width="56" height="12" rx="3" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"/>
+                <text x="648" y="111" text-anchor="middle" font-size="7" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">ALLOW</text>
+
+                <!-- Row 6 — Default DenyAll (65500) -->
+                <rect x="4" y="118" width="692" height="8" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.3)" stroke-width="0.8"
+                    style="animation: slideRight 0.25s ease forwards 0.66s; opacity:0;"/>
+                <text x="54"  y="125" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">65500  DenyAllInBound  (catch-all — explicit deny)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Default Rules — Cannot Be Deleted</div>
+                <div class="card-desc">Azure auto-creates three inbound defaults: <strong>AllowVNetInBound (65000)</strong> — allows all traffic from within the VNet. <strong>AllowAzureLoadBalancerInBound (65001)</strong> — allows health probes from Azure LB. <strong>DenyAllInBound (65500)</strong> — denies everything else. Outbound defaults: AllowVNetOutBound (65000), AllowInternetOutBound (65001), DenyAllOutBound (65500). You override defaults by adding rules with lower priority numbers.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Service Tags — Simplify Rules</div>
+                <div class="card-desc">Instead of maintaining lists of IP addresses, use service tags: <strong>Internet</strong> = all public internet IPs. <strong>VirtualNetwork</strong> = the entire VNet and all peered VNets. <strong>AzureLoadBalancer</strong> = Azure LB health probe IPs. <strong>AzureCloud</strong> = all Azure datacenter IPs. <strong>Storage</strong> = Azure Storage IPs. Service tags are maintained by Azure — the IP list updates automatically without rule changes.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Stateful — What That Means</div>
+                <div class="card-desc">NSGs are <strong>stateful</strong>: if an inbound connection is allowed, the return traffic is automatically allowed without a separate outbound rule. You do not need a matching outbound rule for responses to allowed inbound sessions. This is different from stateless (ACL-style) firewalls where you need both directions. Stateful tracking applies per TCP/UDP session — the NSG tracks connection state.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — NSG RULE EVALUATION ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12 &nbsp;|&nbsp; NSG Rule Evaluation</div>
+        <div class="slide-title">NSG Rule <span class="accent">Evaluation Logic</span></div>
+        <div class="slide-subtitle">Rules are evaluated in priority order — lowest number first. The first rule whose source, destination, port, and protocol match the packet wins. Processing stops at that rule. If no user rule matches, the default DenyAll at 65500 blocks the packet.</div>
+
+        <!-- Decision tree: packet evaluation flow -->
+        <div class="diagram-center">
+            <svg width="700" height="132" viewBox="0 0 700 132" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Packet enters -->
+                <rect x="4" y="52" width="80" height="28" rx="6"
+                    fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="44" y="63" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Packet</text>
+                <text x="44" y="74" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">TCP:443 Inbound</text>
+
+                <!-- Arrow to rule 100 -->
+                <line x1="86" y1="66" x2="110" y2="66" stroke="rgba(59,130,246,0.6)" stroke-width="1.4" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="104,62 114,66 104,70" fill="#3b82f6"/>
+
+                <!-- Rule 100 box -->
+                <rect x="116" y="46" width="100" height="40" rx="6"
+                    fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="166" y="61" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Rule 100</text>
+                <text x="166" y="72" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Allow SSH:22</text>
+                <text x="166" y="81" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Match? Port 22</text>
+
+                <!-- No match — arrow down to "No" label, then to rule 200 -->
+                <line x1="166" y1="88" x2="166" y2="104" stroke="rgba(239,68,68,0.5)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.7s" repeatCount="indefinite"/>
+                </line>
+                <text x="178" y="100" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">No match</text>
+                <line x1="166" y1="106" x2="256" y2="66" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>
+
+                <!-- Rule 200 box -->
+                <rect x="258" y="46" width="100" height="40" rx="6"
+                    fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.45)" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.32s; opacity:0;"/>
+                <text x="308" y="61" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Rule 200</text>
+                <text x="308" y="72" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Allow HTTPS:443</text>
+                <text x="308" y="81" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Match? Port 443</text>
+
+                <!-- Match — arrow to Allow -->
+                <line x1="360" y1="66" x2="388" y2="66" stroke="rgba(58,181,119,0.7)" stroke-width="1.4" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="12;0" dur="0.8s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="382,62 392,66 382,70" fill="#3ab577"/>
+                <text x="374" y="58" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">MATCH</text>
+
+                <!-- Allow box -->
+                <rect x="394" y="46" width="80" height="40" rx="6"
+                    fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.8"
+                    style="animation: entityPop 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="434" y="61" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">ALLOW</text>
+                <text x="434" y="74" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Packet passes</text>
+                <text x="434" y="82" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Processing stops</text>
+
+                <!-- What-if: no match at all — fallthrough to DenyAll -->
+                <rect x="500" y="8" width="196" height="116" rx="8"
+                    fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.25)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="598" y="22" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">If NO rules match...</text>
+
+                <rect x="514" y="28" width="168" height="26" rx="5" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.35)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.62s; opacity:0;"/>
+                <text x="598" y="40" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">DenyAllInBound — Priority 65500</text>
+                <text x="598" y="50" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Implicit deny — packet dropped</text>
+
+                <rect x="514" y="60" width="168" height="26" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.25)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="598" y="72" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Rule priority range: 100 – 4096</text>
+                <text x="598" y="82" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Lower number = evaluated first</text>
+
+                <rect x="514" y="92" width="168" height="26" rx="5" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.25)" stroke-width="1"
+                    style="animation: vmAppear 0.3s ease forwards 0.78s; opacity:0;"/>
+                <text x="598" y="104" text-anchor="middle" font-size="7" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Default 65000/65001 always exist</text>
+                <text x="598" y="114" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Cannot be deleted, only overridden</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">First Match Wins — This Is Critical</div>
+                <div class="card-desc">NSG rule evaluation is <strong>not</strong> cumulative. The moment a rule matches (source + dest + port + protocol all match), evaluation stops immediately. Later rules are irrelevant. This means rule ordering matters enormously. Exam scenario: you add Allow-RDP at priority 300 but there is already a Deny-All at priority 200 — your Allow will never be hit. Always check lower-numbered rules first.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Priority Strategy</div>
+                <div class="card-desc">Best practice is to leave gaps between priorities: 100, 110, 120... so you can insert rules later without renumbering. <strong>100-999:</strong> Application-specific allows (HTTP, HTTPS, custom app ports). <strong>1000-1999:</strong> Management rules (Bastion, Jump host SSH). <strong>2000-3000:</strong> Deny specific sources. <strong>4096:</strong> Your explicit deny-all if you want to override the default at 65500. Rules 65000-65500 are Azure defaults and cannot be modified.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Augmented Security Rules</div>
+                <div class="card-desc">Standard NSG rules only allow a single IP, port, or range per rule. <strong>Augmented security rules</strong> let you specify multiple values in a single rule: up to 4,000 comma-separated IP ranges, up to 500 port ranges. This reduces rule sprawl significantly. Example: one rule that allows traffic from 20 different IP prefixes instead of 20 separate rules. Both source and destination support augmented syntax.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — VNET PEERING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12 &nbsp;|&nbsp; VNet Peering</div>
+        <div class="slide-title">VNet <span class="accent">Peering</span></div>
+        <div class="slide-subtitle">VNet peering connects two VNets so their resources can communicate using private IPs. Traffic travels across Azure's high-speed backbone — not the public internet. Peering is non-transitive by default: if A peers with B and B peers with C, A cannot reach C through B.</div>
+
+        <!-- Peering topology: A-B works, A->B->C fails -->
+        <div class="diagram-center">
+            <svg width="700" height="128" viewBox="0 0 700 128" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- VNet A -->
+                <rect x="8" y="34" width="150" height="60" rx="10"
+                    fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="83" y="52" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VNet A</text>
+                <text x="83" y="63" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">10.1.0.0/16</text>
+                <!-- VM A icon -->
+                <rect x="38" y="68" width="30" height="18" rx="3" fill="rgba(59,130,246,0.2)" stroke="rgba(59,130,246,0.5)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="53" y="80" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">VM-A</text>
+                <rect x="98" y="68" width="44" height="18" rx="3" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="120" y="80" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">10.1.0.4</text>
+
+                <!-- Peering A-B: bidirectional, works -->
+                <line x1="162" y1="64" x2="268" y2="64" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="254,59 268,64 254,69" fill="#3b82f6"/>
+                <polygon points="176,59 162,64 176,69" fill="#3b82f6"/>
+                <text x="215" y="54" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Peering A-B</text>
+                <rect x="182" y="70" width="66" height="14" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"/>
+                <text x="215" y="80" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">WORKS — Azure backbone</text>
+
+                <!-- VNet B (middle) -->
+                <rect x="270" y="34" width="160" height="60" rx="10"
+                    fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="350" y="52" text-anchor="middle" font-size="8.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">VNet B</text>
+                <text x="350" y="63" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">10.2.0.0/16</text>
+                <rect x="298" y="68" width="30" height="18" rx="3" fill="rgba(6,182,212,0.2)" stroke="rgba(6,182,212,0.5)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="313" y="80" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">VM-B</text>
+                <rect x="368" y="68" width="44" height="18" rx="3" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.38s; opacity:0;"/>
+                <text x="390" y="80" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">10.2.0.4</text>
+
+                <!-- Peering B-C: bidirectional, works -->
+                <line x1="434" y1="64" x2="538" y2="64" stroke="#06b6d4" stroke-width="2" stroke-dasharray="6,3">
+                    <animate attributeName="stroke-dashoffset" values="18;0" dur="1.2s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="524,59 538,64 524,69" fill="#06b6d4"/>
+                <polygon points="448,59 434,64 448,69" fill="#06b6d4"/>
+                <text x="486" y="54" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Peering B-C</text>
+                <rect x="450" y="70" width="72" height="14" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"/>
+                <text x="486" y="80" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">WORKS — Azure backbone</text>
+
+                <!-- VNet C (right) -->
+                <rect x="540" y="34" width="150" height="60" rx="10"
+                    fill="rgba(168,85,247,0.1)" stroke="#a78bfa" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="615" y="52" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">VNet C</text>
+                <text x="615" y="63" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">10.3.0.0/16</text>
+                <rect x="568" y="68" width="30" height="18" rx="3" fill="rgba(168,85,247,0.2)" stroke="rgba(168,85,247,0.5)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="583" y="80" text-anchor="middle" font-size="6" fill="#d8b4fe" font-family="Segoe UI,sans-serif">VM-C</text>
+
+                <!-- X mark: A cannot reach C through B (non-transitive) -->
+                <line x1="83" y1="94" x2="615" y2="114" stroke="rgba(239,68,68,0.35)" stroke-width="1.4" stroke-dasharray="5,4"/>
+                <circle cx="350" cy="104" r="14" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.55s; opacity:0;"/>
+                <line x1="340" y1="94" x2="360" y2="114" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="360" y1="94" x2="340" y2="114" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"/>
+                <text x="350" y="128" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">A cannot reach C via B — peering is NON-TRANSITIVE</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Peering Is Non-Transitive — The Most Tested Fact</div>
+                <div class="card-desc">If VNet A peers with VNet B, and VNet B peers with VNet C, traffic from A <strong>cannot</strong> reach C through B. Azure does not forward traffic through a third VNet by default. To solve this: (1) Add a direct A-to-C peering. (2) Use a hub-spoke architecture where a hub VNet has explicit peerings to all spokes, and route traffic through an NVA or Azure Firewall that enables forwarding. The exam will test this scenario — always watch for "transitive" language.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Peering Configuration Knobs</div>
+                <div class="card-desc"><strong>Allow forwarded traffic:</strong> Required if you want to route packets that originated outside the peered VNet — needed for hub-spoke with NVA. <strong>Allow gateway transit:</strong> Lets the remote VNet use this VNet's VPN/ExpressRoute gateway. Only the hub enables this setting. <strong>Use remote gateways:</strong> Enabled on the spoke — allows the spoke to use the hub's gateway. Only one VNet in a peer can have "use remote gateways" at a time.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Bidirectional Requirement + State Machine</div>
+                <div class="card-desc">Peering must be created from <strong>BOTH sides</strong>. Creating A→B only puts the peering in <strong>"Initiated"</strong> state — no traffic flows. Once B→A is also created, both sides change to <strong>"Connected"</strong> and traffic begins flowing. This is the most common exam trap: students who think peering is automatic in both directions will answer incorrectly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Global VNet Peering</div>
+                <div class="card-desc">Peering supports <strong>cross-region</strong> — peer East US to West Europe. Traffic stays on Microsoft's backbone. More expensive than same-region peering (billed per GB). Higher latency across regions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — USER DEFINED ROUTES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12 &nbsp;|&nbsp; User Defined Routes (UDR)</div>
+        <div class="slide-title">User Defined Routes <span class="accent">(UDR)</span></div>
+        <div class="slide-subtitle">UDRs let you override Azure's default routing behavior. A route table is a resource containing custom routes that you attach to one or more subnets. The most common use case: forcing all outbound traffic through a Network Virtual Appliance (NVA) or Azure Firewall for inspection before it reaches the internet or other subnets.</div>
+
+        <!-- Default route vs UDR through NVA -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- ── Top row: DEFAULT routing (direct to internet) ── -->
+                <text x="4" y="14" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Default Route (System): 0.0.0.0/0  next hop = Internet</text>
+
+                <!-- VM -->
+                <rect x="4" y="18" width="60" height="26" rx="5"
+                    fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="34" y="31" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM</text>
+                <text x="34" y="40" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.1.5</text>
+
+                <!-- Arrow direct to internet -->
+                <line x1="66" y1="31" x2="186" y2="31" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="178,26 190,31 178,36" fill="#3ab577"/>
+
+                <!-- Internet circle -->
+                <circle cx="210" cy="31" r="18" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.22s; opacity:0;"/>
+                <text x="210" y="28" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Inter-</text>
+                <text x="210" y="37" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">net</text>
+
+                <!-- ── Divider ── -->
+                <line x1="4" y1="58" x2="690" y2="58" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+                <!-- ── Bottom row: UDR routing through NVA ── -->
+                <text x="4" y="72" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">UDR Override: 0.0.0.0/0  next hop = VirtualAppliance (NVA IP: 10.0.0.10)</text>
+
+                <!-- VM -->
+                <rect x="4" y="76" width="60" height="26" rx="5"
+                    fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="34" y="89" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">VM</text>
+                <text x="34" y="98" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.1.5</text>
+
+                <!-- Arrow to NVA -->
+                <line x1="66" y1="89" x2="148" y2="89" stroke="rgba(201,168,58,0.7)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="140,84 152,89 140,94" fill="#c9a83a"/>
+
+                <!-- NVA box -->
+                <rect x="154" y="76" width="80" height="26" rx="5"
+                    fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="194" y="89" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">NVA / Firewall</text>
+                <text x="194" y="98" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.0.10 — inspect</text>
+
+                <!-- Arrow: NVA to internet (allowed) -->
+                <line x1="236" y1="89" x2="316" y2="89" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="308,84 320,89 308,94" fill="#3ab577"/>
+                <circle cx="340" cy="89" r="18" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="340" y="86" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Inter-</text>
+                <text x="340" y="95" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">net</text>
+
+                <!-- Next hop types panel -->
+                <rect x="380" y="62" width="316" height="52" rx="8"
+                    fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.3)" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="538" y="76" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">UDR Next Hop Types</text>
+                <text x="388" y="88" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">VirtualAppliance</text>
+                <text x="388" y="97" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">NVA IP addr</text>
+                <text x="482" y="88" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">VNetGateway</text>
+                <text x="482" y="97" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">VPN / ExpressRoute</text>
+                <text x="576" y="88" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">None</text>
+                <text x="576" y="97" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Drop packet (blackhole)</text>
+                <text x="640" y="88" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Internet</text>
+                <text x="640" y="97" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Force to internet</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Next Hop Types — Know All Five</div>
+                <div class="card-desc"><strong>VirtualAppliance:</strong> Redirect traffic to a specific IP (usually an NVA firewall). The NVA must have IP forwarding enabled on its NIC. <strong>VirtualNetworkGateway:</strong> Send traffic to a VPN or ExpressRoute gateway. <strong>VnetLocal:</strong> Keep traffic within the local VNet — useful to override a peering route and force local routing. <strong>Internet:</strong> Force traffic to the public internet. <strong>None:</strong> Blackhole the traffic — silently drop. Used to block specific destinations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IP Forwarding — Required for NVA</div>
+                <div class="card-desc">When a UDR sends traffic to an NVA, the NVA's NIC must have <strong>IP Forwarding enabled</strong>. By default, Azure drops any packet that arrives at a NIC whose destination IP is not the NIC's own IP. Enabling IP forwarding tells Azure to pass the packet to the NVA's operating system so it can route it forward. Both Azure-level (NIC setting) and OS-level IP forwarding must be enabled. Easy exam trap: forgetting the NIC-level setting.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Route Priority — Longest Prefix Wins</div>
+                <div class="card-desc">Azure selects routes using <strong>longest prefix match</strong> (most specific route wins). A route for 10.0.1.0/24 beats a route for 10.0.0.0/16 for a destination of 10.0.1.5. Among routes of equal prefix length, this tie-breaking order applies: (1) User-defined routes, (2) BGP routes (from ExpressRoute/VPN), (3) System routes. UDRs always beat system routes for the same prefix — this is how you override Azure's defaults.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — AZURE DNS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12 &nbsp;|&nbsp; Azure DNS</div>
+        <div class="slide-title">Azure <span class="accent">DNS</span></div>
+        <div class="slide-subtitle">Azure DNS hosts DNS zones (public and private) and provides name resolution. Public zones resolve names over the internet. Private DNS zones resolve names within your VNet — no custom DNS servers required. Azure DNS is not a domain registrar — you register domains elsewhere and delegate the zone to Azure name servers.</div>
+
+        <!-- DNS query flow diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="112" viewBox="0 0 700 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Client VM -->
+                <rect x="4" y="38" width="90" height="36" rx="8"
+                    fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.6"
+                    style="animation: entityPop 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="49" y="53" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Client VM</text>
+                <text x="49" y="65" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">query: api.contoso.com</text>
+
+                <!-- Step 1: query to Azure DNS -->
+                <line x1="96" y1="56" x2="164" y2="56" stroke="rgba(59,130,246,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="156,51 168,56 156,61" fill="#3b82f6"/>
+                <text x="130" y="48" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">1. UDP/53</text>
+
+                <!-- Azure DNS server -->
+                <rect x="170" y="32" width="100" height="48" rx="8"
+                    fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.6"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="220" y="50" text-anchor="middle" font-size="8" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Azure DNS</text>
+                <text x="220" y="62" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">168.63.129.16</text>
+                <text x="220" y="72" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Azure-hosted resolver</text>
+
+                <!-- Step 2: lookup in zone -->
+                <line x1="272" y1="56" x2="340" y2="56" stroke="rgba(6,182,212,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="332,51 344,56 332,61" fill="#06b6d4"/>
+                <text x="306" y="48" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">2. zone lookup</text>
+
+                <!-- DNS Zone box -->
+                <rect x="346" y="18" width="150" height="76" rx="8"
+                    fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.45)" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="421" y="33" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Zone: contoso.com</text>
+                <!-- Records -->
+                <rect x="354" y="38" width="134" height="12" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.44s; opacity:0;"/>
+                <text x="421" y="47" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">A  api  →  20.50.10.1</text>
+                <rect x="354" y="53" width="134" height="12" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.52s; opacity:0;"/>
+                <text x="421" y="62" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">CNAME  www  →  api.contoso.com</text>
+                <rect x="354" y="68" width="134" height="12" rx="3" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.6s; opacity:0;"/>
+                <text x="421" y="77" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">MX  @  →  mail.contoso.com (pri 10)</text>
+                <rect x="354" y="83" width="134" height="8" rx="3" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.68s; opacity:0;"/>
+                <text x="421" y="89" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">TXT  @  →  "v=spf1 ..."</text>
+
+                <!-- Step 3: IP returned to client -->
+                <line x1="498" y1="56" x2="564" y2="56" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="556,51 568,56 556,61" fill="#3ab577"/>
+                <text x="531" y="48" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">3. IP returned</text>
+
+                <!-- Result box -->
+                <rect x="570" y="38" width="122" height="36" rx="8"
+                    fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.6"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="631" y="53" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Response</text>
+                <text x="631" y="65" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">api.contoso.com = 20.50.10.1</text>
+
+                <!-- Private zone annotation below -->
+                <rect x="4" y="98" width="692" height="12" rx="4"
+                    fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.25)" stroke-width="0.8"
+                    style="animation: fadeUp 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="350" y="107" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Private DNS Zone: same flow, but zone is linked to a VNet — resolution only works from within that VNet (no internet exposure)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Public vs. Private DNS Zones</div>
+                <div class="card-desc"><strong>Public zones:</strong> Authoritative DNS for internet-facing domains. Records (A, CNAME, MX, TXT) are visible to anyone on the internet. You must delegate the domain's NS records to Azure's name servers (ns1-xx.azure-dns.com). <strong>Private zones:</strong> DNS zones linked to specific VNets. Only resources in linked VNets can resolve the records. No internet exposure. Use case: internal hostname resolution (vm1.internal.contoso.com → 10.0.1.4) without deploying a custom DNS server.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DNS Record Types — Exam Relevant</div>
+                <div class="card-desc"><strong>A:</strong> Hostname to IPv4. <strong>AAAA:</strong> Hostname to IPv6. <strong>CNAME:</strong> Alias — one name points to another name (not to an IP). Cannot be used at the zone apex (root @). <strong>MX:</strong> Mail exchange, with priority number. <strong>TXT:</strong> Arbitrary text — SPF, DKIM, domain verification. <strong>NS:</strong> Name server records — auto-created, defines Azure DNS servers for the zone. <strong>SOA:</strong> Start of authority — auto-created metadata record.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Auto-Registration for Private Zones</div>
+                <div class="card-desc">When you link a private DNS zone to a VNet with <strong>auto-registration enabled</strong>, Azure automatically creates A records for every VM in that VNet as VMs are created or deleted. The VM's name becomes a hostname in the zone without any manual DNS management. One private zone can be linked to up to 1,000 VNets. Auto-registration is supported in up to 100 VNets per private zone. Zone names must be unique within your subscription.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — AZURE LOAD BALANCER ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12 &nbsp;|&nbsp; Azure Load Balancer</div>
+        <div class="slide-title">Azure <span class="accent">Load Balancer</span></div>
+        <div class="slide-subtitle">Azure Load Balancer operates at Layer 4 (TCP/UDP). It distributes inbound traffic across healthy backend VM instances using configurable rules. Public LB exposes a public IP to the internet. Internal LB uses a private frontend IP for traffic distribution within a VNet or between on-premises and Azure.</div>
+
+        <!-- LB distributing to 3 backend VMs with health probes -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Internet client -->
+                <circle cx="42" cy="59" r="28" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.35)" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="42" y="55" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Internet</text>
+                <text x="42" y="65" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Client Traffic</text>
+
+                <!-- Arrow to LB -->
+                <line x1="72" y1="59" x2="132" y2="59" stroke="rgba(59,130,246,0.6)" stroke-width="1.6" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="124,54 136,59 124,64" fill="#3b82f6"/>
+
+                <!-- Load Balancer box -->
+                <rect x="138" y="30" width="130" height="58" rx="10"
+                    fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="203" y="51" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="203" y="62" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Load Balancer</text>
+                <text x="203" y="73" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Frontend IP: 20.10.5.1</text>
+                <text x="203" y="82" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Rule: Port 80 → Pool</text>
+                <!-- glow pulse around LB -->
+                <rect x="134" y="26" width="138" height="66" rx="12" fill="none" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: pulse 2.5s ease-in-out infinite;"/>
+
+                <!-- Distribution arrows to 3 VMs -->
+                <!-- VM 1 (top) -->
+                <line x1="270" y1="50" x2="368" y2="26" stroke="rgba(58,181,119,0.55)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="360,21 374,22 366,33" fill="#3ab577"/>
+
+                <!-- VM 2 (middle) -->
+                <line x1="270" y1="59" x2="368" y2="59" stroke="rgba(58,181,119,0.55)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="360,54 374,59 360,64" fill="#3ab577"/>
+
+                <!-- VM 3 (bottom) -->
+                <line x1="270" y1="68" x2="368" y2="92" stroke="rgba(58,181,119,0.55)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="362,90 372,98 365,84" fill="#3ab577"/>
+
+                <!-- VM boxes -->
+                <rect x="376" y="8" width="90" height="30" rx="6"
+                    fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: vmAppear 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="421" y="21" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">VM1</text>
+                <text x="421" y="31" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.1.4 — :80 HEALTHY</text>
+
+                <rect x="376" y="44" width="90" height="30" rx="6"
+                    fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: vmAppear 0.3s ease forwards 0.38s; opacity:0;"/>
+                <text x="421" y="57" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">VM2</text>
+                <text x="421" y="67" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.1.5 — :80 HEALTHY</text>
+
+                <rect x="376" y="80" width="90" height="30" rx="6"
+                    fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.5)" stroke-width="1.4"
+                    style="animation: vmAppear 0.3s ease forwards 0.46s; opacity:0;"/>
+                <text x="421" y="93" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">VM3</text>
+                <text x="421" y="103" text-anchor="middle" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">10.0.1.6 — UNHEALTHY</text>
+
+                <!-- Health probe from LB -->
+                <line x1="270" y1="88" x2="374" y2="95" stroke="rgba(201,168,58,0.7)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.7s" repeatCount="indefinite" begin="0.5s"/>
+                </line>
+                <text x="320" y="106" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Health probe: TCP:80 fails</text>
+
+                <!-- SKU comparison table on right -->
+                <rect x="488" y="8" width="208" height="102" rx="8"
+                    fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"
+                    style="animation: boxGrow 0.35s ease forwards 0.5s; opacity:0;"/>
+                <text x="592" y="22" text-anchor="middle" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Basic vs. Standard SKU</text>
+                <!-- Headers -->
+                <text x="520" y="34" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Basic</text>
+                <text x="638" y="34" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Standard</text>
+                <!-- Rows -->
+                <text x="496" y="46" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">SLA</text>
+                <text x="520" y="46" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">None</text>
+                <text x="638" y="46" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">99.99%</text>
+
+                <text x="496" y="58" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zones</text>
+                <text x="520" y="58" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">No</text>
+                <text x="638" y="58" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Zone-redundant</text>
+
+                <text x="496" y="70" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Backend pool</text>
+                <text x="520" y="70" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Same AS only</text>
+                <text x="638" y="70" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Any VMs in VNet</text>
+
+                <text x="496" y="82" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">HTTPS probe</text>
+                <text x="520" y="82" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">No</text>
+                <text x="638" y="82" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Yes</text>
+
+                <text x="496" y="94" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Cost</text>
+                <text x="520" y="94" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Free</text>
+                <text x="638" y="94" text-anchor="middle" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">~$18/mo + data</text>
+
+                <text x="496" y="106" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Retire date</text>
+                <text x="520" y="106" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">Sept 2025</text>
+                <text x="638" y="106" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Current/recommended</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Load Balancer Components</div>
+                <div class="card-desc"><strong>Frontend IP configuration:</strong> The IP address that clients connect to. Public LB = public IP. Internal LB = private IP from a VNet subnet. <strong>Backend pool:</strong> The VMs or VMSS instances that receive traffic. Standard LB supports any VMs in the same VNet. <strong>Health probes:</strong> TCP, HTTP, or HTTPS checks. If a VM fails the probe, it is removed from rotation until it recovers. <strong>Load balancing rules:</strong> Map a frontend IP:port to a backend pool:port and protocol.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Load Balancing Algorithm</div>
+                <div class="card-desc">Azure LB uses a <strong>5-tuple hash</strong> by default: source IP, source port, destination IP, destination port, protocol. This ensures a given client-server pair consistently hits the same backend VM (session affinity). You can configure <strong>session persistence (sticky sessions)</strong>: "None" (full 5-tuple), "Client IP" (2-tuple: source+dest IP), or "Client IP and Protocol" (3-tuple). Sticky sessions ensure a client always reaches the same backend during its session.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Outbound NAT and SNAT</div>
+                <div class="card-desc">Azure Load Balancer also handles <strong>outbound connectivity</strong> for VMs without public IPs. SNAT (Source Network Address Translation) maps private IPs to the LB's public IP for outbound internet. Standard LB requires explicit outbound rules — unlike Basic, it does not provide default outbound SNAT. <strong>SNAT port exhaustion</strong> is a real exam scenario: if too many connections are made outbound, SNAT ports run out, causing connection failures. Mitigate with NAT Gateway or additional public IPs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — APPLICATION GATEWAY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12 &nbsp;|&nbsp; Azure Application Gateway</div>
+        <div class="slide-title">Azure <span class="accent">Application Gateway</span></div>
+        <div class="slide-subtitle">Application Gateway is a Layer 7 (HTTP/HTTPS) load balancer. Unlike Azure LB (Layer 4), App Gateway understands HTTP — it can route traffic based on URL paths, host headers, and cookies. It also provides SSL termination and optional WAF (Web Application Firewall) to protect against OWASP threats.</div>
+
+        <!-- App Gateway: HTTPS in → SSL terminate → URL route → backend pools -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Internet client -->
+                <circle cx="38" cy="59" r="26" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.35)" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="38" y="55" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Client</text>
+                <text x="38" y="65" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">HTTPS:443</text>
+
+                <!-- Arrow to App GW -->
+                <line x1="66" y1="59" x2="106" y2="59" stroke="rgba(59,130,246,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="98,54 110,59 98,64" fill="#3b82f6"/>
+
+                <!-- Application Gateway box (tall) -->
+                <rect x="112" y="12" width="138" height="94" rx="10"
+                    fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="181" y="28" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Application Gateway</text>
+
+                <!-- SSL termination layer -->
+                <rect x="120" y="34" width="122" height="20" rx="5"
+                    fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.28s; opacity:0;"/>
+                <text x="181" y="44" text-anchor="middle" font-size="7" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">SSL Termination (TLS offload)</text>
+                <text x="181" y="52" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Cert stored in Key Vault</text>
+
+                <!-- URL routing layer -->
+                <rect x="120" y="58" width="122" height="20" rx="5"
+                    fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.36s; opacity:0;"/>
+                <text x="181" y="68" text-anchor="middle" font-size="7" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">URL-Based Routing</text>
+                <text x="181" y="76" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">/api → Pool A | /web → Pool B</text>
+
+                <!-- WAF layer -->
+                <rect x="120" y="82" width="122" height="18" rx="5"
+                    fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.35)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.44s; opacity:0;"/>
+                <text x="181" y="92" text-anchor="middle" font-size="7" fill="#fca5a5" font-weight="700" font-family="Segoe UI,sans-serif">WAF (Web App Firewall)</text>
+                <text x="181" y="100" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">OWASP Core Rule Set 3.2</text>
+
+                <!-- Arrow: /api routing to Backend Pool A -->
+                <line x1="252" y1="48" x2="320" y2="32" stroke="rgba(6,182,212,0.6)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="312,27 326,29 318,40" fill="#06b6d4"/>
+                <text x="283" y="28" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">/api →</text>
+
+                <!-- Arrow: /web routing to Backend Pool B -->
+                <line x1="252" y1="72" x2="320" y2="86" stroke="rgba(58,181,119,0.6)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.35s"/>
+                </line>
+                <polygon points="312,88 326,91 316,80" fill="#3ab577"/>
+                <text x="283" y="86" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">/web →</text>
+
+                <!-- Backend Pool A -->
+                <rect x="328" y="8" width="170" height="48" rx="8"
+                    fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="413" y="22" text-anchor="middle" font-size="7.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">Backend Pool A — API Tier</text>
+                <rect x="338" y="28" width="44" height="22" rx="4" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="360" y="42" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">api-vm-1</text>
+                <rect x="390" y="28" width="44" height="22" rx="4" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.58s; opacity:0;"/>
+                <text x="412" y="42" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">api-vm-2</text>
+                <rect x="442" y="28" width="44" height="22" rx="4" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.66s; opacity:0;"/>
+                <text x="464" y="42" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">api-vm-3</text>
+
+                <!-- Backend Pool B -->
+                <rect x="328" y="62" width="170" height="48" rx="8"
+                    fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.43s; opacity:0;"/>
+                <text x="413" y="76" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Backend Pool B — Web Tier</text>
+                <rect x="338" y="82" width="44" height="22" rx="4" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.56s; opacity:0;"/>
+                <text x="360" y="96" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">web-vm-1</text>
+                <rect x="390" y="82" width="44" height="22" rx="4" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.64s; opacity:0;"/>
+                <text x="412" y="96" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">web-vm-2</text>
+                <rect x="442" y="82" width="44" height="22" rx="4" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.4)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.72s; opacity:0;"/>
+                <text x="464" y="96" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">web-vm-3</text>
+
+                <!-- Comparison note: LB vs AppGW -->
+                <rect x="512" y="8" width="184" height="102" rx="8"
+                    fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="604" y="22" text-anchor="middle" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">LB vs. App Gateway</text>
+                <text x="520" y="36" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure LB (L4)</text>
+                <text x="520" y="47" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">TCP/UDP only</text>
+                <text x="520" y="57" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">No HTTP awareness</text>
+                <text x="520" y="67" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">No SSL termination</text>
+                <text x="520" y="77" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">No WAF</text>
+                <text x="520" y="87" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Cheapest option</text>
+                <line x1="610" y1="28" x2="610" y2="102" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <text x="618" y="36" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">App Gateway (L7)</text>
+                <text x="618" y="47" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">HTTP/HTTPS only</text>
+                <text x="618" y="57" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">URL routing</text>
+                <text x="618" y="67" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">SSL termination</text>
+                <text x="618" y="77" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">WAF available</text>
+                <text x="618" y="87" font-size="6" fill="#fef3c7" font-family="Segoe UI,sans-serif">Higher cost</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Routing Methods — URL Path vs. Multi-Site</div>
+                <div class="card-desc"><strong>URL path-based routing:</strong> Route to different backend pools based on the URL path. /images/* → image server pool, /api/* → API pool. Single hostname, different paths go to different backends. <strong>Multi-site hosting:</strong> Host multiple websites on one App Gateway using different hostnames. contoso.com → pool A, fabrikam.com → pool B. Both methods use listeners (Basic or Multi-site) and routing rules to map incoming requests to backend pools.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">WAF — Web Application Firewall</div>
+                <div class="card-desc">App Gateway WAF protects against common web attacks: SQL injection, cross-site scripting (XSS), command injection, OWASP Top 10. Two modes: <strong>Detection</strong> (log only, no blocking — use to tune rules), <strong>Prevention</strong> (actively blocks attacks). WAF uses OWASP Core Rule Set (CRS) 3.2. Custom rules can be added for specific exclusions or rules your app needs. WAF requires WAF SKU — regular Standard V2 does not include WAF capability.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">App Gateway SKUs</div>
+                <div class="card-desc"><strong>Standard V2:</strong> URL routing, SSL termination, autoscaling, zone-redundancy, HTTP/2. <strong>WAF V2:</strong> Everything in Standard V2 plus Web Application Firewall. <strong>Autoscaling:</strong> V2 SKUs support 0-125 capacity units with autoscale — you set a min and max, Azure scales within that range. <strong>Zone redundancy:</strong> V2 can span availability zones — no single datacenter failure takes down the gateway. Always use V2 SKUs — V1 is deprecated — use V2 for all new deployments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — NETWORK WATCHER ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12 &nbsp;|&nbsp; Network Watcher</div>
+        <div class="slide-title">Azure <span class="accent">Network Watcher</span></div>
+        <div class="slide-subtitle">Network Watcher is Azure's network monitoring and diagnostic toolkit. It provides tools to inspect traffic, verify connectivity, diagnose routing, capture packets, and view your network topology — all without needing to SSH into VMs or deploy third-party tools.</div>
+
+        <!-- Network Watcher dashboard with tools checking source → destination -->
+        <div class="diagram-center">
+            <svg width="700" height="116" viewBox="0 0 700 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Network Watcher central panel -->
+                <rect x="4" y="8" width="200" height="100" rx="10"
+                    fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="104" y="24" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Network Watcher</text>
+                <text x="104" y="35" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Regional service — enable per region</text>
+
+                <!-- Tool list inside NW -->
+                <rect x="12" y="40" width="184" height="14" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.2s; opacity:0;"/>
+                <text x="104" y="50" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-weight="700" font-family="Segoe UI,sans-serif">IP Flow Verify</text>
+
+                <rect x="12" y="57" width="184" height="14" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.3s; opacity:0;"/>
+                <text x="104" y="67" text-anchor="middle" font-size="6.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Next Hop</text>
+
+                <rect x="12" y="74" width="184" height="14" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.4s; opacity:0;"/>
+                <text x="104" y="84" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Connection Troubleshoot</text>
+
+                <rect x="12" y="91" width="184" height="14" rx="3" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.7"
+                    style="animation: slideRight 0.25s ease forwards 0.5s; opacity:0;"/>
+                <text x="104" y="101" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-weight="700" font-family="Segoe UI,sans-serif">NSG Flow Logs + Packet Capture</text>
+
+                <!-- Source VM -->
+                <rect x="228" y="40" width="90" height="36" rx="7"
+                    fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="273" y="55" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Source VM</text>
+                <text x="273" y="67" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.1.4</text>
+
+                <!-- Diagnostic arrows from NW to source -->
+                <line x1="206" y1="48" x2="226" y2="52" stroke="rgba(6,182,212,0.5)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.7s" repeatCount="indefinite"/>
+                </line>
+                <line x1="206" y1="65" x2="226" y2="62" stroke="rgba(58,181,119,0.5)" stroke-width="1.2" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="10;0" dur="0.7s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+
+                <!-- Check arrows between source and destination -->
+                <line x1="320" y1="58" x2="400" y2="58" stroke="rgba(201,168,58,0.6)" stroke-width="1.4" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+                <polygon points="392,53 404,58 392,63" fill="#c9a83a"/>
+                <text x="360" y="48" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">connectivity check</text>
+
+                <!-- Destination VM -->
+                <rect x="406" y="40" width="90" height="36" rx="7"
+                    fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="451" y="55" text-anchor="middle" font-size="7.5" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Dest VM</text>
+                <text x="451" y="67" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">10.0.2.5:443</text>
+
+                <!-- Result panel -->
+                <rect x="516" y="8" width="180" height="100" rx="8"
+                    fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="606" y="22" text-anchor="middle" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Diagnostic Results</text>
+
+                <rect x="524" y="28" width="164" height="14" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="606" y="38" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">IP Flow: Port 443 — ALLOW (rule 100)</text>
+
+                <rect x="524" y="46" width="164" height="14" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.63s; opacity:0;"/>
+                <text x="606" y="56" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">Next Hop: VirtualNetwork (direct)</text>
+
+                <rect x="524" y="64" width="164" height="14" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.71s; opacity:0;"/>
+                <text x="606" y="74" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Connection: Reachable — 3ms latency</text>
+
+                <rect x="524" y="82" width="164" height="22" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="0.8"
+                    style="animation: vmAppear 0.3s ease forwards 0.79s; opacity:0;"/>
+                <text x="606" y="92" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">NSG Flow Logs: stored in</text>
+                <text x="606" y="101" text-anchor="middle" font-size="6.5" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Storage Account (JSON)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">IP Flow Verify</div>
+                <div class="card-desc">Tests whether a specific packet will be allowed or denied by NSG rules. You provide: VM, direction (inbound/outbound), protocol, local port, remote IP, remote port. Azure simulates the NSG evaluation and tells you which rule matched and whether the packet would be allowed or denied. This is the fastest way to debug "why can't my VM reach X?" without guessing — it tells you the exact rule that is blocking traffic.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Next Hop</div>
+                <div class="card-desc">Shows what the next routing hop will be for a packet leaving a specific VM toward a given destination IP. Returns: next hop type (VirtualNetwork, Internet, VirtualAppliance, None) and the next hop IP if applicable. Use case: you have UDRs and want to verify traffic is actually being redirected to your NVA. If Next Hop returns "None," it means there is no route and the packet will be dropped.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">NSG Flow Logs + Traffic Analytics</div>
+                <div class="card-desc">NSG Flow Logs capture metadata about traffic that flows through an NSG: allowed/denied, source IP, destination IP, port, protocol, and bytes. Stored as JSON in an Azure Storage Account. Flow logs are version 1 (basic) or version 2 (includes byte count). <strong>Traffic Analytics</strong> processes flow logs and surfaces insights in Log Analytics + a Power BI-style dashboard: top talkers, ports, geo maps, threat detection. Requires a Log Analytics workspace.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+
+        <!-- Summary checklist SVG -->
+        <div class="diagram-center">
+            <svg width="700" height="76" viewBox="0 0 700 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Left column -->
+                <rect x="4" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="18" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 15 L18 18 L23 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">VNet = region-scoped private network. Subnets divide it. 5 IPs reserved per subnet.</text>
+
+                <rect x="4" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="18" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 37 L18 40 L23 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">NSG rules: lowest priority number wins, first match stops evaluation, stateful.</text>
+
+                <rect x="4" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.4s; opacity:0;"/>
+                <circle cx="18" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 59 L18 62 L23 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">VNet peering is NON-TRANSITIVE. A-B + B-C does not give A access to C.</text>
+
+                <!-- Right column -->
+                <rect x="358" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="372" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 15 L372 18 L377 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">UDR next hops: VirtualAppliance, VNetGateway, VnetLocal, Internet, None.</text>
+
+                <rect x="358" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.3s; opacity:0;"/>
+                <circle cx="372" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 37 L372 40 L377 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Load Balancer = L4 TCP/UDP. App Gateway = L7 HTTP/HTTPS + URL routing + WAF.</text>
+
+                <rect x="358" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.45s; opacity:0;"/>
+                <circle cx="372" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 59 L372 62 L377 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Network Watcher: IP Flow Verify, Next Hop, Connection Troubleshoot, NSG Logs.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>NSG rule evaluation — first match wins, full stop.</strong> Rules are checked in priority order (lowest number first). The moment source, destination, port, and protocol all match a rule, evaluation stops. Adding an Allow rule at priority 300 does nothing if a Deny rule at priority 200 already matches the same traffic. The three default rules (AllowVNetInBound at 65000, AllowAzureLBInBound at 65001, DenyAllInBound at 65500) cannot be deleted. NSGs are stateful — return traffic for allowed sessions is automatic.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>VNet peering transitivity trap.</strong> Peering A-B and B-C does NOT mean A can reach C. Traffic cannot be "forwarded" through a peer by default. Solutions: (1) Direct A-C peering. (2) Hub-spoke with an NVA in the hub that has IP forwarding enabled, combined with UDRs in the spoke subnets pointing to the NVA. The "Allow forwarded traffic" and "Allow gateway transit" peering settings only apply to specific forwarding scenarios — they do not enable transitive routing by themselves.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>UDR next hop types and route priority.</strong> When you create a UDR with next hop VirtualAppliance pointing to an NVA, the NVA's NIC must have IP Forwarding enabled — Azure will otherwise drop packets destined for a different IP. Route selection uses longest prefix match first, then tie-breaks by route type: UDR beats BGP beats system routes. Setting next hop to "None" blackholes traffic (useful to block specific subnets from reaching each other).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Load Balancer vs. Application Gateway decision.</strong> Layer 4 (TCP/UDP) = Azure Load Balancer. Layer 7 (HTTP/HTTPS) = Application Gateway. If the exam scenario mentions URL-based routing, SSL termination, WAF, or cookie-based session affinity — the answer is App Gateway. If it mentions TCP port forwarding, UDP, low latency, or non-HTTP protocols — the answer is Load Balancer. Standard LB requires explicit outbound rules for SNAT. Basic LB was retired on September 30, 2025.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Subnet reserved IPs.</strong> Always 5: .0 (network), .1 (gateway), .2 and .3 (DNS), .255 (broadcast). A /28 subnet = 16 total − 5 = 11 usable. GatewaySubnet must be named exactly "GatewaySubnet" — no NSG allowed. AzureFirewallSubnet = /26 minimum. AzureBastionSubnet = /27 minimum. These naming requirements are enforced by Azure and are common exam traps.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 6 &mdash; Monitor and Back Up Azure Resources</strong> &nbsp;|&nbsp; Azure Monitor &bull; Log Analytics &bull; Alerts &bull; Azure Backup &bull; Recovery Services Vault &bull; Site Recovery
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-104</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az104-ch05-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

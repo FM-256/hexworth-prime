@@ -1,0 +1,2788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Virtual Networking Lab — AZ-104 Chapter 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure Virtual Networking Lab</span>
+            <span class="lab-badge">AZ-104</span>
+            <span class="lab-badge-ch">CH.5</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — VNet Foundations</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Create a Virtual Network</div>
+                    <div class="task-desc">Create <code>lab-vnet-01</code> with address space <code>10.0.0.0/16</code> and an initial subnet <code>web-subnet</code> at <code>10.0.1.0/24</code>.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Add a Second Subnet</div>
+                    <div class="task-desc">Add <code>db-subnet</code> at <code>10.0.2.0/24</code> to <code>lab-vnet-01</code>, then list all subnets to confirm both are present.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Network Security Groups</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Create an NSG</div>
+                    <div class="task-desc">Create <code>web-nsg</code> in <code>lab-rg-01</code> and review the three default inbound rules Azure provisions automatically.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Add NSG Rules</div>
+                    <div class="task-desc">Add <code>AllowHTTP</code> (priority 100) and <code>AllowHTTPS</code> (priority 110) inbound rules to <code>web-nsg</code> to permit web traffic.</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Attach NSG to Subnet</div>
+                    <div class="task-desc">Associate <code>web-nsg</code> with <code>web-subnet</code> in <code>lab-vnet-01</code> to enforce the security rules on all traffic entering the subnet.</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">List NSG Rules</div>
+                    <div class="task-desc">Display all rules for <code>web-nsg</code> in table format — custom rules at priorities 100 and 110 alongside Azure's built-in default rules.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — VNet Peering</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Create a Second VNet</div>
+                    <div class="task-desc">Create <code>lab-vnet-02</code> with address space <code>10.1.0.0/16</code> and subnet <code>app-subnet</code> at <code>10.1.1.0/24</code> — non-overlapping with VNet 01.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Create VNet Peering</div>
+                    <div class="task-desc">Peer <code>lab-vnet-01</code> to <code>lab-vnet-02</code> in both directions — peering must be created from each VNet side independently.</div>
+                </div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Verify Peering Status</div>
+                    <div class="task-desc">List peerings on <code>lab-vnet-01</code> to confirm <code>peeringState: Connected</code> and <code>allowVirtualNetworkAccess: true</code>.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Inspect Network Configuration</div>
+                    <div class="task-desc">Run <code>az network vnet show</code> on both VNets to see the complete topology — subnets, NSG associations, peerings, and address spaces.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">azadmin@networking-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    networking-lab-vm Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">azadmin@networking-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AZ-104 Chapter 5 Complete!</div>
+                    <div class="success-message">
+                        You created a Virtual Network with an initial subnet, added a second subnet to segment
+                        traffic, provisioned a Network Security Group with Azure's default rules, added custom
+                        inbound rules for HTTP and HTTPS traffic with explicit priorities, attached the NSG to
+                        the web subnet to enforce policy, listed all rules in evaluation order, created a second
+                        VNet with a non-overlapping address space, established VNet peering in both directions
+                        and learned why bidirectional peering is required, verified the Connected peering state,
+                        and inspected the full network topology of both VNets. You now understand the complete
+                        Azure virtual networking workflow that every Azure Administrator uses to build secure,
+                        segmented, and connected cloud networks.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER    = 'azadmin';
+        var HOST    = 'networking-lab-vm';
+        var HOME    = '/home/azadmin';
+        var SUB_ID  = 'sub-001';
+        var RG_NAME = 'lab-rg-01';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-command tasks */
+
+        /* Task 2: subnet create + subnet list both required */
+        var task2_subnetCreated = false;
+        var task2_subnetListed  = false;
+
+        /* Task 4: AllowHTTP rule + AllowHTTPS rule both required */
+        var task4_httpCreated  = false;
+        var task4_httpsCreated = false;
+
+        /* Task 8: peering in both directions required */
+        var task8_peerAtoB = false;
+        var task8_peerBtoA = false;
+
+        /* Task 10: show vnet-01 + show vnet-02 both required */
+        var task10_shown01 = false;
+        var task10_shown02 = false;
+
+        /* Simulated network state */
+        var vnets   = {};   /* keyed by vnet name */
+        var nsgs    = {};   /* keyed by nsg name */
+        var peerings = {};  /* keyed by "vnetName/peeringName" */
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/azadmin',
+                '/home/azadmin/.ssh',
+                '/home/azadmin/scripts',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 09:00:01] INFO  Azure CLI 2.58.0 initialised',
+                        '[2026-04-19 09:00:02] INFO  Subscription: Lab-Networking-Subscription (' + SUB_ID + ')',
+                        '[2026-04-19 09:00:03] INFO  Resource Group: ' + RG_NAME,
+                        '[2026-04-19 09:00:04] INFO  Networking environment ready — no resources provisioned yet'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/azadmin/.ssh/id_rsa.pub': {
+                    c: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDq7X3+simulated+key azadmin@networking-lab-vm',
+                    m: '-rw-r--r--'
+                },
+                '/home/azadmin/scripts/deploy-nsg.sh': {
+                    c: '#!/bin/bash\n# Script to apply standard NSG rules to a new VNet\nRG=$1\nVNET=$2\nNSG_NAME="${VNET}-nsg"\n\naz network nsg create --name $NSG_NAME --resource-group $RG\naz network nsg rule create --nsg-name $NSG_NAME --resource-group $RG \\\n  --name AllowHTTP --priority 100 --direction Inbound \\\n  --access Allow --protocol Tcp --destination-port-ranges 80\naz network nsg rule create --nsg-name $NSG_NAME --resource-group $RG \\\n  --name AllowHTTPS --priority 110 --direction Inbound \\\n  --access Allow --protocol Tcp --destination-port-ranges 443\necho "NSG $NSG_NAME applied to $VNET"',
+                    m: '-rwxr-xr-x'
+                },
+                '/home/azadmin/scripts/peer-vnets.sh': {
+                    c: '#!/bin/bash\n# Bidirectional VNet peering helper\nRG=$1\nVNET1=$2\nVNET2=$3\n\nV1_ID=$(az network vnet show --name $VNET1 --resource-group $RG --query id -o tsv)\nV2_ID=$(az network vnet show --name $VNET2 --resource-group $RG --query id -o tsv)\n\naz network vnet peering create \\\n  --name "${VNET1}-to-${VNET2}" --vnet-name $VNET1 \\\n  --resource-group $RG --remote-vnet $V2_ID --allow-vnet-access\n\naz network vnet peering create \\\n  --name "${VNET2}-to-${VNET1}" --vnet-name $VNET2 \\\n  --resource-group $RG --remote-vnet $V1_ID --allow-vnet-access\n\necho "Bidirectional peering established between $VNET1 and $VNET2"',
+                    m: '-rwxr-xr-x'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = {
+                    type: 'file',
+                    content: files[p].c,
+                    mode: files[p].m
+                };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serialises a JS object to indented JSON and colourises each token type. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Print a fixed-width table row */
+        function printTableRow(cols, widths) {
+            var row = '';
+            for (var i = 0; i < cols.length; i++) {
+                var cell = String(cols[i] || '');
+                var w    = widths[i] || 20;
+                row += cell.length > w ? cell.substring(0, w - 1) + ' ' : cell + ' '.repeat(w - cell.length + 2);
+            }
+            addLine(row.trimEnd(), 'term-line-out');
+        }
+
+        /* Print a formatted ASCII table */
+        function printTable(headers, rows, widths) {
+            printTableRow(headers, widths);
+            var sep = widths.map(function (w) { return '-'.repeat(w); }).join('  ');
+            addLine(sep, 'term-line-dim');
+            rows.forEach(function (r) { printTableRow(r, widths); });
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and flag extraction.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        function hasFlag(args, flag) {
+            return args.indexOf(flag) >= 0;
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var pathArg = null;
+            var long    = false;
+            args.forEach(function (a) {
+                if (a === '-l' || a === '-la' || a === '-al' || a === '-a') {
+                    long = true;
+                } else if (!pathArg) {
+                    pathArg = a;
+                }
+            });
+
+            var path = pathArg ? resolve(pathArg) : cwd;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (pathArg || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 19 09:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            addLine(args.join(' '), 'term-line-out');
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                          'term-line-out');
+            addLine('USER=' + USER,                          'term-line-out');
+            addLine('SHELL=/bin/bash',                       'term-line-out');
+            addLine('TERM=xterm-256color',                   'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,       'term-line-out');
+            addLine('AZURE_RESOURCE_GROUP=' + RG_NAME,       'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           NETWORK OBJECT BUILDERS
+        ════════════════════════════════════════════════ */
+
+        /* Build the default NSG security rules Azure injects on every new NSG */
+        function buildDefaultNsgRules() {
+            return [
+                {
+                    name: 'AllowVnetInBound',
+                    priority: 65000,
+                    direction: 'Inbound',
+                    access: 'Allow',
+                    protocol: '*',
+                    sourceAddressPrefix: 'VirtualNetwork',
+                    destinationAddressPrefix: 'VirtualNetwork',
+                    destinationPortRange: '*',
+                    description: 'Allow inbound traffic from all VMs in VNet'
+                },
+                {
+                    name: 'AllowAzureLoadBalancerInBound',
+                    priority: 65001,
+                    direction: 'Inbound',
+                    access: 'Allow',
+                    protocol: '*',
+                    sourceAddressPrefix: 'AzureLoadBalancer',
+                    destinationAddressPrefix: '*',
+                    destinationPortRange: '*',
+                    description: 'Allow inbound traffic from Azure load balancer'
+                },
+                {
+                    name: 'DenyAllInBound',
+                    priority: 65500,
+                    direction: 'Inbound',
+                    access: 'Deny',
+                    protocol: '*',
+                    sourceAddressPrefix: '*',
+                    destinationAddressPrefix: '*',
+                    destinationPortRange: '*',
+                    description: 'Deny all inbound traffic'
+                }
+            ];
+        }
+
+        /* Build an NSG object */
+        function buildNsgObj(name, rg) {
+            return {
+                id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.Network/networkSecurityGroups/' + name,
+                name: name,
+                resourceGroup: rg,
+                location: 'eastus',
+                type: 'Microsoft.Network/networkSecurityGroups',
+                securityRules: [],
+                defaultSecurityRules: buildDefaultNsgRules(),
+                provisioningState: 'Succeeded'
+            };
+        }
+
+        /* Build a VNet object */
+        function buildVnetObj(name, rg, addressPrefix, subnetName, subnetPrefix) {
+            return {
+                id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.Network/virtualNetworks/' + name,
+                name: name,
+                resourceGroup: rg,
+                location: 'eastus',
+                type: 'Microsoft.Network/virtualNetworks',
+                addressSpace: {
+                    addressPrefixes: [ addressPrefix ]
+                },
+                subnets: [
+                    {
+                        name: subnetName,
+                        addressPrefix: subnetPrefix,
+                        networkSecurityGroup: null,
+                        provisioningState: 'Succeeded'
+                    }
+                ],
+                virtualNetworkPeerings: [],
+                enableDdosProtection: false,
+                provisioningState: 'Succeeded'
+            };
+        }
+
+        /* Build a subnet object */
+        function buildSubnetObj(name, vnetName, rg, addressPrefix) {
+            return {
+                id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.Network/virtualNetworks/' + vnetName + '/subnets/' + name,
+                name: name,
+                addressPrefix: addressPrefix,
+                networkSecurityGroup: null,
+                provisioningState: 'Succeeded'
+            };
+        }
+
+        /* Build an NSG rule object */
+        function buildNsgRuleObj(nsgName, rg, name, priority, direction, access, protocol, srcPrefix, dstPort) {
+            return {
+                id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.Network/networkSecurityGroups/' + nsgName + '/securityRules/' + name,
+                name: name,
+                priority: priority,
+                direction: direction,
+                access: access,
+                protocol: protocol,
+                sourceAddressPrefix: srcPrefix,
+                sourcePortRange: '*',
+                destinationAddressPrefix: '*',
+                destinationPortRange: dstPort,
+                provisioningState: 'Succeeded'
+            };
+        }
+
+        /* Build a VNet peering object */
+        function buildPeeringObj(name, vnetName, rg, remoteVnet, allowAccess) {
+            return {
+                id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                    '/providers/Microsoft.Network/virtualNetworks/' + vnetName + '/virtualNetworkPeerings/' + name,
+                name: name,
+                resourceGroup: rg,
+                peeringState: 'Connected',
+                remoteVirtualNetwork: {
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + rg +
+                        '/providers/Microsoft.Network/virtualNetworks/' + remoteVnet
+                },
+                allowVirtualNetworkAccess: allowAccess,
+                allowForwardedTraffic: false,
+                allowGatewayTransit: false,
+                useRemoteGateways: false,
+                provisioningState: 'Succeeded'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az network vnet
+        ════════════════════════════════════════════════ */
+        function cmd_az_network_vnet(args) {
+            if (!args.length) {
+                addLine('az network vnet: usage: az network vnet <create|show|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az network vnet create ── */
+            if (sub === 'create') {
+                var name          = flagVal(args, '--name');
+                var rg            = flagVal(args, '--resource-group');
+                var addrPrefix    = flagVal(args, '--address-prefix');
+                var subnetName    = flagVal(args, '--subnet-name');
+                var subnetPrefix  = flagVal(args, '--subnet-prefix');
+
+                if (!name) {
+                    addLine('az network vnet create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az network vnet create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!addrPrefix) {
+                    addLine('az network vnet create: --address-prefix is required (e.g. 10.0.0.0/16).', 'term-line-err');
+                    return null;
+                }
+                if (!subnetName) {
+                    addLine('az network vnet create: --subnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!subnetPrefix) {
+                    addLine('az network vnet create: --subnet-prefix is required (e.g. 10.0.1.0/24).', 'term-line-err');
+                    return null;
+                }
+
+                /* Check for address space overlap with existing VNets */
+                var existingKeys = Object.keys(vnets);
+                for (var ei = 0; ei < existingKeys.length; ei++) {
+                    var ev = vnets[existingKeys[ei]];
+                    if (ev.obj.addressSpace.addressPrefixes[0] === addrPrefix) {
+                        addLine('ERROR: Address space ' + addrPrefix + ' overlaps with existing VNet "' + existingKeys[ei] + '".', 'term-line-err');
+                        addLine('  VNet peering requires non-overlapping address spaces.', 'term-line-err');
+                        return null;
+                    }
+                }
+
+                if (Object.prototype.hasOwnProperty.call(vnets, name)) {
+                    addLine('ERROR: VNet "' + name + '" already exists in resource group "' + rg + '".', 'term-line-err');
+                    return null;
+                }
+
+                var vnetObj = buildVnetObj(name, rg, addrPrefix, subnetName, subnetPrefix);
+                vnets[name] = {
+                    obj: vnetObj,
+                    rg: rg,
+                    addressPrefix: addrPrefix,
+                    subnets: {}
+                };
+                vnets[name].subnets[subnetName] = {
+                    name: subnetName,
+                    addressPrefix: subnetPrefix,
+                    nsg: null
+                };
+
+                addLine('Creating virtual network "' + name + '"...', 'term-line-info');
+                addLine('  Resource group  : ' + rg,           'term-line-dim');
+                addLine('  Address space   : ' + addrPrefix,   'term-line-dim');
+                addLine('  Initial subnet  : ' + subnetName + ' (' + subnetPrefix + ')', 'term-line-dim');
+                addBlank();
+                printJSON(vnetObj);
+                addBlank();
+                addLine('  VNet "' + name + '" created.', 'term-line-info');
+                addLine('  Address space ' + addrPrefix + ' — ' + Math.pow(2, 32 - parseInt(addrPrefix.split('/')[1], 10)) + ' usable host addresses.', 'term-line-dim');
+
+                return {
+                    vnet_created: true,
+                    name: name,
+                    rg: rg,
+                    addressPrefix: addrPrefix,
+                    subnetName: subnetName,
+                    subnetPrefix: subnetPrefix
+                };
+            }
+
+            /* ── az network vnet show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                var showRg   = flagVal(args, '--resource-group');
+
+                if (!showName) {
+                    addLine('az network vnet show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!showRg) {
+                    addLine('az network vnet show: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(vnets, showName)) {
+                    addLine('ERROR: VNet "' + showName + '" not found in resource group "' + showRg + '".', 'term-line-err');
+                    addLine('  Create it first with: az network vnet create --name ' + showName + ' ...', 'term-line-dim');
+                    return null;
+                }
+
+                /* Build a fresh enriched snapshot showing current state */
+                var vnetEntry  = vnets[showName];
+                var showObj    = JSON.parse(JSON.stringify(vnetEntry.obj));
+                /* Refresh subnets from live state */
+                showObj.subnets = Object.keys(vnetEntry.subnets).map(function (sn) {
+                    var s = vnetEntry.subnets[sn];
+                    return {
+                        name: s.name,
+                        addressPrefix: s.addressPrefix,
+                        networkSecurityGroup: s.nsg ? {
+                            id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + vnetEntry.rg +
+                                '/providers/Microsoft.Network/networkSecurityGroups/' + s.nsg
+                        } : null,
+                        provisioningState: 'Succeeded'
+                    };
+                });
+                /* Refresh peerings from live state */
+                showObj.virtualNetworkPeerings = Object.keys(peerings)
+                    .filter(function (pk) { return pk.indexOf(showName + '/') === 0; })
+                    .map(function (pk) { return peerings[pk]; });
+
+                printJSON(showObj);
+                addBlank();
+                addLine('  VNet "' + showName + '" — ' + showObj.subnets.length + ' subnet(s), ' +
+                    showObj.virtualNetworkPeerings.length + ' peering(s).', 'term-line-info');
+
+                return {
+                    vnet_shown: true,
+                    name: showName,
+                    rg: showRg
+                };
+            }
+
+            /* ── az network vnet list ── */
+            if (sub === 'list') {
+                var listRg = flagVal(args, '--resource-group');
+                if (!listRg) {
+                    addLine('az network vnet list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                var vnetList = Object.keys(vnets)
+                    .filter(function (n) { return vnets[n].rg === listRg; })
+                    .map(function (n) { return vnets[n].obj; });
+
+                if (!vnetList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No virtual networks found in "' + listRg + '".', 'term-line-dim');
+                } else {
+                    printJSON(vnetList);
+                    addBlank();
+                    addLine('  ' + vnetList.length + ' virtual network(s) found.', 'term-line-info');
+                }
+                return { vnet_listed: true, rg: listRg, count: vnetList.length };
+            }
+
+            addLine('az network vnet: unknown subcommand "' + sub + '". Try "create", "show", or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az network vnet subnet
+        ════════════════════════════════════════════════ */
+        function cmd_az_network_vnet_subnet(args) {
+            if (!args.length) {
+                addLine('az network vnet subnet: usage: az network vnet subnet <create|list|update>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az network vnet subnet create ── */
+            if (sub === 'create') {
+                var vnetName     = flagVal(args, '--vnet-name');
+                var name         = flagVal(args, '--name');
+                var rg           = flagVal(args, '--resource-group');
+                var addrPrefix   = flagVal(args, '--address-prefix');
+
+                if (!vnetName) {
+                    addLine('az network vnet subnet create: --vnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!name) {
+                    addLine('az network vnet subnet create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az network vnet subnet create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!addrPrefix) {
+                    addLine('az network vnet subnet create: --address-prefix is required (e.g. 10.0.2.0/24).', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(vnets, vnetName)) {
+                    addLine('ERROR: VNet "' + vnetName + '" not found. Create the VNet first.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(vnets[vnetName].subnets, name)) {
+                    addLine('ERROR: Subnet "' + name + '" already exists in VNet "' + vnetName + '".', 'term-line-err');
+                    return null;
+                }
+
+                /* Check for subnet address overlap within the VNet */
+                var existingSubs = Object.keys(vnets[vnetName].subnets);
+                for (var si = 0; si < existingSubs.length; si++) {
+                    if (vnets[vnetName].subnets[existingSubs[si]].addressPrefix === addrPrefix) {
+                        addLine('ERROR: Address prefix ' + addrPrefix + ' overlaps with subnet "' + existingSubs[si] + '".', 'term-line-err');
+                        return null;
+                    }
+                }
+
+                vnets[vnetName].subnets[name] = {
+                    name: name,
+                    addressPrefix: addrPrefix,
+                    nsg: null
+                };
+                /* Push subnet into VNet obj array */
+                vnets[vnetName].obj.subnets.push({
+                    name: name,
+                    addressPrefix: addrPrefix,
+                    networkSecurityGroup: null,
+                    provisioningState: 'Succeeded'
+                });
+
+                var subnetObj = buildSubnetObj(name, vnetName, rg, addrPrefix);
+                addLine('Creating subnet "' + name + '" in VNet "' + vnetName + '"...', 'term-line-info');
+                addLine('  Address prefix : ' + addrPrefix, 'term-line-dim');
+                addBlank();
+                printJSON(subnetObj);
+                addBlank();
+                addLine('  Subnet "' + name + '" created. ' + Math.pow(2, 32 - parseInt(addrPrefix.split('/')[1], 10)) + ' total addresses (' + (Math.pow(2, 32 - parseInt(addrPrefix.split('/')[1], 10)) - 5) + ' usable — Azure reserves 5 per subnet).', 'term-line-dim');
+
+                return {
+                    subnet_created: true,
+                    name: name,
+                    vnetName: vnetName,
+                    rg: rg,
+                    addressPrefix: addrPrefix
+                };
+            }
+
+            /* ── az network vnet subnet list ── */
+            if (sub === 'list') {
+                var listVnet = flagVal(args, '--vnet-name');
+                var listRg   = flagVal(args, '--resource-group');
+
+                if (!listVnet) {
+                    addLine('az network vnet subnet list: --vnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!listRg) {
+                    addLine('az network vnet subnet list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(vnets, listVnet)) {
+                    addLine('ERROR: VNet "' + listVnet + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var subs = Object.keys(vnets[listVnet].subnets).map(function (sn) {
+                    var s = vnets[listVnet].subnets[sn];
+                    return buildSubnetObj(s.name, listVnet, listRg, s.addressPrefix);
+                });
+
+                printJSON(subs);
+                addBlank();
+                addLine('  ' + subs.length + ' subnet(s) in VNet "' + listVnet + '".', 'term-line-info');
+
+                return {
+                    subnet_listed: true,
+                    vnetName: listVnet,
+                    rg: listRg,
+                    count: subs.length
+                };
+            }
+
+            /* ── az network vnet subnet update ── */
+            if (sub === 'update') {
+                var updVnet = flagVal(args, '--vnet-name');
+                var updName = flagVal(args, '--name');
+                var updRg   = flagVal(args, '--resource-group');
+                var nsgArg  = flagVal(args, '--network-security-group');
+
+                if (!updVnet) {
+                    addLine('az network vnet subnet update: --vnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!updName) {
+                    addLine('az network vnet subnet update: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!updRg) {
+                    addLine('az network vnet subnet update: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!nsgArg) {
+                    addLine('az network vnet subnet update: --network-security-group is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(vnets, updVnet)) {
+                    addLine('ERROR: VNet "' + updVnet + '" not found.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(vnets[updVnet].subnets, updName)) {
+                    addLine('ERROR: Subnet "' + updName + '" not found in VNet "' + updVnet + '".', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(nsgs, nsgArg)) {
+                    addLine('ERROR: NSG "' + nsgArg + '" not found. Create it first with: az network nsg create --name ' + nsgArg + ' ...', 'term-line-err');
+                    return null;
+                }
+
+                /* Attach NSG to subnet in live state */
+                vnets[updVnet].subnets[updName].nsg = nsgArg;
+                /* Also update the VNet obj subnets array */
+                vnets[updVnet].obj.subnets.forEach(function (s) {
+                    if (s.name === updName) {
+                        s.networkSecurityGroup = {
+                            id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + updRg +
+                                '/providers/Microsoft.Network/networkSecurityGroups/' + nsgArg
+                        };
+                    }
+                });
+
+                var updSubnet = buildSubnetObj(updName, updVnet, updRg, vnets[updVnet].subnets[updName].addressPrefix);
+                updSubnet.networkSecurityGroup = {
+                    id: '/subscriptions/' + SUB_ID + '/resourceGroups/' + updRg +
+                        '/providers/Microsoft.Network/networkSecurityGroups/' + nsgArg
+                };
+
+                addLine('Associating NSG "' + nsgArg + '" with subnet "' + updName + '"...', 'term-line-info');
+                addBlank();
+                printJSON(updSubnet);
+                addBlank();
+                addLine('  NSG "' + nsgArg + '" now enforces rules on all traffic entering "' + updName + '".', 'term-line-info');
+                addLine('  Traffic evaluation order: custom rules (low priority #) first, then default rules.', 'term-line-dim');
+
+                return {
+                    subnet_updated: true,
+                    name: updName,
+                    vnetName: updVnet,
+                    rg: updRg,
+                    nsg: nsgArg
+                };
+            }
+
+            addLine('az network vnet subnet: unknown subcommand "' + sub + '". Try "create", "list", or "update".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az network nsg
+        ════════════════════════════════════════════════ */
+        function cmd_az_network_nsg(args) {
+            if (!args.length) {
+                addLine('az network nsg: usage: az network nsg <create|show|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az network nsg create ── */
+            if (sub === 'create') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+
+                if (!name) {
+                    addLine('az network nsg create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az network nsg create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (Object.prototype.hasOwnProperty.call(nsgs, name)) {
+                    addLine('ERROR: NSG "' + name + '" already exists in resource group "' + rg + '".', 'term-line-err');
+                    return null;
+                }
+
+                var nsgObj = buildNsgObj(name, rg);
+                nsgs[name] = { obj: nsgObj, rg: rg, rules: [] };
+
+                addLine('Creating network security group "' + name + '"...', 'term-line-info');
+                addLine('  Resource group : ' + rg, 'term-line-dim');
+                addBlank();
+                printJSON(nsgObj);
+                addBlank();
+                addLine('  NSG "' + name + '" created with 3 default rules.', 'term-line-info');
+                addLine('  Default rules (priorities 65000-65500) allow VNet traffic and deny all external inbound.', 'term-line-dim');
+                addLine('  Custom rules you add must use priorities 100-4096 (lower number = evaluated first).', 'term-line-dim');
+
+                return {
+                    nsg_created: true,
+                    name: name,
+                    rg: rg
+                };
+            }
+
+            /* ── az network nsg show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                var showRg   = flagVal(args, '--resource-group');
+
+                if (!showName || !showRg) {
+                    addLine('az network nsg show: --name and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(nsgs, showName)) {
+                    addLine('ERROR: NSG "' + showName + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var nsgEntry = nsgs[showName];
+                var showObj  = JSON.parse(JSON.stringify(nsgEntry.obj));
+                showObj.securityRules = nsgEntry.rules;
+
+                printJSON(showObj);
+                addBlank();
+                addLine('  NSG "' + showName + '" — ' + nsgEntry.rules.length + ' custom rule(s), 3 default rule(s).', 'term-line-info');
+
+                return { nsg_shown: true, name: showName, rg: showRg };
+            }
+
+            /* ── az network nsg list ── */
+            if (sub === 'list') {
+                var listRg = flagVal(args, '--resource-group');
+                if (!listRg) {
+                    addLine('az network nsg list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                var nsgList = Object.keys(nsgs)
+                    .filter(function (n) { return nsgs[n].rg === listRg; })
+                    .map(function (n) { return nsgs[n].obj; });
+
+                if (!nsgList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No NSGs found in "' + listRg + '".', 'term-line-dim');
+                } else {
+                    printJSON(nsgList);
+                    addBlank();
+                    addLine('  ' + nsgList.length + ' NSG(s) found.', 'term-line-info');
+                }
+                return { nsg_listed: true, rg: listRg, count: nsgList.length };
+            }
+
+            addLine('az network nsg: unknown subcommand "' + sub + '". Try "create", "show", or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az network nsg rule
+        ════════════════════════════════════════════════ */
+        function cmd_az_network_nsg_rule(args) {
+            if (!args.length) {
+                addLine('az network nsg rule: usage: az network nsg rule <create|list|show|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az network nsg rule create ── */
+            if (sub === 'create') {
+                var nsgName   = flagVal(args, '--nsg-name');
+                var rg        = flagVal(args, '--resource-group');
+                var ruleName  = flagVal(args, '--name');
+                var priorityS = flagVal(args, '--priority');
+                var direction = flagVal(args, '--direction');
+                var access    = flagVal(args, '--access');
+                var protocol  = flagVal(args, '--protocol');
+                var srcAddr   = flagVal(args, '--source-address-prefixes') || flagVal(args, '--source-address-prefix') || '*';
+                var dstPort   = flagVal(args, '--destination-port-ranges') || flagVal(args, '--destination-port-range') || '*';
+                var priority  = priorityS ? parseInt(priorityS, 10) : 0;
+
+                if (!nsgName) {
+                    addLine('az network nsg rule create: --nsg-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az network nsg rule create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!ruleName) {
+                    addLine('az network nsg rule create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!priorityS) {
+                    addLine('az network nsg rule create: --priority is required (100-4096).', 'term-line-err');
+                    return null;
+                }
+                if (!direction) {
+                    addLine('az network nsg rule create: --direction is required (Inbound or Outbound).', 'term-line-err');
+                    return null;
+                }
+                if (!access) {
+                    addLine('az network nsg rule create: --access is required (Allow or Deny).', 'term-line-err');
+                    return null;
+                }
+                if (!protocol) {
+                    addLine('az network nsg rule create: --protocol is required (Tcp, Udp, Icmp, or *).', 'term-line-err');
+                    return null;
+                }
+
+                if (priority < 100 || priority > 4096) {
+                    addLine('ERROR: Priority must be between 100 and 4096. Value ' + priority + ' is out of range.', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(nsgs, nsgName)) {
+                    addLine('ERROR: NSG "' + nsgName + '" not found. Create it first.', 'term-line-err');
+                    return null;
+                }
+
+                /* Check for duplicate rule name */
+                var existingRules = nsgs[nsgName].rules;
+                for (var ri = 0; ri < existingRules.length; ri++) {
+                    if (existingRules[ri].name === ruleName) {
+                        addLine('ERROR: Rule "' + ruleName + '" already exists in NSG "' + nsgName + '".', 'term-line-err');
+                        return null;
+                    }
+                    if (existingRules[ri].priority === priority) {
+                        addLine('ERROR: Priority ' + priority + ' is already used by rule "' + existingRules[ri].name + '".', 'term-line-err');
+                        return null;
+                    }
+                }
+
+                var ruleObj = buildNsgRuleObj(nsgName, rg, ruleName, priority, direction, access, protocol, srcAddr, dstPort);
+                nsgs[nsgName].rules.push(ruleObj);
+                /* Keep rules sorted by priority */
+                nsgs[nsgName].rules.sort(function (a, b) { return a.priority - b.priority; });
+
+                addLine('Creating NSG rule "' + ruleName + '" in "' + nsgName + '"...', 'term-line-info');
+                addLine('  Priority  : ' + priority,  'term-line-dim');
+                addLine('  Direction : ' + direction, 'term-line-dim');
+                addLine('  Access    : ' + access,    'term-line-dim');
+                addLine('  Protocol  : ' + protocol,  'term-line-dim');
+                addLine('  Dest port : ' + dstPort,   'term-line-dim');
+                addBlank();
+                printJSON(ruleObj);
+                addBlank();
+                addLine('  Rule "' + ruleName + '" added at priority ' + priority + '.', 'term-line-info');
+
+                return {
+                    nsg_rule_created: true,
+                    nsgName: nsgName,
+                    ruleName: ruleName,
+                    priority: priority,
+                    direction: direction,
+                    access: access,
+                    protocol: protocol,
+                    dstPort: dstPort,
+                    rg: rg
+                };
+            }
+
+            /* ── az network nsg rule list ── */
+            if (sub === 'list') {
+                var listNsg    = flagVal(args, '--nsg-name');
+                var listRg     = flagVal(args, '--resource-group');
+                var outputFmt  = flagVal(args, '--output') || 'json';
+
+                if (!listNsg) {
+                    addLine('az network nsg rule list: --nsg-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!listRg) {
+                    addLine('az network nsg rule list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(nsgs, listNsg)) {
+                    addLine('ERROR: NSG "' + listNsg + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var customRules  = nsgs[listNsg].rules;
+                var defaultRules = buildDefaultNsgRules();
+                var allRules     = customRules.concat(defaultRules);
+
+                if (outputFmt === 'table') {
+                    addLine('NSG Rules for "' + listNsg + '" — listed in evaluation order (lower priority evaluated first):', 'term-line-info');
+                    addBlank();
+                    printTable(
+                        ['Name', 'Priority', 'Direction', 'Access', 'Protocol', 'DestPort'],
+                        allRules.map(function (r) {
+                            return [
+                                r.name,
+                                String(r.priority),
+                                r.direction,
+                                r.access,
+                                r.protocol,
+                                r.destinationPortRange
+                            ];
+                        }),
+                        [34, 10, 12, 8, 10, 10]
+                    );
+                    addBlank();
+                    addLine('  Custom rules:   ' + customRules.length + ' (priorities 100-4096)', 'term-line-dim');
+                    addLine('  Default rules:  3 (priorities 65000-65500, managed by Azure)', 'term-line-dim');
+                    addLine('  Evaluation order: lowest priority number wins. First matching rule is applied.', 'term-line-dim');
+                } else {
+                    printJSON(allRules);
+                    addBlank();
+                    addLine('  ' + allRules.length + ' total rules (' + customRules.length + ' custom, 3 default).', 'term-line-info');
+                    addLine('  Use "--output table" for a compact summary view.', 'term-line-dim');
+                }
+
+                return {
+                    nsg_rules_listed: true,
+                    nsgName: listNsg,
+                    rg: listRg,
+                    customCount: customRules.length
+                };
+            }
+
+            /* ── az network nsg rule show ── */
+            if (sub === 'show') {
+                var showNsg  = flagVal(args, '--nsg-name');
+                var showRg   = flagVal(args, '--resource-group');
+                var showRule = flagVal(args, '--name');
+
+                if (!showNsg || !showRg || !showRule) {
+                    addLine('az network nsg rule show: --nsg-name, --resource-group, and --name are required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(nsgs, showNsg)) {
+                    addLine('ERROR: NSG "' + showNsg + '" not found.', 'term-line-err');
+                    return null;
+                }
+                var found = nsgs[showNsg].rules.filter(function (r) { return r.name === showRule; });
+                if (!found.length) {
+                    addLine('ERROR: Rule "' + showRule + '" not found in NSG "' + showNsg + '".', 'term-line-err');
+                    return null;
+                }
+                printJSON(found[0]);
+                return { nsg_rule_shown: true };
+            }
+
+            addLine('az network nsg rule: unknown subcommand "' + sub + '". Try "create", "list", or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az network vnet peering
+        ════════════════════════════════════════════════ */
+        function cmd_az_network_vnet_peering(args) {
+            if (!args.length) {
+                addLine('az network vnet peering: usage: az network vnet peering <create|list|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az network vnet peering create ── */
+            if (sub === 'create') {
+                var peerName    = flagVal(args, '--name');
+                var vnetName    = flagVal(args, '--vnet-name');
+                var rg          = flagVal(args, '--resource-group');
+                var remoteVnet  = flagVal(args, '--remote-vnet');
+                var allowAccess = hasFlag(args, '--allow-vnet-access');
+
+                if (!peerName) {
+                    addLine('az network vnet peering create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!vnetName) {
+                    addLine('az network vnet peering create: --vnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!rg) {
+                    addLine('az network vnet peering create: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!remoteVnet) {
+                    addLine('az network vnet peering create: --remote-vnet is required (VNet name or full resource ID).', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(vnets, vnetName)) {
+                    addLine('ERROR: Local VNet "' + vnetName + '" not found. Create it first.', 'term-line-err');
+                    return null;
+                }
+
+                /* Accept both short name and full resource ID for --remote-vnet */
+                var remoteVnetName = remoteVnet;
+                if (remoteVnet.indexOf('/') >= 0) {
+                    remoteVnetName = remoteVnet.split('/').pop();
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(vnets, remoteVnetName)) {
+                    addLine('ERROR: Remote VNet "' + remoteVnetName + '" not found. Create it first.', 'term-line-err');
+                    return null;
+                }
+
+                /* Verify no address space overlap */
+                var localAddr  = vnets[vnetName].addressPrefix;
+                var remoteAddr = vnets[remoteVnetName].addressPrefix;
+                if (localAddr === remoteAddr) {
+                    addLine('ERROR: VNets cannot be peered when address spaces overlap.', 'term-line-err');
+                    addLine('  Local: ' + localAddr + '  Remote: ' + remoteAddr, 'term-line-err');
+                    return null;
+                }
+
+                var peerKey = vnetName + '/' + peerName;
+                if (Object.prototype.hasOwnProperty.call(peerings, peerKey)) {
+                    addLine('ERROR: Peering "' + peerName + '" already exists on VNet "' + vnetName + '".', 'term-line-err');
+                    return null;
+                }
+
+                var peerObj = buildPeeringObj(peerName, vnetName, rg, remoteVnetName, allowAccess);
+                peerings[peerKey] = peerObj;
+                /* Update VNet obj */
+                vnets[vnetName].obj.virtualNetworkPeerings.push(peerObj);
+
+                addLine('Creating VNet peering "' + peerName + '"...', 'term-line-info');
+                addLine('  Local VNet  : ' + vnetName + ' (' + localAddr + ')',   'term-line-dim');
+                addLine('  Remote VNet : ' + remoteVnetName + ' (' + remoteAddr + ')', 'term-line-dim');
+                addLine('  Allow VNet access: ' + allowAccess,                    'term-line-dim');
+                addBlank();
+                printJSON(peerObj);
+                addBlank();
+                addLine('  Peering "' + peerName + '" created. State: Connected.', 'term-line-info');
+                addLine('  NOTE: Peering is one-directional from "' + vnetName + '". To allow return traffic,', 'term-line-warn');
+                addLine('  also create a peering from "' + remoteVnetName + '" back to "' + vnetName + '".', 'term-line-warn');
+
+                return {
+                    peering_created: true,
+                    peerName: peerName,
+                    vnetName: vnetName,
+                    remoteVnetName: remoteVnetName,
+                    rg: rg,
+                    allowAccess: allowAccess
+                };
+            }
+
+            /* ── az network vnet peering list ── */
+            if (sub === 'list') {
+                var listVnet = flagVal(args, '--vnet-name');
+                var listRg   = flagVal(args, '--resource-group');
+
+                if (!listVnet) {
+                    addLine('az network vnet peering list: --vnet-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!listRg) {
+                    addLine('az network vnet peering list: --resource-group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(vnets, listVnet)) {
+                    addLine('ERROR: VNet "' + listVnet + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var peerList = Object.keys(peerings)
+                    .filter(function (pk) { return pk.indexOf(listVnet + '/') === 0; })
+                    .map(function (pk) { return peerings[pk]; });
+
+                if (!peerList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No peerings found on VNet "' + listVnet + '".', 'term-line-dim');
+                    addLine('  Create a peering with: az network vnet peering create --name <n> --vnet-name ' + listVnet + ' ...', 'term-line-dim');
+                } else {
+                    printJSON(peerList);
+                    addBlank();
+                    addLine('  ' + peerList.length + ' peering(s) on VNet "' + listVnet + '".', 'term-line-info');
+                    peerList.forEach(function (p) {
+                        addLine('  ' + p.name + '  state: ' + p.peeringState + '  allowVirtualNetworkAccess: ' + p.allowVirtualNetworkAccess, 'term-line-dim');
+                    });
+                }
+
+                return {
+                    peering_listed: true,
+                    vnetName: listVnet,
+                    rg: listRg,
+                    count: peerList.length
+                };
+            }
+
+            /* ── az network vnet peering show ── */
+            if (sub === 'show') {
+                var showVnet    = flagVal(args, '--vnet-name');
+                var showPeer    = flagVal(args, '--name');
+                var showRg      = flagVal(args, '--resource-group');
+
+                if (!showVnet || !showPeer || !showRg) {
+                    addLine('az network vnet peering show: --vnet-name, --name, and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                var showKey = showVnet + '/' + showPeer;
+                if (!Object.prototype.hasOwnProperty.call(peerings, showKey)) {
+                    addLine('ERROR: Peering "' + showPeer + '" not found on VNet "' + showVnet + '".', 'term-line-err');
+                    return null;
+                }
+                printJSON(peerings[showKey]);
+                return { peering_shown: true, vnetName: showVnet, peerName: showPeer };
+            }
+
+            addLine('az network vnet peering: unknown subcommand "' + sub + '". Try "create", "list", or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: help
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addBlank();
+            addLine('VIRTUAL NETWORKS:', 'term-line-warn');
+            addLine('  az network vnet create --name <n> --resource-group <rg> --address-prefix <cidr> --subnet-name <sn> --subnet-prefix <cidr>', 'term-line-dim');
+            addLine('  az network vnet show --name <n> --resource-group <rg>                Show VNet details', 'term-line-dim');
+            addLine('  az network vnet list --resource-group <rg>                           List VNets', 'term-line-dim');
+            addBlank();
+            addLine('SUBNETS:', 'term-line-warn');
+            addLine('  az network vnet subnet create --vnet-name <v> --name <n> --resource-group <rg> --address-prefix <cidr>', 'term-line-dim');
+            addLine('  az network vnet subnet list --vnet-name <v> --resource-group <rg>    List subnets', 'term-line-dim');
+            addLine('  az network vnet subnet update --vnet-name <v> --name <s> --resource-group <rg> --network-security-group <nsg>', 'term-line-dim');
+            addBlank();
+            addLine('NETWORK SECURITY GROUPS:', 'term-line-warn');
+            addLine('  az network nsg create --name <n> --resource-group <rg>               Create NSG', 'term-line-dim');
+            addLine('  az network nsg show --name <n> --resource-group <rg>                 Show NSG', 'term-line-dim');
+            addLine('  az network nsg list --resource-group <rg>                            List NSGs', 'term-line-dim');
+            addBlank();
+            addLine('NSG RULES:', 'term-line-warn');
+            addLine('  az network nsg rule create --nsg-name <n> --resource-group <rg> --name <rule> --priority <p>', 'term-line-dim');
+            addLine('    --direction <Inbound|Outbound> --access <Allow|Deny> --protocol <Tcp|Udp|*>', 'term-line-dim');
+            addLine('    --source-address-prefixes <src> --destination-port-ranges <port>', 'term-line-dim');
+            addLine('  az network nsg rule list --nsg-name <n> --resource-group <rg> [--output table]', 'term-line-dim');
+            addLine('  az network nsg rule show --nsg-name <n> --resource-group <rg> --name <rule>', 'term-line-dim');
+            addBlank();
+            addLine('VNET PEERING:', 'term-line-warn');
+            addLine('  az network vnet peering create --name <n> --vnet-name <v1> --resource-group <rg>', 'term-line-dim');
+            addLine('    --remote-vnet <v2> --allow-vnet-access                              Create peering', 'term-line-dim');
+            addLine('  az network vnet peering list --vnet-name <v> --resource-group <rg>   List peerings', 'term-line-dim');
+            addLine('  az network vnet peering show --vnet-name <v> --name <n> --resource-group <rg>', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   mkdir <dir>   env', 'term-line-dim');
+            addBlank();
+            addLine('SCRIPTS:', 'term-line-warn');
+            addLine('  ~/scripts/deploy-nsg.sh    (sample NSG deployment script)', 'term-line-dim');
+            addLine('  ~/scripts/peer-vnets.sh    (bidirectional peering helper)', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'mkdir') {
+                result = cmd_mkdir(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'az') {
+                result = execAz(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route az sub-commands */
+        function execAz(args) {
+            if (!args.length) {
+                addLine('Welcome to Azure CLI (simulated). Type "help" for commands.', 'term-line-info');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'network') {
+                return execAzNetwork(args.slice(1));
+            }
+
+            if (sub === 'version' || sub === '--version') {
+                addLine('azure-cli                         2.58.0', 'term-line-out');
+                addLine('core                              2.58.0', 'term-line-out');
+                addLine('telemetry                          1.1.0', 'term-line-out');
+                addBlank();
+                addLine('Extensions: None installed', 'term-line-dim');
+                return { version: true };
+            }
+
+            addLine('az: unknown command "' + sub + '". This lab uses "az network". Type "help" for all commands.', 'term-line-err');
+            return null;
+        }
+
+        /* Route az network sub-commands */
+        function execAzNetwork(args) {
+            if (!args.length) {
+                addLine('az network: usage: az network <vnet|nsg>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* az network vnet ... */
+            if (sub === 'vnet') {
+                /* Check next arg: subnet or peering routing */
+                if (args[1] === 'subnet') {
+                    return cmd_az_network_vnet_subnet(args.slice(2));
+                }
+                if (args[1] === 'peering') {
+                    return cmd_az_network_vnet_peering(args.slice(2));
+                }
+                return cmd_az_network_vnet(args.slice(1));
+            }
+
+            /* az network nsg ... */
+            if (sub === 'nsg') {
+                if (args[1] === 'rule') {
+                    return cmd_az_network_nsg_rule(args.slice(2));
+                }
+                return cmd_az_network_nsg(args.slice(1));
+            }
+
+            addLine('az network: unknown subcommand "' + sub + '". Try "vnet" or "nsg".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks specific names, flags, and state — no generic pass-through.
+        ════════════════════════════════════════════════ */
+        function checkTasks(cmd, raw, result) {
+
+            /* ── Task 1: Create lab-vnet-01 with 10.0.0.0/16, web-subnet, 10.0.1.0/24 ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.vnet_created === true &&
+                    result.name === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.addressPrefix === '10.0.0.0/16' &&
+                    result.subnetName === 'web-subnet' &&
+                    result.subnetPrefix === '10.0.1.0/24') {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: Add db-subnet to lab-vnet-01 AND list subnets ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.subnet_created === true &&
+                    result.name === 'db-subnet' &&
+                    result.vnetName === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.addressPrefix === '10.0.2.0/24') {
+                    task2_subnetCreated = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.subnet_listed === true &&
+                    result.vnetName === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01') {
+                    task2_subnetListed = true;
+                }
+                if (task2_subnetCreated && task2_subnetListed) {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: Create web-nsg in lab-rg-01 ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.nsg_created === true &&
+                    result.name === 'web-nsg' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: AllowHTTP (priority 100) AND AllowHTTPS (priority 110) rules on web-nsg ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.nsg_rule_created === true &&
+                    result.nsgName === 'web-nsg' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.ruleName === 'AllowHTTP' &&
+                    result.priority === 100 &&
+                    result.direction === 'Inbound' &&
+                    result.access === 'Allow' &&
+                    result.dstPort === '80') {
+                    task4_httpCreated = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.nsg_rule_created === true &&
+                    result.nsgName === 'web-nsg' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.ruleName === 'AllowHTTPS' &&
+                    result.priority === 110 &&
+                    result.direction === 'Inbound' &&
+                    result.access === 'Allow' &&
+                    result.dstPort === '443') {
+                    task4_httpsCreated = true;
+                }
+                if (task4_httpCreated && task4_httpsCreated) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: Attach web-nsg to web-subnet in lab-vnet-01 ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.subnet_updated === true &&
+                    result.name === 'web-subnet' &&
+                    result.vnetName === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.nsg === 'web-nsg') {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: List NSG rules for web-nsg (--output table) ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.nsg_rules_listed === true &&
+                    result.nsgName === 'web-nsg' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.outputFmt === 'table') {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: Create lab-vnet-02 with 10.1.0.0/16, app-subnet, 10.1.1.0/24 ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.vnet_created === true &&
+                    result.name === 'lab-vnet-02' &&
+                    result.rg === 'lab-rg-01' &&
+                    result.addressPrefix === '10.1.0.0/16' &&
+                    result.subnetName === 'app-subnet' &&
+                    result.subnetPrefix === '10.1.1.0/24') {
+                    completeTask(7);
+                }
+            }
+
+            /* ── Task 8: Peering in BOTH directions ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.peering_created === true &&
+                    result.vnetName === 'lab-vnet-01' &&
+                    result.remoteVnetName === 'lab-vnet-02' &&
+                    result.rg === 'lab-rg-01') {
+                    task8_peerAtoB = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.peering_created === true &&
+                    result.vnetName === 'lab-vnet-02' &&
+                    result.remoteVnetName === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01') {
+                    task8_peerBtoA = true;
+                }
+                if (task8_peerAtoB && task8_peerBtoA) {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: List peerings on lab-vnet-01 ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.peering_listed === true &&
+                    result.vnetName === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01') {
+                    completeTask(9);
+                }
+            }
+
+            /* ── Task 10: az network vnet show on BOTH lab-vnet-01 AND lab-vnet-02 ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.vnet_shown === true &&
+                    result.name === 'lab-vnet-01' &&
+                    result.rg === 'lab-rg-01') {
+                    task10_shown01 = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.vnet_shown === true &&
+                    result.name === 'lab-vnet-02' &&
+                    result.rg === 'lab-rg-01') {
+                    task10_shown02 = true;
+                }
+                if (task10_shown01 && task10_shown02) {
+                    completeTask(10);
+                }
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Create a Virtual Network',
+                2:  'Add a Second Subnet',
+                3:  'Create an NSG',
+                4:  'Add NSG Rules',
+                5:  'Attach NSG to Subnet',
+                6:  'List NSG Rules',
+                7:  'Create a Second VNet',
+                8:  'Create VNet Peering',
+                9:  'Verify Peering Status',
+                10: 'Inspect Network Configuration'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Create a Virtual Network with an initial subnet:\n<code>az network vnet create --name lab-vnet-01 --resource-group lab-rg-01 --address-prefix 10.0.0.0/16 --subnet-name web-subnet --subnet-prefix 10.0.1.0/24</code>\n\nThe output shows the VNet with <code>addressSpace: 10.0.0.0/16</code> and the initial <code>web-subnet</code> at <code>10.0.1.0/24</code>. Notice <code>provisioningState: Succeeded</code> and <code>enableDdosProtection: false</code>.',
+                hint: 'A Virtual Network (VNet) is the fundamental networking primitive in Azure. The address space uses CIDR notation — 10.0.0.0/16 provides 65,536 IP addresses for the whole VNet. Subnets carve this space into smaller segments. Azure reserves the first 4 and last 1 IP address in every subnet (5 total) — so a /24 subnet gives you 251 usable IPs, not 256. For the AZ-104 exam: VNets are regional resources (scoped to one Azure region). They cannot span regions natively — use VNet peering or VPN Gateway for cross-region connectivity. VNets are free; you pay for associated resources like VPN Gateways and Application Gateways. Plan your address spaces carefully upfront — once set, they cannot overlap with on-premises networks or peered VNets.',
+                cmd: 'az network vnet create --name lab-vnet-01 --resource-group lab-rg-01 --address-prefix 10.0.0.0/16 --subnet-name web-subnet --subnet-prefix 10.0.1.0/24'
+            },
+            2: {
+                step: 'Two commands required:\n1. <code>az network vnet subnet create --vnet-name lab-vnet-01 --name db-subnet --resource-group lab-rg-01 --address-prefix 10.0.2.0/24</code>\n2. <code>az network vnet subnet list --vnet-name lab-vnet-01 --resource-group lab-rg-01</code>\n\nThe list output confirms both <code>web-subnet (10.0.1.0/24)</code> and <code>db-subnet (10.0.2.0/24)</code> exist within the 10.0.0.0/16 address space.',
+                hint: 'Subnet segmentation is a core security pattern. By placing web-facing VMs in web-subnet and database servers in db-subnet, you can apply different NSG rules to each layer — allowing HTTP/HTTPS inbound only to web-subnet, and only database traffic (port 1433 for SQL, 5432 for PostgreSQL) from web-subnet to db-subnet. This mirrors the classic 3-tier architecture. Each subnet\'s prefix must fit within the VNet address space (10.0.0.0/16) and must not overlap with other subnets. /24 gives 251 usable IPs per subnet. In production, size subnets generously — they cannot be resized once VMs are deployed. Azure requires at least a /29 for subnets (3 usable IPs after reservations). Special subnets like GatewaySubnet (VPN), AzureBastionSubnet, and AzureFirewallSubnet require specific CIDR sizes.',
+                cmd: 'az network vnet subnet create --vnet-name lab-vnet-01 --name db-subnet --resource-group lab-rg-01 --address-prefix 10.0.2.0/24\naz network vnet subnet list --vnet-name lab-vnet-01 --resource-group lab-rg-01'
+            },
+            3: {
+                step: 'Create a Network Security Group:\n<code>az network nsg create --name web-nsg --resource-group lab-rg-01</code>\n\nThe output shows the NSG with <code>defaultSecurityRules</code> — three rules Azure provisions automatically on every new NSG: <code>AllowVnetInBound (65000)</code>, <code>AllowAzureLoadBalancerInBound (65001)</code>, and <code>DenyAllInBound (65500)</code>. Custom rules you add use priorities 100-4096.',
+                hint: 'NSGs are stateful Layer 4 firewalls. "Stateful" means if you allow an inbound connection, the return traffic is automatically allowed — you do not need an explicit outbound rule. NSGs can be associated at two levels: subnet level (applies to all NICs in that subnet) and NIC level (applies only to that VM). When both are applied, both sets of rules must allow the traffic. The default rules are essential to understand for the exam: AllowVnetInBound (65000) enables VM-to-VM communication within the VNet. AllowAzureLoadBalancerInBound (65001) enables health probes from Azure Load Balancer. DenyAllInBound (65500) blocks everything else. Default rules cannot be deleted or modified, only overridden by adding custom rules at lower priority numbers (evaluated first).',
+                cmd: 'az network nsg create --name web-nsg --resource-group lab-rg-01'
+            },
+            4: {
+                step: 'Two commands required:\n1. <code>az network nsg rule create --nsg-name web-nsg --resource-group lab-rg-01 --name AllowHTTP --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 80</code>\n2. <code>az network nsg rule create --nsg-name web-nsg --resource-group lab-rg-01 --name AllowHTTPS --priority 110 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 443</code>\n\nBoth rules are created with priorities below the default Deny rule (65500), so they will be evaluated first.',
+                hint: 'Priority is critical in NSG design. Rules are evaluated from lowest priority number to highest — the first matching rule wins. By assigning AllowHTTP at priority 100 and AllowHTTPS at 110, both are evaluated well before the DenyAllInBound rule at 65500. Leave gaps between priorities (100, 110 instead of 100, 101) to allow future rules to be inserted without renumbering. The source-address-prefixes "*" means any source IP. In production, you would restrict this to known IP ranges, CDN service tags, or an Application Gateway subnet. NSG service tags are powerful shortcuts — instead of listing every Azure service IP, use "AzureLoadBalancer", "AzureCloud", "Internet", "VirtualNetwork", or service-specific tags like "AppService" and "Storage". The --direction flag distinguishes inbound (Internet-to-subnet) from outbound (subnet-to-Internet).',
+                cmd: 'az network nsg rule create --nsg-name web-nsg --resource-group lab-rg-01 --name AllowHTTP --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 80\naz network nsg rule create --nsg-name web-nsg --resource-group lab-rg-01 --name AllowHTTPS --priority 110 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 443'
+            },
+            5: {
+                step: 'Associate the NSG with the web-subnet:\n<code>az network vnet subnet update --vnet-name lab-vnet-01 --name web-subnet --resource-group lab-rg-01 --network-security-group web-nsg</code>\n\nThe output shows the subnet with <code>networkSecurityGroup.id</code> now pointing to the web-nsg resource. Every VM NIC provisioned into web-subnet will automatically be protected by web-nsg rules.',
+                hint: 'Attaching an NSG to a subnet is the recommended approach for most scenarios. It creates a single enforcement point for all VMs in that subnet, rather than applying individual NIC-level NSGs to every VM. The "effective security rules" view in the Azure portal (or "az network nic list-effective-nsg") shows the merged ruleset from both subnet-level and NIC-level NSGs — useful for debugging unexpected traffic blocks. Key exam scenario: A VM cannot reach the internet after you associate a new NSG. The cause is usually a missing outbound rule or a custom Deny rule blocking the traffic before the default AllowInternetOutBound rule (priority 65001) is reached. Always check effective rules, not just the NSG rules list, since both subnet and NIC NSGs are evaluated. NSG flow logs are a critical diagnostic tool for security audits — they log allowed and denied flows to Azure Storage.',
+                cmd: 'az network vnet subnet update --vnet-name lab-vnet-01 --name web-subnet --resource-group lab-rg-01 --network-security-group web-nsg'
+            },
+            6: {
+                step: 'List all NSG rules in table format:\n<code>az network nsg rule list --nsg-name web-nsg --resource-group lab-rg-01 --output table</code>\n\nThe table shows all rules sorted by priority — your custom AllowHTTP (100) and AllowHTTPS (110) rules at the top, followed by the three Azure-managed default rules at priorities 65000, 65001, and 65500. This is the evaluation order Azure uses for every inbound packet.',
+                hint: 'Understanding rule evaluation order is essential for both the AZ-104 exam and real-world troubleshooting. Packets are evaluated against rules in priority order (lowest number first). The first matching rule terminates the evaluation — no further rules are checked. This means: a Deny rule at priority 200 will block traffic even if there is an Allow rule at priority 300 for the same traffic. The table output is the fastest way to see the full evaluation chain at a glance. Use JSON output (default) for detailed rule properties including source and destination prefixes. The "Destination" column shows the port/range, and "Protocol" shows Tcp, Udp, or * (any). When troubleshooting connectivity: (1) Check the NSG rule list to find which rule should match. (2) Enable NSG flow logs to confirm whether packets are arriving and which rule is being applied. (3) Use Network Watcher IP Flow Verify to test a specific flow against the NSG.',
+                cmd: 'az network nsg rule list --nsg-name web-nsg --resource-group lab-rg-01 --output table'
+            },
+            7: {
+                step: 'Create a second Virtual Network with a non-overlapping address space:\n<code>az network vnet create --name lab-vnet-02 --resource-group lab-rg-01 --address-prefix 10.1.0.0/16 --subnet-name app-subnet --subnet-prefix 10.1.1.0/24</code>\n\nThe output shows <code>lab-vnet-02</code> with address space <code>10.1.0.0/16</code>. This is critical — VNet peering requires non-overlapping address spaces. lab-vnet-01 uses 10.0.0.0/16, lab-vnet-02 uses 10.1.0.0/16, so they do not overlap.',
+                hint: 'Non-overlapping address spaces are a hard requirement for VNet peering. If you try to peer two VNets with overlapping CIDRs, the peering will fail. This is why IP address planning (IPAM) matters from day one. Once a VNet is peered with an overlapping range, you cannot change the address space — you would need to delete the peering first. For enterprise deployments, allocate address spaces from an RFC 1918 master range planned for your organization: 10.0.0.0/8 (16 million addresses), 172.16.0.0/12 (1 million addresses), or 192.168.0.0/16 (65,536 addresses). A common pattern: assign a /16 per region (10.0.0.0/16 for East US, 10.1.0.0/16 for West US), then carve /24 subnets within each. For this lab, lab-vnet-01 (10.0.0.0/16) and lab-vnet-02 (10.1.0.0/16) are the two halves of a simulated hub-spoke or multi-tier architecture.',
+                cmd: 'az network vnet create --name lab-vnet-02 --resource-group lab-rg-01 --address-prefix 10.1.0.0/16 --subnet-name app-subnet --subnet-prefix 10.1.1.0/24'
+            },
+            8: {
+                step: 'Two commands required — peering must be created from BOTH sides:\n1. <code>az network vnet peering create --name vnet01-to-vnet02 --vnet-name lab-vnet-01 --resource-group lab-rg-01 --remote-vnet lab-vnet-02 --allow-vnet-access</code>\n2. <code>az network vnet peering create --name vnet02-to-vnet01 --vnet-name lab-vnet-02 --resource-group lab-rg-01 --remote-vnet lab-vnet-01 --allow-vnet-access</code>\n\nNotice: after creating only the first peering, the state is "Initiated" (not Connected). Only after both sides are created does state become "Connected".',
+                hint: 'VNet peering is non-transitive — if VNet-A peers with VNet-B, and VNet-B peers with VNet-C, VMs in VNet-A cannot reach VNet-C. You must create an explicit peering between A and C. This is a common exam trap. Bidirectional peering is required because each VNet must independently consent to the connection. When peering within the same subscription (as in this lab), both vnets are configured together. When peering across subscriptions, both subscription owners must create their half of the peering. The --allow-vnet-access flag enables traffic to flow between the peered VNets. Without it, the peering exists but traffic is blocked. Additional flags: --allow-forwarded-traffic (allows traffic from outside the peered VNets to transit through), --allow-gateway-transit (allows the remote VNet to use this VNet\'s VPN gateway — useful in hub-spoke architectures). After both peerings are connected, latency is near-zero — traffic stays within the Azure backbone, never touching the public internet.',
+                cmd: 'az network vnet peering create --name vnet01-to-vnet02 --vnet-name lab-vnet-01 --resource-group lab-rg-01 --remote-vnet lab-vnet-02 --allow-vnet-access\naz network vnet peering create --name vnet02-to-vnet01 --vnet-name lab-vnet-02 --resource-group lab-rg-01 --remote-vnet lab-vnet-01 --allow-vnet-access'
+            },
+            9: {
+                step: 'Verify peering state:\n<code>az network vnet peering list --vnet-name lab-vnet-01 --resource-group lab-rg-01</code>\n\nThe output shows the peering with <code>peeringState: Connected</code> and <code>allowVirtualNetworkAccess: true</code>. VMs in <code>lab-vnet-01</code> can now reach VMs in <code>lab-vnet-02</code> using private IP addresses — no internet routing, no gateways.',
+                hint: 'The peeringState field tells the story: "Initiated" means only one side of the peering has been created. "Connected" means both sides are established and traffic can flow. "Disconnected" means the remote side was deleted. In production, monitor peering state with Azure Monitor alerts on the peeringState metric — a disconnected peering can silently break connectivity between tiers without any obvious symptoms until traffic is tested. Once peered, VMs communicate using their private IP addresses. No public IPs are needed. The connection uses the Azure backbone network — latency is typically sub-millisecond within a region. Bandwidth is limited by the VM NIC size (Standard_D2s_v5 = 10 Gbps NIC) — not the peering itself. VNet peering is charged per GB of data transferred. Within a region, peering costs are low (around $0.01/GB in each direction). Cross-region peering costs more.',
+                cmd: 'az network vnet peering list --vnet-name lab-vnet-01 --resource-group lab-rg-01'
+            },
+            10: {
+                step: 'Inspect the final topology of both VNets:\n1. <code>az network vnet show --name lab-vnet-01 --resource-group lab-rg-01</code>\n2. <code>az network vnet show --name lab-vnet-02 --resource-group lab-rg-01</code>\n\nThe output for lab-vnet-01 shows 2 subnets (web-subnet with NSG attached, db-subnet without), and 1 peering. lab-vnet-02 shows 1 subnet and its corresponding peering back to lab-vnet-01. This is the complete network topology you built.',
+                hint: 'The vnet show output is your complete network audit trail — it shows address spaces, subnets with their CIDR ranges and associated NSGs, peerings with their remote VNet IDs and state, DDoS protection settings, and provisioning state. In a production environment, this is the output you would export for network documentation, compliance audits, and change management records. Key things to verify in a final topology review: (1) All subnets have the correct address prefixes and NSG associations. (2) All peerings are in Connected state. (3) No unintended subnets exist. (4) DDoS Standard Protection is enabled for production VNets (not the default Basic). Compare the two VNets side-by-side: lab-vnet-01 has the security layer (NSG on web-subnet), lab-vnet-02 is a clean app-tier VNet. In a real deployment, you would also associate an NSG with app-subnet to control traffic from web-subnet to the application tier.',
+                cmd: 'az network vnet show --name lab-vnet-01 --resource-group lab-rg-01\naz network vnet show --name lab-vnet-02 --resource-group lab-rg-01'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                                                          ['network', 'version'],
+            'az network ':                                                                  ['vnet', 'nsg'],
+            'az network vnet ':                                                             ['create', 'show', 'list', 'subnet', 'peering'],
+            'az network vnet create ':                                                      ['--name', '--resource-group', '--address-prefix', '--subnet-name', '--subnet-prefix'],
+            'az network vnet show ':                                                        ['--name', '--resource-group'],
+            'az network vnet list ':                                                        ['--resource-group'],
+            'az network vnet subnet ':                                                      ['create', 'list', 'update'],
+            'az network vnet subnet create ':                                               ['--vnet-name', '--name', '--resource-group', '--address-prefix'],
+            'az network vnet subnet list ':                                                 ['--vnet-name', '--resource-group'],
+            'az network vnet subnet update ':                                               ['--vnet-name', '--name', '--resource-group', '--network-security-group'],
+            'az network vnet peering ':                                                     ['create', 'list', 'show'],
+            'az network vnet peering create ':                                              ['--name', '--vnet-name', '--resource-group', '--remote-vnet', '--allow-vnet-access'],
+            'az network vnet peering list ':                                                ['--vnet-name', '--resource-group'],
+            'az network vnet peering show ':                                                ['--vnet-name', '--name', '--resource-group'],
+            'az network nsg ':                                                              ['create', 'show', 'list', 'rule'],
+            'az network nsg create ':                                                       ['--name', '--resource-group'],
+            'az network nsg show ':                                                         ['--name', '--resource-group'],
+            'az network nsg list ':                                                         ['--resource-group'],
+            'az network nsg rule ':                                                         ['create', 'list', 'show'],
+            'az network nsg rule create ':                                                  ['--nsg-name', '--resource-group', '--name', '--priority', '--direction', '--access', '--protocol', '--source-address-prefixes', '--destination-port-ranges'],
+            'az network nsg rule list ':                                                    ['--nsg-name', '--resource-group', '--output'],
+            'az network nsg rule show ':                                                    ['--nsg-name', '--resource-group', '--name']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'az104-ch05-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure Networking Lab — Azure CLI Simulation', 'term-welcome');
+            addLine('Azure CLI 2.58.0   AZ-104 Chapter 5 — Configure Virtual Networks', 'term-welcome');
+            addBlank();
+            addLine('Resource Group: ' + RG_NAME + '  |  Subscription: Lab-Networking-Subscription', 'term-line-info');
+            addLine('No network resources provisioned. Start with Task 1 to build your first VNet.', 'term-line-info');
+            addBlank();
+            addLine('Lab covers:', 'term-line-warn');
+            addLine('  Virtual Networks          az network vnet create / show / list', 'term-line-dim');
+            addLine('  Subnets                   az network vnet subnet create / list / update', 'term-line-dim');
+            addLine('  Network Security Groups   az network nsg create / rule create / rule list', 'term-line-dim');
+            addLine('  VNet Peering              az network vnet peering create / list', 'term-line-dim');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az network" commands are simulated.', 'term-line-warn');
+            addLine('In production, use Azure Cloud Shell (shell.azure.com) or Azure CLI.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
