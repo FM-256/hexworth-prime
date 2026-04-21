@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Implement and Manage Storage | AZ-104 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-12px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes tierShift {
+            0%   { transform: translateX(0); }
+            50%  { transform: translateX(6px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Implement and Manage Storage — AZ-104 Chapter 3</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-104 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Implement and Manage Storage</div>
+        <div class="title-hero">
+            <!-- Storage account containing Blob, Files, Tables, Queues service icons -->
+            <svg width="460" height="130" viewBox="0 0 460 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central storage account box -->
+                <rect x="150" y="10" width="160" height="90" rx="12"
+                    fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="230" y="28" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Storage Account</text>
+                <text x="230" y="38" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">mystorageaccount.core.windows.net</text>
+                <!-- Pulse ring -->
+                <ellipse cx="230" cy="55" rx="72" ry="46" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- Blob icon inside account -->
+                <rect x="162" y="44" width="34" height="26" rx="5" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="172" cy="55" r="4" fill="#3b82f6" opacity="0.7"/>
+                <circle cx="183" cy="53" r="3" fill="#3b82f6" opacity="0.4"/>
+                <text x="179" y="75" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Blob</text>
+
+                <!-- Files icon inside account -->
+                <rect x="204" y="44" width="34" height="26" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="211" y="48" width="10" height="14" rx="2" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="1"/>
+                <line x1="214" y1="52" x2="219" y2="52" stroke="#3ab577" stroke-width="1"/>
+                <line x1="214" y1="55" x2="219" y2="55" stroke="#3ab577" stroke-width="1" opacity="0.5"/>
+                <text x="221" y="75" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Files</text>
+
+                <!-- Tables icon inside account -->
+                <rect x="246" y="44" width="34" height="26" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <rect x="252" y="48" width="22" height="14" rx="2" fill="none" stroke="#c9a83a" stroke-width="1"/>
+                <line x1="259" y1="48" x2="259" y2="62" stroke="#c9a83a" stroke-width="1"/>
+                <line x1="266" y1="48" x2="266" y2="62" stroke="#c9a83a" stroke-width="1" opacity="0.5"/>
+                <line x1="252" y1="54" x2="274" y2="54" stroke="#c9a83a" stroke-width="1"/>
+                <text x="263" y="75" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Tables</text>
+
+                <!-- Queues icon inside account -->
+                <rect x="288" y="44" width="14" height="26" rx="5" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.55s; opacity:0;"/>
+                <line x1="292" y1="50" x2="299" y2="50" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="2,1"/>
+                <line x1="292" y1="55" x2="299" y2="55" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="2,1"/>
+                <line x1="292" y1="60" x2="299" y2="60" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="2,1"/>
+                <text x="295" y="75" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Queues</text>
+
+                <!-- Left: cloud upload arrow -->
+                <line x1="58" y1="55" x2="148" y2="55" stroke="rgba(59,130,246,0.4)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="148,51 156,55 148,59" fill="#3b82f6"/>
+                <rect x="4" y="36" width="52" height="38" rx="8" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="30" y="51" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Apps</text>
+                <text x="30" y="61" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">VMs, Logic</text>
+                <text x="30" y="69" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Apps, Code</text>
+
+                <!-- Right: data flows out to clients -->
+                <line x1="312" y1="55" x2="400" y2="55" stroke="rgba(58,181,119,0.4)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="400,51 408,55 400,59" fill="#3ab577"/>
+                <rect x="410" y="36" width="48" height="38" rx="8" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="434" y="51" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Clients</text>
+                <text x="434" y="61" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">HTTPS / SMB</text>
+                <text x="434" y="69" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">REST / NFS</text>
+
+                <!-- Bottom label -->
+                <text x="230" y="116" text-anchor="middle" font-size="7.5" fill="#475569" font-family="Segoe UI,sans-serif"
+                    style="animation: fadeUp 0.4s ease forwards 0.7s; opacity:0;">One account. Four services. Every storage decision starts here.</text>
+            </svg>
+            <div class="big-title">
+                Implement and Manage <span class="accent">Storage</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Storage Accounts &nbsp;&bull;&nbsp; Blob Tiers &nbsp;&bull;&nbsp; Azure Files &nbsp;&bull;&nbsp; Redundancy &nbsp;&bull;&nbsp; Security &amp; SAS &nbsp;&bull;&nbsp; Lifecycle Management
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Storage is 15-20% of the AZ-104 exam. The redundancy options — LRS, ZRS, GRS, RA-GRS — are the single most tested topic. SAS tokens, access tiers, lifecycle policies, and the difference between service endpoints and private endpoints are all fair game. Every decision traces back to the storage account.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-104 Exam Objectives</span>
+            <span>Chapter 3 of 8</span>
+            <span>15-20% of Exam Score</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — AZURE STORAGE ACCOUNTS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Storage Accounts</span></div>
+        <div class="slide-subtitle">A storage account is the top-level container for all Azure storage services. The account type, performance tier, and redundancy option you select at creation determine what you can do — and what you cannot change later without data migration.</div>
+
+        <!-- Account box with four service containers inside, with types labeled outside -->
+        <div class="diagram-center">
+            <svg width="700" height="110" viewBox="0 0 700 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Outer account boundary -->
+                <rect x="4" y="8" width="692" height="88" rx="12" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="350" y="22" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Storage Account  (mystorageaccount)</text>
+
+                <!-- Blob service box -->
+                <rect x="18" y="30" width="152" height="58" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="42" cy="50" r="9" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.2"/>
+                <circle cx="56" cy="48" r="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="2,2"/>
+                <text x="94" y="48" text-anchor="middle" font-size="8" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">Blob Storage</text>
+                <text x="94" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Unstructured objects</text>
+                <text x="94" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">images, video, backups, logs</text>
+                <text x="94" y="82" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">Hot / Cool / Cold / Archive</text>
+
+                <!-- Files service box -->
+                <rect x="184" y="30" width="152" height="58" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <rect x="198" y="40" width="14" height="18" rx="2" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <line x1="201" y1="46" x2="210" y2="46" stroke="#3ab577" stroke-width="1"/>
+                <line x1="201" y1="50" x2="210" y2="50" stroke="#3ab577" stroke-width="1" opacity="0.5"/>
+                <text x="260" y="48" text-anchor="middle" font-size="8" fill="#86efac" font-weight="700" font-family="Segoe UI,sans-serif">Azure Files</text>
+                <text x="260" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Managed file shares</text>
+                <text x="260" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">SMB 3.0 / NFS 4.1</text>
+                <text x="260" y="82" text-anchor="middle" font-size="6" fill="#3ab577" font-family="Segoe UI,sans-serif">Replace on-prem file servers</text>
+
+                <!-- Tables service box -->
+                <rect x="350" y="30" width="152" height="58" rx="8" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <rect x="362" y="38" width="26" height="20" rx="2" fill="none" stroke="#c9a83a" stroke-width="1.2"/>
+                <line x1="370" y1="38" x2="370" y2="58" stroke="#c9a83a" stroke-width="1"/>
+                <line x1="378" y1="38" x2="378" y2="58" stroke="#c9a83a" stroke-width="1" opacity="0.5"/>
+                <line x1="362" y1="46" x2="388" y2="46" stroke="#c9a83a" stroke-width="1"/>
+                <line x1="362" y1="52" x2="388" y2="52" stroke="#c9a83a" stroke-width="1" opacity="0.4"/>
+                <text x="426" y="48" text-anchor="middle" font-size="8" fill="#fef3c7" font-weight="700" font-family="Segoe UI,sans-serif">Table Storage</text>
+                <text x="426" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">NoSQL key-value store</text>
+                <text x="426" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">schemaless, fast lookups</text>
+                <text x="426" y="82" text-anchor="middle" font-size="6" fill="#c9a83a" font-family="Segoe UI,sans-serif">Cosmos DB is the modern path</text>
+
+                <!-- Queues service box -->
+                <rect x="516" y="30" width="168" height="58" rx="8" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.4)" stroke-width="1.2"
+                    style="animation: entityPop 0.35s ease forwards 0.5s; opacity:0;"/>
+                <rect x="526" y="38" width="24" height="20" rx="2" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+                <line x1="526" y1="44" x2="550" y2="44" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <line x1="526" y1="50" x2="550" y2="50" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <line x1="526" y1="56" x2="550" y2="56" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <text x="608" y="48" text-anchor="middle" font-size="8" fill="#c4b5fd" font-weight="700" font-family="Segoe UI,sans-serif">Queue Storage</text>
+                <text x="608" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Async message queue</text>
+                <text x="608" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">up to 64 KB per message</text>
+                <text x="608" y="82" text-anchor="middle" font-size="6" fill="#a78bfa" font-family="Segoe UI,sans-serif">Decouples app components</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">General-Purpose v2 (GPv2) — Use This</div>
+                <div class="card-desc">The recommended account type for virtually everything. Supports all four storage services, all access tiers (Hot, Cool, Cold, Archive), and all redundancy options. If you are creating a new storage account and you're not sure what type to use, use GPv2. Legacy BlobStorage accounts only support Blob, not Files, Tables, or Queues — there is no reason to create one today.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Standard vs. Premium Performance</div>
+                <div class="card-desc"><strong>Standard</strong> is the cost-optimized performance tier suitable for most workloads — web content, backups, logs. <strong>Premium</strong> delivers SSD-backed single-digit millisecond latency and higher IOPS. You need Premium for high-throughput applications: transaction-heavy databases, real-time analytics, file shares requiring low latency. Note: Premium accounts support fewer redundancy options — no GRS or RA-GRS.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">What You Cannot Change After Creation</div>
+                <div class="card-desc">The account type (GPv2 vs. Premium) and the performance tier cannot be changed after creation. You can change redundancy between LRS, ZRS, GRS, and RA-GRS after creation (with some restrictions). You can upgrade GPv1 to GPv2 in-place, but not downgrade. Changing performance tier requires creating a new account and migrating data. Plan carefully — these are architectural decisions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — BLOB STORAGE ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Blob Storage <span class="accent">Access Tiers</span></div>
+        <div class="slide-subtitle">Azure Blob Storage is for unstructured data — images, videos, backups, logs, VM disk snapshots. The access tier system lets you pay less for data you access less. Choosing the wrong tier for your access pattern costs money every time you read the data.</div>
+
+        <!-- Temperature gradient from hot (red) to archive (deep blue) with trade-off bars -->
+        <div class="diagram-center">
+            <svg width="700" height="112" viewBox="0 0 700 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Gradient track background -->
+                <defs>
+                    <linearGradient id="tierGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%"   stop-color="#ef4444" stop-opacity="0.35"/>
+                        <stop offset="33%"  stop-color="#f97316" stop-opacity="0.25"/>
+                        <stop offset="66%"  stop-color="#3b82f6" stop-opacity="0.2"/>
+                        <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8"/>
+                    </linearGradient>
+                </defs>
+                <rect x="4" y="4" width="692" height="62" rx="8" fill="url(#tierGrad)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+                <!-- HOT tier -->
+                <rect x="12" y="10" width="160" height="50" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="92" y="26" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="800" font-family="Segoe UI,sans-serif">HOT</text>
+                <text x="92" y="38" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">No minimum duration</text>
+                <text x="92" y="48" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Highest storage cost</text>
+                <text x="92" y="56" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Lowest access cost</text>
+
+                <!-- COOL tier -->
+                <rect x="182" y="10" width="160" height="50" rx="8" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="262" y="26" text-anchor="middle" font-size="10" fill="#f97316" font-weight="800" font-family="Segoe UI,sans-serif">COOL</text>
+                <text x="262" y="38" text-anchor="middle" font-size="6.5" fill="#fed7aa" font-family="Segoe UI,sans-serif">30-day minimum</text>
+                <text x="262" y="48" text-anchor="middle" font-size="6.5" fill="#fed7aa" font-family="Segoe UI,sans-serif">Lower storage cost</text>
+                <text x="262" y="56" text-anchor="middle" font-size="6.5" fill="#fed7aa" font-family="Segoe UI,sans-serif">Per-read charge applies</text>
+
+                <!-- COLD tier -->
+                <rect x="352" y="10" width="160" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="432" y="26" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">COLD</text>
+                <text x="432" y="38" text-anchor="middle" font-size="6.5" fill="#bfdbfe" font-family="Segoe UI,sans-serif">90-day minimum</text>
+                <text x="432" y="48" text-anchor="middle" font-size="6.5" fill="#bfdbfe" font-family="Segoe UI,sans-serif">Very low storage cost</text>
+                <text x="432" y="56" text-anchor="middle" font-size="6.5" fill="#bfdbfe" font-family="Segoe UI,sans-serif">Higher read latency</text>
+
+                <!-- ARCHIVE tier -->
+                <rect x="522" y="10" width="172" height="50" rx="8" fill="rgba(15,23,42,0.6)" stroke="#64748b" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="608" y="26" text-anchor="middle" font-size="10" fill="#94a3b8" font-weight="800" font-family="Segoe UI,sans-serif">ARCHIVE</text>
+                <text x="608" y="38" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">180-day minimum</text>
+                <text x="608" y="48" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Offline — rehydrate first</text>
+                <text x="608" y="56" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Hours to read (up to 15h)</text>
+
+                <!-- Transition arrows between tiers -->
+                <line x1="174" y1="35" x2="180" y2="35" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="180,32 186,35 180,38" fill="rgba(255,255,255,0.3)"/>
+                <line x1="344" y1="35" x2="350" y2="35" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="350,32 356,35 350,38" fill="rgba(255,255,255,0.3)"/>
+                <line x1="514" y1="35" x2="520" y2="35" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite" begin="0.6s"/>
+                </line>
+                <polygon points="520,32 526,35 520,38" fill="rgba(255,255,255,0.3)"/>
+
+                <!-- Cost bar: storage cost increases left to right -->
+                <text x="4" y="82" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Storage Cost</text>
+                <rect x="4" y="85" width="160" height="6" rx="2" fill="#ef4444" opacity="0.7"
+                    style="animation: barGrow 0.5s ease forwards 0.5s; opacity:0;"/>
+                <rect x="172" y="85" width="120" height="6" rx="2" fill="#f97316" opacity="0.6"
+                    style="animation: barGrow 0.5s ease forwards 0.6s; opacity:0;"/>
+                <rect x="300" y="85" width="80" height="6" rx="2" fill="#3b82f6" opacity="0.55"
+                    style="animation: barGrow 0.5s ease forwards 0.7s; opacity:0;"/>
+                <rect x="388" y="85" width="40" height="6" rx="2" fill="#475569" opacity="0.5"
+                    style="animation: barGrow 0.5s ease forwards 0.8s; opacity:0;"/>
+                <!-- Access cost bar: access cost increases right to left -->
+                <text x="4" y="100" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Access Cost</text>
+                <rect x="4" y="103" width="30" height="6" rx="2" fill="#ef4444" opacity="0.35"
+                    style="animation: barGrow 0.5s ease forwards 0.55s; opacity:0;"/>
+                <rect x="172" y="103" width="60" height="6" rx="2" fill="#f97316" opacity="0.45"
+                    style="animation: barGrow 0.5s ease forwards 0.65s; opacity:0;"/>
+                <rect x="300" y="103" width="100" height="6" rx="2" fill="#3b82f6" opacity="0.55"
+                    style="animation: barGrow 0.5s ease forwards 0.75s; opacity:0;"/>
+                <rect x="388" y="103" width="280" height="6" rx="2" fill="#94a3b8" opacity="0.65"
+                    style="animation: barGrow 0.5s ease forwards 0.85s; opacity:0;"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Hot: Everyday Data</div>
+                <div class="card-desc">Use Hot for data you access frequently — active website assets, application logs being written to, data being processed in real time. You pay the highest storage rate per GB but the lowest access rate. No early deletion penalty. This is also the default tier when you create a blob without specifying one.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Cool and Cold: Infrequent Access</div>
+                <div class="card-desc"><strong>Cool</strong> (30-day min) is for data you'll access once a month or less — completed project files, older backups. <strong>Cold</strong> (90-day min) is for quarterly or rarer access — regulatory data that must be kept accessible. Both charge you a per-read/per-write fee on top of storage. Delete before the minimum and you pay the remaining days of storage anyway.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Archive: Offline. Not Just Slow — Offline.</div>
+                <div class="card-desc">Archive blobs are not immediately readable. To access one you must first <strong>rehydrate</strong> it — move it to Hot or Cool. Standard rehydration takes up to 15 hours. High-priority rehydration takes under 1 hour but costs significantly more. 180-day minimum. Use for compliance data that must be retained but never actually accessed. Exam favorite: Archive is NOT immediately accessible.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — BLOB CONTAINER ACCESS LEVELS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Blob Container <span class="accent">Access Levels</span></div>
+        <div class="slide-subtitle">Every blob container has a public access level that controls what anonymous (unauthenticated) callers can read. This is separate from RBAC or SAS tokens — it is a setting on the container itself. Get this wrong and data is publicly exposed on the internet.</div>
+
+        <!-- Three containers with lock icons showing different access levels -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- PRIVATE container -->
+                <rect x="20" y="6" width="196" height="96" rx="10" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="118" y="22" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="800" font-family="Segoe UI,sans-serif">PRIVATE</text>
+                <text x="118" y="33" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">No anonymous access</text>
+                <!-- Lock icon -->
+                <rect x="104" y="42" width="28" height="22" rx="4" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+                <path d="M110 42 Q110 35 118 35 Q126 35 126 42" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+                <circle cx="118" cy="53" r="3" fill="#ef4444"/>
+                <text x="118" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">All requests need</text>
+                <text x="118" y="88" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">SAS token or Entra auth</text>
+                <text x="118" y="98" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFAULT — USE THIS</text>
+
+                <!-- BLOB level container -->
+                <rect x="252" y="6" width="196" height="96" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="350" y="22" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif">BLOB</text>
+                <text x="350" y="33" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Anonymous read for blobs only</text>
+                <!-- Partial lock icon -->
+                <rect x="336" y="42" width="28" height="22" rx="4" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <path d="M342 42 Q342 35 350 35 Q358 35 358 42" fill="none" stroke="#c9a83a" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <circle cx="350" cy="53" r="3" fill="#c9a83a" opacity="0.6"/>
+                <text x="350" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Know the exact blob URL</text>
+                <text x="350" y="88" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">and you can read it anonymously</text>
+                <text x="350" y="98" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Public CDN assets, images</text>
+
+                <!-- CONTAINER level -->
+                <rect x="484" y="6" width="196" height="96" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="582" y="22" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="800" font-family="Segoe UI,sans-serif">CONTAINER</text>
+                <text x="582" y="33" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Anonymous list + read</text>
+                <!-- Open lock icon -->
+                <rect x="568" y="46" width="28" height="22" rx="4" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <path d="M574 42 Q574 35 582 35 Q590 35 590 38" fill="none" stroke="#3ab577" stroke-width="1.5"/>
+                <circle cx="582" cy="57" r="3" fill="#3ab577" opacity="0.6"/>
+                <text x="582" y="78" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Anonymous callers can list</text>
+                <text x="582" y="88" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">all blobs and read any of them</text>
+                <text x="582" y="98" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">RARELY appropriate</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Private: The Default for a Reason</div>
+                <div class="card-desc">Private is the default and should remain the default unless you have a specific reason to change it. Every request — read, write, list, delete — must be authenticated via SAS token, Entra ID (RBAC), or the account key. If you are storing customer data, financial records, application configs, or anything sensitive, Private is non-negotiable. The exam will test whether you understand that "no anonymous access" means exactly that.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Blob: Public Read, Private List</div>
+                <div class="card-desc">Blob-level access means: if you know the exact URL of a blob, you can read it without any credentials. But you cannot list what blobs exist in the container. This is appropriate for public CDN assets — images on a public website, downloadable files that you're linking to directly. The trade-off: anyone with the URL can read the file, but they can't discover what other files exist.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Container: Full Anonymous Exposure</div>
+                <div class="card-desc">Container-level access means anyone can call the List Blobs API and enumerate every file in your container, then read any of them. This is appropriate almost never. One legitimate use: a truly public dataset repository where listing is intentional and all content is meant to be public. The exam will present a scenario where a developer accidentally set Container access — know why that is a data exposure risk.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — AZURE FILES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Files</span></div>
+        <div class="slide-subtitle">Azure Files provides fully managed file shares in the cloud. The key feature is SMB and NFS protocol support — this means your existing Windows and Linux servers can mount them without application changes. Azure File Sync extends this to hybrid: keep your on-prem file server in sync with the cloud share.</div>
+
+        <!-- Cloud file share to on-prem server with File Sync agent diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Azure side: cloud file share -->
+                <rect x="4" y="6" width="220" height="96" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="114" y="22" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure File Share</text>
+                <text x="114" y="33" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">storageacct.file.core.windows.net\share</text>
+                <!-- File icon cluster -->
+                <rect x="40" y="42" width="16" height="20" rx="3" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+                <rect x="62" y="38" width="16" height="24" rx="3" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>
+                <rect x="84" y="44" width="16" height="18" rx="3" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1"/>
+                <rect x="106" y="40" width="16" height="22" rx="3" fill="rgba(59,130,246,0.18)" stroke="#3b82f6" stroke-width="1"/>
+                <line x1="50" y1="50" x2="78" y2="50" stroke="#3b82f6" stroke-width="0.8" opacity="0.4"/>
+                <line x1="50" y1="55" x2="78" y2="55" stroke="#3b82f6" stroke-width="0.8" opacity="0.3"/>
+                <text x="114" y="78" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">SMB 3.0 (port 445)</text>
+                <text x="114" y="88" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">NFS 4.1 (Linux only, Premium)</text>
+                <text x="114" y="98" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Up to 100 TiB per share</text>
+
+                <!-- Sync agent in the middle -->
+                <rect x="270" y="28" width="160" height="52" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="350" y="46" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Azure File Sync</text>
+                <text x="350" y="58" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">Sync agent installed</text>
+                <text x="350" y="68" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">on Windows Server</text>
+                <text x="350" y="78" text-anchor="middle" font-size="6.5" fill="#3ab577" font-family="Segoe UI,sans-serif">Cloud tiering: cold files offloaded</text>
+
+                <!-- Two-way sync arrows between cloud and agent -->
+                <line x1="226" y1="48" x2="268" y2="48" stroke="rgba(58,181,119,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="268,44 276,48 268,52" fill="#3ab577"/>
+                <line x1="268" y1="58" x2="226" y2="58" stroke="rgba(59,130,246,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="228,54 220,58 228,62" fill="#3b82f6"/>
+
+                <!-- On-prem server -->
+                <rect x="476" y="6" width="220" height="96" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="586" y="22" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">On-Premises File Server</text>
+                <text x="586" y="33" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Windows Server 2012 R2+</text>
+                <!-- Server rack icon -->
+                <rect x="538" y="40" width="40" height="28" rx="4" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.2"/>
+                <line x1="538" y1="48" x2="578" y2="48" stroke="#c9a83a" stroke-width="0.8" opacity="0.5"/>
+                <line x1="538" y1="56" x2="578" y2="56" stroke="#c9a83a" stroke-width="0.8" opacity="0.5"/>
+                <circle cx="572" cy="52" r="3" fill="#3ab577" opacity="0.7"/>
+                <circle cx="572" cy="60" r="3" fill="#c9a83a" opacity="0.7"/>
+                <text x="586" y="82" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">\\server\share  (existing UNC path)</text>
+                <text x="586" y="92" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Users see local drive — unaware</text>
+                <text x="586" y="100" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">files are syncing to Azure</text>
+
+                <!-- Arrow from agent to on-prem -->
+                <line x1="432" y1="48" x2="474" y2="48" stroke="rgba(201,168,58,0.5)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="474,44 482,48 474,52" fill="#c9a83a"/>
+                <line x1="474" y1="58" x2="432" y2="58" stroke="rgba(201,168,58,0.4)" stroke-width="1.4" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.4s"/>
+                </line>
+                <polygon points="434,54 426,58 434,62" fill="#c9a83a"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Replace On-Prem File Servers</div>
+                <div class="card-desc">The primary scenario: decommission a Windows file server and move the share to Azure Files. Clients mount the share over SMB just like before — the UNC path changes but nothing else does. No application rewrites. Port 445 (SMB) must be open from the client to Azure. This is blocked by some ISPs, which is why Azure File Sync is sometimes the better approach for direct-mount scenarios.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Azure File Sync: Hybrid Is the Killer Feature</div>
+                <div class="card-desc">File Sync installs an agent on Windows Server. The server continues to serve local SMB clients exactly as before. File Sync replicates to Azure Files continuously. <strong>Cloud tiering</strong> offloads cold files to Azure — the file appears locally but its data is in the cloud. Access it and it rehydrates. This lets you shrink on-prem storage while keeping the same user experience. Multiple server endpoints can sync to one cloud share (branch office pattern).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Standard vs. Premium File Shares</div>
+                <div class="card-desc">Standard shares (GPv2) are pay-as-you-go up to 5 TiB by default (expandable to 100 TiB with large file share setting). Premium shares (FileStorage account, SSD) require you to provision capacity upfront — you pay for provisioned storage, not consumed. Premium supports NFS 4.1 (Standard does not). Premium required for sub-millisecond latency — SQL Server file shares, SAP workloads, developer shares.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — STORAGE REDUNDANCY ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Storage <span class="accent">Redundancy</span></div>
+        <div class="slide-subtitle">Redundancy determines how many copies Azure keeps of your data, where they are kept, and whether you can read the secondary copy. This is the most heavily tested storage topic on the AZ-104 exam. Know the copy count, location, and read behavior for each option.</div>
+
+        <!-- LRS/ZRS/GRS/RA-GRS diagrams side by side -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+
+                <!-- LRS — 3 copies, 1 datacenter -->
+                <rect x="4" y="6" width="156" height="96" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="82" y="20" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">LRS</text>
+                <text x="82" y="30" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Locally Redundant Storage</text>
+                <!-- Single datacenter box with 3 copy dots -->
+                <rect x="20" y="36" width="124" height="44" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                <text x="82" y="48" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">1 Datacenter</text>
+                <circle cx="46" cy="62" r="8" fill="rgba(59,130,246,0.25)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="46" y="65" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">1</text>
+                <circle cx="82" cy="62" r="8" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="82" y="65" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">2</text>
+                <circle cx="118" cy="62" r="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="118" y="65" text-anchor="middle" font-size="7" fill="#93c5fd" font-weight="700" font-family="Segoe UI,sans-serif">3</text>
+                <text x="82" y="92" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Lowest cost. Zone or region failure = data loss.</text>
+
+                <!-- ZRS — 3 copies, 3 zones -->
+                <rect x="170" y="6" width="156" height="96" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="248" y="20" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="800" font-family="Segoe UI,sans-serif">ZRS</text>
+                <text x="248" y="30" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Zone-Redundant Storage</text>
+                <!-- 3 zone boxes -->
+                <rect x="178" y="36" width="36" height="44" rx="4" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="196" y="54" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone</text>
+                <text x="196" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">1</text>
+                <circle cx="196" cy="72" r="4" fill="#3ab577" opacity="0.6"/>
+                <rect x="222" y="36" width="36" height="44" rx="4" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="240" y="54" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone</text>
+                <text x="240" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">2</text>
+                <circle cx="240" cy="72" r="4" fill="#3ab577" opacity="0.6"/>
+                <rect x="266" y="36" width="36" height="44" rx="4" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="284" y="54" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Zone</text>
+                <text x="284" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">3</text>
+                <circle cx="284" cy="72" r="4" fill="#3ab577" opacity="0.6"/>
+                <text x="248" y="92" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Survives zone outage. Same region only.</text>
+
+                <!-- GRS — 6 copies, 2 regions -->
+                <rect x="336" y="6" width="170" height="96" rx="8" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="421" y="20" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif">GRS</text>
+                <text x="421" y="30" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Geo-Redundant Storage</text>
+                <!-- Primary region box -->
+                <rect x="344" y="36" width="70" height="44" rx="6" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="379" y="50" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Primary</text>
+                <text x="379" y="59" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">3 copies</text>
+                <text x="379" y="68" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">LRS inside</text>
+                <!-- GRS arrow -->
+                <line x1="416" y1="58" x2="428" y2="58" stroke="rgba(201,168,58,0.5)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="428,55 434,58 428,61" fill="#c9a83a"/>
+                <!-- Secondary region box -->
+                <rect x="436" y="36" width="60" height="44" rx="6" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.25)" stroke-width="1" stroke-dasharray="4,2"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="466" y="50" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Secondary</text>
+                <text x="466" y="59" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">3 copies</text>
+                <text x="466" y="68" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">READ-ONLY</text>
+                <text x="421" y="92" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">6 copies total. No read until failover.</text>
+
+                <!-- RA-GRS — same as GRS but with read arrow -->
+                <rect x="516" y="6" width="178" height="96" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="605" y="20" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="800" font-family="Segoe UI,sans-serif">RA-GRS</text>
+                <text x="605" y="30" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Read-Access Geo-Redundant</text>
+                <!-- Primary -->
+                <rect x="524" y="36" width="62" height="44" rx="6" fill="rgba(167,139,250,0.1)" stroke="rgba(167,139,250,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="555" y="50" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Primary</text>
+                <text x="555" y="60" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Read/Write</text>
+                <text x="555" y="70" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">3 copies</text>
+                <!-- Arrow -->
+                <line x1="588" y1="55" x2="598" y2="55" stroke="rgba(167,139,250,0.5)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="598,52 604,55 598,58" fill="#a78bfa"/>
+                <!-- Secondary with read enabled -->
+                <rect x="606" y="36" width="80" height="44" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="646" y="48" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Secondary</text>
+                <text x="646" y="57" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">READ ACTIVE</text>
+                <text x="646" y="66" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">now + failover</text>
+                <text x="646" y="74" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">3 copies</text>
+                <text x="605" y="92" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Best HA. Secondary endpoint readable now.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">LRS and ZRS: Intra-Region Options</div>
+                <div class="card-desc"><strong>LRS</strong> — 3 synchronous copies within one datacenter. Cheapest. If the datacenter burns down, you lose all copies. Good for dev/test or data you can regenerate. <strong>ZRS</strong> — 3 copies across 3 availability zones in the same region. Survives a full zone outage (entire datacenter failure). Better HA than LRS at a modest cost increase. ZRS does not protect against a full regional failure.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GRS and RA-GRS: Cross-Region Protection</div>
+                <div class="card-desc"><strong>GRS</strong> — 6 copies: 3 in the primary region (LRS) + 3 in a paired secondary region. The secondary is not readable until Microsoft initiates a failover. <strong>RA-GRS</strong> — same as GRS but adds a read endpoint on the secondary right now. Format: <span class="ic">storageacct-secondary.blob.core.windows.net</span>. Use RA-GRS when you need read access during an outage without waiting for failover. Both use asynchronous replication — potential for data lag.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">GZRS and RA-GZRS: The Combination</div>
+                <div class="card-desc"><strong>GZRS</strong> combines ZRS primary (3 zones) with LRS secondary in a paired region — 6 copies total. <strong>RA-GZRS</strong> adds read access to the secondary. These are the highest durability options. Exam tip: know the copy count for each option. LRS=3, ZRS=3, GRS=6, RA-GRS=6. The difference between GRS and RA-GRS is not copy count — it is whether you can read the secondary before failover.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — STORAGE SECURITY ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Storage <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Azure Storage has a layered security model. Every layer has a specific purpose and they stack independently. Understanding each layer — and where it lives in the request path — is the foundation for the SAS token and firewall slides that follow.</div>
+
+        <!-- Security layers: network > authentication > encryption -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Layer 1: Network Firewall -->
+                <rect x="4" y="6" width="208" height="96" rx="10" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="108" y="22" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="800" font-family="Segoe UI,sans-serif">Layer 1: Network</text>
+                <text x="108" y="33" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Storage Firewall</text>
+                <rect x="20" y="40" width="176" height="18" rx="5" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="108" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Allow specific VNets / IPs only</text>
+                <rect x="20" y="62" width="176" height="18" rx="5" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="108" y="74" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Block all public internet by default</text>
+                <text x="108" y="95" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Controls WHO can reach the endpoint</text>
+
+                <!-- Arrow -->
+                <line x1="214" y1="54" x2="234" y2="54" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="234,50 242,54 234,58" fill="rgba(255,255,255,0.3)"/>
+
+                <!-- Layer 2: Authentication -->
+                <rect x="244" y="6" width="214" height="96" rx="10" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="351" y="22" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif">Layer 2: Authentication</text>
+                <text x="351" y="33" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Who are you, and what can you do?</text>
+                <rect x="252" y="40" width="88" height="18" rx="5" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="296" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Entra ID + RBAC</text>
+                <rect x="352" y="40" width="96" height="18" rx="5" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="400" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">SAS Tokens</text>
+                <rect x="252" y="62" width="88" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.2)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="296" y="74" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Shared Key (Account Key)</text>
+                <rect x="352" y="62" width="96" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.2)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="400" y="74" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Anonymous (container)</text>
+                <text x="351" y="95" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Prefer Entra ID + RBAC over keys</text>
+
+                <!-- Arrow -->
+                <line x1="460" y1="54" x2="480" y2="54" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="480,50 488,54 480,58" fill="rgba(255,255,255,0.3)"/>
+
+                <!-- Layer 3: Encryption -->
+                <rect x="490" y="6" width="206" height="96" rx="10" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="593" y="22" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="800" font-family="Segoe UI,sans-serif">Layer 3: Encryption</text>
+                <text x="593" y="33" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Data is always protected</text>
+                <rect x="500" y="40" width="88" height="18" rx="5" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="544" y="52" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">At Rest: SSE (AES-256)</text>
+                <rect x="596" y="40" width="90" height="18" rx="5" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.25)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="641" y="52" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">In Transit: HTTPS/TLS</text>
+                <text x="593" y="72" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">SSE is on by default. Cannot disable.</text>
+                <text x="593" y="84" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">CMK via Azure Key Vault optional.</text>
+                <text x="593" y="95" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Require HTTPS enforced per account</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Account Keys: Powerful and Dangerous</div>
+                <div class="card-desc">Every storage account has two 512-bit shared access keys that grant full administrative access to all data. Anyone with the key can read, write, delete, and manage the account. Rotate them regularly. Avoid storing them in application code — use Managed Identity or SAS tokens instead. If a key is compromised, regenerate it immediately. The portal shows them under "Access keys" — restrict who can view them with RBAC (<strong>Storage Account Key Operator Service Role</strong>).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Entra ID + RBAC: The Right Approach</div>
+                <div class="card-desc">Entra ID (formerly Azure AD) integration lets you assign storage roles (Storage Blob Data Reader, Storage Blob Data Contributor, Storage Blob Data Owner) to users, groups, service principals, and managed identities. This is the preferred approach — no key management, full audit trail, integrates with Conditional Access. For applications running in Azure, use <strong>Managed Identity</strong> so the application never handles credentials at all.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">SSE: Always On, No Action Required</div>
+                <div class="card-desc">Storage Service Encryption uses AES-256 to encrypt every byte written to Azure Storage. It is enabled by default, cannot be disabled, and has zero performance impact. By default it uses Microsoft-managed keys. You can bring your own keys (CMK) via Azure Key Vault if your compliance requirements demand it — allows you to revoke access to data by revoking the key. Encryption in transit: enable "Secure transfer required" on the account to reject all HTTP requests.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — SAS TOKENS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Shared Access Signatures <span class="accent">(SAS Tokens)</span></div>
+        <div class="slide-subtitle">A SAS token is a signed URI that grants limited, time-bound, permission-scoped access to a storage resource — without sharing the account key. Understanding how a SAS URL is constructed and the difference between the three SAS types is exam-critical.</div>
+
+        <!-- SAS URL broken into labeled segments -->
+        <div class="diagram-center">
+            <svg width="700" height="90" viewBox="0 0 700 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- URL base + SAS structure visualization -->
+                <!-- Base resource URI box -->
+                <rect x="4" y="4" width="196" height="36" rx="7" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="102" y="18" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Resource URI</text>
+                <text x="102" y="31" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Courier New,monospace">https://acct.blob.core.windows.net/c/file</text>
+
+                <text x="202" y="24" text-anchor="middle" font-size="14" fill="#475569" font-family="Segoe UI,sans-serif">?</text>
+
+                <!-- sv param -->
+                <rect x="210" y="4" width="54" height="36" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="237" y="18" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Courier New,monospace">sv</text>
+                <text x="237" y="30" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">API version</text>
+
+                <text x="266" y="24" text-anchor="middle" font-size="10" fill="#475569">&amp;</text>
+
+                <!-- ss param -->
+                <rect x="272" y="4" width="50" height="36" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="297" y="18" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Courier New,monospace">ss</text>
+                <text x="297" y="30" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Services (b,f,q,t)</text>
+
+                <text x="324" y="24" text-anchor="middle" font-size="10" fill="#475569">&amp;</text>
+
+                <!-- srt param -->
+                <rect x="330" y="4" width="54" height="36" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="357" y="18" text-anchor="middle" font-size="7" fill="#a78bfa" font-weight="700" font-family="Courier New,monospace">srt</text>
+                <text x="357" y="30" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Resource type</text>
+
+                <text x="386" y="24" text-anchor="middle" font-size="10" fill="#475569">&amp;</text>
+
+                <!-- sp param -->
+                <rect x="392" y="4" width="54" height="36" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="419" y="18" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Courier New,monospace">sp</text>
+                <text x="419" y="30" text-anchor="middle" font-size="5.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Permissions (r,w,d,l)</text>
+
+                <text x="448" y="24" text-anchor="middle" font-size="10" fill="#475569">&amp;</text>
+
+                <!-- se param -->
+                <rect x="454" y="4" width="66" height="36" rx="6" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1.2"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="487" y="18" text-anchor="middle" font-size="7" fill="#f97316" font-weight="700" font-family="Courier New,monospace">se / st</text>
+                <text x="487" y="30" text-anchor="middle" font-size="5.5" fill="#fed7aa" font-family="Segoe UI,sans-serif">Expiry / Start time</text>
+
+                <text x="522" y="24" text-anchor="middle" font-size="10" fill="#475569">&amp;</text>
+
+                <!-- sig param -->
+                <rect x="528" y="4" width="166" height="36" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="611" y="18" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Courier New,monospace">sig=HMAC-SHA256</text>
+                <text x="611" y="30" text-anchor="middle" font-size="5.5" fill="#cffafe" font-family="Segoe UI,sans-serif">Cryptographic signature — validates all params</text>
+
+                <!-- Row 2: SAS types -->
+                <rect x="4" y="52" width="210" height="34" rx="7" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.4)" stroke-width="1.2"
+                    style="animation: fadeUp 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="109" y="64" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Account SAS</text>
+                <text x="109" y="78" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Signed with account key — controls multiple services</text>
+
+                <rect x="224" y="52" width="210" height="34" rx="7" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.4)" stroke-width="1.2"
+                    style="animation: fadeUp 0.35s ease forwards 0.62s; opacity:0;"/>
+                <text x="329" y="64" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Service SAS</text>
+                <text x="329" y="78" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Signed with account key — scoped to one service</text>
+
+                <rect x="444" y="52" width="252" height="34" rx="7" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: fadeUp 0.35s ease forwards 0.7s; opacity:0;"/>
+                <text x="570" y="64" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">User Delegation SAS</text>
+                <text x="570" y="78" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Signed with Entra ID credential — MOST SECURE. Blob only.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Problem SAS Solves</div>
+                <div class="card-desc">You need to give a third party read access to a specific blob for 2 hours. You cannot give them your account key — that grants full access forever. You cannot add them to Entra ID — they're external. The solution: generate a SAS token scoped to that exact blob, with <code>sp=r</code> (read only), <code>se=2024-12-01T14:00:00Z</code> (expires in 2 hours). After expiry, the URL is worthless even if it leaks. This is the core SAS use case.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Stored Access Policies: Revocable SAS</div>
+                <div class="card-desc">A regular SAS cannot be revoked — once you issue it, it is valid until expiry. <strong>Stored Access Policies</strong> solve this. You define a named policy on the container (with permissions and expiry), then reference that policy in the SAS. To revoke: delete the policy. All SAS tokens referencing that policy immediately stop working. Critical exam point: service SAS tokens can reference stored access policies. Account SAS and User Delegation SAS cannot. Always use stored access policies when you need revocation capability.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">User Delegation SAS: Most Secure Option</div>
+                <div class="card-desc">A User Delegation SAS is signed using an Entra ID credential instead of the account key. This means: no account key is involved, the SAS is tied to the identity that created it, and it can be revoked by removing that identity's role assignment. Only works with Blob Storage. This is Microsoft's recommended approach when you need time-limited access for external users. Requires the caller to have the <strong>Storage Blob Delegator</strong> RBAC role to generate the key.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — STORAGE FIREWALLS AND VIRTUAL NETWORKS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Storage Firewalls and <span class="accent">Virtual Networks</span></div>
+        <div class="slide-subtitle">By default, a storage account accepts requests from any network. Enabling the firewall restricts this to specific VNets, subnets, and IP ranges. There are two ways to connect a VNet to storage — service endpoints and private endpoints — and they work very differently.</div>
+
+        <!-- VNet with subnet -> service endpoint -> storage (public endpoint) vs private endpoint -> private IP -->
+        <div class="diagram-center">
+            <svg width="700" height="110" viewBox="0 0 700 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Left scenario: Service Endpoint -->
+                <rect x="4" y="6" width="322" height="98" rx="10" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.25)" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="165" y="20" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Service Endpoint</text>
+                <!-- VNet -->
+                <rect x="12" y="26" width="110" height="68" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                <text x="67" y="39" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">VNet</text>
+                <!-- Subnet -->
+                <rect x="20" y="44" width="94" height="38" rx="6" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.35)" stroke-width="1"/>
+                <text x="67" y="57" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Subnet</text>
+                <circle cx="46" cy="70" r="6" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="46" y="82" text-anchor="middle" font-size="5.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">VM</text>
+                <circle cx="88" cy="70" r="6" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="88" y="82" text-anchor="middle" font-size="5.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">App</text>
+                <!-- Arrow via public endpoint -->
+                <line x1="124" y1="62" x2="178" y2="62" stroke="rgba(59,130,246,0.5)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="178,58 186,62 178,66" fill="#3b82f6"/>
+                <rect x="188" y="48" width="126" height="28" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="251" y="60" text-anchor="middle" font-size="7" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Storage Account</text>
+                <text x="251" y="70" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Public endpoint (filtered)</text>
+                <text x="165" y="100" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Traffic stays on Azure backbone. Public IP endpoint with firewall rule.</text>
+
+                <!-- Divider -->
+                <line x1="350" y1="6" x2="350" y2="104" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4,3"/>
+                <text x="350" y="60" text-anchor="middle" font-size="10" fill="#475569" font-weight="700" font-family="Segoe UI,sans-serif">VS</text>
+
+                <!-- Right scenario: Private Endpoint -->
+                <rect x="374" y="6" width="322" height="98" rx="10" fill="rgba(58,181,119,0.04)" stroke="rgba(58,181,119,0.25)" stroke-width="1.3"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="535" y="20" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Private Endpoint</text>
+                <!-- VNet -->
+                <rect x="382" y="26" width="110" height="68" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+                <text x="437" y="39" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">VNet</text>
+                <!-- Private endpoint NIC inside VNet -->
+                <rect x="390" y="44" width="94" height="38" rx="6" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.35)" stroke-width="1"/>
+                <text x="437" y="57" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Subnet + Private NIC</text>
+                <circle cx="416" cy="70" r="6" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1"/>
+                <text x="416" y="82" text-anchor="middle" font-size="5.5" fill="#86efac" font-family="Segoe UI,sans-serif">VM</text>
+                <text x="452" y="65" text-anchor="middle" font-size="6.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">10.0.0.5</text>
+                <text x="452" y="74" text-anchor="middle" font-size="5.5" fill="#64748b" font-family="Segoe UI,sans-serif">Private IP</text>
+                <!-- Arrow to storage via private IP (no public internet) -->
+                <line x1="494" y1="62" x2="538" y2="62" stroke="rgba(58,181,119,0.6)" stroke-width="1.3" stroke-dasharray="3,2">
+                    <animate attributeName="stroke-dashoffset" values="8;0" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="538,58 546,62 538,66" fill="#3ab577"/>
+                <rect x="548" y="48" width="138" height="28" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="617" y="60" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Storage Account</text>
+                <text x="617" y="70" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">No public endpoint exposure</text>
+                <text x="535" y="100" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Private IP in your VNet. Public endpoint disabled entirely.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Service Endpoints: Controlled Public</div>
+                <div class="card-desc">A service endpoint routes traffic from a VNet subnet to the storage account over the Azure backbone, bypassing public internet routing. The storage firewall whitelists that specific subnet. The storage account still has a public endpoint — it just only accepts connections from whitelisted sources. Easy to set up. No DNS change required. Limitation: traffic originates from the VNet public IP, not a private IP, so the storage account still has public IP surface area.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Private Endpoints: Truly Private</div>
+                <div class="card-desc">A private endpoint provisions a NIC with a private IP address inside your VNet and connects it to the storage account via Azure Private Link. All traffic flows over the VNet — no public internet at any layer. You can disable the storage account's public endpoint entirely. DNS resolves the storage FQDN to the private IP inside the VNet. Traffic from on-prem via ExpressRoute or VPN also uses this private IP. This is the zero-trust, highest-security approach — and the default for new enterprise deployments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Trusted Azure Services Exception</div>
+                <div class="card-desc">When you enable the firewall, some Azure services stop working unless you explicitly allow them. The storage firewall has a "Allow trusted Azure services" bypass for services like Azure Backup, Azure Site Recovery, Azure Monitor, and Azure HDInsight. If you enable the firewall and your Azure Backup jobs start failing, this is why. Enable the trusted services exception or configure a private endpoint for the backup vault. Exam tip: firewall + trusted services bypass is a common troubleshooting scenario.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — LIFECYCLE MANAGEMENT ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Blob Lifecycle <span class="accent">Management</span></div>
+        <div class="slide-subtitle">Lifecycle management lets you write rules that automatically move blobs between access tiers or delete them based on age. Instead of paying Hot rates for data that hasn't been touched in 90 days, you write one rule and Azure handles the transitions forever.</div>
+
+        <!-- Timeline showing blob aging through tiers automatically -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Timeline track -->
+                <line x1="20" y1="40" x2="680" y2="40" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+                <!-- Timeline arrow -->
+                <polygon points="676,37 684,40 676,43" fill="rgba(255,255,255,0.25)"/>
+                <text x="686" y="43" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">time</text>
+
+                <!-- Day 0: Upload -->
+                <circle cx="40" cy="40" r="7" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="40" y="22" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Day 0</text>
+                <text x="40" y="32" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Upload</text>
+                <text x="40" y="56" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">HOT</text>
+                <text x="40" y="67" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">immediate access</text>
+
+                <!-- Day 30: Move to Cool -->
+                <circle cx="190" cy="40" r="7" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="190" y="22" text-anchor="middle" font-size="6.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Day 30</text>
+                <text x="190" y="32" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Rule fires</text>
+                <text x="190" y="56" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">COOL</text>
+                <text x="190" y="67" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">daysAfterModification: 30</text>
+                <!-- Rule label above -->
+                <rect x="98" y="6" width="184" height="12" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.8"/>
+                <text x="190" y="15" text-anchor="middle" font-size="6" fill="#f97316" font-family="Segoe UI,sans-serif">"tierToCool": not modified 30d</text>
+
+                <!-- Day 90: Move to Cold -->
+                <circle cx="370" cy="40" r="7" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="370" y="22" text-anchor="middle" font-size="6.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Day 90</text>
+                <text x="370" y="32" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Rule fires</text>
+                <text x="370" y="56" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">COLD</text>
+                <text x="370" y="67" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">daysAfterModification: 90</text>
+                <rect x="278" y="6" width="184" height="12" rx="3" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"/>
+                <text x="370" y="15" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">"tierToCold": not modified 90d</text>
+
+                <!-- Day 180: Move to Archive -->
+                <circle cx="540" cy="40" r="7" fill="rgba(100,116,139,0.5)" stroke="#64748b" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="540" y="22" text-anchor="middle" font-size="6.5" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Day 180</text>
+                <text x="540" y="32" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Rule fires</text>
+                <text x="540" y="56" text-anchor="middle" font-size="7.5" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">ARCHIVE</text>
+                <text x="540" y="67" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">daysAfterModification: 180</text>
+                <rect x="448" y="6" width="184" height="12" rx="3" fill="rgba(100,116,139,0.1)" stroke="rgba(100,116,139,0.3)" stroke-width="0.8"/>
+                <text x="540" y="15" text-anchor="middle" font-size="6" fill="#94a3b8" font-family="Segoe UI,sans-serif">"tierToArchive": not modified 180d</text>
+
+                <!-- Cost savings bar below timeline -->
+                <text x="20" y="84" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Storage Cost Paid:</text>
+                <rect x="20" y="88" width="160" height="8" rx="2" fill="#ef4444" opacity="0.65"/>
+                <rect x="180" y="88" width="120" height="8" rx="2" fill="#f97316" opacity="0.55"/>
+                <rect x="300" y="88" width="100" height="8" rx="2" fill="#3b82f6" opacity="0.45"/>
+                <rect x="400" y="88" width="260" height="8" rx="2" fill="#475569" opacity="0.35"/>
+                <text x="100" y="100" text-anchor="middle" font-size="6" fill="#ef4444" font-family="Segoe UI,sans-serif">Hot rate</text>
+                <text x="240" y="100" text-anchor="middle" font-size="6" fill="#f97316" font-family="Segoe UI,sans-serif">Cool rate</text>
+                <text x="350" y="100" text-anchor="middle" font-size="6" fill="#3b82f6" font-family="Segoe UI,sans-serif">Cold rate</text>
+                <text x="530" y="100" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Archive rate (pennies/GB/month)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Rule Structure: If / Then</div>
+                <div class="card-desc">Each lifecycle rule has a filter (which blobs does this apply to?) and an action (what to do?). Filter by container name prefix, blob type (blockBlob, appendBlob), or index tags. Actions: <strong>tierToCool</strong>, <strong>tierToCold</strong>, <strong>tierToArchive</strong>, <strong>delete</strong>. Conditions use <code>daysAfterModificationGreaterThan</code>, <code>daysAfterCreationGreaterThan</code>, or <code>daysAfterLastAccessTimeGreaterThan</code> (requires access tracking enabled). Multiple rules are evaluated independently — there is no conflict resolution priority you set.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Blob Snapshots and Versions</div>
+                <div class="card-desc">Lifecycle rules can also target blob snapshots and versions separately from the base blob. You can write a rule like: move base blob to Archive after 180 days, delete snapshots after 30 days, delete previous versions after 60 days. This is the recommended pattern for versioned backups — you keep the current version hot, archive older versions, and delete snapshots that are no longer needed. Each object type (base blob, snapshot, version) can have separate tier and delete actions in the same rule.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cost Impact: The Business Case</div>
+                <div class="card-desc">Hot tier: ~$0.018/GB/month. Archive tier: ~$0.001/GB/month — an 18x cost difference. For a company with 100 TB of log data where 90% hasn't been accessed in 90+ days, lifecycle management can reduce storage costs by 80-90% automatically. The tradeoff: Archive retrieval costs are real — plan for that in your rule design. Don't archive data you'll access monthly. The rule of thumb: lifecycle management ROI is strongest for compliance data, completed project files, and audit logs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — STORAGE TOOLS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Storage <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">Four tools. Each has a specific context where it is the right choice. The exam expects you to know which tool fits which scenario — and knowing them makes your actual Azure work faster.</div>
+
+        <!-- Four tool icons with primary use cases -->
+        <div class="diagram-center">
+            <svg width="700" height="100" viewBox="0 0 700 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Azure Storage Explorer -->
+                <rect x="4" y="6" width="162" height="88" rx="10" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="85" y="22" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Storage Explorer</text>
+                <text x="85" y="32" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Desktop GUI (Windows/Mac/Linux)</text>
+                <!-- Desktop icon -->
+                <rect x="58" y="38" width="54" height="32" rx="4" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.2"/>
+                <rect x="62" y="42" width="46" height="22" rx="2" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="0.8"/>
+                <line x1="75" y1="70" x2="95" y2="70" stroke="#3b82f6" stroke-width="1.5"/>
+                <circle cx="85" cy="73" r="2" fill="#3b82f6"/>
+                <text x="85" y="86" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Browse, upload, download, manage</text>
+
+                <!-- AzCopy -->
+                <rect x="178" y="6" width="162" height="88" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="259" y="22" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">AzCopy</text>
+                <text x="259" y="32" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Command-line bulk transfer tool</text>
+                <!-- Terminal icon -->
+                <rect x="228" y="38" width="62" height="32" rx="4" fill="rgba(0,0,0,0.3)" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="238" y="52" font-size="8" fill="#3ab577" font-family="Courier New,monospace">$&gt; azcopy</text>
+                <text x="238" y="63" font-size="7" fill="#64748b" font-family="Courier New,monospace">copy ...</text>
+                <text x="259" y="86" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Fast, resumable, scriptable transfers</text>
+
+                <!-- Azure Portal -->
+                <rect x="352" y="6" width="162" height="88" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="433" y="22" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Azure Portal</text>
+                <text x="433" y="32" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Web browser management</text>
+                <!-- Browser icon -->
+                <rect x="400" y="36" width="66" height="40" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.2"/>
+                <line x1="400" y1="44" x2="466" y2="44" stroke="#c9a83a" stroke-width="0.8"/>
+                <circle cx="408" cy="40" r="3" fill="#c9a83a" opacity="0.5"/>
+                <circle cx="416" cy="40" r="3" fill="#c9a83a" opacity="0.35"/>
+                <circle cx="424" cy="40" r="3" fill="#c9a83a" opacity="0.2"/>
+                <text x="433" y="60" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">portal.azure.com</text>
+                <text x="433" y="86" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">One-time tasks, config changes, exploration</text>
+
+                <!-- Azure CLI -->
+                <rect x="526" y="6" width="168" height="88" rx="10" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="610" y="22" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Azure CLI (az storage)</text>
+                <text x="610" y="32" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Cross-platform scripting</text>
+                <!-- CLI terminal -->
+                <rect x="538" y="37" width="144" height="40" rx="4" fill="rgba(0,0,0,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+                <text x="548" y="52" font-size="7" fill="#a78bfa" font-family="Courier New,monospace">az storage blob upload</text>
+                <text x="548" y="63" font-size="7" fill="#64748b" font-family="Courier New,monospace">  --account-name ...</text>
+                <text x="610" y="86" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Automation, CI/CD, infrastructure as code</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Storage Explorer vs. AzCopy: The Distinction</div>
+                <div class="card-desc"><strong>Storage Explorer</strong> is a GUI desktop application — use it when you need to visually browse containers, upload individual files, inspect blob metadata, manage access policies, or generate SAS tokens interactively. It connects via storage account key, SAS, or Entra ID. <strong>AzCopy</strong> is a command-line tool built for bulk data movement — copying millions of files between accounts, migrating an entire storage account, or loading a dataset from on-prem. It uses optimized parallel transfers and can resume interrupted jobs. When someone asks "how do I migrate 50 TB of blobs to a new account?" the answer is AzCopy, not Portal.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Azure CLI: Scriptable Everything</div>
+                <div class="card-desc">The <span class="ic">az storage</span> command group covers the full storage management surface: create accounts, manage containers, upload/download blobs, set access tiers, configure lifecycle policies, generate SAS tokens, and configure firewall rules. The key difference from AzCopy: <span class="ic">az storage</span> is for management operations (configuration, policy, metadata) as part of broader automation scripts. AzCopy is optimized purely for data plane operations (moving data). In a CI/CD pipeline that creates infrastructure and deploys assets, you'd use both: CLI to create the account and configure settings, AzCopy to upload the content.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Exam scenario pattern: "A developer needs to upload 10 TB of historical data to Azure Blob Storage as quickly as possible." The answer is AzCopy — not the Portal (too slow for large volumes), not Storage Explorer (GUI upload is single-threaded), not the CLI (possible but not optimized for bulk).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 3 <span class="accent">Summary</span></div>
+
+        <!-- Summary checklist SVG -->
+        <div class="diagram-center">
+            <svg width="700" height="76" viewBox="0 0 700 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Six check items arranged in two columns -->
+                <!-- Left column -->
+                <rect x="4" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="18" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 15 L18 18 L23 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Storage account (GPv2) is the starting point for every storage decision</text>
+
+                <rect x="4" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="18" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 37 L18 40 L23 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Blob tiers: Hot / Cool (30d) / Cold (90d) / Archive (180d, offline)</text>
+
+                <rect x="4" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.4s; opacity:0;"/>
+                <circle cx="18" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M15 59 L18 62 L23 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="32" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">SAS token: scoped, time-limited access without sharing account keys</text>
+
+                <!-- Right column -->
+                <rect x="358" y="6" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="372" cy="15" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 15 L372 18 L377 11" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="19" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Redundancy: LRS=3 (1DC), ZRS=3 (3zones), GRS=6 (2 regions)</text>
+
+                <rect x="358" y="28" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.3s; opacity:0;"/>
+                <circle cx="372" cy="37" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 37 L372 40 L377 33" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="41" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">RA-GRS adds read access to secondary endpoint before failover</text>
+
+                <rect x="358" y="50" width="338" height="18" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.2)" stroke-width="1"
+                    style="animation: slideRight 0.3s ease forwards 0.45s; opacity:0;"/>
+                <circle cx="372" cy="59" r="5" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <path d="M369 59 L372 62 L377 55" stroke="#3ab577" stroke-width="1.2" stroke-linecap="round"/>
+                <text x="386" y="63" font-size="7" fill="#cbd5e1" font-family="Segoe UI,sans-serif">Private endpoint = no public exposure. Service endpoint = filtered public.</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Use GPv2 for every new storage account.</strong> It supports all four services (Blob, Files, Tables, Queues), all access tiers, and all redundancy options. Premium performance accounts are SSD-backed and required for sub-millisecond latency — but they do not support GRS or Archive tier. The account type cannot be changed after creation.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Redundancy options ranked by protection: LRS &lt; ZRS &lt; GRS = RA-GRS &lt; GZRS = RA-GZRS.</strong> LRS fails on datacenter fire. ZRS fails on regional outage. GRS survives regional outage but secondary is not readable until failover. RA-GRS secondary is readable now. Copy counts: LRS=3, ZRS=3, GRS=6, RA-GRS=6. The difference between GRS and RA-GRS is secondary readability, not copy count.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Archive is offline — not just slow.</strong> You cannot read an Archive blob without rehydrating it first (move to Hot or Cool). Standard rehydration: up to 15 hours. High-priority: under 1 hour but costs more. The 180-day early deletion penalty applies. This distinction appears on every practice exam.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>User Delegation SAS is more secure than Account or Service SAS</strong> because it is signed with an Entra ID credential, not the account key. It can be revoked by removing the identity's role. Service SAS tokens can reference Stored Access Policies for revocation — Account SAS and User Delegation SAS cannot use stored access policies.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Private endpoint = no public surface area.</strong> A private endpoint provisions a NIC with a private IP inside your VNet and connects via Private Link. You can disable the storage account's public endpoint entirely. A service endpoint routes over the Azure backbone but the storage endpoint still has a public IP — the firewall just restricts who can reach it. For zero-trust architecture, use private endpoints.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 4 &mdash; Deploy and Manage Azure Compute Resources</strong> &nbsp;|&nbsp; Virtual Machines &bull; Availability Sets &amp; Zones &bull; Scale Sets &bull; App Service &bull; Container Instances
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-104</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az104-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
