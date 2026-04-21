@@ -1,0 +1,2915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AI Language Lab — AI-900 Chapter 3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #c4b5d4;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #e8d5f5;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #8b7a9e;
+        }
+
+        .task-count {
+            color: #a78bfa;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(167, 139, 250, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #7c3aed);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(15, 12, 20, 0.95);
+            border-right: 1px solid rgba(167, 139, 250, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5b7e;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(25, 20, 35, 0.8);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(167, 139, 250, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #a78bfa;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #e8d5f5;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #8b7a9e;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(167, 139, 250, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #a78bfa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(20, 15, 30, 0.9);
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8b7a9e;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(167, 139, 250, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #a78bfa; }
+        .term-prompt-sep    { color: #6b5b7e; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #e8d5f5; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e8d5f5;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #a78bfa;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #c4b5d4; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #4b3f5e; }
+        .term-welcome   { color: #a78bfa; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #a78bfa; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #6b5b7e; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #a78bfa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #60a5fa; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #a78bfa;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(167, 139, 250, 0.2);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(167, 139, 250, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #c4b5d4;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(167, 139, 250, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #a78bfa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #6b5b7e;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(167, 139, 250, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 5px;
+            color: #a78bfa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(167, 139, 250, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #c4b5d4;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(52, 211, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(30, 25, 40, 0.97);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #a0d4a0;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(167, 139, 250, 0.15);
+            color: #e8d5f5;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Azure AI Language Lab</span>
+            <span class="lab-badge">AI-900 CH.3</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Resource Verification</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your Language Resource</div>
+                    <div class="task-desc">Run <code>az cognitiveservices account show</code> to verify the pre-configured Language resource</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Sentiment Analysis</div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Analyze Sentiment — Positive Review</div>
+                    <div class="task-desc">Use <code>az language analyze --feature sentiment</code> on the positive hotel review</div>
+                </div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Analyze Sentiment — Negative Review</div>
+                    <div class="task-desc">Run the same analysis on the negative review and compare per-sentence scores</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Text Mining</div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Extract Key Phrases</div>
+                    <div class="task-desc">Use <code>--feature key-phrases</code> to distil the news article into its core topics</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Named Entity Recognition</div>
+                    <div class="task-desc">Use <code>--feature entities</code> to find people, organisations, and dates in the news article</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Privacy and Translation</div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Detect PII in Support Tickets</div>
+                    <div class="task-desc">Use <code>--feature pii</code> to detect and redact sensitive data in customer messages</div>
+                </div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Translate Text</div>
+                    <div class="task-desc">Use <code>az translator translate</code> to translate the same text to Spanish and French</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 5 — Summarization and CLU</div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Summarize a Document</div>
+                    <div class="task-desc">Use <code>--feature summary</code> to extract key sentences from the meeting notes</div>
+                </div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Conversational Language Understanding</div>
+                    <div class="task-desc">Use <code>az language clu predict</code> to classify intents and extract entities from utterances</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 6 — Compare Analysis Types</div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Compare Sentiment vs Entities</div>
+                    <div class="task-desc">Save both analyses on the negative review, then <code>diff</code> them to see how the output structures differ</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">student@language-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    Azure VM Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">student@language-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">Lab Complete!</div>
+                    <div class="success-message">
+                        You have used Azure AI Language services across every major NLP feature: sentiment
+                        analysis (document and sentence level), key phrase extraction, named entity recognition,
+                        PII detection with redaction, machine translation, extractive summarisation, and
+                        conversational language understanding. You also compared how sentiment and entity
+                        analysis return fundamentally different structures from the same input text.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER      = 'student';
+        var HOST      = 'language-lab-vm';
+        var HOME      = '/home/student';
+        var RG_NAME   = 'ai-fundamentals-rg';
+        var LOCATION  = 'eastus';
+        var SUB_ID    = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+        var SUB_NAME  = 'Azure-AI900-Lab-Subscription';
+        var TENANT    = 'f9e8d7c6-b5a4-3210-fedc-ba9876543210';
+
+        /* Pre-configured Language resource */
+        var LANG_NAME     = 'language-lab';
+        var LANG_ENDPOINT = 'https://language-lab.cognitiveservices.azure.com/';
+        var LANG_KEY1     = 'd4e5f6a7b8c901234567890abcdef012';
+        var LANG_KEY2     = 'e1f2a3b4c5d607890abcdef012345678';
+        var TRANS_ENDPOINT = 'https://api.cognitive.microsofttranslator.com/';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+        var envVars    = {
+            LANG_ENDPOINT:  LANG_ENDPOINT,
+            LANG_KEY:       LANG_KEY1,
+            TRANS_ENDPOINT: TRANS_ENDPOINT,
+            TRANS_KEY:      LANG_KEY1
+        };
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-step tasks */
+        var task7_es       = false;   /* translated to Spanish */
+        var task7_fr       = false;   /* translated to French */
+        var task9_book     = false;   /* BookFlight utterance predicted */
+        var task9_weather  = false;   /* GetWeather utterance predicted */
+        var task10_sent    = false;   /* review-sentiment.json saved */
+        var task10_ent     = false;   /* review-entities.json saved */
+        var task10_diff    = false;   /* diff run */
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            /* Directories */
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/student',
+                '/home/student/texts',
+                '/home/student/results',
+                '/home/student/scripts',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            /* Static files */
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 08:00:01] INFO  Azure CLI initialized',
+                        '[2026-04-19 08:00:02] INFO  Subscription: ' + SUB_NAME,
+                        '[2026-04-19 08:00:03] INFO  Language endpoint pre-configured',
+                        '[2026-04-19 08:00:04] INFO  Translator endpoint pre-configured'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Sample text files ── */
+                '/home/student/texts/review-positive.txt': {
+                    c: 'The hotel was absolutely wonderful. The staff went above and beyond to make our stay memorable. The room was spotless and the view was breathtaking. Would definitely recommend to anyone visiting the area.',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/texts/review-negative.txt': {
+                    c: 'Terrible experience. The room was dirty, the AC was broken, and the front desk staff was rude. I waited 45 minutes for check-in. Never coming back.',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/texts/review-neutral.txt': {
+                    c: 'The hotel was adequate for the price. The room was clean but small. Breakfast was included but limited. Location was convenient for the conference center.',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/texts/news-article.txt': {
+                    c: 'Microsoft announced today that Azure AI services processed over 10 billion API calls in Q1 2026. CEO Satya Nadella presented the results at the annual Build conference in Seattle. The company also revealed a partnership with OpenAI to integrate GPT-5 into Microsoft 365 products.',
+                    m: '-rw-r--r--'
+                },
+                '/home/student/texts/support-tickets.txt': {
+                    c: [
+                        'Ticket #1001 — John Martinez (john.martinez@example.com, 555-847-2910):',
+                        'My account is locked and I cannot reset my password. Please help urgently.',
+                        '',
+                        'Ticket #1002 — Sarah Thompson (sarah.t@company.net, 407-555-0183):',
+                        'I was charged twice for my subscription on April 14th. My credit card ending in 4821 shows two deductions of $49.99.',
+                        '',
+                        'Ticket #1003 — Anonymous:',
+                        'How do I export my data before the May 1st deadline?',
+                        '',
+                        'Ticket #1004 — David Kim (d.kim@workmail.com, 212-555-7744):',
+                        'The dashboard is showing incorrect metrics. This has been broken since March 28th.',
+                        '',
+                        'Ticket #1005 — Maria Gonzalez (mgonzalez@bizorg.io, 954-555-0029):',
+                        'Requesting refund for invoice #INV-2026-0342. Product did not meet advertised specifications.'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/student/texts/meeting-notes.txt': {
+                    c: [
+                        'Q1 2026 Product Review — April 15th, 2026',
+                        'Attendees: Alex Chen (Product), Priya Sharma (Engineering), Tom Wallace (Sales)',
+                        '',
+                        'Alex opened the meeting by reviewing Q1 KPIs. Active users grew 24% quarter-over-quarter, driven primarily by the new onboarding flow shipped in February.',
+                        '',
+                        'Priya reported that infrastructure costs increased 18% due to higher-than-expected GPU utilisation from the AI inference workloads. She proposed migrating three non-critical services to spot instances to reduce spend by an estimated $40,000 per month.',
+                        '',
+                        'Tom presented pipeline data showing that enterprise deal velocity has improved since the new pricing model launched in January. Average contract value is up 31% and time-to-close has dropped from 47 days to 29 days.',
+                        '',
+                        'The team agreed on the following action items: (1) Priya will complete the spot-instance migration by April 30th. (2) Alex will redesign the feature flag system before the Q2 release. (3) Tom will prepare a competitive analysis for the board meeting on May 12th.',
+                        '',
+                        'Next meeting: April 29th, 2026 at 10:00 AM.'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+
+                /* ── Helper scripts ── */
+                '/home/student/scripts/language_rest.sh': {
+                    c: [
+                        '#!/bin/bash',
+                        '# language_rest.sh — calls Azure AI Language REST API directly',
+                        '# Usage: ./language_rest.sh <text> <task>',
+                        '#   task: SentimentAnalysis | KeyPhraseExtraction | EntityRecognition | PiiEntityRecognition',
+                        '',
+                        'TEXT="$1"',
+                        'TASK="${2:-SentimentAnalysis}"',
+                        '',
+                        'if [ -z "$LANG_ENDPOINT" ] || [ -z "$LANG_KEY" ]; then',
+                        '  echo "ERROR: LANG_ENDPOINT and LANG_KEY must be set."',
+                        '  exit 1',
+                        'fi',
+                        '',
+                        'BODY=$(cat <<EOF',
+                        '{',
+                        '  "kind": "'"$TASK"'",',
+                        '  "analysisInput": {',
+                        '    "documents": [{ "id": "1", "language": "en", "text": "'"$TEXT"'" }]',
+                        '  }',
+                        '}',
+                        'EOF',
+                        ')',
+                        '',
+                        'curl -s -X POST \\',
+                        '  "${LANG_ENDPOINT}language/:analyze-text?api-version=2023-04-01" \\',
+                        '  -H "Ocp-Apim-Subscription-Key: ${LANG_KEY}" \\',
+                        '  -H "Content-Type: application/json" \\',
+                        '  -d "$BODY"'
+                    ].join('\n'),
+                    m: '-rwxr-xr-x'
+                },
+                '/home/student/scripts/translator_rest.sh': {
+                    c: [
+                        '#!/bin/bash',
+                        '# translator_rest.sh — calls Azure Translator REST API directly',
+                        '# Usage: ./translator_rest.sh "text to translate" <target-lang-code>',
+                        '',
+                        'TEXT="$1"',
+                        'TARGET_LANG="${2:-es}"',
+                        '',
+                        'if [ -z "$TRANS_KEY" ]; then',
+                        '  echo "ERROR: TRANS_KEY must be set."',
+                        '  exit 1',
+                        'fi',
+                        '',
+                        'curl -s -X POST \\',
+                        '  "${TRANS_ENDPOINT}translate?api-version=3.0&from=en&to=${TARGET_LANG}" \\',
+                        '  -H "Ocp-Apim-Subscription-Key: ${TRANS_KEY}" \\',
+                        '  -H "Content-Type: application/json" \\',
+                        '  -d "[{\"Text\": \"$TEXT\"}]"'
+                    ].join('\n'),
+                    m: '-rwxr-xr-x'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serializes a JS object to indented JSON then colourises each token type.
+           Returns nothing — writes directly to terminal output. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                /* keys: "word": */
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                /* string values */
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                /* booleans */
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                /* null */
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                /* numbers (integer and float) */
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Write a serialised JSON string to a VFS path (redirect support) */
+        function saveJSON(obj, path) {
+            var rp = resolve(path);
+            var par = parentOf(rp);
+            if (!exists(par)) {
+                vfs[par] = { type: 'dir', mode: 'drwxr-xr-x' };
+            }
+            vfs[rp] = {
+                type:    'file',
+                content: JSON.stringify(obj, null, 2),
+                mode:    '-rw-r--r--'
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and redirect operators (> file).
+           Returns string[] — strips quotes, handles spaces inside quotes.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Detect > redirect in raw arg array.
+           Returns { clean: args[], redirect: string|null } */
+        function splitRedirect(args) {
+            var rIdx = args.indexOf('>');
+            if (rIdx < 0) return { clean: args, redirect: null };
+            return {
+                clean:    args.slice(0, rIdx),
+                redirect: args[rIdx + 1] || null
+            };
+        }
+
+        /* Extract a named flag value: --text ~/texts/foo.txt -> '~/texts/foo.txt' */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* ════════════════════════════════════════════════
+           SIMULATED API RESPONSES
+           Each constant/function returns a realistic JSON
+           object matching the actual Azure AI Language
+           REST API response shape.
+        ════════════════════════════════════════════════ */
+
+        /* ── Sentiment: positive review ── */
+        var SENTIMENT_POSITIVE = {
+            requestId: 'req-lang-sent-pos-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'SentimentAnalysis',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id:       '1',
+                        sentiment: 'positive',
+                        confidenceScores: {
+                            positive: 0.97,
+                            neutral:  0.02,
+                            negative: 0.01
+                        },
+                        sentences: [
+                            {
+                                text:      'The hotel was absolutely wonderful.',
+                                sentiment: 'positive',
+                                confidenceScores: { positive: 0.99, neutral: 0.01, negative: 0.00 },
+                                offset: 0,
+                                length: 36
+                            },
+                            {
+                                text:      'The staff went above and beyond to make our stay memorable.',
+                                sentiment: 'positive',
+                                confidenceScores: { positive: 0.98, neutral: 0.01, negative: 0.01 },
+                                offset: 37,
+                                length: 59
+                            },
+                            {
+                                text:      'The room was spotless and the view was breathtaking.',
+                                sentiment: 'positive',
+                                confidenceScores: { positive: 0.97, neutral: 0.02, negative: 0.01 },
+                                offset: 97,
+                                length: 52
+                            },
+                            {
+                                text:      'Would definitely recommend to anyone visiting the area.',
+                                sentiment: 'positive',
+                                confidenceScores: { positive: 0.96, neutral: 0.03, negative: 0.01 },
+                                offset: 150,
+                                length: 55
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2022-11-01'
+            }
+        };
+
+        /* ── Sentiment: negative review ── */
+        var SENTIMENT_NEGATIVE = {
+            requestId: 'req-lang-sent-neg-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'SentimentAnalysis',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id:       '1',
+                        sentiment: 'negative',
+                        confidenceScores: {
+                            positive: 0.01,
+                            neutral:  0.04,
+                            negative: 0.95
+                        },
+                        sentences: [
+                            {
+                                text:      'Terrible experience.',
+                                sentiment: 'negative',
+                                confidenceScores: { positive: 0.00, neutral: 0.02, negative: 0.98 },
+                                offset: 0,
+                                length: 20
+                            },
+                            {
+                                text:      'The room was dirty, the AC was broken, and the front desk staff was rude.',
+                                sentiment: 'negative',
+                                confidenceScores: { positive: 0.01, neutral: 0.03, negative: 0.96 },
+                                offset: 21,
+                                length: 72
+                            },
+                            {
+                                text:      'I waited 45 minutes for check-in.',
+                                sentiment: 'negative',
+                                confidenceScores: { positive: 0.01, neutral: 0.12, negative: 0.87 },
+                                offset: 94,
+                                length: 34
+                            },
+                            {
+                                text:      'Never coming back.',
+                                sentiment: 'negative',
+                                confidenceScores: { positive: 0.00, neutral: 0.05, negative: 0.95 },
+                                offset: 129,
+                                length: 18
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2022-11-01'
+            }
+        };
+
+        /* ── Sentiment: neutral review ── */
+        var SENTIMENT_NEUTRAL = {
+            requestId: 'req-lang-sent-neu-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'SentimentAnalysis',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id:       '1',
+                        sentiment: 'neutral',
+                        confidenceScores: {
+                            positive: 0.12,
+                            neutral:  0.78,
+                            negative: 0.10
+                        },
+                        sentences: [
+                            {
+                                text:      'The hotel was adequate for the price.',
+                                sentiment: 'neutral',
+                                confidenceScores: { positive: 0.10, neutral: 0.80, negative: 0.10 },
+                                offset: 0,
+                                length: 37
+                            },
+                            {
+                                text:      'The room was clean but small.',
+                                sentiment: 'neutral',
+                                confidenceScores: { positive: 0.15, neutral: 0.75, negative: 0.10 },
+                                offset: 38,
+                                length: 29
+                            },
+                            {
+                                text:      'Breakfast was included but limited.',
+                                sentiment: 'neutral',
+                                confidenceScores: { positive: 0.12, neutral: 0.78, negative: 0.10 },
+                                offset: 68,
+                                length: 35
+                            },
+                            {
+                                text:      'Location was convenient for the conference center.',
+                                sentiment: 'positive',
+                                confidenceScores: { positive: 0.72, neutral: 0.22, negative: 0.06 },
+                                offset: 104,
+                                length: 50
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2022-11-01'
+            }
+        };
+
+        /* ── Key phrases: news article ── */
+        var KEY_PHRASES_NEWS = {
+            requestId: 'req-lang-kp-news-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'KeyPhraseExtraction',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id:         '1',
+                        keyPhrases: [
+                            'Azure AI services',
+                            '10 billion API calls',
+                            'Q1 2026',
+                            'Satya Nadella',
+                            'annual Build conference',
+                            'Seattle',
+                            'OpenAI',
+                            'GPT-5',
+                            'Microsoft 365 products',
+                            'Microsoft'
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2022-07-01'
+            }
+        };
+
+        /* ── Entities (NER): news article ── */
+        var ENTITIES_NEWS = {
+            requestId: 'req-lang-ner-news-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'EntityRecognition',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id: '1',
+                        entities: [
+                            {
+                                text:       'Microsoft',
+                                category:   'Organization',
+                                subcategory: null,
+                                confidenceScore: 0.99,
+                                offset:     0,
+                                length:     9
+                            },
+                            {
+                                text:       'Azure AI services',
+                                category:   'Product',
+                                subcategory: null,
+                                confidenceScore: 0.96,
+                                offset:     39,
+                                length:     17
+                            },
+                            {
+                                text:       '10 billion',
+                                category:   'Quantity',
+                                subcategory: 'Number',
+                                confidenceScore: 0.98,
+                                offset:     67,
+                                length:     10
+                            },
+                            {
+                                text:       'Q1 2026',
+                                category:   'DateTime',
+                                subcategory: 'DateRange',
+                                confidenceScore: 0.97,
+                                offset:     87,
+                                length:     7
+                            },
+                            {
+                                text:       'Satya Nadella',
+                                category:   'Person',
+                                subcategory: null,
+                                confidenceScore: 0.99,
+                                offset:     104,
+                                length:     13
+                            },
+                            {
+                                text:       'Build conference',
+                                category:   'Event',
+                                subcategory: null,
+                                confidenceScore: 0.94,
+                                offset:     143,
+                                length:     16
+                            },
+                            {
+                                text:       'Seattle',
+                                category:   'Location',
+                                subcategory: 'City',
+                                confidenceScore: 0.98,
+                                offset:     163,
+                                length:     7
+                            },
+                            {
+                                text:       'OpenAI',
+                                category:   'Organization',
+                                subcategory: null,
+                                confidenceScore: 0.97,
+                                offset:     210,
+                                length:     6
+                            },
+                            {
+                                text:       'GPT-5',
+                                category:   'Product',
+                                subcategory: null,
+                                confidenceScore: 0.93,
+                                offset:     232,
+                                length:     5
+                            },
+                            {
+                                text:       'Microsoft 365',
+                                category:   'Product',
+                                subcategory: null,
+                                confidenceScore: 0.96,
+                                offset:     249,
+                                length:     13
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2023-02-01'
+            }
+        };
+
+        /* ── Entities (NER): negative review (used for Task 10) ── */
+        var ENTITIES_NEGATIVE = {
+            requestId: 'req-lang-ner-neg-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'EntityRecognition',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id: '1',
+                        entities: [
+                            {
+                                text:       '45 minutes',
+                                category:   'Quantity',
+                                subcategory: 'Duration',
+                                confidenceScore: 0.98,
+                                offset:     94,
+                                length:     10
+                            },
+                            {
+                                text:       'AC',
+                                category:   'Product',
+                                subcategory: null,
+                                confidenceScore: 0.77,
+                                offset:     43,
+                                length:     2
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2023-02-01'
+            }
+        };
+
+        /* ── PII detection: support tickets ── */
+        var PII_SUPPORT = {
+            requestId: 'req-lang-pii-tickets-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'PiiEntityRecognition',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id: '1',
+                        redactedText: 'Ticket #1001 — *** (***@***, ***-***-****):\nMy account is locked and I cannot reset my password. Please help urgently.\n\nTicket #1002 — *** (***@***, ***-***-****):\nI was charged twice for my subscription on April 14th. My credit card ending in **** shows two deductions of $49.99.\n\nTicket #1003 — Anonymous:\nHow do I export my data before the May 1st deadline?\n\nTicket #1004 — *** (***@***, ***-***-****):\nThe dashboard is showing incorrect metrics. This has been broken since March 28th.\n\nTicket #1005 — *** (***@***, ***-***-****):\nRequesting refund for invoice #INV-2026-0342. Product did not meet advertised specifications.',
+                        entities: [
+                            { text: 'John Martinez',      category: 'Person',                      confidenceScore: 0.98, offset: 15,  length: 13 },
+                            { text: 'john.martinez@example.com', category: 'Email',                confidenceScore: 0.99, offset: 30,  length: 25 },
+                            { text: '555-847-2910',       category: 'PhoneNumber',                 confidenceScore: 0.99, offset: 57,  length: 12 },
+                            { text: 'Sarah Thompson',     category: 'Person',                      confidenceScore: 0.97, offset: 154, length: 14 },
+                            { text: 'sarah.t@company.net', category: 'Email',                      confidenceScore: 0.99, offset: 170, length: 19 },
+                            { text: '407-555-0183',       category: 'PhoneNumber',                 confidenceScore: 0.99, offset: 191, length: 12 },
+                            { text: 'April 14th',         category: 'DateTime',                    confidenceScore: 0.92, offset: 248, length: 10 },
+                            { text: '4821',               category: 'CreditCardNumber',            confidenceScore: 0.96, offset: 298, length: 4  },
+                            { text: 'David Kim',          category: 'Person',                      confidenceScore: 0.97, offset: 398, length: 9  },
+                            { text: 'd.kim@workmail.com', category: 'Email',                       confidenceScore: 0.99, offset: 409, length: 18 },
+                            { text: '212-555-7744',       category: 'PhoneNumber',                 confidenceScore: 0.99, offset: 429, length: 12 },
+                            { text: 'Maria Gonzalez',     category: 'Person',                      confidenceScore: 0.98, offset: 534, length: 14 },
+                            { text: 'mgonzalez@bizorg.io', category: 'Email',                      confidenceScore: 0.99, offset: 550, length: 19 },
+                            { text: '954-555-0029',       category: 'PhoneNumber',                 confidenceScore: 0.99, offset: 571, length: 12 }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2023-01-01'
+            }
+        };
+
+        /* ── Extractive summary: meeting notes ── */
+        var SUMMARY_MEETING = {
+            requestId: 'req-lang-summary-meeting-' + Date.now(),
+            service:   'Azure AI Language',
+            feature:   'ExtractiveSummarization',
+            apiVersion: '2023-04-01',
+            results: {
+                documents: [
+                    {
+                        id: '1',
+                        sentences: [
+                            {
+                                text:         'Active users grew 24% quarter-over-quarter, driven primarily by the new onboarding flow shipped in February.',
+                                rankScore:    0.95,
+                                offset:       161,
+                                length:       107
+                            },
+                            {
+                                text:         'She proposed migrating three non-critical services to spot instances to reduce spend by an estimated $40,000 per month.',
+                                rankScore:    0.91,
+                                offset:       386,
+                                length:       118
+                            },
+                            {
+                                text:         'Average contract value is up 31% and time-to-close has dropped from 47 days to 29 days.',
+                                rankScore:    0.88,
+                                offset:       611,
+                                length:       88
+                            },
+                            {
+                                text:         'The team agreed on the following action items: (1) Priya will complete the spot-instance migration by April 30th. (2) Alex will redesign the feature flag system before the Q2 release. (3) Tom will prepare a competitive analysis for the board meeting on May 12th.',
+                                rankScore:    0.85,
+                                offset:       700,
+                                length:       262
+                            }
+                        ],
+                        warnings: []
+                    }
+                ],
+                errors:    [],
+                modelVersion: '2023-02-01'
+            }
+        };
+
+        /* ── Language detection (bonus: any file) ── */
+        function buildLanguageDetection(textFile) {
+            return {
+                requestId: 'req-lang-detect-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'LanguageDetection',
+                apiVersion: '2023-04-01',
+                results: {
+                    documents: [
+                        {
+                            id:                '1',
+                            detectedLanguage: {
+                                name:          'English',
+                                iso6391Name:   'en',
+                                confidenceScore:    0.99
+                            },
+                            warnings: []
+                        }
+                    ],
+                    errors:    [],
+                    modelVersion: '2022-10-01'
+                }
+            };
+        }
+
+        /* ── CLU predictions ── */
+        var CLU_RESPONSES = {
+            /* "Book a flight from Miami to London next Friday" */
+            bookflight: {
+                requestId: 'req-lang-clu-book-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'ConversationalLanguageUnderstanding',
+                projectName: 'travel-bot',
+                apiVersion: '2023-04-01',
+                result: {
+                    query:    'Book a flight from Miami to London next Friday',
+                    prediction: {
+                        topIntent:   'BookFlight',
+                        projectKind: 'Conversation',
+                        intents: [
+                            { category: 'BookFlight',   confidenceScore: 0.94 },
+                            { category: 'GetWeather',   confidenceScore: 0.03 },
+                            { category: 'CancelFlight', confidenceScore: 0.02 },
+                            { category: 'None',         confidenceScore: 0.01 }
+                        ],
+                        entities: [
+                            {
+                                category:   'origin',
+                                text:       'Miami',
+                                confidenceScore: 0.97,
+                                offset:     19,
+                                length:     5
+                            },
+                            {
+                                category:   'destination',
+                                text:       'London',
+                                confidenceScore: 0.96,
+                                offset:     28,
+                                length:     6
+                            },
+                            {
+                                category:   'date',
+                                text:       'next Friday',
+                                confidenceScore: 0.93,
+                                offset:     35,
+                                length:     11
+                            }
+                        ]
+                    }
+                }
+            },
+            /* "What is the weather like in Tokyo" */
+            getweather: {
+                requestId: 'req-lang-clu-weather-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'ConversationalLanguageUnderstanding',
+                projectName: 'travel-bot',
+                apiVersion: '2023-04-01',
+                result: {
+                    query:    'What is the weather like in Tokyo',
+                    prediction: {
+                        topIntent:   'GetWeather',
+                        projectKind: 'Conversation',
+                        intents: [
+                            { category: 'GetWeather',   confidenceScore: 0.91 },
+                            { category: 'BookFlight',   confidenceScore: 0.05 },
+                            { category: 'CancelFlight', confidenceScore: 0.03 },
+                            { category: 'None',         confidenceScore: 0.01 }
+                        ],
+                        entities: [
+                            {
+                                category:   'location',
+                                text:       'Tokyo',
+                                confidenceScore: 0.98,
+                                offset:     27,
+                                length:     5
+                            }
+                        ]
+                    }
+                }
+            }
+        };
+
+        /* Choose CLU response based on utterance keywords */
+        function matchCLU(utterance, project) {
+            if (project !== 'travel-bot') {
+                return {
+                    requestId: 'req-lang-clu-unknown-' + Date.now(),
+                    service:   'Azure AI Language',
+                    feature:   'ConversationalLanguageUnderstanding',
+                    projectName: project,
+                    error: {
+                        code:    'ProjectNotFound',
+                        message: 'Project "' + project + '" not found. Available projects: travel-bot'
+                    }
+                };
+            }
+            var u = utterance.toLowerCase();
+            if (u.indexOf('book') >= 0 || u.indexOf('flight') >= 0 || u.indexOf('miami') >= 0) {
+                return CLU_RESPONSES.bookflight;
+            }
+            if (u.indexOf('weather') >= 0 || u.indexOf('tokyo') >= 0) {
+                return CLU_RESPONSES.getweather;
+            }
+            /* Fallback: None intent */
+            return {
+                requestId: 'req-lang-clu-none-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'ConversationalLanguageUnderstanding',
+                projectName: project,
+                result: {
+                    query: utterance,
+                    prediction: {
+                        topIntent:   'None',
+                        projectKind: 'Conversation',
+                        intents:     [{ category: 'None', confidenceScore: 0.82 }],
+                        entities:    []
+                    }
+                }
+            };
+        }
+
+        /* ── Translator responses ── */
+        function buildTranslation(text, fromLang, toLang) {
+            /* Pre-defined translations for the specified text */
+            var translations = {
+                'The weather in Seattle is beautiful today': {
+                    es: 'El clima en Seattle es hermoso hoy.',
+                    fr: 'Le temps \u00e0 Seattle est magnifique aujourd\'hui.',
+                    de: 'Das Wetter in Seattle ist heute wundersch\u00f6n.',
+                    ja: '\u30b7\u30a2\u30c8\u30eb\u306e\u4eca\u65e5\u306e\u5929\u6c17\u306f\u7d20\u6674\u3089\u3057\u3044\u3067\u3059\u3002',
+                    zh: '\u897f\u96c5\u56fe\u4eca\u5929\u7684\u5929\u6c14\u5f88\u7f8e\u3002',
+                    pt: 'O clima em Seattle \u00e9 lindo hoje.',
+                    ar: '\u0627\u0644\u0637\u0642\u0633 \u0641\u064a \u0633\u064a\u0627\u062a\u0644 \u062c\u0645\u064a\u0644 \u0627\u0644\u064a\u0648\u0645.'
+                }
+            };
+
+            var langNames = {
+                es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese',
+                zh: 'Chinese Simplified', pt: 'Portuguese', ar: 'Arabic',
+                it: 'Italian', ko: 'Korean', ru: 'Russian'
+            };
+
+            var known = translations[text];
+            var translatedText;
+            if (known && known[toLang]) {
+                translatedText = known[toLang];
+            } else {
+                /* Plausible stub for other combinations */
+                translatedText = '[' + (langNames[toLang] || toLang.toUpperCase()) + ' translation of: ' + text + ']';
+            }
+
+            return {
+                requestId: 'req-trans-' + fromLang + '-' + toLang + '-' + Date.now(),
+                service:   'Azure Translator',
+                apiVersion: '3.0',
+                translations: [
+                    {
+                        text:         translatedText,
+                        to:           toLang,
+                        languageName: langNames[toLang] || toLang
+                    }
+                ],
+                detectedLanguage: {
+                    language:   fromLang,
+                    confidenceScore: 0.99
+                }
+            };
+        }
+
+        /* ── Route text file to sentiment response ── */
+        function getSentimentForFile(filename) {
+            if (filename === 'review-positive.txt') return SENTIMENT_POSITIVE;
+            if (filename === 'review-negative.txt') return SENTIMENT_NEGATIVE;
+            if (filename === 'review-neutral.txt')  return SENTIMENT_NEUTRAL;
+            /* Generic fallback for other files */
+            return {
+                requestId: 'req-lang-sent-generic-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'SentimentAnalysis',
+                results: {
+                    documents: [
+                        {
+                            id:        '1',
+                            sentiment: 'neutral',
+                            confidenceScores: { positive: 0.20, neutral: 0.65, negative: 0.15 },
+                            sentences: [],
+                            warnings:  []
+                        }
+                    ],
+                    errors: [],
+                    modelVersion: '2022-11-01'
+                }
+            };
+        }
+
+        /* ── Route text file to entities response ── */
+        function getEntitiesForFile(filename) {
+            if (filename === 'news-article.txt')    return ENTITIES_NEWS;
+            if (filename === 'review-negative.txt') return ENTITIES_NEGATIVE;
+            return {
+                requestId: 'req-lang-ner-generic-' + Date.now(),
+                service:   'Azure AI Language',
+                feature:   'EntityRecognition',
+                results: {
+                    documents: [
+                        { id: '1', entities: [], warnings: [] }
+                    ],
+                    errors: [],
+                    modelVersion: '2023-02-01'
+                }
+            };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az
+        ════════════════════════════════════════════════ */
+        function cmd_az(args) {
+            if (!args.length) {
+                addLine('az: command not found. Try "az --help" or just "help".', 'term-line-err');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'cognitiveservices') return cmd_az_cog(args.slice(1));
+            if (sub === 'language')          return cmd_az_language(args.slice(1));
+            if (sub === 'translator')        return cmd_az_translator(args.slice(1));
+
+            /* az account show */
+            if (sub === 'account' && args[1] === 'show') {
+                printJSON({
+                    id:              SUB_ID,
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        TENANT,
+                    isDefault:       true,
+                    environmentName: 'AzureCloud',
+                    homeTenantId:    TENANT
+                });
+                return 'account_shown';
+            }
+
+            addLine('az ' + args.join(' ') + ': unrecognised command. Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ── az cognitiveservices ── */
+        function cmd_az_cog(args) {
+            if (!args.length || args[0] !== 'account') {
+                addLine('az cognitiveservices: usage: az cognitiveservices account <subcommand>', 'term-line-err');
+                return null;
+            }
+            var sub = args[1];
+
+            /* az cognitiveservices account show */
+            if (sub === 'show') {
+                var name = flagVal(args, '--name');
+                var rg   = flagVal(args, '--resource-group');
+                if (!name || !rg) {
+                    addLine('az cognitiveservices account show: --name and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                if (name !== LANG_NAME || rg !== RG_NAME) {
+                    addLine('ERROR: Resource "' + name + '" not found in group "' + rg + '".', 'term-line-err');
+                    addLine('Hint: the pre-configured resource is "' + LANG_NAME + '" in "' + RG_NAME + '".', 'term-line-info');
+                    return null;
+                }
+                printJSON({
+                    id:       '/subscriptions/' + SUB_ID + '/resourceGroups/' + RG_NAME + '/providers/Microsoft.CognitiveServices/accounts/' + LANG_NAME,
+                    name:     LANG_NAME,
+                    type:     'Microsoft.CognitiveServices/accounts',
+                    location: LOCATION,
+                    kind:     'TextAnalytics',
+                    sku:      { name: 'S', tier: 'Standard' },
+                    properties: {
+                        endpoint:          LANG_ENDPOINT,
+                        provisioningState: 'Succeeded',
+                        internalId:        'v3-lang-' + SUB_ID.substring(0, 8),
+                        dateCreated:       '2026-04-19T08:00:00Z',
+                        callRateLimit: {
+                            rules: [
+                                { key: 'default', renewalPeriod: 1, count: 1000, dynamicThrottlingEnabled: true }
+                            ]
+                        }
+                    },
+                    tags: {
+                        environment: 'lab',
+                        course:      'AI-900'
+                    }
+                });
+                return { shown: true, name: name };
+            }
+
+            /* az cognitiveservices account keys list */
+            if (sub === 'keys' && args[2] === 'list') {
+                var kname = flagVal(args, '--name');
+                var krg   = flagVal(args, '--resource-group');
+                if (!kname || !krg) {
+                    addLine('az cognitiveservices account keys list: --name and --resource-group are required.', 'term-line-err');
+                    return null;
+                }
+                printJSON({ key1: LANG_KEY1, key2: LANG_KEY2 });
+                return { keys_retrieved: true };
+            }
+
+            addLine('az cognitiveservices account ' + (sub || '') + ': unrecognised sub-command.', 'term-line-err');
+            return null;
+        }
+
+        /* ── az language ── */
+        function cmd_az_language(args) {
+            if (!args.length) {
+                addLine('az language: usage: az language <subcommand>', 'term-line-err');
+                addLine('Subcommands: analyze, clu', 'term-line-info');
+                return null;
+            }
+
+            var sub = args[0];
+
+            if (sub === 'analyze') return cmd_az_language_analyze(args.slice(1));
+            if (sub === 'clu')     return cmd_az_language_clu(args.slice(1));
+
+            addLine('az language: unrecognised subcommand "' + sub + '". Try "analyze" or "clu".', 'term-line-err');
+            return null;
+        }
+
+        /* ── az language analyze ── */
+        function cmd_az_language_analyze(args) {
+            var sr        = splitRedirect(args);
+            var cleanArgs = sr.clean;
+            var redirect  = sr.redirect;
+
+            var textArg   = flagVal(cleanArgs, '--text');
+            var feature   = flagVal(cleanArgs, '--feature');
+
+            if (!textArg) {
+                addLine('az language analyze: --text <file-or-string> is required.', 'term-line-err');
+                return null;
+            }
+            if (!feature) {
+                addLine('az language analyze: --feature <name> is required.', 'term-line-err');
+                addLine('Features: sentiment, key-phrases, entities, language, pii, summary', 'term-line-info');
+                return null;
+            }
+
+            var validFeatures = ['sentiment', 'key-phrases', 'entities', 'language', 'pii', 'summary'];
+            if (validFeatures.indexOf(feature) < 0) {
+                addLine('az language analyze: unknown feature "' + feature + '".', 'term-line-err');
+                addLine('Valid features: sentiment, key-phrases, entities, language, pii, summary', 'term-line-info');
+                return null;
+            }
+
+            /* Resolve text: file path or inline string */
+            var textFile   = null;
+            var inputText  = null;
+            var resolvedPath = resolve(textArg);
+
+            if (isFile(resolvedPath)) {
+                textFile  = baseName(resolvedPath);
+                inputText = vfs[resolvedPath].content || '';
+            } else {
+                /* Treat as a literal string — validate it is not a path-like thing */
+                if (textArg.indexOf('/') >= 0 || textArg.indexOf('~') >= 0) {
+                    addLine('az language analyze: file not found: ' + textArg, 'term-line-err');
+                    addLine('Available text files: ls ~/texts/', 'term-line-info');
+                    return null;
+                }
+                inputText = textArg;
+                textFile  = null;
+            }
+
+            /* Build result based on feature and source file */
+            var result = null;
+
+            switch (feature) {
+                case 'sentiment':
+                    result = textFile ? getSentimentForFile(textFile) : getSentimentForFile('');
+                    break;
+                case 'key-phrases':
+                    result = (textFile === 'news-article.txt') ? KEY_PHRASES_NEWS : {
+                        requestId: 'req-lang-kp-' + Date.now(),
+                        service:   'Azure AI Language',
+                        feature:   'KeyPhraseExtraction',
+                        results: {
+                            documents: [{ id: '1', keyPhrases: ['key concept', 'main topic', 'important phrase'], warnings: [] }],
+                            errors: [], modelVersion: '2022-07-01'
+                        }
+                    };
+                    break;
+                case 'entities':
+                    result = textFile ? getEntitiesForFile(textFile) : getEntitiesForFile('');
+                    break;
+                case 'language':
+                    result = buildLanguageDetection(textFile || inputText);
+                    break;
+                case 'pii':
+                    result = (textFile === 'support-tickets.txt') ? PII_SUPPORT : {
+                        requestId: 'req-lang-pii-' + Date.now(),
+                        service:   'Azure AI Language',
+                        feature:   'PiiEntityRecognition',
+                        results: {
+                            documents: [{ id: '1', redactedText: inputText, entities: [], warnings: [] }],
+                            errors: [], modelVersion: '2023-01-01'
+                        }
+                    };
+                    break;
+                case 'summary':
+                    result = (textFile === 'meeting-notes.txt') ? SUMMARY_MEETING : {
+                        requestId: 'req-lang-summary-' + Date.now(),
+                        service:   'Azure AI Language',
+                        feature:   'ExtractiveSummarization',
+                        results: {
+                            documents: [{
+                                id: '1',
+                                sentences: [{ text: inputText, rankScore: 0.80, offset: 0, length: inputText.length }],
+                                warnings:  []
+                            }],
+                            errors: [], modelVersion: '2023-02-01'
+                        }
+                    };
+                    break;
+                default:
+                    result = { error: 'Feature not implemented.' };
+            }
+
+            if (redirect) {
+                saveJSON(result, redirect);
+                addLine('(output redirected to ' + redirect + ')', 'term-line-info');
+                return { saved: true, path: redirect, textFile: textFile, feature: feature, result: result };
+            }
+
+            printJSON(result);
+            return { saved: false, textFile: textFile, feature: feature, result: result };
+        }
+
+        /* ── az language clu predict ── */
+        function cmd_az_language_clu(args) {
+            if (!args.length || args[0] !== 'predict') {
+                addLine('az language clu: usage: az language clu predict --utterance <text> --project <name>', 'term-line-err');
+                return null;
+            }
+
+            var sr        = splitRedirect(args.slice(1));
+            var cleanArgs = sr.clean;
+            var redirect  = sr.redirect;
+
+            var utterance = flagVal(cleanArgs, '--utterance');
+            var project   = flagVal(cleanArgs, '--project');
+
+            if (!utterance) {
+                addLine('az language clu predict: --utterance <text> is required.', 'term-line-err');
+                return null;
+            }
+            if (!project) {
+                addLine('az language clu predict: --project <name> is required.', 'term-line-err');
+                addLine('Available projects: travel-bot', 'term-line-info');
+                return null;
+            }
+
+            var result = matchCLU(utterance, project);
+
+            if (redirect) {
+                saveJSON(result, redirect);
+                addLine('(output redirected to ' + redirect + ')', 'term-line-info');
+                return { saved: true, path: redirect, utterance: utterance, project: project, result: result };
+            }
+
+            printJSON(result);
+            return { saved: false, utterance: utterance, project: project, result: result };
+        }
+
+        /* ── az translator translate ── */
+        function cmd_az_translator(args) {
+            if (!args.length || args[0] !== 'translate') {
+                addLine('az translator: usage: az translator translate --text <text> --from <lang> --to <lang>', 'term-line-err');
+                return null;
+            }
+
+            var sr        = splitRedirect(args.slice(1));
+            var cleanArgs = sr.clean;
+            var redirect  = sr.redirect;
+
+            var text     = flagVal(cleanArgs, '--text');
+            var fromLang = flagVal(cleanArgs, '--from');
+            var toLang   = flagVal(cleanArgs, '--to');
+
+            if (!text) {
+                addLine('az translator translate: --text <text> is required.', 'term-line-err');
+                return null;
+            }
+            if (!fromLang) {
+                addLine('az translator translate: --from <language-code> is required.', 'term-line-err');
+                return null;
+            }
+            if (!toLang) {
+                addLine('az translator translate: --to <language-code> is required.', 'term-line-err');
+                return null;
+            }
+
+            var validLangs = ['en', 'es', 'fr', 'de', 'ja', 'zh', 'pt', 'ar', 'it', 'ko', 'ru'];
+            if (validLangs.indexOf(toLang) < 0) {
+                addLine('az translator translate: unsupported language code "' + toLang + '".', 'term-line-err');
+                addLine('Supported codes: en, es, fr, de, ja, zh, pt, ar, it, ko, ru', 'term-line-info');
+                return null;
+            }
+
+            var result = buildTranslation(text, fromLang, toLang);
+
+            if (redirect) {
+                saveJSON(result, redirect);
+                addLine('(output redirected to ' + redirect + ')', 'term-line-info');
+                return { saved: true, path: redirect, text: text, fromLang: fromLang, toLang: toLang, result: result };
+            }
+
+            printJSON(result);
+            return { saved: false, text: text, fromLang: fromLang, toLang: toLang, result: result };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: diff
+           Shows a structural comparison between two saved result files.
+        ════════════════════════════════════════════════ */
+        function cmd_diff(args) {
+            if (args.length < 2) {
+                addLine('Usage: diff <file1> <file2>', 'term-line-err');
+                return null;
+            }
+            var p1 = resolve(args[0]);
+            var p2 = resolve(args[1]);
+
+            if (!isFile(p1)) { addLine('diff: ' + args[0] + ': No such file', 'term-line-err'); return null; }
+            if (!isFile(p2)) { addLine('diff: ' + args[1] + ': No such file', 'term-line-err'); return null; }
+
+            var c1 = vfs[p1].content || '';
+            var c2 = vfs[p2].content || '';
+
+            if (c1 === c2) {
+                addLine('Files are identical.', 'term-line-out');
+                return { identical: true };
+            }
+
+            var obj1 = null, obj2 = null;
+            try { obj1 = JSON.parse(c1); } catch (e) { /* not json */ }
+            try { obj2 = JSON.parse(c2); } catch (e) { /* not json */ }
+
+            var keys1 = obj1 ? Object.keys(obj1).sort() : [];
+            var keys2 = obj2 ? Object.keys(obj2).sort() : [];
+
+            addLine('--- ' + args[0], 'term-line-warn');
+            addLine('+++ ' + args[1], 'term-line-info');
+            addBlank();
+
+            /* Keys present in file1 only */
+            keys1.forEach(function (k) {
+                if (keys2.indexOf(k) < 0) {
+                    addLine('- "' + k + '" key present in ' + baseName(p1) + ' only', 'term-line-warn');
+                }
+            });
+            /* Keys present in file2 only */
+            keys2.forEach(function (k) {
+                if (keys1.indexOf(k) < 0) {
+                    addLine('+ "' + k + '" key present in ' + baseName(p2) + ' only', 'term-line-info');
+                }
+            });
+
+            /* Shared keys — highlight structural differences */
+            var sharedKeys = keys1.filter(function (k) { return keys2.indexOf(k) >= 0; });
+            sharedKeys.forEach(function (k) {
+                var v1 = obj1[k], v2 = obj2[k];
+                var t1 = Array.isArray(v1) ? 'array[' + v1.length + ']' : typeof v1;
+                var t2 = Array.isArray(v2) ? 'array[' + v2.length + ']' : typeof v2;
+                if (t1 !== t2) {
+                    addLine('  "' + k + '": type differs — ' + t1 + ' vs ' + t2, 'term-line-out');
+                } else if (t1.indexOf('array') >= 0 && t2.indexOf('array') >= 0) {
+                    var len1 = v1.length, len2 = v2.length;
+                    if (len1 !== len2) {
+                        addLine('  "' + k + '": array length differs — ' + len1 + ' vs ' + len2, 'term-line-out');
+                    }
+                    if (len1 > 0 && len2 > 0 && typeof v1[0] === 'object' && typeof v2[0] === 'object') {
+                        var ik1 = Object.keys(v1[0]).sort().join(',');
+                        var ik2 = Object.keys(v2[0]).sort().join(',');
+                        if (ik1 !== ik2) {
+                            addLine('  "' + k + '[0]" item keys differ:', 'term-line-out');
+                            addLine('  -  ' + baseName(p1) + ': { ' + ik1 + ' }', 'term-line-warn');
+                            addLine('  +  ' + baseName(p2) + ': { ' + ik2 + ' }', 'term-line-info');
+                        }
+                    }
+                } else if (k === 'feature') {
+                    addLine('  "feature": "' + v1 + '" vs "' + v2 + '"', 'term-line-out');
+                }
+            });
+
+            /* Explain the semantic difference for the key NLP comparison */
+            var f1Low = (args[0] || '').toLowerCase();
+            var f2Low = (args[1] || '').toLowerCase();
+            if ((f1Low.indexOf('sentiment') >= 0 && f2Low.indexOf('entit') >= 0) ||
+                (f1Low.indexOf('entit') >= 0 && f2Low.indexOf('sentiment') >= 0)) {
+                addBlank();
+                addLine('  Insight: "sentiment" returns emotional tone (positive/negative/neutral)', 'term-line-info');
+                addLine('  with per-sentence confidence scores.', 'term-line-info');
+                addLine('  "entities" returns factual information (people, places, dates, products)', 'term-line-info');
+                addLine('  with offsets and category labels.', 'term-line-info');
+                addLine('  Both analyse the same text but answer different questions.', 'term-line-info');
+            }
+
+            addBlank();
+            return { diffed: true, f1: args[0], f2: args[1] };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: pwd
+        ════════════════════════════════════════════════ */
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: cd
+        ════════════════════════════════════════════════ */
+        function cmd_cd(args) {
+            var t    = args[0] || HOME;
+            t        = t.replace(/^~/, HOME);
+            var dest = resolve(t);
+            if (!isDir(dest)) {
+                addLine('bash: cd: ' + (args[0] || '~') + ': No such file or directory', 'term-line-err');
+                return false;
+            }
+            cwd = dest;
+            updatePS1();
+            return true;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: ls
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var showAll = false, longFmt = false, paths = [];
+            for (var i = 0; i < args.length; i++) {
+                var a = args[i];
+                if (a === '-la' || a === '-al') { showAll = true; longFmt = true; }
+                else if (a === '-l')  { longFmt = true; }
+                else if (a === '-a')  { showAll = true; }
+                else if (a[0] === '-') { /* ignore unknown flags */ }
+                else { paths.push(a); }
+            }
+            if (paths.length === 0) paths.push('.');
+            var allNames = [];
+
+            paths.forEach(function (p) {
+                var rp = (p === '.') ? cwd : resolve(p);
+                if (!exists(rp)) {
+                    addLine("ls: cannot access '" + p + "': No such file or directory", 'term-line-err');
+                    return;
+                }
+                if (isFile(rp)) {
+                    if (longFmt) {
+                        var sz = (vfs[rp].content || '').length;
+                        addLine(vfs[rp].mode + '  1 ' + USER + ' ' + USER + '  ' + String(sz).padStart(6) + ' Apr 19 09:00 ' + baseName(rp), 'term-line-out');
+                    } else {
+                        addLine(baseName(rp), 'term-line-out');
+                    }
+                    allNames.push(baseName(rp));
+                    return;
+                }
+                var entries = listDir(rp);
+                if (longFmt) {
+                    addLine('total ' + entries.length * 4, 'term-line-out');
+                    if (showAll) {
+                        addLine('drwxr-xr-x  ' + (entries.length + 2) + ' ' + USER + ' ' + USER + '  4096 Apr 19 09:00 .', 'term-line-out');
+                        addLine('drwxr-xr-x  3 ' + USER + ' ' + USER + '  4096 Apr 19 09:00 ..', 'term-line-out');
+                    }
+                    entries.forEach(function (name) {
+                        var fp   = (rp === '/' ? '' : rp) + '/' + name;
+                        var node = vfs[fp];
+                        var mode = node ? node.mode : '-rw-r--r--';
+                        var sz2  = (node && node.type === 'file') ? (node.content || '').length : 4096;
+                        var lnk  = (node && node.type === 'dir') ? 2 : 1;
+                        addLine(mode + '  ' + lnk + ' ' + USER + ' ' + USER + '  ' + String(sz2).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                    });
+                } else {
+                    if (entries.length > 0) addLine(entries.join('  '), 'term-line-out');
+                }
+                allNames = allNames.concat(entries);
+            });
+            return allNames;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: cat
+        ════════════════════════════════════════════════ */
+        function cmd_cat(args) {
+            if (!args.length) { addLine('cat: missing file operand', 'term-line-err'); return ''; }
+            var p = resolve(args[0]);
+            if (!isFile(p)) { addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err'); return ''; }
+            var c = vfs[p].content || '';
+
+            /* If the file is valid JSON, print it syntax-highlighted */
+            try {
+                var parsed = JSON.parse(c);
+                printJSON(parsed);
+                return { catted: true, path: p, parsed: parsed };
+            } catch (e) {
+                /* Not JSON — print as plain text */
+                c.split('\n').forEach(function (line) { addLine(line, 'term-line-out'); });
+                return { catted: true, path: p, parsed: null };
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: echo
+        ════════════════════════════════════════════════ */
+        function cmd_echo(args) {
+            var rIdx = -1;
+            for (var i = 0; i < args.length; i++) {
+                if (args[i] === '>') { rIdx = i; break; }
+            }
+            var textParts = (rIdx >= 0) ? args.slice(0, rIdx) : args.slice(0);
+            var target    = (rIdx >= 0) ? args[rIdx + 1] : null;
+
+            var text = textParts.map(function (a) {
+                return a.replace(/\$(\w+)/g, function (_, name) {
+                    return Object.prototype.hasOwnProperty.call(envVars, name) ? envVars[name] : ('$' + name);
+                });
+            }).join(' ');
+
+            if (target) {
+                var fp = resolve(target);
+                vfs[fp] = { type: 'file', content: text, mode: '-rw-r--r--' };
+                return text;
+            }
+            addLine(text, 'term-line-out');
+            return text;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: export
+        ════════════════════════════════════════════════ */
+        function cmd_export(args) {
+            if (!args.length) {
+                Object.keys(envVars).forEach(function (k) {
+                    addLine('export ' + k + '=' + envVars[k], 'term-line-out');
+                });
+                return true;
+            }
+            var raw = args.join(' ');
+            if (raw.indexOf('=') >= 0) {
+                var eqIdx = raw.indexOf('=');
+                var key   = raw.substring(0, eqIdx).trim();
+                var val   = raw.substring(eqIdx + 1).trim();
+                val       = val.replace(/^['"]|['"]$/g, '');
+                envVars[key] = val;
+                return { key: key, val: val };
+            }
+            addLine('export: invalid format. Use: export KEY=value', 'term-line-err');
+            return false;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: help
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addLine('Azure AI Language Lab — Available Commands', 'term-welcome');
+            addBlank();
+            addLine('FILESYSTEM', 'term-line-info');
+            addLine('  pwd                                       Print working directory', 'term-line-out');
+            addLine('  ls [-la] [path]                           List directory contents', 'term-line-out');
+            addLine('  cd [dir]                                  Change directory', 'term-line-out');
+            addLine('  cat <file>                                Display file contents (JSON syntax-highlighted)', 'term-line-out');
+            addLine('  echo [text]                               Print text or expand $VARIABLES', 'term-line-out');
+            addLine('  export KEY=value                          Set environment variable', 'term-line-out');
+            addLine('  diff <file1> <file2>                      Compare two result files', 'term-line-out');
+            addBlank();
+            addLine('AZURE AI LANGUAGE', 'term-line-info');
+            addLine('  az cognitiveservices account show         Show Language resource details', 'term-line-out');
+            addLine('    --name <name> --resource-group <rg>', 'term-line-out');
+            addLine('  az language analyze                       Analyse text', 'term-line-out');
+            addLine('    --text <file-or-string> --feature <feature>', 'term-line-out');
+            addLine('  Features: sentiment  key-phrases  entities  language  pii  summary', 'term-line-out');
+            addLine('  az language clu predict                   Predict intent and entities', 'term-line-out');
+            addLine('    --utterance <text> --project <name>', 'term-line-out');
+            addBlank();
+            addLine('AZURE TRANSLATOR', 'term-line-info');
+            addLine('  az translator translate                   Translate text', 'term-line-out');
+            addLine('    --text <text> --from <lang> --to <lang>', 'term-line-out');
+            addLine('  Language codes: en, es, fr, de, ja, zh, pt, ar, it, ko, ru', 'term-line-out');
+            addBlank();
+            addLine('REDIRECT', 'term-line-info');
+            addLine('  <any az command> > ~/results/output.json  Save output to file', 'term-line-out');
+            addBlank();
+            addLine('SAMPLE TEXT FILES', 'term-line-info');
+            addLine('  ~/texts/review-positive.txt   ~/texts/review-negative.txt', 'term-line-out');
+            addLine('  ~/texts/review-neutral.txt    ~/texts/news-article.txt', 'term-line-out');
+            addLine('  ~/texts/support-tickets.txt   ~/texts/meeting-notes.txt', 'term-line-out');
+            addBlank();
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCHER
+        ════════════════════════════════════════════════ */
+        function execLine(line) {
+            line = line.trim();
+            addPromptLine(line);
+            if (!line) return;
+
+            var args = parseArgs(line);
+            if (!args.length) return;
+
+            var cmd  = args[0];
+            var rest = args.slice(1);
+            var result;
+
+            switch (cmd) {
+                case 'pwd':
+                    result = cmd_pwd();
+                    break;
+                case 'cd':
+                    result = cmd_cd(rest);
+                    break;
+                case 'ls':
+                    result = cmd_ls(rest);
+                    break;
+                case 'cat':
+                    result = cmd_cat(rest);
+                    break;
+                case 'echo':
+                    result = cmd_echo(rest);
+                    break;
+                case 'export':
+                    result = cmd_export(rest);
+                    break;
+                case 'diff':
+                    result = cmd_diff(rest);
+                    break;
+                case 'az':
+                    result = cmd_az(rest);
+                    break;
+                case 'clear':
+                    outputEl.innerHTML = '';
+                    return;
+                case 'help':
+                    cmd_help();
+                    return;
+                case 'history':
+                    if (!cmdHistory.length) {
+                        addLine('(no history)', 'term-line-info');
+                    } else {
+                        cmdHistory.forEach(function (h, i) {
+                            addLine(String(i + 1).padStart(4) + '  ' + h, 'term-line-out');
+                        });
+                    }
+                    return;
+                case 'exit':
+                    addLine('Use "Exit Lab" in the header to leave the lab.', 'term-line-info');
+                    return;
+                case 'sudo':
+                    addLine('student is not in the sudoers file. This incident will be reported.', 'term-line-err');
+                    return;
+                default:
+                    addLine('bash: ' + cmd + ': command not found. Type "help" for available commands.', 'term-line-err');
+                    return;
+            }
+
+            checkTaskCompletion(line, result, args);
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks a specific result signature that
+           can only come from running the correct command(s).
+        ════════════════════════════════════════════════ */
+        function checkTaskCompletion(line, result, args) {
+            var cmd = args[0];
+
+            /* ── Task 1: az cognitiveservices account show --name language-lab ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.shown === true && result.name === LANG_NAME) {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: az language analyze --text review-positive.txt --feature sentiment ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'sentiment' &&
+                    result.textFile === 'review-positive.txt' &&
+                    !result.saved) {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: az language analyze --text review-negative.txt --feature sentiment ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'sentiment' &&
+                    result.textFile === 'review-negative.txt' &&
+                    !result.saved) {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: az language analyze --text news-article.txt --feature key-phrases ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'key-phrases' &&
+                    result.textFile === 'news-article.txt' &&
+                    !result.saved) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: az language analyze --text news-article.txt --feature entities ── */
+            if (!taskDone[5]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'entities' &&
+                    result.textFile === 'news-article.txt' &&
+                    !result.saved) {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: az language analyze --text support-tickets.txt --feature pii ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'pii' &&
+                    result.textFile === 'support-tickets.txt' &&
+                    !result.saved) {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: translate to Spanish AND French (both required) ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.toLang !== undefined) {
+                    if (result.toLang === 'es') task7_es = true;
+                    if (result.toLang === 'fr') task7_fr = true;
+                }
+                if (task7_es && task7_fr) completeTask(7);
+            }
+
+            /* ── Task 8: az language analyze --text meeting-notes.txt --feature summary ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.feature === 'summary' &&
+                    result.textFile === 'meeting-notes.txt' &&
+                    !result.saved) {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: CLU predict BookFlight AND GetWeather ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.project === 'travel-bot' && result.result) {
+                    var pred = result.result.result && result.result.result.prediction;
+                    if (pred) {
+                        if (pred.topIntent === 'BookFlight') task9_book    = true;
+                        if (pred.topIntent === 'GetWeather') task9_weather  = true;
+                    }
+                }
+                if (task9_book && task9_weather) completeTask(9);
+            }
+
+            /* ── Task 10: save sentiment + save entities + diff them ── */
+            if (!taskDone[10]) {
+                /* Step 10a: save review-negative.txt sentiment */
+                if (cmd === 'az' && result && result.saved &&
+                    result.feature === 'sentiment' &&
+                    result.textFile === 'review-negative.txt') {
+                    task10_sent = true;
+                }
+                /* Step 10b: save review-negative.txt entities */
+                if (cmd === 'az' && result && result.saved &&
+                    result.feature === 'entities' &&
+                    result.textFile === 'review-negative.txt') {
+                    task10_ent = true;
+                }
+                /* Step 10c: diff must be on the two saved result files */
+                if (cmd === 'diff' && result && result.diffed) {
+                    var diffLine = line.toLowerCase();
+                    if (diffLine.indexOf('review-sentiment') >= 0 && diffLine.indexOf('review-entities') >= 0) {
+                        task10_diff = true;
+                    }
+                }
+                if (task10_sent && task10_ent && task10_diff) completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#6b5b7e">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your Language Resource',
+                2:  'Analyze Sentiment — Positive Review',
+                3:  'Analyze Sentiment — Negative Review',
+                4:  'Extract Key Phrases',
+                5:  'Named Entity Recognition',
+                6:  'Detect PII in Support Tickets',
+                7:  'Translate Text',
+                8:  'Summarize a Document',
+                9:  'Conversational Language Understanding',
+                10: 'Compare Sentiment vs Entities'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Verify the pre-configured Language resource:\n<code>az cognitiveservices account show --name language-lab --resource-group ai-fundamentals-rg</code>\n\nNote the <code>kind</code> is "TextAnalytics" (the underlying resource type for Azure AI Language). Note the <code>endpoint</code> URL and SKU tier.',
+                hint: 'The resource is already provisioned. LANG_KEY and LANG_ENDPOINT are pre-exported as environment variables. This step confirms the configuration before calling any NLP features.',
+                cmd:  'az cognitiveservices account show --name language-lab --resource-group ai-fundamentals-rg'
+            },
+            2: {
+                step: 'Analyze the positive hotel review for sentiment:\n<code>az language analyze --text ~/texts/review-positive.txt --feature sentiment</code>\n\nStudy the response: look at both the document-level <code>sentiment</code> and the per-sentence <code>sentences</code> array. Each sentence has its own sentiment label and three confidence scores that sum to 1.0.',
+                hint: 'Sentiment analysis operates at two levels: the whole document (overall label) and each sentence individually. This dual view lets you see, for example, that a mostly-positive review might contain one critical sentence.',
+                cmd:  'az language analyze --text ~/texts/review-positive.txt --feature sentiment'
+            },
+            3: {
+                step: 'Run the same analysis on the negative review:\n<code>az language analyze --text ~/texts/review-negative.txt --feature sentiment</code>\n\nCompare the sentence-level breakdown to what you saw in Task 2. Notice the per-sentence <code>confidenceScores.negative</code> values across the four sentences — each corresponds to a different complaint.',
+                hint: 'Key exam point: sentiment analysis scores are NOT simply 0 or 1. Each sentence returns three scores (positive, neutral, negative) that sum to 1.0. The label is the category with the highest score.',
+                cmd:  'az language analyze --text ~/texts/review-negative.txt --feature sentiment'
+            },
+            4: {
+                step: 'Extract key phrases from the news article:\n<code>az language analyze --text ~/texts/news-article.txt --feature key-phrases</code>\n\nThe <code>keyPhrases</code> array distils the full article into its most important noun phrases. Count how many phrases were extracted and note that individual words are less useful than multi-word phrases.',
+                hint: 'Key phrase extraction is the fastest way to get a "bag of topics" from a document without reading it. It is commonly used for search indexing, auto-tagging, and document clustering. It does NOT return sentiment or category.',
+                cmd:  'az language analyze --text ~/texts/news-article.txt --feature key-phrases'
+            },
+            5: {
+                step: 'Run Named Entity Recognition on the same article:\n<code>az language analyze --text ~/texts/news-article.txt --feature entities</code>\n\nCompare the output structure to Task 4. Each entity has: <code>text</code>, <code>category</code>, <code>subcategory</code>, <code>confidence</code>, and character <code>offset</code>/<code>length</code>. Note the category values: Person, Organization, Product, DateTime, Location.',
+                hint: 'NER classifies entities into structured categories. Unlike key phrases (which are topical), NER tells you WHAT TYPE each item is. The character offsets let you highlight entities in the original text — useful for building knowledge graphs or compliance tools.',
+                cmd:  'az language analyze --text ~/texts/news-article.txt --feature entities'
+            },
+            6: {
+                step: 'Detect PII in the customer support tickets:\n<code>az language analyze --text ~/texts/support-tickets.txt --feature pii</code>\n\nExamine the response carefully: the <code>redactedText</code> field shows the original text with sensitive data replaced by <code>***</code>. The <code>entities</code> array lists each detected PII item with its category (Person, Email, PhoneNumber, CreditCardNumber).',
+                hint: 'PII detection is essential for GDPR, HIPAA, and other compliance scenarios. Before storing user-generated content, a production system would route it through PII detection and store only the redacted version. Note that the model also detects partial identifiers like the last 4 digits of a credit card.',
+                cmd:  'az language analyze --text ~/texts/support-tickets.txt --feature pii'
+            },
+            7: {
+                step: 'Two commands required — translate to Spanish, then to French:\n1. <code>az translator translate --text "The weather in Seattle is beautiful today" --from en --to es</code>\n2. <code>az translator translate --text "The weather in Seattle is beautiful today" --from en --to fr</code>\n\nNote the <code>translations</code> array and the <code>detectedLanguage</code> field in the response.',
+                hint: 'Azure Translator is a separate service from Azure AI Language. It handles 100+ languages. The response includes a <code>detectedLanguage</code> field even when you specify <code>--from</code>, which is useful for verification. Language codes follow ISO 639-1 (es=Spanish, fr=French, de=German, ja=Japanese).',
+                cmd:  'az translator translate --text "The weather in Seattle is beautiful today" --from en --to es\naz translator translate --text "The weather in Seattle is beautiful today" --from en --to fr'
+            },
+            8: {
+                step: 'Run extractive summarisation on the meeting notes:\n<code>az language analyze --text ~/texts/meeting-notes.txt --feature summary</code>\n\nThe response returns a <code>sentences</code> array — these are actual sentences lifted from the source document, ranked by <code>rankScore</code>. Count how many sentences were selected from the full transcript.',
+                hint: 'Extractive summarisation selects the most important EXISTING sentences from the document — it does not generate new text. The <code>rankScore</code> indicates relative importance. Compare this to abstractive summarisation (like GPT), which rewrites the content in new words.',
+                cmd:  'az language analyze --text ~/texts/meeting-notes.txt --feature summary'
+            },
+            9: {
+                step: 'Two commands required — predict two different intents:\n1. <code>az language clu predict --utterance "Book a flight from Miami to London next Friday" --project travel-bot</code>\n2. <code>az language clu predict --utterance "What is the weather like in Tokyo" --project travel-bot</code>\n\nFor each response, compare the <code>topIntent</code>, the <code>intents</code> confidence ranking, and the <code>entities</code> extracted.',
+                hint: 'CLU (Conversational Language Understanding) combines intent classification with entity extraction. In a real bot, you would use <code>topIntent</code> to route the conversation and <code>entities</code> to fill slots (e.g., origin, destination, date for BookFlight). This replaces LUIS in modern Azure AI builds.',
+                cmd:  'az language clu predict --utterance "Book a flight from Miami to London next Friday" --project travel-bot\naz language clu predict --utterance "What is the weather like in Tokyo" --project travel-bot'
+            },
+            10: {
+                step: 'Three commands required:\n1. Save sentiment analysis for the negative review:\n<code>az language analyze --text ~/texts/review-negative.txt --feature sentiment > ~/results/review-sentiment.json</code>\n2. Save entity analysis for the same text:\n<code>az language analyze --text ~/texts/review-negative.txt --feature entities > ~/results/review-entities.json</code>\n3. Compare the two output files:\n<code>diff ~/results/review-sentiment.json ~/results/review-entities.json</code>',
+                hint: 'Key insight: both commands analyse the same input text but produce structurally different JSON. Sentiment returns emotional tone (positive/negative/neutral) with confidence scores. NER returns factual items (entities) with category labels and character offsets. They answer different questions about the same document.',
+                cmd:  'az language analyze --text ~/texts/review-negative.txt --feature sentiment > ~/results/review-sentiment.json\naz language analyze --text ~/texts/review-negative.txt --feature entities > ~/results/review-entities.json\ndiff ~/results/review-sentiment.json ~/results/review-entities.json'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                    ['cognitiveservices', 'language', 'translator'],
+            'az cognitiveservices ':                  ['account'],
+            'az cognitiveservices account ':          ['keys', 'show'],
+            'az cognitiveservices account keys ':     ['list'],
+            'az language ':                           ['analyze', 'clu'],
+            'az language analyze ':                   ['--text', '--feature'],
+            'az language clu ':                       ['predict'],
+            'az language clu predict ':               ['--utterance', '--project'],
+            'az translator ':                         ['translate'],
+            'az translator translate ':               ['--text', '--from', '--to']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('ai', 'ai900-ch03-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Azure AI Language Lab — Hexworth Prime', 'term-welcome');
+            addLine('Azure CLI 2.58.0   Ubuntu 22.04 LTS   AI-900 Chapter 3', 'term-welcome');
+            addBlank();
+            addLine('Resource   : ' + LANG_NAME + ' (TextAnalytics / S)', 'term-line-info');
+            addLine('Endpoint   : ' + LANG_ENDPOINT, 'term-line-info');
+            addLine('Credentials: LANG_KEY and TRANS_KEY are pre-exported.', 'term-line-info');
+            addLine('Texts      : ls ~/texts/', 'term-line-info');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish this lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az language" and "az translator" are simulated commands for this', 'term-line-info');
+            addLine('lab environment. In production, use the REST API or Python SDK.', 'term-line-info');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
