@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAX Deep-Dive | PL-300 Chapter 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">DAX Deep-Dive -- PL-300 Chapter 5</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PL-300 &nbsp;|&nbsp; Chapter 5 &nbsp;|&nbsp; DAX Deep-Dive</div>
+        <div class="title-hero">
+            <svg width="460" height="110" viewBox="0 0 460 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Filter context box -->
+                <rect x="30" y="10" width="180" height="90" rx="12" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="120" y="32" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">FILTER CONTEXT</text>
+                <text x="120" y="50" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Year = 2024</text>
+                <text x="120" y="64" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Region = "West"</text>
+                <text x="120" y="78" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Category = "Bikes"</text>
+                <text x="120" y="94" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Slicers + axes + CALCULATE</text>
+                <!-- Arrow -->
+                <line x1="215" y1="55" x2="248" y2="55" stroke="rgba(201,168,58,0.5)" stroke-width="2" stroke-dasharray="5,3"><animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/></line>
+                <!-- CALCULATE box -->
+                <rect x="252" y="15" width="180" height="80" rx="12" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="342" y="36" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">CALCULATE</text>
+                <text x="342" y="54" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">SUM(Sales[Revenue]),</text>
+                <text x="342" y="68" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">DimDate[Year] = 2024</text>
+                <text x="342" y="86" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Modify + override context</text>
+            </svg>
+            <div class="big-title">DAX <span class="accent">Deep-Dive</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                CALCULATE &nbsp;&bull;&nbsp; Time Intelligence &nbsp;&bull;&nbsp; Iterators &nbsp;&bull;&nbsp; Filter Manipulation &nbsp;&bull;&nbsp; VAR/RETURN
+            </div>
+        </div>
+        <div class="scenario-strip">
+            DAX mastery separates report builders from Power BI analysts. This chapter goes deep on CALCULATE, time intelligence functions, iterator patterns (SUMX, AVERAGEX), filter manipulation (ALL, REMOVEFILTERS), and the VAR/RETURN pattern -- all heavily tested on the PL-300 exam.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PL-300 Exam Objectives</span>
+            <span>Chapter 5 of 5</span>
+            <span>Power BI Data Analyst</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- FILTER CONTEXT vs ROW CONTEXT -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Filter Context vs <span class="accent">Row Context</span></div>
+        <div class="slide-subtitle">The two evaluation contexts in DAX -- understanding both is the key to writing correct formulas.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Filter Context</div>
+                <div class="card-desc">Determines WHICH rows are visible to a calculation. Created by slicers, visual axes, report/page filters, and CALCULATE. When a visual shows Revenue by Year, the year 2024 row has a filter context that limits FactSales to only 2024 rows. Every measure evaluates inside a filter context. Filter context flows through relationships.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Row Context</div>
+                <div class="card-desc">Exists when DAX iterates row by row through a table -- in calculated columns and inside iterator functions (SUMX, AVERAGEX). Within row context, you can reference column values of the current row directly: <code class="ic">Sales[Qty] * Sales[Price]</code>. Row context does NOT automatically filter other tables -- use RELATED to navigate relationships.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Critical Distinction</div>
+            A calculated column has row context (it processes one row at a time) but no filter context. A measure has filter context (determined by the visual) but no row context. CALCULATE can convert row context into filter context -- this is called "context transition" and is an advanced pattern tested on the exam.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- CALCULATE -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">CALCULATE</span> -- The Most Important Function</div>
+        <div class="slide-subtitle">CALCULATE evaluates an expression in a modified filter context. Master this and you master DAX.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Syntax:</strong> <code class="ic">CALCULATE(&lt;expression&gt;, &lt;filter1&gt;, &lt;filter2&gt;, ...)</code> -- the expression is typically a measure; filters modify the context.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Add a filter:</strong> <code class="ic">Online Revenue = CALCULATE(SUM(Sales[Revenue]), Sales[Channel] = "Online")</code> -- only counts online sales regardless of slicer selections on Channel.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Override a filter:</strong> If the user selects "East" in a Region slicer, <code class="ic">CALCULATE(SUM(Sales[Revenue]), Sales[Region] = "West")</code> overrides that slicer for Region but preserves all other filters.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Remove a filter:</strong> <code class="ic">CALCULATE(SUM(Sales[Revenue]), ALL(Sales[Region]))</code> -- removes any Region filter, showing total revenue across all regions.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Multiple filters:</strong> Filters are combined with AND logic. <code class="ic">CALCULATE(SUM(Sales[Revenue]), Sales[Channel] = "Online", DimDate[Year] = 2024)</code> -- online sales in 2024 only.</span></div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Exam Tip</div>
+            CALCULATE filter arguments override existing filters on the same column but AND with filters on different columns. This distinction is heavily tested. If a slicer filters Region = "East" and CALCULATE adds Region = "West," the result is West only (override). If CALCULATE adds Channel = "Online," both East and Online apply (AND).
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- TIME INTELLIGENCE -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Time <span class="accent">Intelligence</span></div>
+        <div class="slide-subtitle">Built-in DAX functions for year-to-date, prior period comparisons, and rolling calculations.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">TOTALYTD</div>
+                <div class="card-desc"><code class="ic">YTD Revenue = TOTALYTD(SUM(Sales[Revenue]), DimDate[Date])</code> -- calculates the running total from January 1 to the current date in context. Requires a properly marked Date table. Optionally accepts a fiscal year-end date as a third argument.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SAMEPERIODLASTYEAR</div>
+                <div class="card-desc"><code class="ic">PY Revenue = CALCULATE(SUM(Sales[Revenue]), SAMEPERIODLASTYEAR(DimDate[Date]))</code> -- shifts the date filter back by exactly one year. If the current context is March 2024, it returns March 2023. Essential for year-over-year comparisons.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">DATEADD</div>
+                <div class="card-desc"><code class="ic">Prev Quarter = CALCULATE(SUM(Sales[Revenue]), DATEADD(DimDate[Date], -1, QUARTER))</code> -- shifts dates by a specified interval: DAY, MONTH, QUARTER, or YEAR. More flexible than SAMEPERIODLASTYEAR because you control the shift direction and interval.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DATESYTD</div>
+                <div class="card-desc"><code class="ic">YTD Revenue = CALCULATE(SUM(Sales[Revenue]), DATESYTD(DimDate[Date]))</code> -- returns a table of dates from Jan 1 to the current date in context. Equivalent to TOTALYTD but used inside CALCULATE. Both require a contiguous Date table with no gaps.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Prerequisite</div>
+            ALL time intelligence functions require a properly marked Date table (one row per day, no gaps, marked via "Mark as Date Table"). Without this, functions like TOTALYTD and SAMEPERIODLASTYEAR will produce incorrect results or errors.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- RELATED / RELATEDTABLE -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">RELATED</span> and RELATEDTABLE</div>
+        <div class="slide-subtitle">Navigate relationships in DAX to pull data from connected tables.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">RELATED</div>
+                <div class="card-desc">Follows a many-to-one relationship to retrieve a single value from the related table. Works inside row context (calculated columns, iterators). Example: in a FactSales calculated column, <code class="ic">RELATED(DimProduct[Category])</code> retrieves the category for each sales row by following the ProductKey relationship. Always navigates from the many side to the one side.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RELATEDTABLE</div>
+                <div class="card-desc">Follows a one-to-many relationship to retrieve all related rows from the many side. Returns a table. Example: in a DimProduct calculated column, <code class="ic">COUNTROWS(RELATEDTABLE(FactSales))</code> counts how many sales transactions exist for each product. Navigates from the one side to the many side.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Direction Matters</div>
+            RELATED: many-to-one (fact to dimension) -- returns a scalar value. RELATEDTABLE: one-to-many (dimension to fact) -- returns a table. Both require an active relationship between the tables. If the relationship is inactive, use USERELATIONSHIP inside CALCULATE first.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- SUMMARIZE & ADDCOLUMNS -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">SUMMARIZE</span> and ADDCOLUMNS</div>
+        <div class="slide-subtitle">Table functions that create virtual groupings and add calculated columns to tables.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">SUMMARIZE</div>
+                <div class="card-desc"><code class="ic">SUMMARIZE(FactSales, DimProduct[Category], "Total", SUM(FactSales[Revenue]))</code> -- groups FactSales by Category and calculates total revenue per group. Similar to a SQL GROUP BY. Returns a virtual table that can be used inside other functions like FILTER or ADDCOLUMNS.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ADDCOLUMNS</div>
+                <div class="card-desc"><code class="ic">ADDCOLUMNS(VALUES(DimProduct[Category]), "Revenue", CALCULATE(SUM(FactSales[Revenue])))</code> -- takes an existing table and appends new calculated columns. Best practice: use ADDCOLUMNS with VALUES instead of SUMMARIZE for aggregations, because ADDCOLUMNS evaluates in a cleaner filter context.</div>
+            </div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Best Practice</div>
+            Microsoft recommends using SUMMARIZECOLUMNS (internally used by visuals) for query-time grouping and ADDCOLUMNS + VALUES for measure-based virtual tables. Avoid adding measure columns directly inside SUMMARIZE -- use ADDCOLUMNS wrapping SUMMARIZE instead for reliable results.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- VAR / RETURN -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">VAR</span> and RETURN</div>
+        <div class="slide-subtitle">Variables make DAX readable, debuggable, and performant by storing intermediate results.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Declare:</strong> <code class="ic">VAR _currentRevenue = SUM(Sales[Revenue])</code> -- computes and stores the result once.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Reuse:</strong> <code class="ic">VAR _previousRevenue = CALCULATE(SUM(Sales[Revenue]), SAMEPERIODLASTYEAR(DimDate[Date]))</code></span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Return:</strong> <code class="ic">RETURN DIVIDE(_currentRevenue - _previousRevenue, _previousRevenue, 0)</code> -- computes YoY growth using both variables.</span></div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Readability</div>
+                <div class="card-desc">Variables break complex formulas into named, self-documenting steps. Instead of one massive nested expression, you read top-to-bottom: calculate revenue, calculate prior year, return the comparison.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Performance</div>
+                <div class="card-desc">A VAR is evaluated once and cached. If you reference _currentRevenue three times, DAX computes it once, not three times. This can significantly improve performance for complex measures.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Debugging</div>
+                <div class="card-desc">Temporarily change the RETURN to return a single variable to inspect its value. <code class="ic">RETURN _previousRevenue</code> -- check if the prior-year number is correct before computing the full formula.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- ITERATOR FUNCTIONS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Iterator <span class="accent">Functions</span></div>
+        <div class="slide-subtitle">SUMX, AVERAGEX, COUNTX -- functions that iterate row by row and aggregate the results.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">SUMX</div>
+                <div class="card-desc"><code class="ic">SUMX(FactSales, FactSales[Qty] * FactSales[UnitPrice])</code> -- iterates each row in FactSales, computes Qty * UnitPrice for that row, then sums all results. Essential when the aggregation involves a per-row calculation that does not exist as a stored column.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">AVERAGEX</div>
+                <div class="card-desc"><code class="ic">AVERAGEX(DimProduct, CALCULATE(SUM(FactSales[Revenue])))</code> -- iterates each product, calculates its revenue (via context transition), then averages across all products. Different from AVERAGE, which averages a single column without per-row computation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">COUNTX</div>
+                <div class="card-desc"><code class="ic">COUNTX(FILTER(FactSales, FactSales[Revenue] > 1000), FactSales[OrderKey])</code> -- counts only high-value transactions. COUNTX iterates the filtered table and counts non-blank results. Combine with FILTER for conditional counting.</div>
+            </div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Iterator vs Aggregator</div>
+            SUM(Sales[Revenue]) aggregates a stored column directly -- fast, no row iteration. SUMX(Sales, Sales[Qty] * Sales[Price]) iterates row by row -- necessary when the value must be computed per row. Use aggregators when possible; use iterators when the per-row expression is not a stored column.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- ALL / ALLEXCEPT / REMOVEFILTERS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">ALL</span>, ALLEXCEPT, and REMOVEFILTERS</div>
+        <div class="slide-subtitle">Filter removal functions -- essential for calculating ratios, totals, and percentages.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">ALL</div>
+                <div class="card-desc"><code class="ic">CALCULATE(SUM(Sales[Revenue]), ALL(Sales))</code> -- removes ALL filters from the Sales table, returning the grand total regardless of slicers. <code class="ic">ALL(DimProduct[Category])</code> removes only the Category filter. ALL can target a table or specific columns.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">ALLEXCEPT</div>
+                <div class="card-desc"><code class="ic">CALCULATE(SUM(Sales[Revenue]), ALLEXCEPT(Sales, Sales[Region]))</code> -- removes all filters from Sales EXCEPT Region. Useful for "percentage of region total" calculations where you want to keep the region filter but ignore all others.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">REMOVEFILTERS</div>
+                <div class="card-desc"><code class="ic">CALCULATE(SUM(Sales[Revenue]), REMOVEFILTERS(DimProduct))</code> -- functionally identical to ALL but more readable as a CALCULATE modifier. Microsoft recommends REMOVEFILTERS inside CALCULATE for clarity. ALL is still needed as a table function outside CALCULATE.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">% of Total Pattern</div>
+            <code class="ic">% of Total = DIVIDE(SUM(Sales[Revenue]), CALCULATE(SUM(Sales[Revenue]), ALL(Sales)))</code> -- the numerator respects all filters (current category); the denominator ignores all filters (grand total). This is the most common use of ALL in real-world reports.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- HASONEVALUE / SELECTEDVALUE -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title"><span class="accent">HASONEVALUE</span> and SELECTEDVALUE</div>
+        <div class="slide-subtitle">Detect and respond to single-selection filter context in dynamic measures.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">HASONEVALUE</div>
+                <div class="card-desc"><code class="ic">HASONEVALUE(DimProduct[Category])</code> returns TRUE if the current filter context narrows Category to exactly one value. Use it in IF conditions to change measure behavior depending on whether the user has selected a single item or is viewing a total row.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SELECTEDVALUE</div>
+                <div class="card-desc"><code class="ic">SELECTEDVALUE(DimProduct[Category], "Multiple")</code> returns the single selected value or a fallback if multiple values are in context. Cleaner than <code class="ic">IF(HASONEVALUE(...), VALUES(...), "Multiple")</code>. Use for dynamic titles, conditional formatting, and switch measures.</div>
+            </div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Dynamic Measure Title Pattern</div>
+            <code class="ic">Dynamic Title = "Revenue for " &amp; SELECTEDVALUE(DimDate[Year], "All Years")</code> -- displays "Revenue for 2024" when a single year is selected, or "Revenue for All Years" when no year slicer is active. Place this measure in a card visual title for responsive report headers.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- PUTTING IT ALL TOGETHER -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Putting It <span class="accent">All Together</span></div>
+        <div class="slide-subtitle">A real-world measure combining VAR, CALCULATE, time intelligence, and DIVIDE.</div>
+        <div class="box box-blue">
+            <div class="box-label">YoY Revenue Growth %</div>
+            <code class="ic">YoY Growth % =</code><br>
+            <code class="ic">VAR _current = SUM(FactSales[Revenue])</code><br>
+            <code class="ic">VAR _priorYear = CALCULATE(SUM(FactSales[Revenue]), SAMEPERIODLASTYEAR(DimDate[Date]))</code><br>
+            <code class="ic">RETURN DIVIDE(_current - _priorYear, _priorYear, 0)</code>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>_current</strong> uses the existing filter context (e.g., March 2024 from the visual axis).</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>_priorYear</strong> uses CALCULATE + SAMEPERIODLASTYEAR to shift the date filter to March 2023.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>RETURN</strong> computes the percentage change using DIVIDE for safe division. Returns 0 if prior year is blank.</span></div>
+        </div>
+        <div class="box box-gold">
+            <div class="box-label">Advanced: % of Category Total</div>
+            <code class="ic">% of Category =</code><br>
+            <code class="ic">VAR _catTotal = CALCULATE(SUM(FactSales[Revenue]), ALLEXCEPT(FactSales, DimProduct[Category]))</code><br>
+            <code class="ic">RETURN DIVIDE(SUM(FactSales[Revenue]), _catTotal, 0)</code>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for the PL-300 exam -- DAX deep-dive.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Filter context</strong> determines which rows a measure sees (slicers, axes, CALCULATE). <strong>Row context</strong> exists inside iterators and calculated columns. CALCULATE converts row context to filter context (context transition).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>CALCULATE</strong> modifies filter context. Filter arguments override same-column filters and AND with different-column filters. It is the most important and most tested DAX function.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Time intelligence:</strong> TOTALYTD, SAMEPERIODLASTYEAR, DATEADD, DATESYTD. All require a properly marked Date table with no gaps.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Iterators</strong> (SUMX, AVERAGEX, COUNTX) process row by row and aggregate. Use when the per-row expression is not a stored column. Aggregators (SUM, AVERAGE) are faster for simple column totals.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>ALL/ALLEXCEPT/REMOVEFILTERS</strong> remove filters for ratio and total calculations. <code>% of Total = DIVIDE(SUM(...), CALCULATE(SUM(...), ALL(...)))</code></span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>VAR/RETURN</strong> stores intermediate results for readability, performance, and debugging. SELECTEDVALUE detects single-selection context for dynamic titles.</span></div>
+        </div>
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>PL-300 Review Complete</strong> &nbsp;|&nbsp; Prepare Data &bull; Model Data &bull; Visualize &bull; Deploy &bull; DAX Deep-Dive
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PL-300</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'pl300-ch05-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
