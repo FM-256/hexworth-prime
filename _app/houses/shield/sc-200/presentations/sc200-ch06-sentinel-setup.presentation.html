@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Microsoft Sentinel | SC-200 Chapter 6</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Configure Microsoft Sentinel -- SC-200 Chapter 6</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 6 &nbsp;|&nbsp; Microsoft Sentinel</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="45" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">MICROSOFT</text>
+                <text x="210" y="60" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">SENTINEL</text>
+                <text x="210" y="78" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">Cloud-Native SIEM</text>
+                <polygon points="210,88 198,106 222,106" fill="none" stroke="#ef4444" stroke-width="1.5" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Log Analytics</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Workspace backend</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Data Connectors</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Ingest from anywhere</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Analytics Rules</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Threat detection</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Content Hub</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Solutions + templates</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Configure <span class="accent">Microsoft Sentinel</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Log Analytics Workspace &nbsp;&bull;&nbsp; Data Connectors &nbsp;&bull;&nbsp; Content Hub &nbsp;&bull;&nbsp; Analytics Rules &nbsp;&bull;&nbsp; Workspace Architecture
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Sentinel is a cloud-native SIEM (Security Information and Event Management) and SOAR (Security Orchestration, Automation, and Response) platform built on top of Azure Log Analytics. This chapter covers the foundational setup: creating workspaces, connecting data sources, installing content hub solutions, and configuring analytics rules to detect threats.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 6 of 6</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- SENTINEL OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Microsoft Sentinel <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Sentinel is a cloud-native SIEM+SOAR that collects data at cloud scale, detects threats with analytics and AI, investigates with full-fidelity data, and responds with built-in orchestration and automation.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Collect</div><div class="card-desc">Ingest security data from across the entire enterprise -- cloud, on-premises, multi-cloud. Data connectors pull from Microsoft services, third-party products, custom sources via Syslog, CEF, and REST APIs.</div></div>
+            <div class="card c-blue"><div class="card-label">Detect</div><div class="card-desc">Analytics rules use KQL queries to detect threats. Scheduled rules, near real-time (NRT) rules, Fusion ML correlation, and Microsoft Security alert rules provide layered detection across all ingested data.</div></div>
+            <div class="card c-gold"><div class="card-label">Investigate</div><div class="card-desc">Investigation graph visualizes the full scope of an incident. Entity pages, bookmarks, and hunting queries help analysts trace attack chains across users, devices, IPs, and files.</div></div>
+            <div class="card c-green"><div class="card-label">Respond</div><div class="card-desc">Automation rules and playbooks (Logic Apps) automate response workflows. Triage incidents, enrich alerts with threat intelligence, isolate devices, disable accounts, and notify teams -- all automatically.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Architecture</div>Sentinel runs on top of an Azure Log Analytics workspace. All ingested data is stored as tables in the workspace and queried using KQL. You must create or designate a Log Analytics workspace before enabling Sentinel.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- LOG ANALYTICS WORKSPACE -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Log Analytics Workspace</span> Creation</div>
+        <div class="slide-subtitle">The Log Analytics workspace is the foundation of Sentinel. It stores all ingested data, defines retention policies, and determines the Azure region where data resides.</div>
+        <div class="step-list">
+            <div class="step-row"><div class="step-num">1</div><div class="step-text"><strong>Create the workspace</strong> -- In the Azure portal, create a Log Analytics workspace. Choose the resource group, name, and Azure region. Region selection affects data residency and compliance requirements.</div></div>
+            <div class="step-row"><div class="step-num">2</div><div class="step-text"><strong>Enable Sentinel</strong> -- Navigate to Microsoft Sentinel and add it to your Log Analytics workspace. Sentinel is a solution that layers on top of the workspace -- the workspace exists independently of Sentinel.</div></div>
+            <div class="step-row"><div class="step-num">3</div><div class="step-text"><strong>Configure retention</strong> -- Default retention is 90 days (free). Analytics logs can be retained up to 2 years. Archive tier extends to 12 years for compliance. Data ingestion costs are per GB ingested per day.</div></div>
+            <div class="step-row"><div class="step-num">4</div><div class="step-text"><strong>Set permissions</strong> -- Assign RBAC roles: Microsoft Sentinel Contributor (full access), Microsoft Sentinel Responder (manage incidents), Microsoft Sentinel Reader (view only). Log Analytics Contributor role is separate and controls workspace settings.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Cost Model</div>Sentinel pricing has two tiers: Pay-As-You-Go (per GB ingested) and Commitment Tiers (fixed daily GB with discounted rates). Some data types are free to ingest: Azure Activity logs, Office 365 audit logs, and alerts from Microsoft security products.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- DATA CONNECTORS: MICROSOFT -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">Data Connectors</span> -- Microsoft Sources</div>
+        <div class="slide-subtitle">Data connectors are the ingestion pipeline. Microsoft-native connectors provide one-click setup to stream security data from across the Microsoft ecosystem into Sentinel.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Azure Activity</div><div class="hex-desc">Subscription-level events: resource creation, deletion, policy changes, RBAC modifications. Streams into the AzureActivity table. Free ingestion.</div></div>
+            <div class="hex-cell"><div class="hex-title">Microsoft 365</div><div class="hex-desc">Exchange, SharePoint, and Teams audit logs. Streams into OfficeActivity table. Free ingestion. Requires Global Admin or Security Admin to enable.</div></div>
+            <div class="hex-cell"><div class="hex-title">Defender XDR</div><div class="hex-desc">Incidents and raw alert data from Defender for Endpoint, Identity, Office 365, and Cloud Apps. Bi-directional sync keeps incidents in sync between Sentinel and Defender XDR.</div></div>
+            <div class="hex-cell"><div class="hex-title">Entra ID</div><div class="hex-desc">Sign-in logs, audit logs, provisioning logs, and risky user/sign-in data from Microsoft Entra ID. Requires Microsoft Entra ID P1 or P2 license for sign-in logs.</div></div>
+            <div class="hex-cell"><div class="hex-title">Defender for Cloud</div><div class="hex-desc">Security alerts from Azure Defender workload protections. Covers servers, SQL, storage, containers, Key Vault, and more. Alert data ingestion is free.</div></div>
+            <div class="hex-cell"><div class="hex-title">Azure Firewall</div><div class="hex-desc">Application rules, network rules, threat intelligence hits, and DNS proxy logs from Azure Firewall. Streams into the AzureDiagnostics table with ResourceType filter.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- DATA CONNECTORS: NON-MICROSOFT -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Data Connectors -- <span class="accent">Non-Microsoft Sources</span></div>
+        <div class="slide-subtitle">Sentinel ingests data from third-party and on-premises sources using standard protocols and APIs. These connectors bridge the gap between your existing infrastructure and the cloud SIEM.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Syslog</div><div class="card-desc">Linux-based devices send Syslog messages to a Log Analytics agent (or Azure Monitor Agent) running on a Linux VM. The agent forwards parsed events to the Syslog table in the workspace. Supports facilities and severity filtering.</div></div>
+            <div class="card c-cyan"><div class="card-label">CEF (Common Event Format)</div><div class="card-desc">CEF is a standardized log format built on Syslog. Firewalls, IDS/IPS, and WAFs send CEF-formatted messages to a Linux forwarder running the Log Analytics agent. Data lands in the CommonSecurityLog table with structured fields.</div></div>
+            <div class="card c-gold"><div class="card-label">Custom REST API</div><div class="card-desc">The Log Analytics Data Collector API (HTTP Data Collector) accepts JSON payloads over HTTPS. Custom applications, scripts, and third-party tools push data to custom tables (ending in _CL). The newer Data Collection Rules (DCR) API is the recommended method.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">CEF vs Syslog</div>CEF messages use Syslog as the transport layer but add structured key-value pair fields. CEF data lands in CommonSecurityLog with parsed columns (DeviceVendor, DeviceProduct, Activity). Raw Syslog lands in the Syslog table with the message as a single string. The exam tests this distinction.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- CONTENT HUB -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title"><span class="accent">Content Hub</span> Solutions</div>
+        <div class="slide-subtitle">The Content Hub is a centralized marketplace for packaged Sentinel content. Solutions bundle data connectors, analytics rules, workbooks, hunting queries, playbooks, and parsers into a single installable package.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">What Is a Solution?</div><div class="card-desc">A solution is a packaged bundle of related content for a specific product or scenario. For example, the "Microsoft 365" solution includes the M365 data connector, analytics rule templates, workbooks, and hunting queries -- all in one install.</div></div>
+            <div class="card c-blue"><div class="card-label">Solution Components</div><div class="card-desc">Solutions can include: data connectors, analytics rule templates, workbooks (dashboards), hunting queries, playbooks (Logic Apps), watchlists, parsers (KQL functions), and notebook templates. Not all solutions include every component.</div></div>
+            <div class="card c-gold"><div class="card-label">Install and Manage</div><div class="card-desc">Browse the Content Hub in Sentinel, search by product name, and install. Solutions deploy templates -- you still need to configure data connectors and activate analytics rules from the templates. Updates are managed through the hub.</div></div>
+            <div class="card c-green"><div class="card-label">Standalone Content</div><div class="card-desc">Individual content items (a single analytics rule, one workbook) can be installed without a full solution. The Content Hub supports both solution-level and item-level installation for flexibility.</div></div>
+        </div>
+        <div class="box box-green"><div class="box-label">Best Practice</div>Start by installing solutions for your connected data sources. The solution installs the templates; you then activate analytics rules from those templates. This approach gives you curated, vendor-specific detections without building rules from scratch.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- ANALYTICS RULES: SCHEDULED -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Analytics Rules -- <span class="accent">Scheduled</span></div>
+        <div class="slide-subtitle">Scheduled analytics rules are KQL queries that run on a defined interval. When the query returns results, Sentinel creates an alert and optionally groups alerts into incidents.</div>
+        <div class="step-list">
+            <div class="step-row"><div class="step-num">1</div><div class="step-text"><strong>KQL query</strong> -- the detection logic. Write a query that returns rows when a threat condition is met. Example: <code>SecurityEvent | where EventID == 4625 | summarize count() by TargetAccount | where count_ > 10</code> detects brute force attempts.</div></div>
+            <div class="step-row"><div class="step-num">2</div><div class="step-text"><strong>Run frequency</strong> -- how often the query executes. Options range from every 5 minutes to every 14 days. More frequent = faster detection but higher query cost.</div></div>
+            <div class="step-row"><div class="step-num">3</div><div class="step-text"><strong>Lookup period</strong> -- the time window the query examines. Must be >= run frequency. Set to 5 hours with 5-hour frequency for no gaps. Set longer than frequency for overlapping coverage.</div></div>
+            <div class="step-row"><div class="step-num">4</div><div class="step-text"><strong>Entity mapping</strong> -- map query result columns to entity types (Account, Host, IP, URL, File). Entity mapping enables investigation graph, entity pages, and cross-incident correlation.</div></div>
+            <div class="step-row"><div class="step-num">5</div><div class="step-text"><strong>Alert grouping</strong> -- group alerts into incidents by entity or time window. Group by Account entity to create one incident per compromised user instead of hundreds of individual alerts.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Exam Tip</div>The lookup period must be greater than or equal to the run frequency. If you run every 5 minutes but only look back 3 minutes, you have a 2-minute gap where events are never evaluated. This is a common exam scenario.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- ANALYTICS RULES: NRT, FUSION, ML -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Analytics Rules -- <span class="accent">NRT, Fusion, and ML</span></div>
+        <div class="slide-subtitle">Beyond scheduled rules, Sentinel provides near real-time rules for urgent detections, Fusion for multi-stage attack correlation, and ML behavior analytics for anomaly detection.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Near Real-Time (NRT)</div><div class="card-desc">NRT rules run every minute with a 14-minute lookback. Designed for high-priority detections where seconds matter. Use simplified KQL syntax -- no joins, no external data, limited operators. Trade flexibility for speed.</div></div>
+            <div class="card c-gold"><div class="card-label">Fusion</div><div class="card-desc">Fusion uses ML to correlate low-fidelity alerts from multiple sources into high-confidence multi-stage attack detections. It automatically identifies kill chain patterns like reconnaissance + exploitation + exfiltration without manual rule writing.</div></div>
+            <div class="card c-cyan"><div class="card-label">ML Behavior Analytics</div><div class="card-desc">Built-in ML templates detect anomalous SSH logins, unusual Azure resource access, and anomalous web traffic. These rules learn normal behavior baselines and alert on statistically significant deviations.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Rule Type Selection</div>Use NRT for known-bad indicators (specific IPs, file hashes, user agents) where speed matters. Use scheduled rules for complex correlation queries. Fusion handles multi-stage detection automatically. ML rules cover behavioral anomalies. Layer all four for defense in depth.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- WORKSPACE ARCHITECTURE -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Workspace Architecture</span></div>
+        <div class="slide-subtitle">Choosing between single-workspace and multi-workspace designs is a critical architecture decision that affects cost, compliance, access control, and operational complexity.</div>
+        <div class="card-grid-2">
+            <div class="card c-green"><div class="card-label">Single Workspace (Recommended)</div><div class="card-desc">One workspace for all data. Simplest to manage -- one set of analytics rules, one incident queue, cross-data correlation works natively. Best for most organizations. Lower cost due to consolidated commitment tiers.</div></div>
+            <div class="card c-red"><div class="card-label">Multi-Workspace Scenarios</div><div class="card-desc">Required when: data residency mandates different Azure regions, strict RBAC requires data isolation between business units, or MSSP (managed security) scenarios need tenant separation. Adds operational complexity.</div></div>
+            <div class="card c-blue"><div class="card-label">Cross-Workspace Queries</div><div class="card-desc">KQL <code>workspace()</code> function queries data across workspaces. Cross-workspace analytics rules can correlate events from multiple workspaces. Performance degrades as cross-workspace query volume increases.</div></div>
+            <div class="card c-gold"><div class="card-label">Workspace Manager</div><div class="card-desc">Centrally manage content across multiple workspaces. Push analytics rules, workbooks, and automation rules from a central workspace to member workspaces. Ensures consistent detection coverage across the organization.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Decision Framework</div>Start with a single workspace. Only split if you have a hard requirement for data residency, regulatory isolation, or multi-tenant MSSP operations. Cross-workspace queries add latency and complexity that most organizations do not need.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- DATA CONNECTOR SETUP WALKTHROUGH -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Data Connector <span class="accent">Setup Walkthrough</span></div>
+        <div class="slide-subtitle">The typical workflow for connecting a new data source to Sentinel -- from Content Hub to verified ingestion.</div>
+        <div class="step-list">
+            <div class="step-row"><div class="step-num">1</div><div class="step-text"><strong>Install the Content Hub solution</strong> -- Search the Content Hub for your data source (e.g., "Palo Alto Networks"). Install the solution to deploy the connector template, analytics rules, workbooks, and hunting queries.</div></div>
+            <div class="step-row"><div class="step-num">2</div><div class="step-text"><strong>Open the data connector page</strong> -- Navigate to Data Connectors, find the newly installed connector, and click "Open connector page." Each connector page shows prerequisites, configuration steps, and the target table.</div></div>
+            <div class="step-row"><div class="step-num">3</div><div class="step-text"><strong>Configure the source</strong> -- Follow the connector-specific steps. For Microsoft sources: enable with one click. For Syslog/CEF: deploy a Linux forwarder agent. For REST API: configure the source to send to the workspace endpoint.</div></div>
+            <div class="step-row"><div class="step-num">4</div><div class="step-text"><strong>Verify data ingestion</strong> -- Check the "Last log received" timestamp on the connector page. Run a KQL query against the target table: <code>CommonSecurityLog | take 10</code>. Confirm data is flowing and fields are parsed correctly.</div></div>
+            <div class="step-row"><div class="step-num">5</div><div class="step-text"><strong>Activate analytics rules</strong> -- Go to Analytics, filter by "Rule templates," and find the rules from the installed solution. Create active rules from the templates. Configure severity, entity mapping, and incident grouping.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- INGESTION COST MANAGEMENT -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Ingestion and <span class="accent">Cost Management</span></div>
+        <div class="slide-subtitle">Sentinel costs are driven by data ingestion volume. Understanding which data is free, which tables to use, and how to optimize is essential for real-world deployments and the exam.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Free Data Sources</div><div class="hex-desc">Azure Activity logs, Office 365 audit logs, Sentinel health/audit logs, and Microsoft security product alerts are free to ingest. Always connect these first.</div></div>
+            <div class="hex-cell"><div class="hex-title">Basic Logs</div><div class="hex-desc">Lower-cost ingestion tier for high-volume, low-value data. Supports limited KQL (no joins, no summarize). Good for verbose logs you need for compliance but rarely query.</div></div>
+            <div class="hex-cell"><div class="hex-title">Analytics Logs</div><div class="hex-desc">Full-featured tier with complete KQL support. Higher cost per GB but supports all analytics rules, hunting queries, and investigation features. Default tier for most tables.</div></div>
+            <div class="hex-cell"><div class="hex-title">Archive Tier</div><div class="hex-desc">Cheapest storage for long-term retention. Data is searchable via search jobs (async, slower). Useful for compliance mandates requiring 1-12 year retention without daily query needs.</div></div>
+            <div class="hex-cell"><div class="hex-title">Data Collection Rules</div><div class="hex-desc">DCRs filter and transform data before ingestion. Drop unnecessary fields, filter by severity, or route to Basic Logs -- reducing volume and cost at the source before data reaches the workspace.</div></div>
+            <div class="hex-cell"><div class="hex-title">Commitment Tiers</div><div class="hex-desc">Pre-purchase a daily GB commitment (100 GB/day minimum) for a discounted rate. If your daily ingestion is predictable and above 100 GB, commitment tiers save 20-50% over Pay-As-You-Go.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 6 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Workspace Foundation</strong> -- Sentinel runs on a Log Analytics workspace. Create the workspace first, then add Sentinel. Region selection impacts data residency. RBAC roles: Contributor, Responder, Reader.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Data Connectors</strong> -- Microsoft sources use one-click setup. Syslog and CEF use a Linux forwarder agent. CEF goes to CommonSecurityLog (structured); Syslog goes to Syslog table (raw). REST API for custom sources.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Content Hub</strong> -- solutions bundle connectors, analytics rules, workbooks, and hunting queries. Install the solution, configure the connector, then activate analytics rules from templates.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Analytics Rules</strong> -- Scheduled (KQL on interval), NRT (every minute, limited KQL), Fusion (ML multi-stage correlation), ML Behavior Analytics (anomaly baselines). Lookup period must be >= run frequency.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Workspace Architecture</strong> -- single workspace recommended for most organizations. Multi-workspace only for data residency, regulatory isolation, or MSSP. Use <code>workspace()</code> function for cross-workspace queries.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Cost Management</strong> -- free sources (Azure Activity, M365, alerts), Basic Logs for high-volume/low-query data, commitment tiers for predictable ingestion, Data Collection Rules to filter before ingestion.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>SC-200 Series Complete</strong> &nbsp;|&nbsp; Defender XDR &bull; Endpoint &bull; Office 365 &bull; Identity &bull; Cloud Apps &bull; Sentinel
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch06-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

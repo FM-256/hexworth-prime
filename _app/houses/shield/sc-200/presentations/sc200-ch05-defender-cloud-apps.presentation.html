@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Defender for Cloud Apps | SC-200 Chapter 5</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Microsoft Defender for Cloud Apps -- SC-200 Chapter 5</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 5 &nbsp;|&nbsp; Defender for Cloud Apps</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="45" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFENDER FOR</text>
+                <text x="210" y="60" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">CLOUD APPS</text>
+                <text x="210" y="78" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">CASB Platform</text>
+                <circle cx="210" cy="98" r="8" fill="none" stroke="#ef4444" stroke-width="1.5" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Shadow IT</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Cloud Discovery</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">App Connectors</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">API-based control</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Session Control</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Real-time proxy</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">OAuth Governance</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">App permissions</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Microsoft <span class="accent">Defender for Cloud Apps</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Cloud Discovery &nbsp;&bull;&nbsp; App Connectors &nbsp;&bull;&nbsp; Session Controls &nbsp;&bull;&nbsp; Anomaly Detection &nbsp;&bull;&nbsp; OAuth Governance
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Defender for Cloud Apps is a Cloud Access Security Broker (CASB) that provides visibility into shadow IT, controls access to cloud applications, detects anomalous behavior, and governs OAuth app permissions. It bridges the gap between your users and the SaaS apps they use every day.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 5 of 6</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- CASB OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Cloud Access Security Broker <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Defender for Cloud Apps is Microsoft's CASB solution. It sits between your users and cloud services, providing visibility, data control, and threat protection across SaaS, PaaS, and IaaS.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Discover</div><div class="card-desc">Cloud Discovery identifies all cloud apps in use across your organization -- sanctioned and unsanctioned. Analyzes firewall and proxy logs to build a complete shadow IT inventory with risk scores for each app.</div></div>
+            <div class="card c-blue"><div class="card-label">Investigate</div><div class="card-desc">Deep visibility into user activities, files, and accounts within connected apps. Activity logs, file sharing analysis, and user behavior analytics reveal risky actions before they become incidents.</div></div>
+            <div class="card c-gold"><div class="card-label">Control</div><div class="card-desc">Session policies and access policies enforce real-time controls. Block downloads on unmanaged devices, require step-up authentication, and apply sensitivity labels to files -- all inline through the reverse proxy.</div></div>
+            <div class="card c-green"><div class="card-label">Protect</div><div class="card-desc">Anomaly detection policies, threat detection, and DLP scanning protect data at rest and in transit. Automated governance actions can suspend users, revoke OAuth tokens, or quarantine files.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Exam Focus</div>The four pillars of a CASB -- Discover, Investigate, Control, Protect -- map directly to exam scenarios. Know which pillar each feature falls under and how they work together.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- CLOUD DISCOVERY / SHADOW IT -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Cloud Discovery</span> and Shadow IT</div>
+        <div class="slide-subtitle">Cloud Discovery analyzes network traffic to identify all cloud apps accessed by users. It reveals shadow IT -- apps used without IT approval -- and assigns risk scores based on 90+ factors.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Log Collection Methods</div><div class="card-desc">Three ways to feed traffic data: automated log upload from firewalls/proxies using a log collector, Defender for Endpoint integration (per-device discovery), or manual snapshot reports for one-time analysis.</div></div>
+            <div class="card c-cyan"><div class="card-label">App Risk Scoring</div><div class="card-desc">Each discovered app gets a risk score (1-10) based on general info, security controls, compliance, and legal factors. Over 31,000 apps in the Cloud App Catalog with detailed risk assessments.</div></div>
+            <div class="card c-gold"><div class="card-label">Sanctioned vs Unsanctioned</div><div class="card-desc">Tag apps as Sanctioned (approved), Unsanctioned (blocked), or Monitored. Unsanctioned apps can be blocked via Defender for Endpoint network protection or by generating block scripts for your firewall.</div></div>
+        </div>
+        <div class="box box-green"><div class="box-label">Best Practice</div>Defender for Endpoint integration is the recommended method for Cloud Discovery because it provides per-device, per-user visibility without requiring proxy or firewall log uploads. Enable it in Defender for Endpoint Advanced Features settings.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- APP CONNECTORS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title"><span class="accent">App Connectors</span> -- API-Based Integration</div>
+        <div class="slide-subtitle">App connectors use provider APIs to get deep visibility and control over connected cloud apps. Once connected, Defender for Cloud Apps can scan files, monitor activities, and apply governance actions.</div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Microsoft 365</div><div class="card-desc">Native integration. Provides full visibility into Exchange Online, SharePoint Online, OneDrive, Teams, and Power Platform activities. No manual connector setup required for M365 workloads.</div></div>
+            <div class="card c-gold"><div class="card-label">Third-Party SaaS</div><div class="card-desc">API connectors for Salesforce, ServiceNow, Google Workspace, Box, Dropbox, GitHub, Okta, and more. Each connector uses OAuth or service account credentials to access the provider API.</div></div>
+            <div class="card c-green"><div class="card-label">AWS / Azure / GCP</div><div class="card-desc">Cloud platform connectors provide visibility into IaaS/PaaS activity. Monitor admin actions, resource changes, and security configurations across multi-cloud environments.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Key Distinction</div>App connectors provide <strong>out-of-band</strong> visibility -- they pull data via API after the fact. Session controls (next slide) provide <strong>inline</strong> real-time enforcement. The exam tests whether you know which approach handles which scenario.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- SESSION CONTROLS -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title"><span class="accent">Conditional Access App Control</span></div>
+        <div class="slide-subtitle">Session controls use a reverse proxy architecture to enforce real-time policies during user sessions. Traffic routes through Defender for Cloud Apps, enabling inline monitoring and control.</div>
+        <div class="step-list">
+            <div class="step-row"><div class="step-num">1</div><div class="step-text"><strong>Microsoft Entra ID Conditional Access policy</strong> -- Create a policy that routes sessions to Defender for Cloud Apps. The policy targets specific users, apps, and conditions (device state, location, risk level).</div></div>
+            <div class="step-row"><div class="step-num">2</div><div class="step-text"><strong>Reverse proxy redirection</strong> -- When conditions match, the user session routes through the Defender for Cloud Apps proxy (*.mcas.ms domain). The proxy sits between the user and the cloud app.</div></div>
+            <div class="step-row"><div class="step-num">3</div><div class="step-text"><strong>Session policy enforcement</strong> -- Policies inspect activities in real time: block file downloads on unmanaged devices, apply sensitivity labels on upload, prevent copy/paste of sensitive data, or watermark downloaded documents.</div></div>
+            <div class="step-row"><div class="step-num">4</div><div class="step-text"><strong>Access policy enforcement</strong> -- Access policies can block or monitor access entirely based on user, device, and location context. More restrictive than session policies -- they gate access at the door.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Trap</div>Session controls require a Microsoft Entra ID Conditional Access policy as the trigger mechanism. Without the Conditional Access integration, traffic does not route through the proxy. This is a common exam distractor.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- ANOMALY DETECTION POLICIES -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Anomaly Detection <span class="accent">Policies</span></div>
+        <div class="slide-subtitle">Anomaly detection policies use machine learning and UEBA to identify unusual behavior patterns in connected cloud apps. They are enabled by default and start learning user behavior immediately.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Impossible Travel</div><div class="hex-desc">Detects sign-ins from geographically distant locations within an impossible timeframe. Filters out VPNs and known corporate IPs to reduce false positives.</div></div>
+            <div class="hex-cell"><div class="hex-title">Risky Sign-In</div><div class="hex-desc">Identifies sign-ins from anonymous proxies, Tor exit nodes, suspicious IPs, or locations never seen for that user. Correlates with Microsoft Entra ID Protection risk signals.</div></div>
+            <div class="hex-cell"><div class="hex-title">Unusual Activities</div><div class="hex-desc">Detects anomalous file download volume, unusual admin operations, multiple failed logins, and data exfiltration patterns based on learned user baselines.</div></div>
+            <div class="hex-cell"><div class="hex-title">Ransomware Activity</div><div class="hex-desc">Identifies rapid file encryption patterns across cloud storage -- mass renames with known ransomware extensions, high volume of file modifications in short timeframes.</div></div>
+            <div class="hex-cell"><div class="hex-title">Suspicious Inbox Rules</div><div class="hex-desc">Detects creation of inbox forwarding rules that redirect email to external addresses. Common technique used after account compromise to maintain persistence.</div></div>
+            <div class="hex-cell"><div class="hex-title">New Country/Region</div><div class="hex-desc">Flags activity from a country or region never seen for that user or any user in the organization. Considers the entire organization learning period.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- UEBA IN CLOUD APPS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">User and Entity <span class="accent">Behavior Analytics</span></div>
+        <div class="slide-subtitle">UEBA in Defender for Cloud Apps builds behavioral profiles for each user across all connected apps. It assigns investigation priority scores to identify the riskiest users in your organization.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Investigation Priority Score</div><div class="card-desc">Each user gets a dynamic score (0-100) based on anomalous activities, alert correlations, and behavioral deviations. Higher scores indicate more suspicious behavior requiring analyst investigation.</div></div>
+            <div class="card c-blue"><div class="card-label">Behavioral Baselines</div><div class="card-desc">UEBA learns normal patterns for each user: typical sign-in locations, working hours, apps accessed, files shared, and admin operations. Deviations from baseline trigger investigation priority increases.</div></div>
+            <div class="card c-gold"><div class="card-label">Cross-App Correlation</div><div class="card-desc">Behavior is tracked across ALL connected apps. A user who suddenly downloads large volumes from SharePoint AND creates forwarding rules in Exchange AND accesses new SaaS apps gets a compounding risk score.</div></div>
+            <div class="card c-green"><div class="card-label">User Page</div><div class="card-desc">The user page in the portal shows the complete investigation picture: activity timeline, alerts, connected devices, IP addresses, locations, and peer group comparison for anomaly context.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">SOC Workflow</div>UEBA investigation priority scores help SOC analysts focus on the highest-risk users first. Sort users by priority score, then drill into the user page to review the timeline and determine if the behavior is legitimate or compromised.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- OAUTH APP GOVERNANCE -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">OAuth App</span> Governance</div>
+        <div class="slide-subtitle">OAuth apps request permissions to access organizational data on behalf of users. App governance in Defender for Cloud Apps provides visibility, policy control, and remediation for OAuth apps registered in Microsoft Entra ID.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">App Visibility</div><div class="card-desc">View all OAuth apps registered in your tenant, their permission levels, which users consented, and what data they access. Identify overprivileged apps and apps with suspicious behavior patterns.</div></div>
+            <div class="card c-gold"><div class="card-label">App Policies</div><div class="card-desc">Create policies to detect and respond to OAuth app risks: alert on high-privilege apps, auto-revoke apps from untrusted publishers, flag apps accessing specific data types, and enforce publisher verification requirements.</div></div>
+            <div class="card c-cyan"><div class="card-label">Remediation</div><div class="card-desc">Disable risky OAuth apps, revoke permissions, or ban apps entirely. Governance actions can be manual or automated through policy rules. Banned apps cannot be re-consented by users.</div></div>
+        </div>
+        <div class="box box-blue"><div class="box-label">Real-World Context</div>OAuth phishing is a growing attack vector. Attackers create malicious apps that request broad permissions (Mail.Read, Files.ReadWrite.All). Once a user consents, the attacker has persistent API access that survives password resets. App governance stops this.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- FILE POLICIES -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">File Policies</span> and DLP</div>
+        <div class="slide-subtitle">File policies scan files stored in connected cloud apps for sensitive content, external sharing, and compliance violations. They combine content inspection with governance actions for data protection.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Content Inspection</div><div class="card-desc">Scan files for sensitive information types (SSN, credit cards, health records) using built-in DLP engines or Microsoft Information Protection sensitivity labels. Files in SharePoint, OneDrive, Box, Dropbox, and more are scanned.</div></div>
+            <div class="card c-blue"><div class="card-label">Sharing Controls</div><div class="card-desc">Detect files shared externally, shared with personal email addresses, or shared via public links. Policies can match on specific domains, internal-only requirements, or exclude approved partner domains.</div></div>
+            <div class="card c-gold"><div class="card-label">Governance Actions</div><div class="card-desc">When a file matches a policy: apply a sensitivity label, remove external sharing, quarantine the file, notify the file owner, or send to an admin review queue. Actions vary by connected app capabilities.</div></div>
+            <div class="card c-green"><div class="card-label">Policy Templates</div><div class="card-desc">Pre-built templates for common scenarios: externally shared files with PII, files shared from quarantined users, stale externally-shared files, and files with specific extensions in cloud storage.</div></div>
+        </div>
+        <div class="box box-green"><div class="box-label">Integration</div>File policies integrate with Microsoft Information Protection. When a sensitivity label is applied by a file policy, the label persists even if the file is downloaded and shared outside the organization -- providing persistent data protection.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- ACTIVITY POLICIES AND ALERTS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Activity Policies and <span class="accent">Alerts</span></div>
+        <div class="slide-subtitle">Activity policies monitor user and admin actions across connected apps. They trigger alerts and governance actions when specific activity patterns are detected.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Activity Filters</div><div class="card-desc">Filter on app, user, IP address, location, device type, activity type, and more. Combine multiple filters with AND/OR logic to create precise detection rules for specific scenarios.</div></div>
+            <div class="card c-blue"><div class="card-label">Repeated Activity</div><div class="card-desc">Detect patterns where an activity occurs multiple times within a window -- for example, 10 failed logins in 5 minutes, or 50 file downloads in 1 hour. Configurable thresholds and time windows.</div></div>
+            <div class="card c-green"><div class="card-label">Governance Actions</div><div class="card-desc">Suspend user, require sign-in again, confirm user compromised (feeds to Microsoft Entra ID Protection), notify user/manager, or trigger a Power Automate flow for custom response workflows.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Alert Pipeline</div>Activity policy alerts flow into the Defender for Cloud Apps alert queue and can be integrated into Defender XDR incidents. Set severity levels (Low, Medium, High) to prioritize SOC triage and map to your incident response procedures.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- ARCHITECTURE DIAGRAM -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Defender for Cloud Apps <span class="accent">Architecture</span></div>
+        <div class="slide-subtitle">How the components fit together -- from discovery through enforcement.</div>
+        <div class="diagram-center">
+            <svg width="520" height="200" viewBox="0 0 520 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="200" y="60" width="120" height="80" rx="12" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="260" y="90" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFENDER FOR</text>
+                <text x="260" y="105" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">CLOUD APPS</text>
+                <text x="260" y="125" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">CASB Engine</text>
+                <rect x="10" y="10" width="130" height="50" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="75" y="32" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Cloud Discovery</text>
+                <text x="75" y="48" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Logs + MDE integration</text>
+                <rect x="10" y="75" width="130" height="50" rx="8" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="75" y="97" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">App Connectors</text>
+                <text x="75" y="113" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">API-based visibility</text>
+                <rect x="10" y="140" width="130" height="50" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="75" y="162" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Session Proxy</text>
+                <text x="75" y="178" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Conditional Access</text>
+                <rect x="380" y="10" width="130" height="50" rx="8" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="445" y="32" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Policies + Alerts</text>
+                <text x="445" y="48" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Activity, File, Session</text>
+                <rect x="380" y="75" width="130" height="50" rx="8" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="445" y="97" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">UEBA + Anomaly</text>
+                <text x="445" y="113" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">ML-based detection</text>
+                <rect x="380" y="140" width="130" height="50" rx="8" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="445" y="162" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Defender XDR</text>
+                <text x="445" y="178" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Unified incident queue</text>
+                <line x1="140" y1="35" x2="199" y2="80" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="140" y1="100" x2="199" y2="100" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="140" y1="165" x2="199" y2="120" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <line x1="321" y1="80" x2="379" y2="35" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="321" y1="100" x2="379" y2="100" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="321" y1="120" x2="379" y2="165" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.35s"/></line>
+            </svg>
+        </div>
+        <div class="box box-red"><div class="box-label">Data Flow</div>Cloud Discovery and App Connectors feed data IN. The CASB engine processes it through policies and UEBA. Alerts flow OUT to the Defender XDR unified incident queue. Session proxy operates inline for real-time enforcement.</div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 5 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>CASB Role</strong> -- Defender for Cloud Apps is the CASB. Four pillars: Discover, Investigate, Control, Protect. It sits between users and cloud services.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Cloud Discovery</strong> -- identifies shadow IT via log collection, Defender for Endpoint integration, or snapshot reports. Apps get risk scores 1-10 and can be sanctioned or unsanctioned.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>App Connectors</strong> -- API-based, out-of-band integration with SaaS apps. Provide deep visibility into files, activities, and accounts. Microsoft 365 connector is built-in.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Session Controls</strong> -- Conditional Access App Control uses a reverse proxy (<code>*.mcas.ms</code>). Requires Microsoft Entra ID Conditional Access policy. Enforces real-time download blocks, labeling, and watermarking.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Anomaly Detection</strong> -- ML-based policies detect impossible travel, risky sign-ins, ransomware patterns, and unusual activities. UEBA assigns investigation priority scores (0-100) per user.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>OAuth Governance</strong> -- monitors registered OAuth apps, detects overprivileged permissions, and can revoke or ban risky apps. Prevents OAuth phishing attacks that survive password resets.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 6 -- Configure Microsoft Sentinel</strong> &nbsp;|&nbsp; Log Analytics Workspace &bull; Data Connectors &bull; Content Hub &bull; Analytics Rules
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch05-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

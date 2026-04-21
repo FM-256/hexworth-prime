@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitigate Threats Using Microsoft Defender for Identity | SC-200 Chapter 4</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Mitigate Threats Using Microsoft Defender for Identity -- SC-200 Chapter 4</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 4 &nbsp;|&nbsp; Defender for Identity</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="42" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFENDER FOR</text>
+                <text x="210" y="58" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">IDENTITY</text>
+                <text x="210" y="74" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">Identity Threat Detection</text>
+                <polygon points="210,88 195,108 225,108" fill="none" stroke="#ef4444" stroke-width="1.8" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="200" y1="102" x2="220" y2="102" stroke="#ef4444" stroke-width="1" style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Sensor</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">DC-based agent</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Threat Detection</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">PtH, PtT, DCSync</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Lateral Movement</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Attack path analysis</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Posture</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Security assessments</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Mitigate Threats Using <span class="accent">Microsoft Defender for Identity</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Sensor Deployment &nbsp;&bull;&nbsp; Identity Threat Detection &nbsp;&bull;&nbsp; Lateral Movement Paths &nbsp;&bull;&nbsp; Security Posture
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Defender for Identity monitors on-premises Active Directory signals to detect identity-based threats. It identifies credential theft attacks like Pass-the-Hash and Golden Ticket, maps lateral movement paths, assesses identity security posture, and integrates with Defender XDR and Microsoft Entra ID Identity Protection for full hybrid identity coverage.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 4 of 4</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- DEFENDER FOR IDENTITY OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Defender for Identity <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Defender for Identity is a cloud-based security solution that uses on-premises Active Directory signals to detect advanced identity threats, compromised credentials, and malicious insider actions.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">What It Monitors</div><div class="card-desc">Analyzes network traffic to and from domain controllers -- authentication protocols (NTLM, Kerberos), LDAP queries, DNS lookups, and directory replication. Also ingests Windows Event Logs (4776, 4769, 4768, 8004) directly from domain controllers for complete visibility.</div></div>
+            <div class="card c-blue"><div class="card-label">Cloud Architecture</div><div class="card-desc">Sensors installed on domain controllers capture traffic and send parsed data to the Defender for Identity cloud service. The cloud service applies machine learning, behavioral analytics, and deterministic detection rules. No on-premises server infrastructure required.</div></div>
+            <div class="card c-gold"><div class="card-label">Integration with Defender XDR</div><div class="card-desc">Identity alerts flow into the unified Defender XDR incident queue at security.microsoft.com. A credential theft alert from Defender for Identity can be correlated with endpoint alerts from Defender for Endpoint in a single incident.</div></div>
+            <div class="card c-green"><div class="card-label">Microsoft Entra ID Integration</div><div class="card-desc">Integrates with Microsoft Entra ID Identity Protection to provide hybrid identity threat detection. On-premises identity signals from Active Directory combine with cloud sign-in risk signals for comprehensive coverage across both environments.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>Defender for Identity bridges the gap between on-premises AD and cloud security. It detects threats that happen inside the network perimeter -- attacks that firewalls and endpoint tools cannot see because they exploit legitimate authentication protocols.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- SENSOR DEPLOYMENT -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title"><span class="accent">Sensor</span> Deployment</div>
+        <div class="slide-subtitle">Sensors are lightweight agents installed on domain controllers that capture authentication traffic and Windows events. Two deployment models exist based on infrastructure requirements.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Domain Controller Sensor</div><div class="card-desc">Installed directly on the domain controller. Uses port mirroring internally to capture network traffic. No dedicated hardware required. Recommended deployment model for most organizations. Automatically captures all authentication and directory traffic on that DC.</div></div>
+            <div class="card c-blue"><div class="card-label">Standalone Sensor</div><div class="card-desc">Installed on a dedicated server. Requires port mirroring from the domain controller switch to receive traffic. Used when installing directly on the DC is not possible -- for example, on Server Core installations or when DC resources are constrained.</div></div>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Prerequisites</strong> -- create a Directory Service account (gMSA recommended) with read access to all objects in the domain. The sensor uses this account to query Active Directory for entity resolution.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Download</strong> -- get the sensor installer and access key from the Defender for Identity portal (or Defender XDR settings). The access key authenticates the sensor to your cloud instance.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Install</strong> -- run the installer on each domain controller. The sensor service starts automatically and begins capturing traffic. Install on ALL domain controllers for complete coverage.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Validate</strong> -- check sensor health in the portal. Verify status is Running, confirm traffic is being captured, and review any configuration warnings about missing event log sources.</span></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>The DC sensor is the preferred deployment model. The standalone sensor requires port mirroring configuration and dedicated hardware. Both models send parsed data to the cloud -- raw traffic never leaves the network.</div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- CREDENTIAL THEFT ATTACKS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Credential Theft <span class="accent">Attacks</span></div>
+        <div class="slide-subtitle">Defender for Identity detects the most dangerous Active Directory credential theft techniques that attackers use to escalate privileges and move laterally through the network.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Pass-the-Hash (PtH)</div><div class="hex-desc">Attacker captures an NTLM password hash from memory (using tools like Mimikatz) and replays it to authenticate as that user without knowing the plaintext password. Defender for Identity detects anomalous NTLM authentication patterns.</div></div>
+            <div class="hex-cell"><div class="hex-title">Pass-the-Ticket (PtT)</div><div class="hex-desc">Attacker steals a Kerberos ticket (TGT or service ticket) from memory and injects it into another session. Allows impersonation without re-authenticating. Detected by analyzing Kerberos ticket usage anomalies across the network.</div></div>
+            <div class="hex-cell"><div class="hex-title">Golden Ticket</div><div class="hex-desc">Attacker compromises the KRBTGT account hash and forges Kerberos TGTs with arbitrary privileges. Grants unlimited domain access. Defender for Identity detects forged tickets by analyzing ticket properties and encryption parameters.</div></div>
+            <div class="hex-cell"><div class="hex-title">Silver Ticket</div><div class="hex-desc">Attacker forges a Kerberos service ticket using a service account hash. Grants access to a specific service (SQL, file share) without touching the KDC. Detected by monitoring for tickets that bypass normal Kerberos authentication flow.</div></div>
+            <div class="hex-cell"><div class="hex-title">DCSync</div><div class="hex-desc">Attacker uses Directory Replication Service (DRS) protocol to request password hashes directly from a domain controller -- mimicking DC-to-DC replication. Defender for Identity alerts when non-DC machines initiate replication requests.</div></div>
+            <div class="hex-cell"><div class="hex-title">Overpass-the-Hash</div><div class="hex-desc">Attacker converts an NTLM hash into a Kerberos ticket by performing a Kerberos pre-authentication request using the stolen hash. Bridges NTLM and Kerberos attacks. Detected by correlating NTLM and Kerberos activity.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Why This Matters</div>These attacks exploit legitimate authentication protocols. Firewalls and EDR tools see normal authentication traffic. Only a tool that understands Active Directory protocol-level behavior -- like Defender for Identity -- can distinguish legitimate authentication from credential abuse.</div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- LATERAL MOVEMENT PATHS -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Lateral Movement <span class="accent">Paths</span></div>
+        <div class="slide-subtitle">Defender for Identity maps the paths an attacker could take to move from compromised standard accounts to sensitive accounts like Domain Admins. These paths reveal your exposure before an attack happens.</div>
+        <div class="diagram-center">
+            <svg width="550" height="120" viewBox="0 0 550 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="35" width="100" height="50" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="55" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Compromised</text>
+                <text x="60" y="70" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">User Account</text>
+                <rect x="150" y="15" width="100" height="40" rx="7" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="200" y="40" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="Segoe UI,sans-serif">Workstation A</text>
+                <rect x="150" y="65" width="100" height="40" rx="7" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="200" y="90" text-anchor="middle" font-size="7" fill="#fbbf24" font-family="Segoe UI,sans-serif">Workstation B</text>
+                <rect x="290" y="35" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="340" y="55" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Admin Session</text>
+                <text x="340" y="70" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Cached creds</text>
+                <rect x="430" y="35" width="110" height="50" rx="8" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.55s; opacity:0;"/>
+                <text x="485" y="55" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Domain Admin</text>
+                <text x="485" y="70" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Full domain control</text>
+                <line x1="110" y1="55" x2="150" y2="38" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="110" y1="65" x2="150" y2="82" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="250" y1="82" x2="290" y2="60" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+                <line x1="390" y1="60" x2="430" y2="60" stroke="rgba(59,130,246,0.4)" stroke-width="1.5" stroke-dasharray="5,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.45s"/></line>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">How Paths Are Built</div><div class="card-desc">Defender for Identity analyzes local admin group memberships, active sessions, and logged-on users across all machines. It maps which accounts have sessions on which machines and which machines have admin credentials cached.</div></div>
+            <div class="card c-blue"><div class="card-label">Sensitive Accounts</div><div class="card-desc">Accounts flagged as sensitive: Domain Admins, Enterprise Admins, Schema Admins, and any accounts you manually tag. Lateral movement path analysis shows how many hops separate any compromised account from these high-value targets.</div></div>
+            <div class="card c-green"><div class="card-label">Remediation</div><div class="card-desc">Break lateral movement paths by removing unnecessary local admin rights, enforcing tiered administration (admins only log into admin workstations), and clearing cached credentials. Each closed path reduces attacker options.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- RECONNAISSANCE DETECTION -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Reconnaissance <span class="accent">Detection</span></div>
+        <div class="slide-subtitle">Before attacking, adversaries gather information about the Active Directory environment. Defender for Identity detects common reconnaissance techniques that reveal attacker presence early in the kill chain.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Account Enumeration</div><div class="card-desc">Attacker uses Kerberos pre-authentication to enumerate valid usernames. Failed AS-REQ messages for non-existent accounts versus successful ones reveal which accounts exist. Defender for Identity detects enumeration patterns across multiple attempts.</div></div>
+            <div class="card c-blue"><div class="card-label">Network Mapping (DNS/LDAP)</div><div class="card-desc">Attacker queries DNS for SRV records to locate domain controllers, queries LDAP for domain structure, group memberships, and organizational units. Abnormal LDAP query volumes or patterns from user workstations trigger alerts.</div></div>
+            <div class="card c-gold"><div class="card-label">SAM-R Reconnaissance</div><div class="card-desc">Attacker queries the Security Account Manager Remote (SAM-R) protocol to enumerate local administrators on remote machines. Reveals which machines have privileged sessions. Defender for Identity detects unusual SAM-R query patterns from non-admin accounts.</div></div>
+            <div class="card c-green"><div class="card-label">Honeytoken Accounts</div><div class="card-desc">Decoy accounts configured in Defender for Identity that should never be used in production. Any authentication attempt or query targeting a honeytoken triggers an immediate high-severity alert -- a reliable indicator of attacker activity or internal misuse.</div></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>Honeytoken accounts are a highly effective detection mechanism. Create accounts that look like service accounts or admin accounts. Any activity targeting them is inherently suspicious because no legitimate user or application should reference them.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- COMPROMISED CREDENTIAL DETECTION -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Compromised Credential <span class="accent">Detection</span></div>
+        <div class="slide-subtitle">Beyond direct credential theft attacks, Defender for Identity uses behavioral analytics and machine learning to detect compromised credentials through abnormal usage patterns.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Abnormal Authentication</div><div class="card-desc">Machine learning builds a behavioral baseline for each user: typical logon times, source machines, authentication protocols used. Deviations trigger alerts -- such as a user authenticating from a machine they have never used, at unusual hours, or using an unexpected protocol.</div></div>
+            <div class="card c-blue"><div class="card-label">Brute Force Detection</div><div class="card-desc">Multiple failed authentication attempts against one or many accounts from a single source. Defender for Identity distinguishes between password spray attacks (one password, many accounts) and targeted brute force (many passwords, one account).</div></div>
+            <div class="card c-green"><div class="card-label">Suspicious Service Creation</div><div class="card-desc">Attacker creates services on remote machines for persistence or lateral movement. Defender for Identity detects suspicious remote service creation that does not match normal administrative patterns -- a common post-exploitation technique used with tools like PsExec.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Behavioral Analytics</div>Defender for Identity builds a learning period of approximately 30 days per entity. During this time, it establishes baselines for normal behavior. After the learning period, deviations trigger behavioral anomaly alerts. The more data the sensor captures, the more accurate detection becomes.</div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- SECURITY POSTURE ASSESSMENTS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Security Posture <span class="accent">Assessments</span></div>
+        <div class="slide-subtitle">Defender for Identity continuously evaluates your Active Directory configuration and provides identity security posture assessments through Microsoft Secure Score recommendations.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Unsecure SID History</div><div class="hex-desc">Identifies accounts with SID History attributes that can be exploited for privilege escalation. SID History is intended for domain migrations but attackers abuse it to gain access to resources in other domains.</div></div>
+            <div class="hex-cell"><div class="hex-title">Weak Cipher Usage</div><div class="hex-desc">Detects accounts configured to use weak encryption types like DES or RC4 for Kerberos authentication. These ciphers are vulnerable to offline cracking attacks. Recommends upgrading to AES-256.</div></div>
+            <div class="hex-cell"><div class="hex-title">Dormant Accounts</div><div class="hex-desc">Identifies privileged accounts that have not authenticated in 180+ days. Dormant accounts with admin rights are prime targets because compromise may go unnoticed for extended periods.</div></div>
+            <div class="hex-cell"><div class="hex-title">Unprotected KRBTGT</div><div class="hex-desc">Flags when the KRBTGT account password has not been rotated recently. A stale KRBTGT key increases the window for Golden Ticket attacks. Recommends regular password rotation (at least every 180 days).</div></div>
+            <div class="hex-cell"><div class="hex-title">Clear-Text Credentials</div><div class="hex-desc">Detects accounts transmitting credentials in clear text via LDAP simple bind or legacy protocols. Recommends enforcing LDAP signing and channel binding to prevent credential interception on the network.</div></div>
+            <div class="hex-cell"><div class="hex-title">Unresolved LMPs</div><div class="hex-desc">Reports on unresolved lateral movement paths to sensitive accounts. Provides specific remediation steps: remove unnecessary local admin rights, enforce credential hygiene, implement tiered access model.</div></div>
+        </div>
+        <div class="box box-green"><div class="box-label">Secure Score Integration</div>Identity posture assessments appear as improvement actions in Microsoft Secure Score. Resolving each assessment earns points and directly improves your organization's security posture measurement.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- ENTRA ID IDENTITY PROTECTION -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Microsoft Entra ID <span class="accent">Identity Protection</span></div>
+        <div class="slide-subtitle">Defender for Identity integrates with Microsoft Entra ID Identity Protection to provide end-to-end hybrid identity threat detection -- covering both on-premises Active Directory and cloud identity.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">On-Premises Signals (Defender for Identity)</div><div class="card-desc">Captures AD authentication traffic, Kerberos ticket anomalies, LDAP queries, DCSync attempts, and lateral movement. These signals detect attacks happening inside the network perimeter targeting the on-premises directory.</div></div>
+            <div class="card c-blue"><div class="card-label">Cloud Signals (Entra ID Identity Protection)</div><div class="card-desc">Analyzes cloud sign-in patterns, impossible travel, sign-ins from anonymous IP addresses, leaked credential databases, and password spray attacks targeting Microsoft Entra ID. Risk levels: Low, Medium, High.</div></div>
+            <div class="card c-gold"><div class="card-label">User Risk and Sign-In Risk</div><div class="card-desc"><strong>User risk</strong> -- probability the account is compromised (based on leaked credentials, anomalous behavior). <strong>Sign-in risk</strong> -- probability a specific sign-in is not from the account owner (impossible travel, malware-linked IP). Both feed Conditional Access policies.</div></div>
+            <div class="card c-green"><div class="card-label">Risk-Based Conditional Access</div><div class="card-desc">Conditional Access policies use risk levels from both sources. Example: if Defender for Identity detects a PtH attack on-premises AND Entra ID sees a risky sign-in, the policy can require MFA, block access, or force a password reset automatically.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- DEFENDER XDR INTEGRATION -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Defender XDR <span class="accent">Integration</span></div>
+        <div class="slide-subtitle">Defender for Identity alerts integrate into the unified Defender XDR incident queue. Identity signals are correlated with endpoint, email, and cloud app signals for complete attack visibility.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Alert Correlation</strong> -- a credential theft alert from Defender for Identity is correlated with a suspicious process alert from Defender for Endpoint into a single incident. One attack story, not isolated alerts.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Identity Timeline</strong> -- the Identities section in the Defender XDR portal shows each user's activity: on-premises logons, cloud sign-ins, alerts, and lateral movement. Click any user entity in an incident to see the full timeline.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Advanced Hunting Tables</strong> -- identity data is available in KQL tables: <span class="ic">IdentityLogonEvents</span> for sign-ins, <span class="ic">IdentityQueryEvents</span> for LDAP/DNS queries, <span class="ic">IdentityDirectoryEvents</span> for directory changes like group membership modifications.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Unified Response</strong> -- from a single incident, analysts can disable a compromised user account, isolate the endpoint where the attack originated, and block the attacker's IP. Cross-workload response from one console.</span></div>
+        </div>
+        <div class="code-block">// Hunt for accounts with multiple failed logons followed by success
+IdentityLogonEvents
+| where Timestamp > ago(24h)
+| summarize FailCount=countif(ActionType == "LogonFailed"),
+            SuccessCount=countif(ActionType == "LogonSuccess") by AccountName
+| where FailCount > 10 and SuccessCount > 0
+| sort by FailCount desc</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- INVESTIGATION WORKFLOW -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Investigation <span class="accent">Workflow</span></div>
+        <div class="slide-subtitle">When Defender for Identity triggers an alert, the SOC analyst investigates through the Defender XDR portal using a structured approach.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Triage the Alert</div><div class="hex-desc">Review alert severity, affected accounts, source machines, and MITRE ATT&CK mapping. Determine if this is part of a larger incident already correlated by Defender XDR.</div></div>
+            <div class="hex-cell"><div class="hex-title">Check User Timeline</div><div class="hex-desc">Open the affected user entity. Review recent sign-in activity, machines accessed, group membership changes, and any other alerts. Look for patterns of compromise.</div></div>
+            <div class="hex-cell"><div class="hex-title">Analyze Source Machine</div><div class="hex-desc">If the alert involves a specific machine, pivot to the device timeline. Check for suspicious processes, remote connections, or tools like Mimikatz that indicate credential dumping.</div></div>
+            <div class="hex-cell"><div class="hex-title">Check Lateral Paths</div><div class="hex-desc">Review the lateral movement path for the compromised account. Determine if the attacker could reach sensitive accounts. Identify which machines need immediate attention.</div></div>
+            <div class="hex-cell"><div class="hex-title">Respond</div><div class="hex-desc">Disable the compromised account, reset the password, isolate affected machines. If Golden Ticket or DCSync is confirmed, rotate the KRBTGT password twice and revoke all Kerberos tickets domain-wide.</div></div>
+            <div class="hex-cell"><div class="hex-title">Remediate Posture</div><div class="hex-desc">After containment, close the lateral movement path that was exploited. Remove unnecessary admin rights, enforce credential hygiene, and address any posture assessment findings to prevent recurrence.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 4 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Sensor Deployment</strong> -- DC sensor (installed on domain controller, recommended) and standalone sensor (dedicated server, requires port mirroring). Install on ALL DCs for complete coverage. Uses a Directory Service account (gMSA preferred).</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Credential Theft Detection</strong> -- Pass-the-Hash, Pass-the-Ticket, Golden Ticket, Silver Ticket, DCSync, Overpass-the-Hash. These attacks exploit legitimate AD protocols and are invisible to firewalls and standard EDR.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Lateral Movement Paths</strong> -- maps how attackers can move from compromised accounts to sensitive accounts. Built from local admin memberships, cached credentials, and active sessions. Break paths by enforcing tiered administration.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Reconnaissance</strong> -- detects account enumeration, LDAP/DNS mapping, SAM-R queries. Honeytoken accounts provide high-fidelity alerts when decoy accounts are targeted.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Security Posture</strong> -- assessments for weak ciphers, dormant privileged accounts, unrotated KRBTGT, clear-text LDAP. Feed into Microsoft Secure Score as improvement actions.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Hybrid Integration</strong> -- combines with Microsoft Entra ID Identity Protection for hybrid threat detection. On-premises signals + cloud risk = comprehensive identity security. Risk-based Conditional Access automates response.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>SC-200 Series Complete</strong> &nbsp;|&nbsp; Defender XDR &bull; Defender for Endpoint &bull; Defender for Office 365 &bull; Defender for Identity
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch04-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

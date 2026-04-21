@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defender for Identity Lab -- SC-200 Chapter 4</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Defender for Identity Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.4</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Sensor and Configuration</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Check Sensor Health</div><div class="task-desc">Run <code>mdi-sensor status --all</code> to view the health of all deployed Defender for Identity sensors across domain controllers.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">View Sensor Configuration</div><div class="task-desc">Run <code>mdi-sensor show config --dc SRV-DC01</code> to display the sensor configuration on the primary domain controller.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">List Honeytoken Accounts</div><div class="task-desc">Run <code>mdi-config list honeytokens</code> to display the configured honeytoken decoy accounts.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- Threat Detection</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Investigate a Pass-the-Hash Alert</div><div class="task-desc">Run <code>mdi-alerts show --id MDI-1147</code> to review a detected Pass-the-Hash attack and affected entities.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Investigate a DCSync Alert</div><div class="task-desc">Run <code>mdi-alerts show --id MDI-1152</code> to review a DCSync replication attempt from a non-DC machine.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Review Golden Ticket Detection</div><div class="task-desc">Run <code>mdi-alerts show --id MDI-1160</code> to analyze a suspected Golden Ticket attack with forged Kerberos TGTs.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Lateral Movement</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Map Lateral Movement Paths</div><div class="task-desc">Run <code>mdi-lmp show --user jsmith</code> to display the lateral movement paths from a compromised account to sensitive accounts.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">List Sensitive Accounts at Risk</div><div class="task-desc">Run <code>mdi-lmp list sensitive-accounts --at-risk</code> to view sensitive accounts reachable via lateral movement paths.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Posture and Response</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">Run Security Posture Assessment</div><div class="task-desc">Run <code>mdi-posture assess --domain contoso.local</code> to evaluate identity security posture and get recommendations.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Disable Compromised Account</div><div class="task-desc">Run <code>mdi-response disable-account --user jsmith</code> to disable the compromised account and revoke active sessions.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@identity-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>Identity Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@identity-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 4 Lab Complete!</div>
+                    <div class="success-message">You checked sensor health, investigated Pass-the-Hash and DCSync attacks, analyzed Golden Ticket forgery, mapped lateral movement paths, assessed identity security posture, and disabled a compromised account. These are the core Defender for Identity workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Check the health of all Defender for Identity sensors:\n<code>mdi-sensor status --all</code>\n\nReview sensor status, version, and captured traffic on each domain controller.",hint:"Sensors must be installed on ALL domain controllers for complete AD traffic visibility.",cmd:"mdi-sensor status --all"},2:{step:"View the sensor configuration on the primary DC:\n<code>mdi-sensor show config --dc SRV-DC01</code>",hint:"The sensor captures NTLM, Kerberos, LDAP, and DNS traffic. It uses a Directory Service account (gMSA) to query AD.",cmd:"mdi-sensor show config --dc SRV-DC01"},3:{step:"List configured honeytoken accounts:\n<code>mdi-config list honeytokens</code>",hint:"Honeytoken accounts are decoys that should never be used. Any activity targeting them is a strong indicator of compromise.",cmd:"mdi-config list honeytokens"},4:{step:"Investigate a Pass-the-Hash alert:\n<code>mdi-alerts show --id MDI-1147</code>",hint:"Pass-the-Hash replays NTLM hashes captured from memory. Look for the source machine where the hash was stolen and the target machine where it was replayed.",cmd:"mdi-alerts show --id MDI-1147"},5:{step:"Investigate a DCSync replication alert:\n<code>mdi-alerts show --id MDI-1152</code>",hint:"DCSync uses the Directory Replication Service protocol to request password hashes. Only domain controllers should perform replication -- any other source is suspicious.",cmd:"mdi-alerts show --id MDI-1152"},6:{step:"Review a Golden Ticket detection:\n<code>mdi-alerts show --id MDI-1160</code>",hint:"Golden Tickets are forged Kerberos TGTs using the KRBTGT hash. They grant unlimited domain access. The KRBTGT password must be rotated twice to invalidate them.",cmd:"mdi-alerts show --id MDI-1160"},7:{step:"Map lateral movement paths for a compromised user:\n<code>mdi-lmp show --user jsmith</code>",hint:"Lateral movement paths show how an attacker can move from a compromised account to sensitive accounts through cached credentials and admin sessions.",cmd:"mdi-lmp show --user jsmith"},8:{step:"List sensitive accounts reachable via lateral movement:\n<code>mdi-lmp list sensitive-accounts --at-risk</code>",hint:"Sensitive accounts include Domain Admins, Enterprise Admins, Schema Admins, and manually tagged accounts.",cmd:"mdi-lmp list sensitive-accounts --at-risk"},9:{step:"Run a security posture assessment:\n<code>mdi-posture assess --domain contoso.local</code>",hint:"Posture assessments check for weak ciphers, dormant accounts, unrotated KRBTGT, clear-text LDAP, and SID History abuse.",cmd:"mdi-posture assess --domain contoso.local"},10:{step:"Disable the compromised account:\n<code>mdi-response disable-account --user jsmith</code>",hint:"Disabling the account revokes all active sessions and prevents further authentication. Follow up with a password reset.",cmd:"mdi-response disable-account --user jsmith"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Check Sensor Health";
+        TASK_NAMES[2]="View Sensor Configuration";
+        TASK_NAMES[3]="List Honeytoken Accounts";
+        TASK_NAMES[4]="Investigate a Pass-the-Hash Alert";
+        TASK_NAMES[5]="Investigate a DCSync Alert";
+        TASK_NAMES[6]="Review Golden Ticket Detection";
+        TASK_NAMES[7]="Map Lateral Movement Paths";
+        TASK_NAMES[8]="List Sensitive Accounts at Risk";
+        TASK_NAMES[9]="Run Security Posture Assessment";
+        TASK_NAMES[10]="Disable Compromised Account";
+
+        var CMD_RESPONSES = {"mdi-sensor status --all":{"lines":[{"text":"=== Defender for Identity -- Sensor Status ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Domain Controller      Sensor Type    Status     Version    Traffic/hr","cls":"term-line-warn"},{"text":"  SRV-DC01               DC Sensor      Running    2.238      12,450 events","cls":"term-line-out"},{"text":"  SRV-DC02               DC Sensor      Running    2.238      8,320 events","cls":"term-line-out"},{"text":"  SRV-DC03               Standalone     Running    2.238      6,710 events","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  3 sensors deployed | All healthy | Last sync: 2 minutes ago","cls":"term-line-dim"}],"completesTask":1},"mdi-sensor show config --dc SRV-DC01":{"lines":[{"text":"=== Sensor Configuration: SRV-DC01 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Sensor Type:          Domain Controller (installed on DC)","cls":"term-line-out"},{"text":"  Service Account:      gMSA-MDI$ (Group Managed Service Account)","cls":"term-line-out"},{"text":"  Capture Adapters:     eth0 (port mirroring not required for DC sensor)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Monitored Protocols:","cls":"term-line-warn"},{"text":"    NTLM Authentication       Active     4776 events captured","cls":"term-line-out"},{"text":"    Kerberos (AS-REQ/TGS)     Active     4768, 4769 events captured","cls":"term-line-out"},{"text":"    LDAP Queries              Active     Parsed from network traffic","cls":"term-line-out"},{"text":"    DNS Lookups               Active     Parsed from network traffic","cls":"term-line-out"},{"text":"    Directory Replication     Active     DRS protocol monitored","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Windows Event Sources:  4776, 4769, 4768, 8004 | All configured","cls":"term-line-dim"}],"completesTask":2},"mdi-config list honeytokens":{"lines":[{"text":"=== Honeytoken Accounts ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Account                Type           Status     Last Activity","cls":"term-line-warn"},{"text":"  svc-backup-legacy      Service Acct   Active     2026-04-18 (ALERT: query detected)","cls":"term-line-err"},{"text":"  admin-test-001         Admin Acct     Active     No activity","cls":"term-line-out"},{"text":"  sql-readonly-old       Service Acct   Active     No activity","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  3 honeytokens configured | 1 triggered alert","cls":"term-line-warn"},{"text":"  Any authentication or enumeration targeting these accounts generates high-severity alerts","cls":"term-line-dim"}],"completesTask":3},"mdi-alerts show --id MDI-1147":{"lines":[{"text":"=== Alert MDI-1147: Pass-the-Hash Attack Detected ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Severity: High | MITRE: Credential Access (T1550.002)","cls":"term-line-err"},{"text":"  Time: 2026-04-21 09:31 UTC","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Attack Details:","cls":"term-line-warn"},{"text":"    Source Machine:    DESKTOP-JSmith (10.0.1.45)","cls":"term-line-out"},{"text":"    Target Machine:    SRV-FILE01 (10.0.1.80)","cls":"term-line-out"},{"text":"    Stolen Identity:   contoso\\svc-admin","cls":"term-line-err"},{"text":"    Protocol:          NTLM","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Evidence:","cls":"term-line-warn"},{"text":"    NTLM hash for svc-admin was captured on DESKTOP-JSmith","cls":"term-line-out"},{"text":"    Hash replayed to authenticate to SRV-FILE01 from same machine","cls":"term-line-out"},{"text":"    svc-admin has never authenticated from DESKTOP-JSmith before","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Recommended: Disable svc-admin, isolate DESKTOP-JSmith, reset password","cls":"term-line-warn"}],"completesTask":4},"mdi-alerts show --id MDI-1152":{"lines":[{"text":"=== Alert MDI-1152: Suspected DCSync Attack ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Severity: High | MITRE: Credential Access (T1003.006)","cls":"term-line-err"},{"text":"  Time: 2026-04-21 10:14 UTC","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Attack Details:","cls":"term-line-warn"},{"text":"    Source Machine:    DEV-PC0117 (10.0.1.117) -- NOT a domain controller","cls":"term-line-err"},{"text":"    Target DC:         SRV-DC01 (10.0.1.10)","cls":"term-line-out"},{"text":"    Protocol:          MS-DRSR (Directory Replication Service)","cls":"term-line-out"},{"text":"    Requesting User:   contoso\\jsmith","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Replicated Objects:","cls":"term-line-warn"},{"text":"    krbtgt account hash requested","cls":"term-line-err"},{"text":"    Administrator account hash requested","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  CRITICAL: Non-DC machine initiated replication. This is a DCSync attack.","cls":"term-line-err"},{"text":"  Attacker can forge Golden Tickets with the krbtgt hash.","cls":"term-line-warn"}],"completesTask":5},"mdi-alerts show --id MDI-1160":{"lines":[{"text":"=== Alert MDI-1160: Suspected Golden Ticket Usage ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Severity: High | MITRE: Credential Access (T1558.001)","cls":"term-line-err"},{"text":"  Time: 2026-04-21 10:42 UTC","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Attack Details:","cls":"term-line-warn"},{"text":"    Source Machine:    DEV-PC0117 (10.0.1.117)","cls":"term-line-out"},{"text":"    Forged Identity:   contoso\\Administrator","cls":"term-line-err"},{"text":"    Ticket Type:       TGT (Ticket Granting Ticket)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Detection Evidence:","cls":"term-line-warn"},{"text":"    TGT presented with encryption type RC4 (KRBTGT uses AES-256)","cls":"term-line-err"},{"text":"    Ticket lifetime exceeds domain policy maximum (10 hours vs 7200 min)","cls":"term-line-err"},{"text":"    No corresponding AS-REQ for this TGT in KDC logs","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  CRITICAL: Rotate KRBTGT password TWICE to invalidate all forged tickets.","cls":"term-line-warn"},{"text":"  Isolate DEV-PC0117 immediately.","cls":"term-line-err"}],"completesTask":6},"mdi-lmp show --user jsmith":{"lines":[{"text":"=== Lateral Movement Paths: jsmith ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Path to Domain Admins: 3 hops","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  jsmith","cls":"term-line-out"},{"text":"    --> DESKTOP-JSmith (jsmith has local session)","cls":"term-line-out"},{"text":"    --> SRV-FILE01 (svc-admin has cached credentials)","cls":"term-line-warn"},{"text":"    --> SRV-DC01 (svc-admin is local admin)","cls":"term-line-err"},{"text":"    --> Domain Admin access achieved","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Risk: HIGH -- 3 hops from standard user to Domain Admin","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Remediation:","cls":"term-line-warn"},{"text":"    Remove svc-admin from local admins on SRV-FILE01","cls":"term-line-out"},{"text":"    Clear cached credentials on SRV-FILE01","cls":"term-line-out"},{"text":"    Enforce tiered admin model -- admin accounts only on admin workstations","cls":"term-line-dim"}],"completesTask":7},"mdi-lmp list sensitive-accounts --at-risk":{"lines":[{"text":"=== Sensitive Accounts at Risk via Lateral Movement ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Account                 Group              Shortest Path   Risk","cls":"term-line-warn"},{"text":"  contoso\\Administrator   Domain Admins      3 hops          HIGH","cls":"term-line-err"},{"text":"  contoso\\svc-admin       Domain Admins      2 hops          HIGH","cls":"term-line-err"},{"text":"  contoso\\backup-admin    Server Operators   4 hops          MEDIUM","cls":"term-line-warn"},{"text":"  contoso\\exchange-admin  Enterprise Admins  5 hops          MEDIUM","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  4 sensitive accounts reachable | 2 high risk | 2 medium risk","cls":"term-line-err"},{"text":"  Priority: Close paths to accounts with fewest hops first","cls":"term-line-dim"}],"completesTask":8},"mdi-posture assess --domain contoso.local":{"lines":[{"text":"=== Identity Security Posture Assessment: contoso.local ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Overall Score: 62% (Identity component of Secure Score)","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Finding                              Severity    Status","cls":"term-line-warn"},{"text":"  KRBTGT password age > 180 days       CRITICAL    Last rotated 347 days ago","cls":"term-line-err"},{"text":"  12 accounts using RC4 encryption     HIGH        Should use AES-256","cls":"term-line-err"},{"text":"  8 dormant privileged accounts        HIGH        No logon in 180+ days","cls":"term-line-warn"},{"text":"  3 accounts with SID History           MEDIUM      Potential privilege escalation","cls":"term-line-warn"},{"text":"  LDAP signing not enforced            MEDIUM      Clear-text credentials at risk","cls":"term-line-warn"},{"text":"  4 unresolved lateral movement paths  HIGH        Paths to Domain Admins","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Resolving all findings would raise identity score from 62% to 89%","cls":"term-line-dim"}],"completesTask":9},"mdi-response disable-account --user jsmith":{"lines":[{"text":"=== Account Disable: jsmith ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Account: contoso\\jsmith","cls":"term-line-out"},{"text":"  Action: Disable account in Active Directory and Microsoft Entra ID","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [DISABLING] Setting userAccountControl ACCOUNTDISABLE flag...","cls":"term-line-err"},{"text":"  [OK] Active Directory account disabled","cls":"term-line-out"},{"text":"  [OK] Microsoft Entra ID account sign-in blocked","cls":"term-line-out"},{"text":"  [OK] All active Kerberos tickets revoked","cls":"term-line-out"},{"text":"  [OK] All active cloud sessions terminated","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Account is fully disabled across on-premises and cloud.","cls":"term-line-dim"},{"text":"  Next step: Reset password before re-enabling.","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@identity-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch04-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Defender for Identity Lab -- SC-200 Chapter 4", "term-welcome");
+            addLine("Shield House Identity Threat Detection Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Investigate identity threats, map lateral movement paths, assess posture, and respond to compromised credentials.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
