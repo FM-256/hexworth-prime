@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy and Manage a Microsoft 365 Tenant | MS-102 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Deploy and Manage a Microsoft 365 Tenant -- MS-102 Chapter 1</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; MS-102 &nbsp;|&nbsp; Chapter 1 &nbsp;|&nbsp; Tenant Management</div>
+        <div class="title-hero">
+            <svg width="480" height="120" viewBox="0 0 480 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central tenant box -->
+                <rect x="165" y="15" width="150" height="90" rx="14" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="240" y="40" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft 365</text>
+                <text x="240" y="57" text-anchor="middle" font-size="14" fill="#93c5fd" font-weight="800" font-family="Segoe UI,sans-serif">TENANT</text>
+                <text x="240" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">contoso.onmicrosoft.com</text>
+                <text x="240" y="84" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Admin Center | DNS | Domains</text>
+                <!-- Glow ring -->
+                <ellipse cx="240" cy="60" rx="90" ry="56" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- Custom domain - left -->
+                <rect x="4" y="10" width="120" height="44" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="64" y="28" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Custom Domains</text>
+                <text x="64" y="42" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">DNS TXT/MX Records</text>
+                <!-- Service Health - bottom left -->
+                <rect x="4" y="66" width="120" height="44" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="64" y="84" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Service Health</text>
+                <text x="64" y="98" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Advisories + Incidents</text>
+                <!-- Org Settings - right -->
+                <rect x="356" y="10" width="120" height="44" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="416" y="28" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Org Settings</text>
+                <text x="416" y="42" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Profile + Preferences</text>
+                <!-- Message Center - bottom right -->
+                <rect x="356" y="66" width="120" height="44" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="416" y="84" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Message Center</text>
+                <text x="416" y="98" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Change Notifications</text>
+                <!-- Connecting lines -->
+                <line x1="124" y1="32" x2="164" y2="50" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="124" y1="88" x2="164" y2="68" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <line x1="356" y1="32" x2="316" y2="50" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="356" y1="88" x2="316" y2="68" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Deploy and Manage a <span class="accent">Microsoft 365 Tenant</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Tenant Setup &nbsp;&bull;&nbsp; Custom Domains &nbsp;&bull;&nbsp; Org Settings &nbsp;&bull;&nbsp; Admin Center Navigation
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A Microsoft 365 tenant is the foundational container for your organization's cloud identity and services. This chapter covers provisioning a tenant, verifying custom domains with DNS records, configuring organizational settings, navigating the admin center, and monitoring service health through the Message Center.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>MS-102 Exam Objectives</span>
+            <span>Chapter 1 of 4</span>
+            <span>Microsoft 365 Administrator</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS A TENANT ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">What is a <span class="accent">Microsoft 365 Tenant</span>?</div>
+        <div class="slide-subtitle">A dedicated instance of Microsoft Entra ID and Microsoft 365 services tied to your organization.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="110" viewBox="0 0 680 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Signup -->
+                <rect x="4" y="20" width="150" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="40" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Sign Up</text>
+                <text x="79" y="55" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Org name + admin email</text>
+                <text x="79" y="68" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Pick: contoso.onmicrosoft.com</text>
+                <text x="79" y="80" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Global Admin created</text>
+                <!-- Arrow -->
+                <line x1="160" y1="55" x2="205" y2="55" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="205,50 215,55 205,60" fill="rgba(255,255,255,0.3)"/>
+                <!-- Tenant -->
+                <rect x="220" y="8" width="240" height="94" rx="14" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.2s; opacity:0;"/>
+                <text x="340" y="28" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">M365 Tenant Created</text>
+                <text x="340" y="44" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Microsoft Entra ID directory provisioned</text>
+                <text x="340" y="58" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Default domain: *.onmicrosoft.com</text>
+                <text x="340" y="72" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Exchange, SharePoint, Teams provisioned</text>
+                <text x="340" y="86" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Unique Tenant ID (GUID) assigned</text>
+                <text x="340" y="98" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Geo region selected at creation -- cannot change</text>
+                <!-- What you get -->
+                <rect x="500" y="12" width="170" height="26" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="585" y="29" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID Directory</text>
+                <rect x="500" y="44" width="170" height="26" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="585" y="61" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Admin Center Access</text>
+                <rect x="500" y="76" width="170" height="26" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="585" y="93" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Service Subscriptions</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Tenant ID</div>
+                <div class="card-desc">Every tenant receives a globally unique GUID. This ID is permanent and used in API calls, Conditional Access policies, and cross-tenant configurations. You cannot change it after creation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Default Domain</div>
+                <div class="card-desc">The <code class="ic">.onmicrosoft.com</code> domain is auto-provisioned and cannot be removed. It serves as the fallback domain for user sign-in and routing if custom domains are removed or misconfigured.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Data Residency</div>
+                <div class="card-desc">The geographic region you select at tenant creation determines where your data at rest is stored. Core workloads (Exchange, SharePoint, Teams) honor this region. Multi-Geo add-ons allow satellite locations.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- ADMIN CENTER OVERVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Microsoft 365 <span class="accent">Admin Center</span></div>
+        <div class="slide-subtitle">The central management portal at admin.microsoft.com for tenant-wide administration.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Admin Center hub -->
+                <rect x="240" y="10" width="200" height="80" rx="12" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="340" y="32" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">admin.microsoft.com</text>
+                <text x="340" y="48" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Users | Groups | Billing</text>
+                <text x="340" y="62" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Settings | Health | Reports</text>
+                <text x="340" y="76" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Requires Global Admin or delegated role</text>
+                <!-- Satellite portals -->
+                <rect x="4" y="14" width="140" height="30" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="74" y="33" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="600" font-family="Segoe UI,sans-serif">Entra Admin Center</text>
+                <rect x="4" y="54" width="140" height="30" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="74" y="73" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="600" font-family="Segoe UI,sans-serif">Exchange Admin Center</text>
+                <rect x="536" y="14" width="140" height="30" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="606" y="33" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="600" font-family="Segoe UI,sans-serif">SharePoint Admin Center</text>
+                <rect x="536" y="54" width="140" height="30" rx="6" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="606" y="73" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="600" font-family="Segoe UI,sans-serif">Teams Admin Center</text>
+                <!-- Lines -->
+                <line x1="145" y1="29" x2="239" y2="40" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="145" y1="69" x2="239" y2="58" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="535" y1="29" x2="441" y2="40" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="535" y1="69" x2="441" y2="58" stroke="rgba(201,168,58,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Left Navigation</div>
+                <div class="card-desc">The admin center sidebar groups management into: Users, Groups, Roles, Resources, Billing, Settings, Health, and Reports. The Show All link reveals specialty admin centers for Exchange, SharePoint, Teams, Security, and Compliance.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Delegated Admin Roles</div>
+                <div class="card-desc">The Global Administrator role has full access but should be limited to 2-4 accounts. Use least-privilege roles: User Administrator for account management, Exchange Administrator for mail, SharePoint Administrator for sites. All assignable in the Roles section.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Home Dashboard</div>
+                <div class="card-desc">The admin center home page shows active user counts, service health status, Message Center posts, and recommended tasks. Admins can customize dashboard cards to surface the metrics most relevant to their organization.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Search + Quick Actions</div>
+                <div class="card-desc">The top search bar finds users, groups, settings, and documentation. Quick actions include resetting passwords, adding users, and managing licenses. Keyboard shortcut: press <code class="ic">/</code> to focus the search bar.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- CUSTOM DOMAINS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Adding <span class="accent">Custom Domains</span></div>
+        <div class="slide-subtitle">Replace contoso.onmicrosoft.com with your organization's domain for professional branding and email routing.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Step 1 -->
+                <rect x="4" y="15" width="150" height="70" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="79" y="33" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">1. Add Domain</text>
+                <text x="79" y="48" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Settings > Domains</text>
+                <text x="79" y="60" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Enter: contoso.com</text>
+                <text x="79" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">M365 generates TXT record</text>
+                <!-- Arrow -->
+                <line x1="160" y1="50" x2="205" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="205,45 215,50 205,55" fill="rgba(255,255,255,0.2)"/>
+                <!-- Step 2 -->
+                <rect x="220" y="15" width="150" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="295" y="33" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">2. Verify (DNS)</text>
+                <text x="295" y="48" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Add TXT to DNS registrar</text>
+                <text x="295" y="60" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">TXT: MS=ms12345678</text>
+                <text x="295" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Propagation: up to 72 hours</text>
+                <!-- Arrow -->
+                <line x1="376" y1="50" x2="421" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="421,45 431,50 421,55" fill="rgba(255,255,255,0.2)"/>
+                <!-- Step 3 -->
+                <rect x="436" y="15" width="150" height="70" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="511" y="33" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">3. Configure DNS</text>
+                <text x="511" y="48" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">MX record for email</text>
+                <text x="511" y="60" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">CNAME for autodiscover</text>
+                <text x="511" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">SPF + DKIM + DMARC</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Custom domain verification proves you own the domain. Microsoft generates a unique TXT value (e.g., MS=ms12345678) that you add as a DNS record at your registrar. Once Microsoft detects the record, the domain is verified and you can configure mail routing (MX), autodiscovery (CNAME), and email authentication (SPF/DKIM/DMARC).
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            A domain can only be verified in one M365 tenant at a time. If a domain is already verified in another tenant, you must remove it there first. The <code class="ic">.onmicrosoft.com</code> default domain cannot be removed or changed after tenant creation.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- DNS RECORDS DEEP DIVE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">DNS Records for <span class="accent">Microsoft 365</span></div>
+        <div class="slide-subtitle">Each M365 service requires specific DNS records to function correctly.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell">
+                <div class="hex-title">TXT (Verification)</div>
+                <div class="hex-desc">Proves domain ownership. Value: <code class="ic">MS=ms12345678</code>. Added at the root of your domain in your DNS registrar. Required before any other records.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">MX (Mail Exchange)</div>
+                <div class="hex-desc">Routes inbound email to Exchange Online. Points to <code class="ic">contoso-com.mail.protection.outlook.com</code>. Priority 0. Without this, email does not flow.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">CNAME (Autodiscover)</div>
+                <div class="hex-desc">Enables Outlook auto-configuration. <code class="ic">autodiscover</code> points to <code class="ic">autodiscover.outlook.com</code>. Required for desktop Outlook to find mailbox settings.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">TXT (SPF)</div>
+                <div class="hex-desc">Sender Policy Framework. Value: <code class="ic">v=spf1 include:spf.protection.outlook.com -all</code>. Tells receiving servers which IPs can send email for your domain.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">CNAME (DKIM)</div>
+                <div class="hex-desc">DomainKeys Identified Mail. Two CNAME records (selector1, selector2) point to <code class="ic">selector1-contoso-com._domainkey.contoso.onmicrosoft.com</code>. Cryptographically signs outbound email.</div>
+            </div>
+            <div class="hex-cell">
+                <div class="hex-title">TXT (DMARC)</div>
+                <div class="hex-desc">Domain-based Message Authentication. <code class="ic">_dmarc</code> TXT record sets policy (none, quarantine, reject) for messages that fail SPF or DKIM. Recommended: start with <code class="ic">p=quarantine</code>.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common Pitfall</div>
+            If your registrar manages DNS, M365 can auto-configure records. If DNS is hosted elsewhere (e.g., Cloudflare, Route 53), you must manually add each record. Exam scenarios test whether you can identify the correct record type for a given symptom (no email = MX, Outlook cannot connect = CNAME autodiscover).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- ORGANIZATIONAL PROFILE ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Organizational <span class="accent">Profile</span></div>
+        <div class="slide-subtitle">Settings > Org settings > Organization profile -- defines your tenant's identity and contact information.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Organization Name</div>
+                <div class="card-desc">The display name that appears in the admin center, email headers, and billing. Set during signup but changeable later in Settings > Org settings > Organization information.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Technical Contact</div>
+                <div class="card-desc">Email address that receives service notifications and technical communications from Microsoft. Should be a monitored shared mailbox or distribution group, not an individual's personal email.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Address + Phone</div>
+                <div class="card-desc">Physical address and phone number tied to your tenant. Used for billing verification, support requests, and compliance documentation. Must match your billing profile for license purchases.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-cyan">
+                <div class="card-label">Custom Theme + Branding</div>
+                <div class="card-desc">Customize the M365 portal with your organization's logo, colors, and navigation bar. Set at Settings > Org settings > Organization profile > Custom themes. Users see branded sign-in pages and the M365 app launcher.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Data Location (Geo)</div>
+                <div class="card-desc">The Organization profile displays where your tenant's core data is stored (e.g., United States, European Union). Set at creation and applies to Exchange, SharePoint, and Teams. Multi-Geo requires separate licensing for satellite regions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- ORG SETTINGS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Organizational <span class="accent">Settings</span></div>
+        <div class="slide-subtitle">Tenant-wide toggles that control how services behave for all users.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Services Tab</div>
+                <div class="card-desc">Controls per-service settings: Microsoft Teams (guest access, meeting policies), SharePoint (external sharing), Office installation options (update channels), and Viva Insights (data analysis opt-in). Each setting applies tenant-wide by default.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Security + Privacy Tab</div>
+                <div class="card-desc">Password expiration policy (default: no expiration for cloud-only), customer lockbox (approval for Microsoft support access), idle session timeout, and self-service password reset. Critical security controls for MS-102.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">User Consent to Apps</div>
+                <div class="card-desc">Controls whether users can grant third-party apps permissions to access M365 data. Options: allow all, allow verified publishers only, or require admin approval for all apps. High-risk setting -- exam frequently tests this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Modern Authentication</div>
+                <div class="card-desc">Security defaults enable MFA for all users and block legacy authentication protocols (POP, IMAP basic auth). Enabled by default on new tenants. Disable only when implementing custom Conditional Access policies.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Alert</div>
+            If a scenario describes users receiving unwanted consent prompts from third-party apps, the answer involves restricting user consent in Org settings > User consent to apps. This is a top-tested MS-102 concept.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- SERVICE HEALTH ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title"><span class="accent">Service Health</span> Dashboard</div>
+        <div class="slide-subtitle">Health > Service health in the admin center -- real-time status of all Microsoft 365 services.</div>
+
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Three status types -->
+                <rect x="4" y="15" width="180" height="70" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="94" y="35" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Service Operational</text>
+                <text x="94" y="52" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Normal -- no issues detected</text>
+                <text x="94" y="66" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">Green status indicator</text>
+
+                <rect x="210" y="15" width="180" height="70" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="300" y="35" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Advisory</text>
+                <text x="300" y="52" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Degraded -- some users affected</text>
+                <text x="300" y="66" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Workarounds may exist</text>
+
+                <rect x="416" y="15" width="180" height="70" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="506" y="35" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Incident</text>
+                <text x="506" y="52" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Service disruption -- active outage</text>
+                <text x="506" y="66" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Post-incident report (PIR) issued</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Overview Page</div>
+                <div class="card-desc">Shows all M365 services with their current status. Drill into any service to see active issues, issue history (last 30 days), and planned maintenance windows. Filterable by service and date range.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Issue Details</div>
+                <div class="card-desc">Each incident includes: a classification (advisory, incident, or extended incident), user impact assessment, current status (investigating, restoring, resolved), root cause, and estimated time to resolution.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Planned Maintenance</div>
+                <div class="card-desc">Microsoft posts planned maintenance windows in advance. Admins receive notifications 7 days before major changes. Planned maintenance appears on the Message Center, not the service health page, unless it causes downtime.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- MESSAGE CENTER ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Message Center</span></div>
+        <div class="slide-subtitle">Health > Message center -- the primary channel for Microsoft communicating upcoming changes to your tenant.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Change Communications</div>
+                <div class="card-desc">Every new feature, deprecation, or policy change is posted here before it takes effect. Posts include a description, timeline, what admins need to do, and a unique Message Center ID (MC######). This is how you stay ahead of changes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Filtering + Preferences</div>
+                <div class="card-desc">Filter by service (Exchange, Teams, SharePoint), category (Plan for Change, Stay Informed, Prevent or Fix Issues), or tag. Set email preferences to receive a weekly digest of new Message Center posts to a distribution group.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Action Required vs. Informational</div>
+                <div class="card-desc">Posts tagged "Plan for Change" or "Prevent or Fix Issues" often require admin action before a deadline. "Stay Informed" posts are awareness-only. Exam scenarios test whether you can determine the correct response to a Message Center post.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            You receive a Message Center post stating that Basic Authentication for Exchange Online will be disabled in 30 days. The post is tagged "Prevent or Fix Issues." Your action: audit all apps and scripts using basic auth, migrate them to OAuth 2.0 / Modern Authentication, and test before the deadline. This is a classic MS-102 exam scenario.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- RELEASE PREFERENCES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Release <span class="accent">Preferences</span></div>
+        <div class="slide-subtitle">Settings > Org settings > Release preferences -- control when your tenant receives new Microsoft 365 features.</div>
+
+        <div class="diagram-center">
+            <svg width="680" height="100" viewBox="0 0 680 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Targeted release -->
+                <rect x="4" y="10" width="200" height="80" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="104" y="30" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Targeted Release</text>
+                <text x="104" y="46" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Features arrive first</text>
+                <text x="104" y="58" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">For everyone or selected users</text>
+                <text x="104" y="70" text-anchor="middle" font-size="7.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Test + validate before rollout</text>
+                <text x="104" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">IT admins + early adopters</text>
+                <!-- Arrow -->
+                <line x1="210" y1="50" x2="248" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+                <polygon points="248,46 256,50 248,54" fill="rgba(255,255,255,0.15)"/>
+                <!-- Standard release -->
+                <rect x="262" y="10" width="200" height="80" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="362" y="30" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Standard Release</text>
+                <text x="362" y="46" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Default for all tenants</text>
+                <text x="362" y="58" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Features after targeted validation</text>
+                <text x="362" y="70" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Stable + production-ready</text>
+                <text x="362" y="82" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Recommended for most users</text>
+                <!-- Arrow to org -->
+                <line x1="468" y1="50" x2="506" y2="50" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+                <polygon points="506,46 514,50 506,54" fill="rgba(255,255,255,0.15)"/>
+                <!-- Org -->
+                <rect x="520" y="18" width="150" height="64" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="595" y="40" text-anchor="middle" font-size="10" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Your Organization</text>
+                <text x="595" y="56" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">All end users receive</text>
+                <text x="595" y="68" text-anchor="middle" font-size="7.5" fill="#86efac" font-family="Segoe UI,sans-serif">production-ready features</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Targeted Release -- Everyone</div>
+                <div class="card-desc">The entire tenant receives new features as soon as they enter targeted release. Best for small organizations or dev/test tenants where all users are comfortable with early access. Not recommended for production tenants with non-technical users.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Targeted Release -- Selected Users</div>
+                <div class="card-desc">Only specified users (typically IT admins and champions) receive new features early. The rest of the tenant stays on standard release. This is the recommended approach -- it allows testing without impacting the broader organization.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Distinction</div>
+            Release preferences control M365 web service features (admin center, Teams web, SharePoint Online). They do not control desktop Office app update channels. Desktop app updates are managed separately through Microsoft 365 Apps update channels (Current Channel, Monthly Enterprise, Semi-Annual Enterprise).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- TENANT LIFECYCLE ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Tenant <span class="accent">Lifecycle</span> Management</div>
+        <div class="slide-subtitle">Ongoing administration tasks that keep a production tenant healthy and secure.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">License Management</div>
+                <div class="card-desc">Monitor purchased vs. consumed licenses at Billing > Licenses. Unassigned licenses still incur cost. Use group-based licensing in Microsoft Entra ID to auto-assign licenses when users join security groups.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Admin Role Reviews</div>
+                <div class="card-desc">Regularly audit who holds Global Admin and other privileged roles. Enable Privileged Identity Management (PIM) for just-in-time role activation. MS-102 emphasizes the principle of least privilege across all admin tasks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Subscription Renewal</div>
+                <div class="card-desc">Monitor subscription expiry dates at Billing > Your products. Expired subscriptions enter a 30-day grace period, then 90-day disabled state, then permanent deletion. Users lose access to services during the disabled state.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top:4px;">
+            <div class="card c-red">
+                <div class="card-label">Tenant Deprovisioning</div>
+                <div class="card-desc">Deleting a tenant requires canceling all subscriptions, removing all custom domains, and deleting all users except the Global Admin. Microsoft Entra ID retains the tenant for 30 days in a soft-deleted state. Recovery is possible during this window.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Support Requests</div>
+                <div class="card-desc">Create support tickets at Support > New service request. Include service health incident IDs when relevant. Premier/Unified support customers have faster SLAs. All tickets require at minimum a Service Administrator role.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for Deploy and Manage a Microsoft 365 Tenant</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Tenant fundamentals:</strong> A tenant is a dedicated M365 instance with a unique GUID, a default <code>.onmicrosoft.com</code> domain, and a geo-locked data residency region set at creation.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Admin center:</strong> <code>admin.microsoft.com</code> is the central portal. Satellite centers (Entra, Exchange, SharePoint, Teams) handle workload-specific tasks. Use least-privilege admin roles.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Custom domains:</strong> Add at Settings > Domains. Verify with a TXT record. Configure MX for mail routing, CNAME for autodiscover, and SPF/DKIM/DMARC for email authentication.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Org settings:</strong> Organization profile (name, address, branding), service toggles (Teams guest access, SharePoint sharing), security (password policy, customer lockbox), and user consent to third-party apps.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Service health + Message Center:</strong> Service health shows real-time status (operational, advisory, incident). Message Center communicates upcoming changes with action items and deadlines.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Release preferences:</strong> Targeted release (for selected users or everyone) delivers features early. Standard release is the default. This only controls web service features, not desktop app update channels.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 &mdash; Manage Users, Contacts, and Licenses</strong> &nbsp;|&nbsp; User Lifecycle &bull; Groups &bull; Bulk Operations &bull; License Assignment
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; MS-102</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'ms102-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

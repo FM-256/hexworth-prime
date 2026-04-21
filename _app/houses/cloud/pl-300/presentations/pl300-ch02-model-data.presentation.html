@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model the Data | PL-300 Chapter 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide { display: none; position: fixed; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; font-weight: 700; font-size: 0.78rem; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px; }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Model the Data -- PL-300 Chapter 2</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; PL-300 &nbsp;|&nbsp; Chapter 2 &nbsp;|&nbsp; Model the Data</div>
+        <div class="title-hero">
+            <svg width="460" height="120" viewBox="0 0 460 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Fact table center -->
+                <rect x="165" y="15" width="130" height="90" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="230" y="38" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">FactSales</text>
+                <text x="230" y="54" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">OrderKey, DateKey</text>
+                <text x="230" y="66" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">ProductKey, CustomerKey</text>
+                <text x="230" y="78" text-anchor="middle" font-size="7.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Qty, Revenue, Cost</text>
+                <text x="230" y="96" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">Foreign keys + measures</text>
+                <!-- DimDate top-left -->
+                <rect x="10" y="5" width="110" height="40" rx="8" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="22" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">DimDate</text>
+                <text x="65" y="36" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Year, Month, Quarter</text>
+                <!-- DimProduct bottom-left -->
+                <rect x="10" y="60" width="110" height="40" rx="8" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="77" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">DimProduct</text>
+                <text x="65" y="91" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Name, Category, Price</text>
+                <!-- DimCustomer top-right -->
+                <rect x="340" y="5" width="110" height="40" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="395" y="22" text-anchor="middle" font-size="9" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">DimCustomer</text>
+                <text x="395" y="36" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Name, City, Segment</text>
+                <!-- DimTerritory bottom-right -->
+                <rect x="340" y="60" width="110" height="40" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.4" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="395" y="77" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">DimTerritory</text>
+                <text x="395" y="91" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">Region, Country, Group</text>
+                <!-- Lines -->
+                <line x1="120" y1="25" x2="164" y2="45" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="80" x2="164" y2="65" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="340" y1="25" x2="296" y2="45" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="340" y1="80" x2="296" y2="65" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/></line>
+            </svg>
+            <div class="big-title">Model the <span class="accent">Data</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Star Schema &nbsp;&bull;&nbsp; Relationships &nbsp;&bull;&nbsp; DAX Intro &nbsp;&bull;&nbsp; Calculated Columns vs Measures
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A well-designed data model is the foundation of every Power BI solution. This chapter covers star schema design, table relationships, cardinality, cross-filter direction, and the basics of DAX -- including when to use calculated columns versus measures.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>PL-300 Exam Objectives</span>
+            <span>Chapter 2 of 4</span>
+            <span>Power BI Data Analyst</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- STAR SCHEMA -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">The <span class="accent">Star Schema</span></div>
+        <div class="slide-subtitle">The recommended model design pattern for Power BI -- one central fact table surrounded by dimension tables.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Fact Tables</div>
+                <div class="card-desc">Store measurable, quantitative data -- the events of your business. Each row represents a transaction, event, or observation. Columns include foreign keys (linking to dimensions) and numeric measures (revenue, quantity, cost). Fact tables are typically the largest tables in the model and grow over time.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dimension Tables</div>
+                <div class="card-desc">Store descriptive attributes -- the context around facts. Examples: DimDate (year, month, quarter), DimProduct (name, category, color), DimCustomer (name, city, segment). Dimension tables are the "one" side of one-to-many relationships. They provide the labels for slicers, axes, and legends in reports.</div>
+            </div>
+        </div>
+        <div class="box box-cyan">
+            <div class="box-label">Why Star Schema?</div>
+            Power BI's internal engine (VertiPaq) is optimized for star schemas. This design gives you the best query performance, simplest DAX calculations, and most intuitive report filtering. Avoid flat, wide tables with 50+ columns -- split them into facts and dimensions instead.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- FACT vs DIMENSION DEEP DIVE -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Fact Tables vs <span class="accent">Dimension Tables</span></div>
+        <div class="slide-subtitle">Understanding the difference is fundamental to building any Power BI model.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Fact: FactSales</div>
+                <div class="card-desc">SalesOrderKey (PK), DateKey (FK), ProductKey (FK), CustomerKey (FK), OrderQty, UnitPrice, TotalRevenue, DiscountAmount. Each row = one line item in a sales order. 60,000+ rows.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dim: DimDate</div>
+                <div class="card-desc">DateKey (PK), FullDate, Year, Quarter, MonthName, MonthNumber, WeekOfYear, DayOfWeek, IsWeekend, FiscalYear, FiscalQuarter. One row per calendar date. Marked as the Date table.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Dim: DimProduct</div>
+                <div class="card-desc">ProductKey (PK), ProductName, Category, SubCategory, Color, ListPrice, StandardCost. One row per unique product. Used to slice sales by category or filter by color.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Common Mistake</div>
+            Putting dimension attributes (like ProductName or CustomerCity) directly in the fact table creates a denormalized "flat table." This works in Excel but fails in Power BI -- it bloats memory, breaks filter propagation, and makes DAX much harder. Always normalize into star schema.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- RELATIONSHIPS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Table <span class="accent">Relationships</span></div>
+        <div class="slide-subtitle">Relationships connect tables so filters flow from dimensions to facts.</div>
+        <div class="diagram-center">
+            <svg width="500" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="20" width="140" height="60" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="80" y="42" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">DimProduct</text>
+                <text x="80" y="58" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">ProductKey (PK)</text>
+                <text x="80" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">ONE side</text>
+                <rect x="350" y="20" width="140" height="60" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="420" y="42" text-anchor="middle" font-size="10" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">FactSales</text>
+                <text x="420" y="58" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">ProductKey (FK)</text>
+                <text x="420" y="72" text-anchor="middle" font-size="7" fill="#475569" font-family="Segoe UI,sans-serif">MANY side</text>
+                <line x1="150" y1="50" x2="350" y2="50" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="6,4"><animate attributeName="stroke-dashoffset" values="20;0" dur="1.5s" repeatCount="indefinite"/></line>
+                <text x="250" y="44" text-anchor="middle" font-size="9" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">1 : *</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">One-to-Many (1:*)</div>
+                <div class="card-desc">The standard relationship type. One row in the dimension matches many rows in the fact table. DimProduct has one row per product; FactSales has many rows referencing that product. This is 95% of all Power BI relationships.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Many-to-Many (*:*)</div>
+                <div class="card-desc">Both tables have duplicate values in the join column. Use sparingly -- it requires a bridging table or careful DAX. Power BI supports it but it can produce ambiguous results if filter context is not controlled. Avoid unless the business scenario demands it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">One-to-One (1:1)</div>
+                <div class="card-desc">Rare in practice. Both tables have unique values in the join column. Usually indicates the two tables should be merged into one. If you see a 1:1 relationship, ask whether the tables can be combined in Power Query instead.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- CROSS-FILTER DIRECTION -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Cross-Filter <span class="accent">Direction</span></div>
+        <div class="slide-subtitle">Controls how slicer selections propagate from one table to another through relationships.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Single Direction (Default)</div>
+                <div class="card-desc">Filters flow from the "one" side (dimension) to the "many" side (fact). When you select "Bikes" in a DimProduct slicer, only bike sales appear in the FactSales visual. The fact table does NOT filter the dimension table. This is the recommended default for star schemas.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Both Directions (Bidirectional)</div>
+                <div class="card-desc">Filters flow in both directions. Selecting a customer in one visual can filter the products they bought. Sounds useful, but creates ambiguity -- if two paths exist between tables, Power BI does not know which to use. Enable only when needed and understand the performance cost.</div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">PL-300 Exam Warning</div>
+            The exam tests whether you know the default is single-direction and that bidirectional filtering can cause ambiguous paths and performance issues. Prefer CROSSFILTER() in DAX to temporarily override direction rather than permanently setting relationships to "Both."
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- DATE TABLE -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">The <span class="accent">Date Table</span></div>
+        <div class="slide-subtitle">Every Power BI model that uses time intelligence needs a dedicated, properly marked Date table.</div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Requirements</div>
+                <div class="card-desc">A contiguous range of dates with no gaps. One row per day. Must cover the full date range of your fact data. Must be marked as a Date table in Model view (Table Tools > Mark as Date Table). Must have a Date column of type Date.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Useful Columns</div>
+                <div class="card-desc">Year, Quarter (Q1-Q4), MonthName, MonthNumber, WeekOfYear, DayOfWeek, IsWeekend, FiscalYear, FiscalQuarter. These power slicer hierarchies (Year > Quarter > Month) and enable time-intelligence DAX functions like SAMEPERIODLASTYEAR.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Auto Date/Time</div>
+                <div class="card-desc">Power BI creates hidden date tables automatically for every Date column. Disable this (File > Options > Data Load) and use your own. Auto tables cannot be customized, waste memory, and do not support fiscal calendars or the SAMEPERIODLASTYEAR pattern reliably.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">M Code to Generate a Date Table</div>
+            <code class="ic">= List.Dates(#date(2022,1,1), 1461, #duration(1,0,0,0))</code> -- generates 4 years of daily dates starting Jan 1, 2022. Expand with Table.AddColumn for Year, Month, Quarter, etc.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- DAX INTRO -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Introduction to <span class="accent">DAX</span></div>
+        <div class="slide-subtitle">Data Analysis Expressions -- the formula language for measures, calculated columns, and calculated tables in Power BI.</div>
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">What is DAX?</div>
+                <div class="card-desc">A formula language similar to Excel functions but designed for relational data models. DAX operates on entire columns and tables, not individual cells. It understands filter context -- the combination of slicers, row labels, and column headers that determine which data rows a formula evaluates.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Common Functions</div>
+                <div class="card-desc">SUM, AVERAGE, COUNT, DISTINCTCOUNT for basic aggregation. CALCULATE to modify filter context. RELATED to pull columns across relationships. IF for conditional logic. DIVIDE for safe division (avoids divide-by-zero errors).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Filter Context</div>
+                <div class="card-desc">When a visual shows Revenue by Category, each category row has a filter context that limits FactSales to that category. DAX measures evaluate inside this context automatically. CALCULATE can override it. Understanding filter context is the single most important DAX concept.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- CALCULATED COLUMNS vs MEASURES -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Calculated Columns vs <span class="accent">Measures</span></div>
+        <div class="slide-subtitle">The most common source of confusion for new Power BI developers -- and a guaranteed PL-300 topic.</div>
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Calculated Columns</div>
+                <div class="card-desc">Evaluated row by row during data refresh. The result is stored in the model (uses memory). Has row context -- can reference values in the current row. Use for: categorizing rows (High/Medium/Low), concatenating fields, creating sort keys. Appears as a column you can drag to slicers and axes. DAX: <code class="ic">Margin = Sales[Revenue] - Sales[Cost]</code></div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Measures</div>
+                <div class="card-desc">Evaluated at query time based on filter context. NOT stored -- recalculated for every visual interaction. Has filter context -- aggregates dynamically. Use for: all aggregations (totals, averages, ratios, YTD). Cannot be used as a slicer or axis. DAX: <code class="ic">Total Revenue = SUM(Sales[Revenue])</code></div>
+            </div>
+        </div>
+        <div class="box box-red">
+            <div class="box-label">Rule of Thumb</div>
+            If the value should change depending on what is being filtered in the report, it is a measure. If the value is fixed per row and you need it for slicing/filtering, it is a calculated column. When in doubt, use a measure -- they are more flexible and use less memory.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- CORE DAX PATTERNS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Core <span class="accent">DAX Patterns</span></div>
+        <div class="slide-subtitle">Five essential patterns that cover most PL-300 modeling scenarios.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Basic Aggregation:</strong> <code class="ic">Total Revenue = SUM(FactSales[Revenue])</code> -- sums all revenue rows visible in the current filter context.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Safe Division:</strong> <code class="ic">Profit Margin = DIVIDE(SUM(FactSales[Profit]), SUM(FactSales[Revenue]), 0)</code> -- returns 0 instead of error when revenue is zero.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>CALCULATE:</strong> <code class="ic">Online Sales = CALCULATE(SUM(FactSales[Revenue]), FactSales[Channel] = "Online")</code> -- overrides filter context to show only online channel.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>RELATED:</strong> <code class="ic">Category = RELATED(DimProduct[Category])</code> -- pulls a dimension attribute into a fact table calculated column across the relationship.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>DISTINCTCOUNT:</strong> <code class="ic">Unique Customers = DISTINCTCOUNT(FactSales[CustomerKey])</code> -- counts unique customers, not total rows.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- INACTIVE RELATIONSHIPS & ROLE-PLAYING DIMS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Inactive Relationships and <span class="accent">Role-Playing Dimensions</span></div>
+        <div class="slide-subtitle">When a fact table has multiple date columns, only one relationship to DimDate can be active.</div>
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">The Problem</div>
+                <div class="card-desc">FactSales has OrderDate, ShipDate, and DueDate. All three need to relate to DimDate. But Power BI only allows one active relationship between two tables. The other two become inactive (shown as dashed lines in Model view).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The Solution: USERELATIONSHIP</div>
+                <div class="card-desc">Create measures that activate the inactive relationship. <code class="ic">Shipped Revenue = CALCULATE(SUM(FactSales[Revenue]), USERELATIONSHIP(FactSales[ShipDate], DimDate[DateKey]))</code>. This tells DAX to use the ShipDate relationship for this specific calculation.</div>
+            </div>
+        </div>
+        <div class="box box-green">
+            <div class="box-label">Exam Tip</div>
+            USERELATIONSHIP can only be used inside CALCULATE. It activates an existing inactive relationship -- it does not create a new one. The relationship must already exist in the model. This is a frequently tested PL-300 pattern for role-playing date dimensions.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- MODEL OPTIMIZATION -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Model <span class="accent">Optimization</span></div>
+        <div class="slide-subtitle">A lean model loads faster, consumes less memory, and produces snappier reports.</div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Remove Unused Columns</div>
+                <div class="card-desc">Every column increases model size. If a column is not used in relationships, measures, calculated columns, or visuals, remove it in Power Query. A fact table with 30 columns should typically be trimmed to 8-12 after identifying what is actually needed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Avoid High-Cardinality Columns</div>
+                <div class="card-desc">Columns with many unique values (GUIDs, timestamps to the second, free-text descriptions) compress poorly and bloat memory. Move them to a separate table or remove them. VertiPaq compresses repeated values efficiently -- unique values are expensive.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Disable Auto Date/Time</div>
+                <div class="card-desc">Power BI creates a hidden date table for every Date column by default. With 5 date columns, that is 5 hidden tables consuming memory. Disable auto date/time in Options and use a single, explicit DimDate table instead.</div>
+            </div>
+        </div>
+        <div class="box box-blue">
+            <div class="box-label">Performance Analyzer</div>
+            Use View > Performance Analyzer to measure how long each visual takes to render. It shows DAX query time, visual rendering time, and other processing. If a visual takes over 1 second, optimize the underlying measure or reduce the data volume.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts for the PL-300 exam -- data modeling fundamentals.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Star schema</strong> is the recommended design -- one central fact table (transactions/events) surrounded by dimension tables (descriptive attributes). VertiPaq is optimized for this pattern.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Relationships</strong> are primarily one-to-many (1:*). The dimension is the "one" side; the fact is the "many" side. Default cross-filter direction is single (dimension to fact).</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Date table:</strong> every model needs a dedicated DimDate table, marked as a Date table. Disable auto date/time. This enables time-intelligence DAX functions.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>DAX:</strong> the formula language for Power BI. Measures evaluate in filter context (dynamic). Calculated columns evaluate row-by-row (static). When in doubt, use a measure.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>CALCULATE</strong> is the most important DAX function -- it modifies filter context. USERELATIONSHIP activates inactive relationships for role-playing dimensions.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Optimize:</strong> remove unused columns, avoid high-cardinality text fields, disable auto date/time, and use Performance Analyzer to find slow visuals.</span></div>
+        </div>
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 3 &mdash; Visualize and Analyze the Data</strong> &nbsp;|&nbsp; Report Design &bull; Visual Types &bull; Conditional Formatting &bull; Bookmarks
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; PL-300</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'pl300-ch02-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft 365 Administrator // MS-102</title>
+
+    <style>
+        /* -- CSS Custom Properties: Cloud House palette -- */
+        :root {
+            --cloud-primary:   #3b82f6;
+            --cloud-secondary: #60a5fa;
+            --cloud-accent:    #93c5fd;
+            --cloud-glow:      rgba(59, 130, 246, 0.3);
+            --cloud-bg:        rgba(59, 130, 246, 0.05);
+            --cloud-border:    rgba(59, 130, 246, 0.25);
+            --cloud-dark:      #1e3a8a;
+            --cloud-darker:    #0d1f4a;
+            --bg-main:         #060b14;
+            --bg-deep:         #03060d;
+            --bg-card:         #080f1e;
+            --bg-card-hover:   #0d1628;
+            --text-primary:    #dbeafe;
+            --text-secondary:  #7ba8e0;
+            --text-muted:      #2d4a72;
+            --border-color:    rgba(59, 130, 246, 0.12);
+            --border-hover:    rgba(59, 130, 246, 0.35);
+            --success:         #3b82f6;
+            --danger:          #ef4444;
+            --danger-border:   rgba(239, 68, 68, 0.30);
+            --danger-bg:       rgba(239, 68, 68, 0.06);
+            --danger-hover-bg: rgba(239, 68, 68, 0.12);
+            --shadow-md:       0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:       0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:     0 0 28px rgba(59, 130, 246, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; padding: 10px 0;
+        }
+        .course-label {
+            font-size: 0.75rem; color: var(--text-muted);
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .dashboard-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.82rem; font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px; border-radius: 6px;
+            border: 1px solid var(--border-color); background: var(--cloud-bg);
+            transition: all 0.2s ease; letter-spacing: 0.5px;
+        }
+        .dashboard-btn:hover {
+            color: var(--cloud-accent); border-color: var(--border-hover);
+            background: rgba(59, 130, 246, 0.10);
+        }
+        .dashboard-btn-icon { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* -- Hero Header -- */
+        .header {
+            text-align: center; margin-bottom: 28px; padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--cloud-darker) 0%, #0f2860 50%, var(--cloud-darker) 100%);
+            border-radius: 16px; box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--cloud-border); position: relative; overflow: hidden;
+        }
+        .header::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px; pointer-events: none;
+        }
+        .header::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(45deg, transparent, transparent 18px,
+                rgba(59, 130, 246, 0.018) 18px, rgba(59, 130, 246, 0.018) 20px);
+            pointer-events: none;
+        }
+        .course-badge {
+            display: inline-block; background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.40); color: var(--cloud-primary);
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; padding: 4px 18px; border-radius: 20px;
+            margin-bottom: 14px; position: relative; z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .header h2 {
+            font-size: 2.1rem; color: #fff; margin-bottom: 8px;
+            position: relative; z-index: 1;
+            font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;
+        }
+        .header .subtitle {
+            font-size: 1rem; color: var(--cloud-accent); opacity: 0.85;
+            position: relative; z-index: 1; letter-spacing: 0.5px;
+        }
+        .course-stats {
+            display: flex; justify-content: center; gap: 14px; margin-top: 26px;
+            flex-wrap: wrap; position: relative; z-index: 1;
+        }
+        .course-stat {
+            background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.22);
+            padding: 10px 22px; border-radius: 10px; text-align: center; min-width: 80px;
+        }
+        .course-stat .value {
+            font-size: 1.4rem; font-weight: 700; color: var(--cloud-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .course-stat .label {
+            font-size: 0.68rem; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px;
+        }
+
+        /* -- Overall progress bar -- */
+        .progress-section {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 18px 22px; margin-bottom: 28px;
+            box-shadow: var(--shadow-md);
+        }
+        .progress-section h3 {
+            color: var(--cloud-secondary); font-size: 0.82rem; font-weight: 700;
+            margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .progress-bar-container {
+            background: rgba(59, 130, 246, 0.08); border-radius: 10px;
+            height: 14px; overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cloud-dark), var(--cloud-secondary), var(--cloud-primary));
+            width: 0%; transition: width 0.6s ease; border-radius: 10px;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+        .progress-text {
+            text-align: right; font-size: 0.75rem; color: var(--text-muted);
+            margin-top: 6px; font-family: 'Courier New', Courier, monospace;
+        }
+
+        .section-heading {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 2.5px;
+            text-transform: uppercase; color: var(--text-muted);
+            margin-bottom: 12px; padding-left: 4px;
+        }
+
+        /* -- Chapter Cards (collapsible) -- */
+        .week-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; margin-bottom: 10px; box-shadow: var(--shadow-md);
+            overflow: hidden; transition: border-color 0.2s ease;
+        }
+        .week-card.locked {
+            opacity: 0.4; pointer-events: none; position: relative;
+        }
+        .week-card.locked::after {
+            content: 'COMING SOON'; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); font-size: 0.72rem; font-weight: 700;
+            letter-spacing: 0.2em; color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.6); padding: 6px 16px; border-radius: 4px;
+            border: 1px solid rgba(59, 130, 246, 0.2); z-index: 5;
+        }
+        .week-card:hover { border-color: var(--border-hover); }
+        .week-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 22px; cursor: pointer; user-select: none;
+            transition: background 0.2s ease;
+        }
+        .week-header:hover { background: rgba(59, 130, 246, 0.04); }
+        .week-header-left { display: flex; align-items: center; gap: 14px; }
+        .week-num {
+            background: linear-gradient(135deg, var(--cloud-dark), var(--cloud-secondary));
+            color: #000; width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.95rem; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .week-title-group .week-title {
+            font-size: 1rem; font-weight: 700; color: var(--cloud-accent);
+            line-height: 1.25; font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+        .week-title-group .week-sub {
+            font-size: 0.83rem; color: var(--text-secondary); margin-top: 2px;
+        }
+        .week-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+        .obj-tag {
+            font-size: 0.68rem; font-weight: 700; color: var(--cloud-secondary);
+            background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.18);
+            padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;
+        }
+        .item-count-tag {
+            font-size: 0.68rem; color: var(--text-muted);
+            background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.10);
+            padding: 2px 8px; border-radius: 4px;
+        }
+        .week-toggle {
+            color: var(--text-muted); font-size: 1.1rem;
+            transition: transform 0.3s ease; flex-shrink: 0;
+        }
+        .week-card.open .week-toggle { transform: rotate(180deg); }
+        .week-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .week-card.open .week-body { max-height: 4200px; }
+        .week-inner { padding: 4px 22px 24px; border-top: 1px solid rgba(59, 130, 246, 0.06); }
+
+        /* -- Per-chapter progress bar -- */
+        .week-progress { margin: 14px 0 8px; }
+        .week-progress-label {
+            display: flex; justify-content: space-between; font-size: 0.70rem;
+            color: var(--text-muted); margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .week-progress-bar-container {
+            background: rgba(59, 130, 246, 0.06); border-radius: 6px;
+            height: 5px; overflow: hidden;
+        }
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cloud-dark), var(--cloud-primary));
+            width: 0%; transition: width 0.5s ease; border-radius: 6px;
+        }
+
+        /* -- Chapter Overview Card -- */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.04), rgba(59, 130, 246, 0.01));
+            border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 10px;
+            padding: 16px 20px; margin-bottom: 16px; margin-top: 14px;
+        }
+        .week-overview-title {
+            font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--cloud-primary); margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .week-overview-desc { font-size: 0.86rem; color: var(--text-secondary); line-height: 1.65; }
+
+        /* -- Subsection labels -- */
+        .subsection { margin-top: 20px; }
+        .subsection-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 8px;
+            padding-bottom: 6px; border-bottom: 1px solid rgba(45, 74, 114, 0.20);
+        }
+        .subsection-label::before {
+            content: ''; display: inline-block; width: 3px; height: 12px;
+            border-radius: 2px; flex-shrink: 0;
+        }
+        .subsection-label.label-presentation::before { background: var(--cloud-secondary); }
+        .subsection-label.label-lab::before          { background: #ef4444; }
+        .subsection-label.label-assessment::before   { background: #fbbf24; }
+
+        /* -- Content type badges -- */
+        .content-badge {
+            font-size: 0.58rem; font-weight: 700; letter-spacing: 0.8px;
+            text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+            flex-shrink: 0; font-family: 'Courier New', Courier, monospace;
+        }
+        .badge-presentation {
+            background: rgba(59, 130, 246, 0.12); color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.28);
+        }
+        .badge-quiz {
+            background: rgba(251, 191, 36, 0.12); color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
+        /* -- Content link cards -- */
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+        .content-card {
+            display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+            background: rgba(59, 130, 246, 0.02); border: 1px solid rgba(59, 130, 246, 0.07);
+            border-radius: 8px; text-decoration: none; color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+        .content-card:hover {
+            background: rgba(59, 130, 246, 0.07); border-color: rgba(59, 130, 246, 0.22);
+            transform: translateX(3px);
+        }
+        .content-card.is-complete {
+            border-color: rgba(59, 130, 246, 0.30); background: rgba(59, 130, 246, 0.04);
+        }
+        .card-id-badge {
+            font-size: 0.60rem; font-weight: 700; letter-spacing: 1px;
+            color: var(--cloud-secondary); background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.18); padding: 2px 7px;
+            border-radius: 4px; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace; white-space: nowrap;
+        }
+        .card-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.75; }
+        .card-info { flex: 1; min-width: 0; }
+        .card-info .card-title {
+            font-size: 0.86rem; font-weight: 500; color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .card-info .card-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+        .card-check {
+            width: 16px; height: 16px; opacity: 0; flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+        .content-card.is-complete .card-check { opacity: 1; }
+
+        /* -- Lab cards -- */
+        .lab-card {
+            display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+            background: var(--danger-bg); border: 1px solid var(--danger-border);
+            border-radius: 8px; text-decoration: none; color: var(--text-primary);
+            transition: all 0.25s ease; position: relative;
+        }
+        .lab-card:hover {
+            background: var(--danger-hover-bg); border-color: rgba(239, 68, 68, 0.55);
+            transform: translateX(3px); box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+        }
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(239, 68, 68, 0.35); }
+        }
+        .lab-card:hover { animation: pulse-border 1.4s ease infinite; }
+        .lab-card.is-complete {
+            border-color: rgba(59, 130, 246, 0.30); background: rgba(59, 130, 246, 0.04);
+        }
+        .lab-id-badge {
+            font-size: 0.60rem; font-weight: 700; letter-spacing: 1px;
+            color: #f87171; background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.28); padding: 2px 7px;
+            border-radius: 4px; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace; white-space: nowrap;
+        }
+        .lab-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.80; }
+        .lab-stats { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .lab-stat-badge {
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px;
+            color: #fca5a5; background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.20); padding: 3px 8px;
+            border-radius: 4px; font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
+        }
+        .lab-check {
+            width: 16px; height: 16px; opacity: 0; flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+        .lab-card.is-complete .lab-check { opacity: 1; }
+
+        /* -- Course info block -- */
+        .course-info-block {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 24px 26px; margin-top: 36px;
+            margin-bottom: 16px; box-shadow: var(--shadow-md);
+        }
+        .course-info-block h3 {
+            font-size: 0.82rem; font-weight: 700; color: var(--cloud-secondary);
+            text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 18px;
+            padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .objectives-list {
+            list-style: none; display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;
+        }
+        .objectives-list li {
+            display: flex; align-items: flex-start; gap: 9px;
+            font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;
+        }
+        .objectives-list li::before {
+            content: ''; display: inline-block; width: 5px; height: 5px;
+            border-radius: 50%; background: var(--cloud-primary); flex-shrink: 0;
+            margin-top: 7px; box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+        }
+
+        .page-footer {
+            text-align: center; padding: 28px 0 10px; color: var(--text-muted);
+            font-size: 0.72rem; font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+        .page-footer .footer-sub { margin-top: 4px; font-size: 0.65rem; opacity: 0.7; }
+
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="visually-hidden">Microsoft 365 Administrator, MS-102 Certification Course Hub, Cloud House</h1>
+
+    <div class="container">
+
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <span class="course-label">MS-102 // Cloud House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-cloud.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Cloud Hub
+            </a>
+        </div>
+
+        <!-- Hero Header -->
+        <div class="header">
+            <span class="course-badge">MS-102</span>
+            <h2>Microsoft 365 Administrator</h2>
+            <p class="subtitle">Deploy, manage, and secure Microsoft 365 services -- tenant, identity, Exchange, SharePoint, Teams, and compliance.</p>
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">8</div>
+                    <div class="label">Chapters</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">24</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">40-60</div>
+                    <div class="label">Questions</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">120</div>
+                    <div class="label">Minutes</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">700</div>
+                    <div class="label">Passing</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Course Progress -->
+        <div class="progress-section">
+            <h3>Infrastructure Sync: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <div class="section-heading">M365 Admin Learning Path</div>
+
+
+        <!-- ======== CHAPTER 1: Deploy and Manage M365 Tenant ======== -->
+        <div class="week-card" id="ch01">
+            <div class="week-header" onclick="toggleWeek('ch01')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Deploy and Manage M365 Tenant</div>
+                        <div class="week-sub">CHAPTER 1 // TENANT SETUP</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Tenant</span>
+                            <span class="obj-tag">Domains</span>
+                            <span class="obj-tag">Admin Center</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 1 Progress</span>
+                            <span id="ch01-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch01-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">TENANT FOUNDATION // ORGANIZATIONAL SETTINGS</div>
+                        <div class="week-overview-desc">
+                            Set up a Microsoft 365 tenant from scratch. Configure custom domains with DNS verification,
+                            manage organizational settings and profiles, navigate the Microsoft 365 admin center,
+                            understand subscription and licensing models, and configure tenant-wide settings
+                            including release preferences and service health monitoring.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch01-tenant.presentation.html"
+                               class="content-card" data-module="ms102-ch01-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Deploy and Manage M365 Tenant</div>
+                                    <div class="card-sub">Tenant setup, custom domains, organizational settings, admin center navigation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch01-tenant.lab.html"
+                               class="lab-card" data-module="ms102-ch01-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH01-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">M365 Tenant Deployment Lab</div>
+                                    <div class="card-sub">Configure tenant, verify domains, manage subscriptions, explore admin center.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">35 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch01.quiz.html"
+                               class="content-card" data-module="ms102-ch01-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 1 Quiz</div>
+                                    <div class="card-sub">Tenant setup, custom domains, organizational settings, admin center</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 2: Manage Users and Groups ======== -->
+        <div class="week-card" id="ch02">
+            <div class="week-header" onclick="toggleWeek('ch02')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Manage Users and Groups</div>
+                        <div class="week-sub">CHAPTER 2 // IDENTITY MANAGEMENT</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Users</span>
+                            <span class="obj-tag">Groups</span>
+                            <span class="obj-tag">Bulk Ops</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 2 Progress</span>
+                            <span id="ch02-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch02-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">USER LIFECYCLE // GROUP MANAGEMENT</div>
+                        <div class="week-overview-desc">
+                            Master user and group management in Microsoft 365. Create individual and bulk users,
+                            manage guest access for external collaboration, configure Microsoft 365 groups,
+                            distribution lists, security groups, and mail-enabled security groups. Implement
+                            dynamic group membership rules and manage licenses across the organization.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch02-users-groups.presentation.html"
+                               class="content-card" data-module="ms102-ch02-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Manage Users and Groups</div>
+                                    <div class="card-sub">User creation, bulk operations, guest users, group types, dynamic membership</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch02-users-groups.lab.html"
+                               class="lab-card" data-module="ms102-ch02-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH02-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">User and Group Management Lab</div>
+                                    <div class="card-sub">Create users, configure groups, set up dynamic membership, manage guest access.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">35 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch02.quiz.html"
+                               class="content-card" data-module="ms102-ch02-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 2 Quiz</div>
+                                    <div class="card-sub">User creation, bulk operations, guest users, group types, dynamic membership</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 3: Manage Roles and Access ======== -->
+        <div class="week-card" id="ch03">
+            <div class="week-header" onclick="toggleWeek('ch03')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Manage Roles and Access</div>
+                        <div class="week-sub">CHAPTER 3 // RBAC &amp; PRIVILEGED ACCESS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Admin Roles</span>
+                            <span class="obj-tag">PIM</span>
+                            <span class="obj-tag">Conditional Access</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 3 Progress</span>
+                            <span id="ch03-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch03-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">RBAC // PRIVILEGED IDENTITY MANAGEMENT</div>
+                        <div class="week-overview-desc">
+                            Configure role-based access control for Microsoft 365 administration. Understand built-in
+                            admin roles including Global Administrator, Exchange Administrator, SharePoint Administrator,
+                            and Teams Administrator. Implement administrative units for delegated management, configure
+                            Privileged Identity Management for just-in-time access, and design Conditional Access policies.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch03-roles-access.presentation.html"
+                               class="content-card" data-module="ms102-ch03-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Manage Roles and Access</div>
+                                    <div class="card-sub">Admin roles, RBAC, administrative units, PIM, Conditional Access</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch03-roles-access.lab.html"
+                               class="lab-card" data-module="ms102-ch03-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH03-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Roles and Access Management Lab</div>
+                                    <div class="card-sub">Assign admin roles, configure PIM, create administrative units, build Conditional Access policies.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch03.quiz.html"
+                               class="content-card" data-module="ms102-ch03-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 3 Quiz</div>
+                                    <div class="card-sub">Admin roles, RBAC, administrative units, PIM, Conditional Access</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 4: Microsoft Entra ID and Authentication ======== -->
+        <div class="week-card" id="ch04">
+            <div class="week-header" onclick="toggleWeek('ch04')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Entra ID and Authentication</div>
+                        <div class="week-sub">CHAPTER 4 // HYBRID IDENTITY &amp; MFA</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Entra Connect</span>
+                            <span class="obj-tag">MFA</span>
+                            <span class="obj-tag">SSPR</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 4 Progress</span>
+                            <span id="ch04-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch04-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">HYBRID IDENTITY // AUTHENTICATION METHODS</div>
+                        <div class="week-overview-desc">
+                            Implement hybrid identity with Microsoft Entra ID Connect. Configure password hash
+                            synchronization, pass-through authentication, and federation with AD FS. Set up
+                            self-service password reset, deploy multi-factor authentication, and implement
+                            passwordless authentication methods including FIDO2 security keys and
+                            Microsoft Authenticator.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch04-entra-auth.presentation.html"
+                               class="content-card" data-module="ms102-ch04-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Microsoft Entra ID and Authentication</div>
+                                    <div class="card-sub">Entra ID Connect, password sync, PTA, federation, SSPR, MFA, passwordless</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch04-entra-auth.lab.html"
+                               class="lab-card" data-module="ms102-ch04-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH04-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Identity and Authentication Lab</div>
+                                    <div class="card-sub">Configure Entra ID Connect, enable SSPR, deploy MFA, test passwordless authentication.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch04.quiz.html"
+                               class="content-card" data-module="ms102-ch04-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 4 Quiz</div>
+                                    <div class="card-sub">Entra ID Connect, password sync, PTA, federation, SSPR, MFA, passwordless</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 5: Manage Exchange Online ======== -->
+        <div class="week-card" id="ch05">
+            <div class="week-header" onclick="toggleWeek('ch05')">
+                <div class="week-header-left">
+                    <div class="week-num">5</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Manage Exchange Online</div>
+                        <div class="week-sub">CHAPTER 5 // MAIL FLOW &amp; MAILBOXES</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Mailboxes</span>
+                            <span class="obj-tag">Mail Flow</span>
+                            <span class="obj-tag">Anti-Spam</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 5 Progress</span>
+                            <span id="ch05-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch05-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">EXCHANGE ONLINE // MAIL INFRASTRUCTURE</div>
+                        <div class="week-overview-desc">
+                            Administer Exchange Online mailboxes, mail flow rules, and connectors. Configure
+                            anti-spam and anti-malware policies, manage quarantine settings, set up shared
+                            mailboxes and resource mailboxes for rooms and equipment, and manage public folders
+                            for organizational collaboration.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch05-exchange.presentation.html"
+                               class="content-card" data-module="ms102-ch05-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Manage Exchange Online</div>
+                                    <div class="card-sub">Mailboxes, mail flow rules, connectors, anti-spam/malware, shared/resource mailboxes</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch05-exchange.lab.html"
+                               class="lab-card" data-module="ms102-ch05-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH05-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Exchange Online Administration Lab</div>
+                                    <div class="card-sub">Create mailboxes, configure mail flow rules, set anti-spam policies, manage shared mailboxes.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch05.quiz.html"
+                               class="content-card" data-module="ms102-ch05-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 5 Quiz</div>
+                                    <div class="card-sub">Mailboxes, mail flow rules, connectors, anti-spam/malware, shared/resource mailboxes</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 6: Manage SharePoint and OneDrive ======== -->
+        <div class="week-card" id="ch06">
+            <div class="week-header" onclick="toggleWeek('ch06')">
+                <div class="week-header-left">
+                    <div class="week-num">6</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Manage SharePoint and OneDrive</div>
+                        <div class="week-sub">CHAPTER 6 // COLLABORATION STORAGE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Sites</span>
+                            <span class="obj-tag">Sharing</span>
+                            <span class="obj-tag">OneDrive</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 6 Progress</span>
+                            <span id="ch06-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch06-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">SHAREPOINT ONLINE // ONEDRIVE POLICIES</div>
+                        <div class="week-overview-desc">
+                            Manage SharePoint Online site collections, configure external sharing settings and
+                            storage quotas, administer OneDrive sync client policies, set site permissions
+                            and access requests, implement content types and site columns, and organize
+                            sites with hub site architecture.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch06-sharepoint.presentation.html"
+                               class="content-card" data-module="ms102-ch06-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Manage SharePoint and OneDrive</div>
+                                    <div class="card-sub">Site collections, sharing settings, storage policies, OneDrive sync, hub sites</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch06-sharepoint.lab.html"
+                               class="lab-card" data-module="ms102-ch06-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH06-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">SharePoint and OneDrive Administration Lab</div>
+                                    <div class="card-sub">Create sites, configure sharing, set storage quotas, manage permissions, build hub sites.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">35 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch06.quiz.html"
+                               class="content-card" data-module="ms102-ch06-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 6 Quiz</div>
+                                    <div class="card-sub">Site collections, sharing settings, storage policies, OneDrive sync, hub sites</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 7: Manage Teams ======== -->
+        <div class="week-card" id="ch07">
+            <div class="week-header" onclick="toggleWeek('ch07')">
+                <div class="week-header-left">
+                    <div class="week-num">7</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Manage Microsoft Teams</div>
+                        <div class="week-sub">CHAPTER 7 // COLLABORATION &amp; VOICE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Teams Policies</span>
+                            <span class="obj-tag">Meetings</span>
+                            <span class="obj-tag">Voice</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 7 Progress</span>
+                            <span id="ch07-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch07-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">MICROSOFT TEAMS // POLICIES AND VOICE</div>
+                        <div class="week-overview-desc">
+                            Configure Microsoft Teams policies for messaging, meetings, and app permissions.
+                            Manage guest access and external access settings, configure channels and team
+                            lifecycle, deploy app permission and setup policies, and implement voice features
+                            including Phone System and calling plans.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch07-teams.presentation.html"
+                               class="content-card" data-module="ms102-ch07-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH07-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Manage Microsoft Teams</div>
+                                    <div class="card-sub">Teams policies, meeting policies, messaging, guest access, app policies, voice</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch07-teams.lab.html"
+                               class="lab-card" data-module="ms102-ch07-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH07-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Microsoft Teams Administration Lab</div>
+                                    <div class="card-sub">Configure Teams policies, manage meetings, set up guest access, deploy app policies.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">35 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch07.quiz.html"
+                               class="content-card" data-module="ms102-ch07-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH07-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 7 Quiz</div>
+                                    <div class="card-sub">Teams policies, meeting policies, messaging, guest access, app policies, voice</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CHAPTER 8: Security and Compliance ======== -->
+        <div class="week-card" id="ch08">
+            <div class="week-header" onclick="toggleWeek('ch08')">
+                <div class="week-header-left">
+                    <div class="week-num">8</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Security and Compliance</div>
+                        <div class="week-sub">CHAPTER 8 // PURVIEW &amp; DLP</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">DLP</span>
+                            <span class="obj-tag">Labels</span>
+                            <span class="obj-tag">eDiscovery</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 8 Progress</span>
+                            <span id="ch08-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch08-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">SECURITY // COMPLIANCE &amp; DATA GOVERNANCE</div>
+                        <div class="week-overview-desc">
+                            Implement security and compliance solutions using Microsoft Purview. Configure
+                            Data Loss Prevention policies, deploy sensitivity labels for information protection,
+                            set up retention policies for data lifecycle management, conduct eDiscovery searches,
+                            monitor the unified audit log, track compliance score, and manage insider risk policies.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/ms102-ch08-security-compliance.presentation.html"
+                               class="content-card" data-module="ms102-ch08-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH08-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security and Compliance</div>
+                                    <div class="card-sub">Purview, DLP, sensitivity labels, retention, eDiscovery, audit log, compliance score</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/ms102-ch08-security-compliance.lab.html"
+                               class="lab-card" data-module="ms102-ch08-lab">
+                                <img src="../../../assets/images/icons/icon-cloud.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH08-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Security and Compliance Lab</div>
+                                    <div class="card-sub">Create DLP policies, deploy sensitivity labels, configure retention, run eDiscovery searches.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/ms102-ch08.quiz.html"
+                               class="content-card" data-module="ms102-ch08-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH08-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 8 Quiz</div>
+                                    <div class="card-sub">Purview, DLP, sensitivity labels, retention, eDiscovery, audit log, compliance score</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Exam Objectives -->
+        <div class="course-info-block">
+            <h3>MS-102 Exam Objectives</h3>
+            <ul class="objectives-list">
+                <li>Plan and implement a Microsoft 365 tenant including custom domains and organizational settings</li>
+                <li>Manage user identity lifecycle including creation, deletion, and bulk operations</li>
+                <li>Manage groups including Microsoft 365 groups, security groups, distribution lists, and dynamic membership</li>
+                <li>Configure and manage Microsoft Entra ID roles and administrative units</li>
+                <li>Plan and implement Privileged Identity Management for just-in-time admin access</li>
+                <li>Plan and implement Conditional Access policies for Zero Trust security</li>
+                <li>Implement and manage hybrid identity with Microsoft Entra ID Connect</li>
+                <li>Configure authentication methods including MFA, SSPR, and passwordless</li>
+                <li>Manage Exchange Online mailboxes, mail flow rules, and anti-spam policies</li>
+                <li>Manage SharePoint Online site collections, sharing settings, and hub sites</li>
+                <li>Manage Microsoft Teams policies for meetings, messaging, and app permissions</li>
+                <li>Implement Microsoft Purview data loss prevention and sensitivity labels</li>
+                <li>Configure retention policies and manage eDiscovery for compliance</li>
+                <li>Monitor security posture with compliance score, audit log, and insider risk management</li>
+            </ul>
+        </div>
+
+        <!-- Page Footer -->
+        <div class="page-footer">
+            House of Cloud // Microsoft 365 Administrator // MS-102
+            <div class="footer-sub">Deploy, manage, and secure Microsoft 365 services across the enterprise.</div>
+        </div>
+
+    </div>
+
+    <script>
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) { card.classList.toggle('open'); }
+        }
+
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#ch0[1-8]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            var weeks = {
+                ch01: ['ms102-ch01-pres', 'ms102-ch01-lab', 'ms102-ch01-quiz'],
+                ch02: ['ms102-ch02-pres', 'ms102-ch02-lab', 'ms102-ch02-quiz'],
+                ch03: ['ms102-ch03-pres', 'ms102-ch03-lab', 'ms102-ch03-quiz'],
+                ch04: ['ms102-ch04-pres', 'ms102-ch04-lab', 'ms102-ch04-quiz'],
+                ch05: ['ms102-ch05-pres', 'ms102-ch05-lab', 'ms102-ch05-quiz'],
+                ch06: ['ms102-ch06-pres', 'ms102-ch06-lab', 'ms102-ch06-quiz'],
+                ch07: ['ms102-ch07-pres', 'ms102-ch07-lab', 'ms102-ch07-quiz'],
+                ch08: ['ms102-ch08-pres', 'ms102-ch08-lab', 'ms102-ch08-quiz']
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            Object.keys(weeks).forEach(function (chapterId) {
+                var ids       = weeks[chapterId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('cloud', moduleId)) {
+                        completed++;
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) { el.classList.add('is-complete'); }
+                    }
+                });
+
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(chapterId + '-progress-bar');
+                var weekText = document.getElementById(chapterId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

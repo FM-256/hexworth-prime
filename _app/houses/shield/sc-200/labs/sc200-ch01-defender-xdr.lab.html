@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defender XDR Lab -- SC-200 Chapter 1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { height: 100vh; overflow: hidden; background: #0c0c0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f5b3b3; display: flex; flex-direction: column; }
+        .lab-header { flex-shrink: 0; padding: 15px 30px; background: rgba(10,6,8,0.95); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; text-decoration: none; font-size: 0.85rem; transition: all 0.3s ease; }
+        .back-btn:hover { background: rgba(239,68,68,0.2); }
+        .lab-title { font-size: 1rem; color: #fde2e2; }
+        .lab-badge { padding: 4px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; }
+        .lab-badge-ch { padding: 4px 12px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; font-size: 0.7rem; color: #34d399; letter-spacing: 0.05em; }
+        .task-progress { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; color: #7a4040; }
+        .task-count { color: #ef4444; font-weight: 500; }
+        .progress-bar-wrap { width: 140px; height: 6px; background: rgba(239,68,68,0.15); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #991b1b); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .lab-container { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
+        .task-panel { background: rgba(10,6,8,0.95); border-right: 1px solid rgba(239,68,68,0.15); overflow-y: auto; padding: 20px; }
+        .task-section { margin-bottom: 25px; }
+        .task-section-title { font-size: 0.68rem; color: #5a2020; letter-spacing: 0.15em; margin-bottom: 12px; text-transform: uppercase; }
+        .task-card { background: rgba(20,10,16,0.8); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .task-card:hover { border-color: rgba(239,68,68,0.4); }
+        .task-card.active { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .task-card.completed { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.04); }
+        .task-card.completed .task-name::after { content: ' [done]'; font-size: 0.72rem; color: #34d399; font-weight: 400; }
+        .task-number { font-size: 0.68rem; color: #ef4444; margin-bottom: 4px; }
+        .task-name { font-size: 0.9rem; color: #fde2e2; margin-bottom: 4px; }
+        .task-desc { font-size: 0.77rem; color: #7a4040; line-height: 1.45; }
+        .task-desc code { background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; color: #f87171; font-family: 'Consolas', monospace; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; position: relative; overflow: hidden; }
+        .term-toolbar { flex-shrink: 0; padding: 8px 20px; background: rgba(20,10,16,0.9); border-bottom: 1px solid rgba(239,68,68,0.15); display: flex; align-items: center; gap: 12px; }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; } .term-dot-red { background: #ff5f57; } .term-dot-amber { background: #febc2e; } .term-dot-green { background: #28c840; }
+        .term-title { flex: 1; text-align: center; font-size: 0.8rem; color: #5a3030; font-family: 'Consolas', monospace; }
+        .term-vm-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #34d399; }
+        .term-status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .term-output { flex: 1; overflow-y: auto; padding: 16px 360px 8px 20px; font-family: 'Consolas', monospace; font-size: 0.875rem; line-height: 1.6; }
+        .term-input-row { flex-shrink: 0; display: flex; align-items: center; padding: 8px 360px 12px 20px; border-top: 1px solid rgba(239,68,68,0.1); gap: 0; }
+        .term-prompt-label { font-family: 'Consolas', monospace; font-size: 0.875rem; white-space: nowrap; flex-shrink: 0; }
+        .term-prompt-user { color: #ef4444; } .term-prompt-sep { color: #5a2020; } .term-prompt-path { color: #34d399; } .term-prompt-dollar { color: #fde2e2; margin-right: 6px; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fde2e2; font-family: 'Consolas', monospace; font-size: 0.875rem; caret-color: #ef4444; }
+        .term-line { white-space: pre-wrap; word-break: break-all; }
+        .term-line-cmd { color: #f5b3b3; } .term-line-out { color: #a0d4a0; } .term-line-err { color: #f87171; } .term-line-info { color: #f87171; } .term-line-warn { color: #fbbf24; } .term-line-dim { color: #4a2020; } .term-welcome { color: #ef4444; }
+        .term-prompt-span { color: #ef4444; } .term-path-span { color: #34d399; } .term-ps1-sep { color: #5a2020; }
+        .json-key { color: #f87171; } .json-string { color: #86efac; } .json-number { color: #fbbf24; } .json-bool { color: #93c5fd; } .json-null { color: #f87171; }
+        .instructions-panel { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,6,8,0.97); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: all 0.3s ease; }
+        .instructions-panel.collapsed { width: auto; padding: 10px 14px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-body { display: none; }
+        .instructions-title { font-size: 1rem; color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .instructions-panel.collapsed .instructions-title { margin-bottom: 0; font-size: 0.85rem; }
+        .instructions-toggle { margin-left: auto; width: 28px; height: 28px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; color: #ef4444; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .instructions-step { font-size: 0.88rem; color: #f5b3b3; line-height: 1.65; margin-bottom: 14px; }
+        .instructions-step code { background: rgba(239,68,68,0.2); padding: 2px 7px; border-radius: 4px; font-family: 'Consolas', monospace; color: #f87171; font-size: 0.85em; }
+        .instructions-hint { font-size: 0.78rem; color: #5a2020; font-style: italic; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239,68,68,0.15); line-height: 1.5; }
+        .hint-btn { margin-top: 12px; padding: 6px 12px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 5px; color: #ef4444; font-size: 0.75rem; cursor: pointer; font-family: 'Segoe UI', sans-serif; width: 100%; text-align: center; }
+        .hint-command { display: none; margin-top: 10px; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.78rem; color: #86efac; line-height: 1.55; white-space: pre-wrap; }
+        .hint-command.visible { display: block; }
+        .success-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .success-overlay.active { display: flex; }
+        .success-card { background: rgba(10,6,8,0.97); border: 1px solid rgba(52,211,153,0.35); border-radius: 16px; padding: 40px; text-align: center; max-width: 480px; width: 90%; }
+        .success-title { font-size: 1.5rem; color: #34d399; margin-bottom: 10px; }
+        .success-message { color: #f5b3b3; margin-bottom: 25px; line-height: 1.65; font-size: 0.95rem; }
+        .success-btn { padding: 12px 30px; background: linear-gradient(135deg, #ef4444, #991b1b); border: none; border-radius: 8px; color: white; font-size: 0.95rem; cursor: pointer; }
+        @media (max-width: 1024px) { .lab-container { grid-template-columns: 1fr; } .task-panel { display: none; } .term-output, .term-input-row { padding-right: 20px; } .instructions-panel { position: absolute; bottom: 60px; top: auto; right: 10px; left: 10px; width: auto; } }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Defender XDR Lab</span>
+            <span class="lab-badge">SC-200</span>
+            <span class="lab-badge-ch">CH.1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+    <div class="lab-container">
+        <aside class="task-panel" id="taskPanel"><div class="task-section"><div class="task-section-title">Phase 1 -- Portal and Incidents</div><div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)"><div class="task-number">Task 1</div><div class="task-name">Explore the Defender XDR Portal</div><div class="task-desc">Run <code>xdr-portal show overview</code> to display the unified portal layout and navigation sections.</div></div><div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)"><div class="task-number">Task 2</div><div class="task-name">List Active Incidents</div><div class="task-desc">Run <code>xdr-portal list incidents --status active</code> to view the incident queue with severity and status.</div></div><div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)"><div class="task-number">Task 3</div><div class="task-name">Investigate an Incident</div><div class="task-desc">Run <code>xdr-portal investigate incident --id INC-4471</code> to open the attack story and review correlated alerts.</div></div></div><div class="task-section"><div class="task-section-title">Phase 2 -- AIR and Response</div><div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)"><div class="task-number">Task 4</div><div class="task-name">Review AIR Investigation</div><div class="task-desc">Run <code>xdr-air show investigation --id AIR-2209</code> to display the automated investigation results and verdicts.</div></div><div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)"><div class="task-number">Task 5</div><div class="task-name">Check the Action Center</div><div class="task-desc">Run <code>xdr-air list pending-actions</code> to view actions awaiting analyst approval.</div></div><div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)"><div class="task-number">Task 6</div><div class="task-name">Execute a Response Action</div><div class="task-desc">Run <code>xdr-response isolate-device --id DEV-PC0117</code> to isolate a compromised device from the network.</div></div></div><div class="task-section"><div class="task-section-title">Phase 3 -- Advanced Hunting</div><div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)"><div class="task-number">Task 7</div><div class="task-name">Run a KQL Hunt Query</div><div class="task-desc">Run <code>xdr-hunt query "EmailEvents | where Subject contains 'invoice' | take 5"</code> to search for suspicious emails.</div></div><div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)"><div class="task-number">Task 8</div><div class="task-name">Cross-Workload Hunt</div><div class="task-desc">Run <code>xdr-hunt query "DeviceProcessEvents | where FileName == 'powershell.exe' | take 5"</code> to search endpoint telemetry.</div></div></div><div class="task-section"><div class="task-section-title">Phase 4 -- Threat Analytics</div><div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)"><div class="task-number">Task 9</div><div class="task-name">View Threat Analytics Report</div><div class="task-desc">Run <code>xdr-threats show report --id TA-0089</code> to review an active threat campaign and exposure assessment.</div></div><div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)"><div class="task-number">Task 10</div><div class="task-name">Check Secure Score</div><div class="task-desc">Run <code>xdr-portal show secure-score</code> to display the organization security posture score and top recommendations.</div></div></div></aside>
+        <main class="terminal-panel" id="terminalPanel">
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div><div class="term-dot term-dot-amber"></div><div class="term-dot term-dot-green"></div>
+                <div class="term-title">socanalyst@xdr-lab -- bash</div>
+                <div class="term-vm-status"><div class="term-status-dot"></div>XDR Lab Online</div>
+            </div>
+            <div class="term-output" id="termOutput"></div>
+            <div class="term-input-row">
+                <span class="term-prompt-label"><span class="term-prompt-user">socanalyst@xdr-lab</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span></span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">Type the command in the terminal and press Enter.</div>
+                    <div class="instructions-hint" id="instructionsHint">Hint text loads when you select a task.</div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-title">SC-200 Chapter 1 Lab Complete!</div>
+                    <div class="success-message">You navigated the Defender XDR portal, investigated incidents, reviewed AIR automation, executed response actions, ran advanced hunting queries with KQL, and analyzed threat intelligence reports. These are the core SOC analyst workflows for the SC-200 exam.</div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function(){
+        'use strict';
+        var TOTAL_TASKS = 10;
+        var taskDone = {}; for(var i=1;i<=TOTAL_TASKS;i++) taskDone[i]=false;
+        var currentTask = 1;
+        var cmdHistory = [], histIdx = -1;
+        var outputEl, inputEl, ps1PathEl;
+
+        var TASK_INSTRUCTIONS = {1:{step:"Run this command to explore the Defender XDR portal:\n<code>xdr-portal show overview</code>\n\nReview the unified navigation structure and key sections.",hint:"The portal at security.microsoft.com unifies all Defender workloads into one console.",cmd:"xdr-portal show overview"},2:{step:"List active incidents in the queue:\n<code>xdr-portal list incidents --status active</code>",hint:"Incidents correlate multiple alerts into a single attack story. SOC analysts triage incidents, not individual alerts.",cmd:"xdr-portal list incidents --status active"},3:{step:"Investigate a specific incident:\n<code>xdr-portal investigate incident --id INC-4471</code>",hint:"The Attack Story tab shows the chronological timeline. Start there for every investigation.",cmd:"xdr-portal investigate incident --id INC-4471"},4:{step:"Review an AIR investigation:\n<code>xdr-air show investigation --id AIR-2209</code>",hint:"AIR automatically investigates alerts and proposes remediation actions. Each entity gets a verdict.",cmd:"xdr-air show investigation --id AIR-2209"},5:{step:"Check pending actions in the Action Center:\n<code>xdr-air list pending-actions</code>",hint:"Pending actions require analyst approval before execution. The Action Center is the central hub.",cmd:"xdr-air list pending-actions"},6:{step:"Isolate a compromised device:\n<code>xdr-response isolate-device --id DEV-PC0117</code>",hint:"Device isolation cuts network access but maintains Defender for Endpoint connectivity.",cmd:"xdr-response isolate-device --id DEV-PC0117"},7:{step:"Run a KQL query to hunt for suspicious emails:\n<code>xdr-hunt query \"EmailEvents | where Subject contains 'invoice' | take 5\"</code>",hint:"KQL uses pipe-based syntax. Start with a table, filter with where, limit with take.",cmd:"xdr-hunt query \"EmailEvents | where Subject contains 'invoice' | take 5\""},8:{step:"Hunt across endpoint telemetry:\n<code>xdr-hunt query \"DeviceProcessEvents | where FileName == 'powershell.exe' | take 5\"</code>",hint:"Cross-workload hunting lets you correlate email events with endpoint process execution.",cmd:"xdr-hunt query \"DeviceProcessEvents | where FileName == 'powershell.exe' | take 5\""},9:{step:"View a threat analytics report:\n<code>xdr-threats show report --id TA-0089</code>",hint:"Threat analytics reports show your exposure to active campaigns and provide mitigation steps.",cmd:"xdr-threats show report --id TA-0089"},10:{step:"Check the organization Secure Score:\n<code>xdr-portal show secure-score</code>",hint:"Secure Score measures your security posture. Each improvement action earns points.",cmd:"xdr-portal show secure-score"}};
+
+        var TASK_NAMES = {};
+        TASK_NAMES[1]="Explore the Defender XDR Portal";
+        TASK_NAMES[2]="List Active Incidents";
+        TASK_NAMES[3]="Investigate an Incident";
+        TASK_NAMES[4]="Review AIR Investigation";
+        TASK_NAMES[5]="Check the Action Center";
+        TASK_NAMES[6]="Execute a Response Action";
+        TASK_NAMES[7]="Run a KQL Hunt Query";
+        TASK_NAMES[8]="Cross-Workload Hunt";
+        TASK_NAMES[9]="View Threat Analytics Report";
+        TASK_NAMES[10]="Check Secure Score";
+
+        var CMD_RESPONSES = {"xdr-portal show overview":{"lines":[{"text":"=== Microsoft Defender XDR Portal ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  URL: security.microsoft.com","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Navigation Sections:","cls":"term-line-warn"},{"text":"    Incidents & Alerts    -- Correlated incident queue, individual alert list","cls":"term-line-out"},{"text":"    Hunting               -- Advanced hunting (KQL), custom detections","cls":"term-line-out"},{"text":"    Action Center          -- Pending and completed AIR actions","cls":"term-line-out"},{"text":"    Threat Analytics       -- Active threat campaign reports","cls":"term-line-out"},{"text":"    Secure Score           -- Security posture assessment","cls":"term-line-out"},{"text":"    Endpoints              -- Device inventory, vulnerabilities","cls":"term-line-out"},{"text":"    Email & Collaboration  -- Quarantine, submissions, policies","cls":"term-line-out"},{"text":"    Identities             -- User risk, sign-in activity","cls":"term-line-out"},{"text":"    Cloud Apps             -- App governance, OAuth apps","cls":"term-line-dim"}],"completesTask":1},"xdr-portal list incidents --status active":{"lines":[{"text":"=== Active Incidents ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  ID         Severity   Status        Alerts  Entities   Title","cls":"term-line-warn"},{"text":"  INC-4471   High       In Progress   6       12         Multi-stage phishing with lateral movement","cls":"term-line-err"},{"text":"  INC-4468   Medium     New           3       5          Suspicious PowerShell execution on DEV-PC0117","cls":"term-line-out"},{"text":"  INC-4465   Medium     New           2       3          Anomalous cloud app access from unusual location","cls":"term-line-out"},{"text":"  INC-4462   Low        New           1       2          Informational: MFA registration from new device","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  4 active incidents | Sorted by severity","cls":"term-line-dim"}],"completesTask":2},"xdr-portal investigate incident --id INC-4471":{"lines":[{"text":"=== Incident INC-4471: Multi-stage phishing with lateral movement ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Severity: High | Status: In Progress | MITRE: Initial Access, Credential Access, Lateral Movement","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Attack Story Timeline:","cls":"term-line-warn"},{"text":"    09:14  [Email]     Phishing email delivered to jsmith@contoso.com","cls":"term-line-out"},{"text":"    09:18  [Email]     User clicked malicious URL in email","cls":"term-line-out"},{"text":"    09:19  [Identity]  Suspicious sign-in from anomalous IP 198.51.100.23","cls":"term-line-out"},{"text":"    09:22  [Endpoint]  PowerShell launched encoded command on DESKTOP-JSmith","cls":"term-line-out"},{"text":"    09:31  [Identity]  Credential dumping detected (Mimikatz behavior)","cls":"term-line-err"},{"text":"    09:45  [Endpoint]  Lateral movement to DEV-PC0117 via PsExec","cls":"term-line-err"},{"text":"","cls":"term-line-out"},{"text":"  Affected Entities: 2 users, 3 devices, 1 mailbox, 6 alerts correlated","cls":"term-line-warn"}],"completesTask":3},"xdr-air show investigation --id AIR-2209":{"lines":[{"text":"=== AIR Investigation AIR-2209 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Triggered by: INC-4471 (Phishing with lateral movement)","cls":"term-line-out"},{"text":"  Status: Partially Remediated | Automation: Semi","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Entity Verdicts:","cls":"term-line-warn"},{"text":"    email-msg-9a2f1c     Malicious     Phishing email with credential harvesting URL","cls":"term-line-err"},{"text":"    url-198.51.100.23    Malicious     Known C2 infrastructure","cls":"term-line-err"},{"text":"    file-update.exe      Malicious     Trojan dropper (SHA256: a4c2e9...)","cls":"term-line-err"},{"text":"    user-jsmith          Suspicious    Compromised credentials likely","cls":"term-line-warn"},{"text":"    device-PC0117        Suspicious    Lateral movement target","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  Auto-Remediated: Email soft-deleted, URL blocked","cls":"term-line-out"},{"text":"  Pending Approval: Isolate DEV-PC0117, Disable jsmith account","cls":"term-line-warn"}],"completesTask":4},"xdr-air list pending-actions":{"lines":[{"text":"=== Action Center -- Pending Actions ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Action                     Entity           Investigation   Status","cls":"term-line-warn"},{"text":"  Isolate device             DEV-PC0117       AIR-2209        Pending approval","cls":"term-line-out"},{"text":"  Disable user account       jsmith           AIR-2209        Pending approval","cls":"term-line-out"},{"text":"  Quarantine file            update.exe       AIR-2209        Pending approval","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  3 actions awaiting analyst approval","cls":"term-line-warn"},{"text":"  Use xdr-response commands to execute response actions","cls":"term-line-dim"}],"completesTask":5},"xdr-response isolate-device --id DEV-PC0117":{"lines":[{"text":"=== Device Isolation ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Device: DEV-PC0117 (Windows 11, IP 10.0.1.117)","cls":"term-line-out"},{"text":"  Action: Network isolation initiated","cls":"term-line-warn"},{"text":"","cls":"term-line-out"},{"text":"  [ISOLATING] Blocking all inbound/outbound network traffic...","cls":"term-line-err"},{"text":"  [OK] Defender for Endpoint management channel preserved","cls":"term-line-out"},{"text":"  [OK] Device isolated successfully","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Device can still communicate with Defender for Endpoint service","cls":"term-line-dim"},{"text":"  To release: xdr-response release-device --id DEV-PC0117","cls":"term-line-dim"}],"completesTask":6},"xdr-hunt query \"EmailEvents | where Subject contains 'invoice' | take 5\"":{"lines":[{"text":"=== Advanced Hunting Results ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Query: EmailEvents | where Subject contains 'invoice' | take 5","cls":"term-line-dim"},{"text":"  Records: 5 of 23 matching | Time range: 30 days","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Timestamp            Sender                        Recipient               Subject","cls":"term-line-warn"},{"text":"  2026-04-21 09:14     attacker@evil-domain.com       jsmith@contoso.com      RE: Invoice #4471 Payment","cls":"term-line-err"},{"text":"  2026-04-20 14:22     billing@vendor.com             finance@contoso.com     Invoice March 2026","cls":"term-line-out"},{"text":"  2026-04-19 11:08     noreply@phish-kit.net          admin@contoso.com       Urgent Invoice Overdue","cls":"term-line-err"},{"text":"  2026-04-18 16:45     accounts@partner.org           procurement@contoso.com Invoice Q1-2026","cls":"term-line-out"},{"text":"  2026-04-17 09:30     billing@supplier.com           finance@contoso.com     Invoice #3892","cls":"term-line-out"}],"completesTask":7},"xdr-hunt query \"DeviceProcessEvents | where FileName == 'powershell.exe' | take 5\"":{"lines":[{"text":"=== Advanced Hunting Results ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Query: DeviceProcessEvents | where FileName == 'powershell.exe' | take 5","cls":"term-line-dim"},{"text":"  Records: 5 of 142 matching | Time range: 30 days","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Timestamp            Device          User          CommandLine","cls":"term-line-warn"},{"text":"  2026-04-21 09:22     DESKTOP-JSmith  jsmith        powershell.exe -enc JABjAGwAaQBlAG4AdAA=","cls":"term-line-err"},{"text":"  2026-04-21 08:15     SRV-DC01        SYSTEM        powershell.exe Get-ADUser -Filter *","cls":"term-line-out"},{"text":"  2026-04-20 22:01     DEV-PC0117      admin-local   powershell.exe -ExecutionPolicy Bypass","cls":"term-line-warn"},{"text":"  2026-04-20 14:30     DESKTOP-ABrown  abrown        powershell.exe Get-Process","cls":"term-line-out"},{"text":"  2026-04-19 16:12     SRV-APP02       svc-deploy    powershell.exe .\\deploy-app.ps1","cls":"term-line-out"}],"completesTask":8},"xdr-threats show report --id TA-0089":{"lines":[{"text":"=== Threat Analytics Report TA-0089 ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Campaign: Storm-1567 Ransomware (active since 2026-04-15)","cls":"term-line-err"},{"text":"  TTPs: Phishing > Credential theft > Lateral movement > Data exfiltration > Ransomware deployment","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Your Exposure:","cls":"term-line-warn"},{"text":"    Vulnerable devices:       47 / 312 (15.1%)","cls":"term-line-err"},{"text":"    Devices with mitigation:  265 / 312 (84.9%)","cls":"term-line-out"},{"text":"    Impacted mailboxes:       0","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Recommendations:","cls":"term-line-warn"},{"text":"    [CRITICAL] Apply KB5034441 to 47 unpatched Windows devices","cls":"term-line-err"},{"text":"    [HIGH]     Enable attack surface reduction rule: Block credential stealing from LSASS","cls":"term-line-warn"},{"text":"    [MEDIUM]   Enable network protection to block C2 communications","cls":"term-line-dim"}],"completesTask":9},"xdr-portal show secure-score":{"lines":[{"text":"=== Microsoft Secure Score ===","cls":"term-line-info"},{"text":"","cls":"term-line-out"},{"text":"  Current Score: 68% (724 / 1065 points)","cls":"term-line-warn"},{"text":"  Industry Average: 54%","cls":"term-line-dim"},{"text":"","cls":"term-line-out"},{"text":"  Top Improvement Actions:","cls":"term-line-warn"},{"text":"    +15 pts  Enable MFA for all admin accounts (Identity)","cls":"term-line-out"},{"text":"    +12 pts  Turn on Safe Attachments for SharePoint, OneDrive, Teams (Email)","cls":"term-line-out"},{"text":"    +10 pts  Enable attack surface reduction rules in block mode (Endpoint)","cls":"term-line-out"},{"text":"    + 8 pts  Block legacy authentication protocols (Identity)","cls":"term-line-out"},{"text":"    + 7 pts  Enable audit logging for all mailboxes (Data)","cls":"term-line-out"},{"text":"","cls":"term-line-out"},{"text":"  Implementing all top 5 actions would raise score to 73%","cls":"term-line-dim"}],"completesTask":10}};
+
+        function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function addLine(t,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.textContent=t; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addHTML(h,c) { var d=document.createElement('div'); d.className='term-line'+(c?' '+c:''); d.innerHTML=h; outputEl.appendChild(d); outputEl.scrollTop=outputEl.scrollHeight; }
+        function addBlank() { addLine('',''); }
+        function addPromptLine(cmd) { addHTML('<span class="term-prompt-span">socanalyst@xdr-lab</span><span class="term-ps1-sep">:</span><span class="term-path-span">~</span><span class="term-ps1-sep">$ </span>'+escH(cmd),'term-line-cmd'); }
+
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+            if (!trimmed) return;
+            var matched = false;
+            for (var key in CMD_RESPONSES) {
+                if (trimmed === key || trimmed.indexOf(key) === 0) {
+                    var resp = CMD_RESPONSES[key];
+                    resp.lines.forEach(function(l) { addLine(l.text, l.cls); });
+                    addBlank();
+                    if (resp.completesTask) { completeTask(resp.completesTask); }
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (trimmed === 'help') { addLine('Type the commands shown in the task instructions.', 'term-line-info'); addLine('Each task provides the exact command to run.', 'term-line-dim'); }
+                else if (trimmed === 'clear') { outputEl.innerHTML = ''; }
+                else { addLine('Command not recognized in this lab simulation. Check the task instructions.', 'term-line-err'); }
+            }
+        }
+
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+            var card = document.getElementById('task-card-' + num);
+            if (card) { card.classList.add('completed'); card.classList.remove('active'); }
+            var doneCount = Object.keys(taskDone).filter(function(k){return taskDone[k];}).length;
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            document.getElementById('progressBarFill').style.width = Math.round((doneCount/TOTAL_TASKS)*100) + '%';
+            addBlank();
+            addHTML('  <span style="color:#34d399">[Task ' + num + ' complete]</span> <span style="color:#5a2020">' + escH(TASK_NAMES[num]||'') + '</span>', 'term-line-info');
+            addBlank();
+            if (doneCount === TOTAL_TASKS) { setTimeout(function(){ document.getElementById('successOverlay').classList.add('active'); }, 700); return; }
+            var next = null; for (var j=1;j<=TOTAL_TASKS;j++) { if (!taskDone[j]) { next=j; break; } }
+            if (next) selectTask(next);
+        }
+
+        function selectTask(num) {
+            currentTask = num;
+            for (var i=1;i<=TOTAL_TASKS;i++) { var c=document.getElementById('task-card-'+i); if(c){c.classList.remove('active'); if(i===num) c.classList.add('active');} }
+            var info = TASK_INSTRUCTIONS[num]; if (!info) return;
+            var stepEl=document.getElementById('instructionsStep'); var hintEl=document.getElementById('instructionsHint'); var hintCmd=document.getElementById('hintCommand');
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g,'<br>');
+            if (hintEl) hintEl.textContent = info.hint;
+            if (hintCmd) { hintCmd.textContent = info.cmd; hintCmd.classList.remove('visible'); }
+            var panel=document.getElementById('instructionsPanel'); if(panel&&panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        }
+
+        window.selectTask = selectTask;
+        window.toggleInstructions = function() { document.getElementById('instructionsPanel').classList.toggle('collapsed'); };
+        window.revealHint = function() { var h=document.getElementById('hintCommand'); if(h) h.classList.toggle('visible'); };
+        window.finishLab = function() { if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('shield', 'sc200-ch01-lab', { returnUrl: '../index.html' }); } else { window.location.href = '../index.html'; } };
+
+        function init() {
+            outputEl = document.getElementById('termOutput');
+            inputEl = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+            if (!outputEl || !inputEl) return;
+            addLine("Defender XDR Lab -- SC-200 Chapter 1", "term-welcome");
+            addLine("Shield House Security Operations Terminal", "term-welcome");
+            addLine("", "term-line-out");
+            addLine("Navigate the Defender XDR portal, investigate incidents, hunt with KQL, and respond to threats.", "term-line-info");
+            addLine("Type \"help\" for guidance. Complete 10 tasks to finish the lab.", "term-line-info");
+            addBlank();
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { var cmd=inputEl.value; inputEl.value=''; if(cmd.trim()){cmdHistory.push(cmd);histIdx=cmdHistory.length;} execLine(cmd); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if(histIdx>0){histIdx--;inputEl.value=cmdHistory[histIdx];} }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); if(histIdx<cmdHistory.length-1){histIdx++;inputEl.value=cmdHistory[histIdx];}else{histIdx=cmdHistory.length;inputEl.value='';} }
+            });
+            outputEl.addEventListener('click', function(){ inputEl.focus(); });
+            inputEl.focus();
+            selectTask(1);
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

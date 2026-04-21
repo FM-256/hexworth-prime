@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitigate Threats Using Microsoft Defender XDR | SC-200 Chapter 1</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0608 0%, #140a10 50%, #1a0c14 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #ef4444; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(10, 6, 8, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: #ef4444;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #ef4444; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ef4444; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fca5a5; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #ef4444; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #ef4444;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #ef4444; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .ic {
+            font-family: 'Courier New', monospace; color: #ef4444;
+            background: rgba(239, 68, 68, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .hex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px; padding: 12px 14px; text-align: center;
+            opacity: 0; animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #ef4444; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes boxGrow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+        @keyframes entityPop { from { opacity: 0; transform: scale(0.6) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowMarch { 0% { stroke-dashoffset: 14; } 100% { stroke-dashoffset: 0; } }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+            color: #ef4444; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #ef4444; line-height: 1.6; white-space: pre;
+        }
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Mitigate Threats Using Microsoft Defender XDR -- SC-200 Chapter 1</h1>
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; SC-200 &nbsp;|&nbsp; Chapter 1 &nbsp;|&nbsp; Defender XDR</div>
+        <div class="title-hero">
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="150" y="15" width="120" height="100" rx="16" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="210" y="48" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">DEFENDER XDR</text>
+                <text x="210" y="64" text-anchor="middle" font-size="9" fill="#fca5a5" font-family="Segoe UI,sans-serif">Unified Security Portal</text>
+                <polygon points="210,78 195,100 225,100" fill="none" stroke="#ef4444" stroke-width="1.8" style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <line x1="200" y1="94" x2="220" y2="94" stroke="#ef4444" stroke-width="1" style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <rect x="10" y="20" width="110" height="42" rx="9" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="65" y="38" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Incidents</text>
+                <text x="65" y="52" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Correlated alerts</text>
+                <rect x="10" y="72" width="110" height="42" rx="9" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="65" y="90" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">AIR</text>
+                <text x="65" y="104" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Automated Response</text>
+                <rect x="300" y="20" width="110" height="42" rx="9" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.2s; opacity:0;"/>
+                <text x="355" y="38" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Advanced Hunting</text>
+                <text x="355" y="52" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">KQL-based queries</text>
+                <rect x="300" y="72" width="110" height="42" rx="9" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="355" y="90" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Threat Analytics</text>
+                <text x="355" y="104" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Active threat reports</text>
+                <line x1="120" y1="41" x2="149" y2="55" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="120" y1="93" x2="149" y2="75" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <line x1="299" y1="41" x2="271" y2="55" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="299" y1="93" x2="271" y2="75" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/></line>
+            </svg>
+            <div class="big-title">Mitigate Threats Using <span class="accent">Microsoft Defender XDR</span></div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Unified Portal &nbsp;&bull;&nbsp; Incident Management &nbsp;&bull;&nbsp; AIR &nbsp;&bull;&nbsp; Advanced Hunting &nbsp;&bull;&nbsp; Threat Analytics
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Microsoft Defender XDR is the unified extended detection and response platform that correlates signals across endpoints, identities, email, and cloud apps into a single incident queue. This chapter covers how SOC analysts use the portal to detect, investigate, and respond to threats at scale.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>SC-200 Exam Objectives</span>
+            <span>Chapter 1 of 4</span>
+            <span>Security Operations</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- DEFENDER XDR OVERVIEW -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Microsoft Defender XDR <span class="accent">Overview</span></div>
+        <div class="slide-subtitle">Defender XDR (Extended Detection and Response) unifies four workload-specific products into a single portal at security.microsoft.com. One console, one incident queue, one investigation experience.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Defender for Endpoint</div><div class="card-desc">Protects devices -- workstations, servers, mobile. Provides endpoint detection and response (EDR), attack surface reduction rules, vulnerability management, and automated investigation. Signals feed into the unified incident queue.</div></div>
+            <div class="card c-blue"><div class="card-label">Defender for Identity</div><div class="card-desc">Monitors on-premises Active Directory signals. Detects lateral movement, credential theft, reconnaissance, and compromised identities. Integrates with Microsoft Entra ID Protection for hybrid identity threat detection.</div></div>
+            <div class="card c-gold"><div class="card-label">Defender for Office 365</div><div class="card-desc">Protects email and collaboration tools. Safe Attachments detonates files in sandboxes. Safe Links rewrites and scans URLs. Anti-phishing policies use AI to detect impersonation and business email compromise (BEC).</div></div>
+            <div class="card c-green"><div class="card-label">Defender for Cloud Apps</div><div class="card-desc">Cloud Access Security Broker (CASB). Discovers shadow IT, controls app access, detects anomalous user behavior in SaaS apps. Provides session policies, app governance, and OAuth app control.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Key Concept</div>Defender XDR automatically correlates alerts from all four products into unified incidents. A single phishing attack that compromises a mailbox, triggers lateral movement, and exfiltrates data appears as ONE incident -- not dozens of isolated alerts.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- THE UNIFIED PORTAL -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">The <span class="accent">Unified Portal</span></div>
+        <div class="slide-subtitle">security.microsoft.com is the single pane of glass for Microsoft 365 security operations. Every SOC workflow starts here.</div>
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="200" y="5" width="200" height="40" rx="10" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5" style="animation: boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="300" y="30" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">security.microsoft.com</text>
+                <rect x="10" y="70" width="120" height="50" rx="8" fill="rgba(239,68,68,0.06)" stroke="#f87171" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="70" y="92" text-anchor="middle" font-size="8" fill="#f87171" font-weight="700" font-family="Segoe UI,sans-serif">Incidents</text>
+                <text x="70" y="106" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Correlated queue</text>
+                <rect x="155" y="70" width="120" height="50" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="215" y="92" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Hunting</text>
+                <text x="215" y="106" text-anchor="middle" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">KQL queries</text>
+                <rect x="300" y="70" width="120" height="50" rx="8" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.45s; opacity:0;"/>
+                <text x="360" y="92" text-anchor="middle" font-size="8" fill="#fbbf24" font-weight="700" font-family="Segoe UI,sans-serif">Action Center</text>
+                <text x="360" y="106" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">AIR approvals</text>
+                <rect x="445" y="70" width="140" height="50" rx="8" fill="rgba(58,181,119,0.06)" stroke="#3ab577" stroke-width="1.2" style="animation: boxGrow 0.35s ease forwards 0.55s; opacity:0;"/>
+                <text x="515" y="92" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Threat Analytics</text>
+                <text x="515" y="106" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Active threat reports</text>
+                <line x1="250" y1="45" x2="70" y2="70" stroke="rgba(239,68,68,0.3)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="280" y1="45" x2="215" y2="70" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/></line>
+                <line x1="320" y1="45" x2="360" y2="70" stroke="rgba(251,191,36,0.3)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/></line>
+                <line x1="350" y1="45" x2="515" y2="70" stroke="rgba(58,181,119,0.3)" stroke-width="1" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.35s"/></line>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Incidents and Alerts</div><div class="card-desc">The incident queue is the SOC analyst's starting point. Incidents group related alerts from all Defender products. Each incident shows affected entities, MITRE ATT&CK tactics, severity, and investigation status.</div></div>
+            <div class="card c-blue"><div class="card-label">Investigation Graph</div><div class="card-desc">Visual graph connecting all entities involved in an incident: users, devices, mailboxes, files, processes, IPs. Click any entity to pivot and explore the full attack chain from initial access to impact.</div></div>
+            <div class="card c-gold"><div class="card-label">RBAC and Permissions</div><div class="card-desc">Access is controlled through Microsoft Entra roles. Security Reader for view-only, Security Operator for response actions, Security Administrator for full configuration. Custom roles available for granular control.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- INCIDENTS VS ALERTS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Incidents vs <span class="accent">Alerts</span></div>
+        <div class="slide-subtitle">Alerts are individual detections. Incidents are correlated groups of alerts that represent a full attack story. SOC analysts work incidents, not individual alerts.</div>
+        <div class="diagram-center">
+            <svg width="550" height="120" viewBox="0 0 550 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="10" width="100" height="34" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="60" y="32" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Phishing alert</text>
+                <rect x="10" y="50" width="100" height="34" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="60" y="72" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Credential alert</text>
+                <rect x="10" y="86" width="100" height="34" rx="6" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1" style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="60" y="108" text-anchor="middle" font-size="8" fill="#fef3c7" font-family="Segoe UI,sans-serif">Lateral move alert</text>
+                <line x1="110" y1="27" x2="210" y2="60" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/></line>
+                <line x1="110" y1="67" x2="210" y2="60" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/></line>
+                <line x1="110" y1="103" x2="210" y2="60" stroke="rgba(251,191,36,0.4)" stroke-width="1.2" stroke-dasharray="4,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/></line>
+                <rect x="210" y="30" width="130" height="60" rx="12" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2" style="animation: boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="275" y="55" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">INCIDENT</text>
+                <text x="275" y="72" text-anchor="middle" font-size="8" fill="#fca5a5" font-family="Segoe UI,sans-serif">Full attack story</text>
+                <line x1="340" y1="60" x2="400" y2="60" stroke="rgba(58,181,119,0.5)" stroke-width="1.5" stroke-dasharray="5,3"><animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.5s"/></line>
+                <rect x="400" y="35" width="140" height="50" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.5" style="animation: boxGrow 0.35s ease forwards 0.6s; opacity:0;"/>
+                <text x="470" y="55" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">SOC Investigation</text>
+                <text x="470" y="70" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">Triage, respond, remediate</text>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Alert</div><div class="card-desc">A single detection from one product. Example: "Suspicious email delivered" from Defender for Office 365. Alerts have severity (Informational, Low, Medium, High) and a MITRE ATT&CK tactic mapping.</div></div>
+            <div class="card c-blue"><div class="card-label">Incident</div><div class="card-desc">A correlated group of related alerts plus all affected entities. Defender XDR uses AI to automatically group alerts that belong to the same attack. One incident = one attack story from initial access to impact.</div></div>
+            <div class="card c-green"><div class="card-label">Incident Lifecycle</div><div class="card-desc"><strong>New</strong> -- unassigned, awaiting triage. <strong>In Progress</strong> -- assigned analyst investigating. <strong>Resolved</strong> -- investigation complete, response actions taken. Incidents can be classified as True Positive, False Positive, or Informational.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- INCIDENT INVESTIGATION -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Incident <span class="accent">Investigation</span></div>
+        <div class="slide-subtitle">When a SOC analyst opens an incident, they follow a structured investigation workflow: understand scope, analyze evidence, determine root cause, and take response actions.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Attack Story tab</strong> -- timeline view showing all alerts and entities in chronological order. Start here to understand the sequence of events from initial access through impact.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Alerts tab</strong> -- drill into individual alerts. Each alert shows the detection logic, affected entities, evidence (processes, files, registry keys), and recommended response actions.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Assets tab</strong> -- all users, devices, and mailboxes involved. Click any entity to see its full timeline: sign-ins, file activity, process execution, network connections.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Evidence tab</strong> -- files, processes, IPs, and URLs flagged as malicious or suspicious. Analysts can approve or reject pending remediation actions from this tab.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Response actions</strong> -- isolate device, disable user, soft-delete email, block URL, run antivirus scan, collect investigation package. Actions can be manual or recommended by AIR.</span></div>
+        </div>
+        <div class="box box-gold"><div class="box-label">Exam Tip</div>The Attack Story tab is the recommended starting point for incident investigation. It provides the chronological timeline of the full attack chain across all products.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- AUTOMATED INVESTIGATION AND RESPONSE (AIR) -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Automated Investigation and <span class="accent">Response (AIR)</span></div>
+        <div class="slide-subtitle">AIR uses security playbooks to automatically investigate alerts and take remediation actions. It acts as a virtual analyst that triages, investigates, and proposes or executes fixes.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Trigger</div><div class="hex-desc">An alert fires from any Defender product. AIR automatically starts investigating based on the alert type and configured playbooks.</div></div>
+            <div class="hex-cell"><div class="hex-title">Investigation</div><div class="hex-desc">AIR expands the alert scope: analyzes related processes, files, registry changes, email headers, sign-in logs. Builds a complete entity graph of the attack.</div></div>
+            <div class="hex-cell"><div class="hex-title">Verdict</div><div class="hex-desc">Each entity gets a verdict: Malicious, Suspicious, Clean, or No threats found. Verdicts drive the remediation actions that AIR recommends.</div></div>
+            <div class="hex-cell"><div class="hex-title">Pending Actions</div><div class="hex-desc">Actions requiring analyst approval appear in the Action Center. Example: quarantine a file, disable an account. Analyst reviews and approves or rejects.</div></div>
+            <div class="hex-cell"><div class="hex-title">Auto-Remediation</div><div class="hex-desc">With full automation, AIR executes remediation without waiting for approval. Semi-automation requires approval for specific action types. Configured per device group.</div></div>
+            <div class="hex-cell"><div class="hex-title">Action Center</div><div class="hex-desc">Central hub for all pending and completed actions. Shows action type, status, entity, and which investigation triggered it. History tab tracks all past actions.</div></div>
+        </div>
+        <div class="box box-red"><div class="box-label">Automation Levels</div><strong>Full</strong> -- all actions auto-executed. <strong>Semi</strong> -- requires approval for specific action types. <strong>No automated response</strong> -- AIR investigates but takes no action. Set per device group in Defender for Endpoint settings.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- ADVANCED HUNTING -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title"><span class="accent">Advanced Hunting</span> with KQL</div>
+        <div class="slide-subtitle">Advanced hunting is a query-based threat hunting tool that lets analysts proactively search across 30 days of raw telemetry data using Kusto Query Language (KQL).</div>
+        <div class="code-block">// Find emails with malicious URLs delivered in the last 7 days
+EmailEvents
+| where Timestamp > ago(7d)
+| where DeliveryAction == "Delivered"
+| join EmailUrlInfo on NetworkMessageId
+| where UrlCount > 0
+| project Timestamp, SenderFromAddress, RecipientEmailAddress, Subject</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">KQL Basics</div><div class="card-desc">KQL uses a pipe-based syntax. Start with a table, filter with <span class="ic">where</span>, select columns with <span class="ic">project</span>, aggregate with <span class="ic">summarize</span>, join tables with <span class="ic">join</span>. Data flows left to right through the pipe chain.</div></div>
+            <div class="card c-blue"><div class="card-label">Key Tables</div><div class="card-desc"><span class="ic">DeviceEvents</span>, <span class="ic">DeviceProcessEvents</span>, <span class="ic">EmailEvents</span>, <span class="ic">IdentityLogonEvents</span>, <span class="ic">CloudAppEvents</span>. Each table covers a Defender workload. Schema reference is available in the portal.</div></div>
+            <div class="card c-green"><div class="card-label">Custom Detections</div><div class="card-desc">Save hunting queries as custom detection rules. They run on a schedule (every 1, 3, 12, or 24 hours) and automatically generate alerts when results are found. Turns proactive hunting into automated detection.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- HUNTING TABLES AND SCHEMA -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">Hunting <span class="accent">Tables</span> and Schema</div>
+        <div class="slide-subtitle">Advanced hunting provides cross-workload tables spanning endpoints, email, identity, and cloud apps. Understanding the schema is critical for writing effective queries.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Endpoint Tables</div><div class="card-desc"><span class="ic">DeviceEvents</span> -- general device telemetry. <span class="ic">DeviceProcessEvents</span> -- process creation. <span class="ic">DeviceNetworkEvents</span> -- network connections. <span class="ic">DeviceFileEvents</span> -- file operations. <span class="ic">DeviceLogonEvents</span> -- local and remote sign-ins.</div></div>
+            <div class="card c-blue"><div class="card-label">Email Tables</div><div class="card-desc"><span class="ic">EmailEvents</span> -- all email activity. <span class="ic">EmailAttachmentInfo</span> -- attachment metadata. <span class="ic">EmailUrlInfo</span> -- URLs in messages. <span class="ic">EmailPostDeliveryEvents</span> -- post-delivery actions like ZAP (zero-hour auto purge).</div></div>
+            <div class="card c-gold"><div class="card-label">Identity Tables</div><div class="card-desc"><span class="ic">IdentityLogonEvents</span> -- sign-in events from AD and Entra ID. <span class="ic">IdentityQueryEvents</span> -- AD queries (LDAP, DNS). <span class="ic">IdentityDirectoryEvents</span> -- directory changes like group membership modifications.</div></div>
+            <div class="card c-green"><div class="card-label">Cloud App Tables</div><div class="card-desc"><span class="ic">CloudAppEvents</span> -- activity from connected cloud apps. Covers file downloads, sharing, login events, and administrative actions from SaaS applications monitored by Defender for Cloud Apps.</div></div>
+        </div>
+        <div class="box box-cyan"><div class="box-label">Cross-Workload Hunting</div>The real power of advanced hunting is joining tables across workloads. Example: join <span class="ic">EmailEvents</span> with <span class="ic">DeviceProcessEvents</span> to track what happened on an endpoint after a user clicked a link in a phishing email.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- THREAT ANALYTICS -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title"><span class="accent">Threat Analytics</span></div>
+        <div class="slide-subtitle">Threat analytics provides expert-written reports on active threat campaigns. Each report shows whether your organization is exposed and what to do about it.</div>
+        <div class="card-grid">
+            <div class="card c-red"><div class="card-label">Analyst Reports</div><div class="card-desc">Written by Microsoft Threat Intelligence researchers. Each report covers a specific threat campaign: TTPs (tactics, techniques, procedures), IOCs (indicators of compromise), and recommended mitigations.</div></div>
+            <div class="card c-blue"><div class="card-label">Exposure Assessment</div><div class="card-desc">Each report automatically checks your environment against the threat. Shows: number of vulnerable devices, number of devices with mitigations applied, and impacted mailboxes. Color-coded risk indicators.</div></div>
+            <div class="card c-green"><div class="card-label">Mitigation Recommendations</div><div class="card-desc">Actionable steps to reduce exposure: apply specific patches, enable specific detection rules, block specific IOCs. Links directly to the relevant configuration pages in the portal.</div></div>
+        </div>
+        <div class="scenario-strip">Example: A new ransomware campaign is exploiting a Windows vulnerability. Threat analytics shows you have 47 unpatched devices, provides the CVE number, and links to the patch deployment workflow. SOC and IT teams collaborate to close the gap before the attack reaches your environment.</div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- MICROSOFT SECURE SCORE -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Microsoft <span class="accent">Secure Score</span></div>
+        <div class="slide-subtitle">Secure Score is a numerical representation of your organization's security posture. Higher score means more recommended security controls have been implemented.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">How It Works</div><div class="card-desc">Microsoft evaluates your tenant configuration against hundreds of security best practices. Each recommendation earns points when implemented. Your score is a percentage of the maximum achievable points for your licensed products.</div></div>
+            <div class="card c-blue"><div class="card-label">Improvement Actions</div><div class="card-desc">Each recommended action shows: point value, implementation status, user impact, and implementation complexity. Actions are categorized by product (Identity, Data, Device, Apps) and prioritized by impact.</div></div>
+            <div class="card c-gold"><div class="card-label">Comparison and History</div><div class="card-desc">Compare your score against organizations of similar size and industry. Track score changes over time to measure security posture improvement. Score regression alerts notify you when the score drops.</div></div>
+            <div class="card c-green"><div class="card-label">Integration</div><div class="card-desc">Secure Score feeds into threat analytics exposure assessments, compliance reports, and executive dashboards. It provides a common language for communicating security posture to leadership.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- RESPONSE ACTIONS -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Response <span class="accent">Actions</span></div>
+        <div class="slide-subtitle">SOC analysts need to contain and remediate threats quickly. Defender XDR provides response actions across all workloads -- devices, users, email, and files.</div>
+        <div class="hex-grid">
+            <div class="hex-cell"><div class="hex-title">Isolate Device</div><div class="hex-desc">Cuts network access to/from device while maintaining Defender for Endpoint connectivity. Prevents lateral movement while preserving investigation capability.</div></div>
+            <div class="hex-cell"><div class="hex-title">Disable User</div><div class="hex-desc">Disables the compromised account in Microsoft Entra ID. Revokes all active sessions and refresh tokens. Blocks further access to all Microsoft 365 services.</div></div>
+            <div class="hex-cell"><div class="hex-title">Soft Delete Email</div><div class="hex-desc">Moves malicious emails to Deleted Items across all affected mailboxes. Can target specific messages by NetworkMessageId. Reversible action.</div></div>
+            <div class="hex-cell"><div class="hex-title">Block File/URL</div><div class="hex-desc">Adds file hash or URL to the tenant block list. Prevents execution on all endpoints and delivery through email. Applies across the entire organization.</div></div>
+            <div class="hex-cell"><div class="hex-title">Run AV Scan</div><div class="hex-desc">Triggers a full Microsoft Defender Antivirus scan on a specific device. Results appear in the device timeline. Can be initiated remotely from the portal.</div></div>
+            <div class="hex-cell"><div class="hex-title">Collect Package</div><div class="hex-desc">Collects a forensic investigation package from the device: running processes, scheduled tasks, security logs, network state. Downloaded as a zip for offline analysis.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- SUMMARY -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 1 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Key concepts you must know for the SC-200 exam.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Defender XDR</strong> -- unified portal at security.microsoft.com. Correlates signals across endpoints, identities, email, and cloud apps into a single incident queue.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Incidents vs Alerts</strong> -- alerts are individual detections; incidents group correlated alerts into a full attack story. SOC analysts triage incidents, not isolated alerts.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>AIR</strong> -- Automated Investigation and Response uses playbooks to investigate and remediate threats. Automation levels: Full, Semi, or None. Pending actions appear in the Action Center.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Advanced Hunting</strong> -- KQL-based proactive threat hunting across 30 days of raw data. Key operators: <code>where</code>, <code>project</code>, <code>summarize</code>, <code>join</code>. Saved queries become custom detection rules.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Threat Analytics</strong> -- expert reports on active campaigns. Shows your exposure, vulnerable devices, and recommended mitigations with direct links to remediation actions.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Response Actions</strong> -- isolate device, disable user, soft-delete email, block file/URL, run AV scan, collect investigation package. Available manually or through AIR automation.</span></div>
+        </div>
+        <div class="box box-red" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 2 -- Mitigate Threats Using Microsoft Defender for Endpoint</strong> &nbsp;|&nbsp; EDR &bull; Attack Surface Reduction &bull; Vulnerability Management &bull; Device Groups
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; SC-200</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'sc200-ch01-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

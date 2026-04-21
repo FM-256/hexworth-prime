@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first; blocks unauthorized users immediately -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/TenantRouter.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Security Operations Analyst // SC-200</title>
+
+    <style>
+        /* -- CSS Custom Properties: Shield House palette -- */
+        :root {
+            --shield-primary:   #ef4444;
+            --shield-secondary: #f87171;
+            --shield-accent:    #fca5a5;
+            --shield-glow:      rgba(239, 68, 68, 0.3);
+            --shield-bg:        rgba(239, 68, 68, 0.05);
+            --shield-border:    rgba(239, 68, 68, 0.25);
+            --shield-dark:      #991b1b;
+            --shield-darker:    #450a0a;
+            --bg-main:          #0a0608;
+            --bg-deep:          #06030d;
+            --bg-card:          #100810;
+            --bg-card-hover:    #180c18;
+            --text-primary:     #fde2e2;
+            --text-secondary:   #e08080;
+            --text-muted:       #6b3030;
+            --border-color:     rgba(239, 68, 68, 0.12);
+            --border-hover:     rgba(239, 68, 68, 0.35);
+            --success:          #ef4444;
+            --danger:           #ef4444;
+            --danger-border:    rgba(239, 68, 68, 0.30);
+            --danger-bg:        rgba(239, 68, 68, 0.06);
+            --danger-hover-bg:  rgba(239, 68, 68, 0.12);
+            --shadow-md:        0 4px 6px -1px rgba(0, 0, 0, 0.60);
+            --shadow-lg:        0 10px 18px -3px rgba(0, 0, 0, 0.70);
+            --shadow-glow:      0 0 28px rgba(239, 68, 68, 0.10);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-deep) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0);
+            white-space: nowrap; border: 0;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* -- Top navigation bar -- */
+        .top-bar {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px; padding: 10px 0;
+        }
+
+        .course-label {
+            font-size: 0.75rem; color: var(--text-muted);
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        .dashboard-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 0.82rem; font-weight: 500;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 7px 16px; border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--shield-bg);
+            transition: all 0.2s ease; letter-spacing: 0.5px;
+        }
+
+        .dashboard-btn:hover {
+            color: var(--shield-accent);
+            border-color: var(--border-hover);
+            background: rgba(239, 68, 68, 0.10);
+        }
+
+        .dashboard-btn-icon { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* -- Hero Header -- */
+        .header {
+            text-align: center; margin-bottom: 28px;
+            padding: 44px 24px 36px;
+            background: linear-gradient(135deg, var(--shield-darker) 0%, #3b0808 50%, var(--shield-darker) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: 1px solid var(--shield-border);
+            position: relative; overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                linear-gradient(rgba(239, 68, 68, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(239, 68, 68, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px; pointer-events: none;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                45deg, transparent, transparent 18px,
+                rgba(239, 68, 68, 0.018) 18px,
+                rgba(239, 68, 68, 0.018) 20px
+            );
+            pointer-events: none;
+        }
+
+        .course-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.40);
+            color: var(--shield-primary);
+            font-size: 0.72rem; font-weight: 700;
+            letter-spacing: 2px; text-transform: uppercase;
+            padding: 4px 18px; border-radius: 20px;
+            margin-bottom: 14px; position: relative; z-index: 1;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header h2 {
+            font-size: 2.1rem; color: #fff; margin-bottom: 8px;
+            position: relative; z-index: 1;
+            font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            font-size: 1rem; color: var(--shield-accent);
+            opacity: 0.85; position: relative; z-index: 1; letter-spacing: 0.5px;
+        }
+
+        .course-stats {
+            display: flex; justify-content: center; gap: 14px;
+            margin-top: 26px; flex-wrap: wrap;
+            position: relative; z-index: 1;
+        }
+
+        .course-stat {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+            padding: 10px 22px; border-radius: 10px;
+            text-align: center; min-width: 80px;
+        }
+
+        .course-stat .value {
+            font-size: 1.4rem; font-weight: 700;
+            color: var(--shield-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .course-stat .label {
+            font-size: 0.68rem; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px;
+        }
+
+        /* -- Overall progress bar -- */
+        .progress-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 18px 22px;
+            margin-bottom: 28px; box-shadow: var(--shadow-md);
+        }
+
+        .progress-section h3 {
+            color: var(--shield-secondary); font-size: 0.82rem;
+            font-weight: 700; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            background: rgba(239, 68, 68, 0.08);
+            border-radius: 10px; height: 14px; overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-secondary), var(--shield-primary));
+            width: 0%; transition: width 0.6s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .progress-text {
+            text-align: right; font-size: 0.75rem;
+            color: var(--text-muted); margin-top: 6px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* -- Section heading label -- */
+        .section-heading {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 2.5px; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 12px; padding-left: 4px;
+        }
+
+        /* -- Chapter Cards (collapsible) -- */
+        .week-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; margin-bottom: 10px;
+            box-shadow: var(--shadow-md); overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+
+        .week-card:hover { border-color: var(--border-hover); }
+
+        .week-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px; cursor: pointer;
+            user-select: none; transition: background 0.2s ease;
+        }
+
+        .week-header:hover { background: rgba(239, 68, 68, 0.04); }
+
+        .week-header-left { display: flex; align-items: center; gap: 14px; }
+
+        .week-num {
+            background: linear-gradient(135deg, var(--shield-dark), var(--shield-secondary));
+            color: #000; width: 40px; height: 40px;
+            border-radius: 10px; display: flex;
+            align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.95rem; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-title-group .week-title {
+            font-size: 1rem; font-weight: 700;
+            color: var(--shield-accent); line-height: 1.25;
+            font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px;
+        }
+
+        .week-title-group .week-sub {
+            font-size: 0.83rem; color: var(--text-secondary); margin-top: 2px;
+        }
+
+        .week-meta {
+            display: flex; align-items: center; gap: 8px;
+            margin-top: 5px; flex-wrap: wrap;
+        }
+
+        .obj-tag {
+            font-size: 0.68rem; font-weight: 700;
+            color: var(--shield-secondary);
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.18);
+            padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;
+        }
+
+        .item-count-tag {
+            font-size: 0.68rem; color: var(--text-muted);
+            background: rgba(239, 68, 68, 0.04);
+            border: 1px solid rgba(239, 68, 68, 0.10);
+            padding: 2px 8px; border-radius: 4px;
+        }
+
+        .week-toggle {
+            color: var(--text-muted); font-size: 1.1rem;
+            transition: transform 0.3s ease; flex-shrink: 0;
+        }
+
+        .week-card.open .week-toggle { transform: rotate(180deg); }
+
+        .week-body {
+            max-height: 0; overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .week-card.open .week-body { max-height: 4200px; }
+
+        .week-inner {
+            padding: 4px 22px 24px;
+            border-top: 1px solid rgba(239, 68, 68, 0.06);
+        }
+
+        /* -- Per-chapter progress bar -- */
+        .week-progress { margin: 14px 0 8px; }
+
+        .week-progress-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.70rem; color: var(--text-muted);
+            margin-bottom: 5px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-progress-bar-container {
+            background: rgba(239, 68, 68, 0.06);
+            border-radius: 6px; height: 5px; overflow: hidden;
+        }
+
+        .week-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--shield-dark), var(--shield-primary));
+            width: 0%; transition: width 0.5s ease; border-radius: 6px;
+        }
+
+        /* -- Chapter Overview Card -- */
+        .week-overview {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.04), rgba(239, 68, 68, 0.01));
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 10px; padding: 16px 20px;
+            margin-bottom: 16px; margin-top: 14px;
+        }
+
+        .week-overview-title {
+            font-size: 0.78rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--shield-primary); margin-bottom: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .week-overview-desc {
+            font-size: 0.86rem; color: var(--text-secondary); line-height: 1.65;
+        }
+
+        /* -- Subsection labels inside a chapter -- */
+        .subsection { margin-top: 20px; }
+
+        .subsection-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(107, 48, 48, 0.20);
+        }
+
+        .subsection-label::before {
+            content: ''; display: inline-block;
+            width: 3px; height: 12px;
+            border-radius: 2px; flex-shrink: 0;
+        }
+
+        .subsection-label.label-presentation::before { background: var(--shield-secondary); }
+        .subsection-label.label-lab::before          { background: #fbbf24; }
+        .subsection-label.label-assessment::before   { background: #60a5fa; }
+
+        /* -- Content type badges -- */
+        .content-badge {
+            font-size: 0.58rem; font-weight: 700;
+            letter-spacing: 0.8px; text-transform: uppercase;
+            padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .badge-presentation {
+            background: rgba(239, 68, 68, 0.12); color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.28);
+        }
+
+        .badge-quiz {
+            background: rgba(96, 165, 250, 0.12); color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.28);
+        }
+
+        /* -- Content link cards -- */
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+        .content-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px;
+            background: rgba(239, 68, 68, 0.02);
+            border: 1px solid rgba(239, 68, 68, 0.07);
+            border-radius: 8px; text-decoration: none;
+            color: var(--text-primary); transition: all 0.2s ease;
+        }
+
+        .content-card:hover {
+            background: rgba(239, 68, 68, 0.07);
+            border-color: rgba(239, 68, 68, 0.22);
+            transform: translateX(3px);
+        }
+
+        .content-card.is-complete {
+            border-color: rgba(239, 68, 68, 0.30);
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .card-id-badge {
+            font-size: 0.60rem; font-weight: 700; letter-spacing: 1px;
+            color: var(--shield-secondary);
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.18);
+            padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace; white-space: nowrap;
+        }
+
+        .card-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.75; }
+
+        .card-info { flex: 1; min-width: 0; }
+
+        .card-info .card-title {
+            font-size: 0.86rem; font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-info .card-sub {
+            font-size: 0.72rem; color: var(--text-muted); margin-top: 1px;
+        }
+
+        .card-check {
+            width: 16px; height: 16px; opacity: 0; flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .content-card.is-complete .card-check { opacity: 1; }
+
+        /* -- Lab cards -- */
+        .lab-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 13px 16px;
+            background: rgba(251, 191, 36, 0.06);
+            border: 1px solid rgba(251, 191, 36, 0.30);
+            border-radius: 8px; text-decoration: none;
+            color: var(--text-primary); transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .lab-card:hover {
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.55);
+            transform: translateX(3px);
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(251, 191, 36, 0.15); }
+            50%       { box-shadow: 0 0 16px rgba(251, 191, 36, 0.35); }
+        }
+
+        .lab-card:hover { animation: pulse-border 1.4s ease infinite; }
+
+        .lab-card.is-complete {
+            border-color: rgba(239, 68, 68, 0.30);
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .lab-id-badge {
+            font-size: 0.60rem; font-weight: 700; letter-spacing: 1px;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.10);
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+            font-family: 'Courier New', Courier, monospace; white-space: nowrap;
+        }
+
+        .lab-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.80; }
+
+        .lab-stats { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+        .lab-stat-badge {
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px;
+            color: #fde68a;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.20);
+            padding: 3px 8px; border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace; white-space: nowrap;
+        }
+
+        .lab-check {
+            width: 16px; height: 16px; opacity: 0; flex-shrink: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .lab-card.is-complete .lab-check { opacity: 1; }
+
+        /* -- Course info block (bottom) -- */
+        .course-info-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 24px 26px;
+            margin-top: 36px; margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .course-info-block h3 {
+            font-size: 0.82rem; font-weight: 700;
+            color: var(--shield-secondary);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            margin-bottom: 18px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .objectives-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .objectives-list li {
+            display: flex; align-items: flex-start; gap: 9px;
+            font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;
+        }
+
+        .objectives-list li::before {
+            content: ''; display: inline-block;
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--shield-primary); flex-shrink: 0;
+            margin-top: 7px;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+        }
+
+        /* -- Page footer -- */
+        .page-footer {
+            text-align: center; padding: 28px 0 10px;
+            color: var(--text-muted); font-size: 0.72rem;
+            font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px;
+        }
+
+        .page-footer .footer-sub { margin-top: 4px; font-size: 0.65rem; opacity: 0.7; }
+
+        /* -- Mobile responsive -- */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { padding: 30px 16px 26px; }
+            .header h2 { font-size: 1.55rem; }
+            .header .subtitle { font-size: 0.9rem; }
+            .course-stats { gap: 10px; }
+            .course-stat { padding: 8px 14px; }
+            .course-stat .value { font-size: 1.15rem; }
+            .week-header { padding: 14px 16px; }
+            .week-inner { padding: 4px 16px 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h2 { font-size: 1.3rem; }
+            .course-stat { padding: 6px 10px; }
+            .course-stat .value { font-size: 1rem; }
+            .course-stat .label { font-size: 0.60rem; }
+            .week-num { width: 34px; height: 34px; font-size: 0.82rem; }
+            .week-title-group .week-title { font-size: 0.92rem; }
+            .lab-stats { flex-direction: column; gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hidden H1 for screen readers and SEO -->
+    <h1 class="visually-hidden">Microsoft Security Operations Analyst, SC-200 Certification Course Hub, Shield House</h1>
+
+    <div class="container">
+
+        <!-- -- Top Bar -- -->
+        <div class="top-bar">
+            <span class="course-label">SC-200 // Shield House</span>
+            <a href="../index.html" class="dashboard-btn" id="dashboardBtn">
+                <img src="../../../assets/images/icons/icon-shield.webp"
+                     alt="" class="dashboard-btn-icon" aria-hidden="true">
+                Shield Hub
+            </a>
+        </div>
+
+        <!-- -- Hero Header -- -->
+        <div class="header">
+            <span class="course-badge">SC-200</span>
+            <h2>Microsoft Security Operations Analyst</h2>
+            <p class="subtitle">Mitigate threats using Microsoft Defender XDR and Microsoft Sentinel.</p>
+
+            <div class="course-stats">
+                <div class="course-stat">
+                    <div class="value">9</div>
+                    <div class="label">Chapters</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">27</div>
+                    <div class="label">Modules</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">40-60</div>
+                    <div class="label">Questions</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">120</div>
+                    <div class="label">Minutes</div>
+                </div>
+                <div class="course-stat">
+                    <div class="value">700</div>
+                    <div class="label">Passing</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- -- Overall Course Progress -- -->
+        <div class="progress-section">
+            <h3>Threat Detection Sync: Course Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <!-- -- Learning Path -- -->
+        <div class="section-heading">Security Operations Learning Path</div>
+
+
+        <!-- ====================== CHAPTER 1 ====================== -->
+        <div class="week-card" id="ch01">
+            <div class="week-header" onclick="toggleWeek('ch01')">
+                <div class="week-header-left">
+                    <div class="week-num">1</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Mitigate Threats Using Microsoft Defender XDR</div>
+                        <div class="week-sub">CHAPTER 1 // DEFENDER XDR PORTAL</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">XDR</span>
+                            <span class="obj-tag">Incidents</span>
+                            <span class="obj-tag">AIR</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 1 Progress</span>
+                            <span id="ch01-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch01-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">DEFENDER XDR // INCIDENT MANAGEMENT</div>
+                        <div class="week-overview-desc">
+                            Navigate the Microsoft Defender XDR portal and understand how it unifies security signals
+                            across endpoints, email, identity, and cloud apps into a single incident queue. Learn
+                            incident management workflows, automated investigation and response (AIR), and how to
+                            configure alert policies. Understand the attack story timeline and how evidence from
+                            multiple Defender products correlates into unified incidents.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch01-defender-xdr.presentation.html"
+                               class="content-card" data-module="sc200-ch01-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Microsoft Defender XDR</div>
+                                    <div class="card-sub">XDR portal, incident management, automated investigation and response (AIR)</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch01-defender-xdr.lab.html"
+                               class="lab-card" data-module="sc200-ch01-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH01-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Defender XDR Incident Management</div>
+                                    <div class="card-sub">Investigate incidents, manage alerts, configure AIR, review attack timelines.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch01.quiz.html"
+                               class="content-card" data-module="sc200-ch01-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH01-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 1 Quiz</div>
+                                    <div class="card-sub">Defender XDR portal, incidents, alerts, automated investigation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 2 ====================== -->
+        <div class="week-card" id="ch02">
+            <div class="week-header" onclick="toggleWeek('ch02')">
+                <div class="week-header-left">
+                    <div class="week-num">2</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Defender for Endpoint</div>
+                        <div class="week-sub">CHAPTER 2 // ENDPOINT DETECTION AND RESPONSE</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">EDR</span>
+                            <span class="obj-tag">ASR</span>
+                            <span class="obj-tag">Live Response</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 2 Progress</span>
+                            <span id="ch02-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch02-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">ENDPOINT SECURITY // EDR AND THREAT ANALYTICS</div>
+                        <div class="week-overview-desc">
+                            Deploy and manage Microsoft Defender for Endpoint across your organization. Configure
+                            onboarding for Windows, macOS, and Linux devices. Implement attack surface reduction
+                            rules to harden endpoints before threats land. Use endpoint detection and response
+                            capabilities to investigate alerts, analyze device timelines, and execute live
+                            response sessions for remote forensics and remediation.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch02-defender-endpoint.presentation.html"
+                               class="content-card" data-module="sc200-ch02-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Defender for Endpoint</div>
+                                    <div class="card-sub">Onboarding, attack surface reduction, EDR, threat analytics, live response</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch02-defender-endpoint.lab.html"
+                               class="lab-card" data-module="sc200-ch02-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH02-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Endpoint Detection and Response Operations</div>
+                                    <div class="card-sub">Onboard devices, configure ASR rules, investigate alerts, run live response.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch02.quiz.html"
+                               class="content-card" data-module="sc200-ch02-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH02-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 2 Quiz</div>
+                                    <div class="card-sub">Endpoint onboarding, ASR, EDR capabilities, live response, threat analytics</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 3 ====================== -->
+        <div class="week-card" id="ch03">
+            <div class="week-header" onclick="toggleWeek('ch03')">
+                <div class="week-header-left">
+                    <div class="week-num">3</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Defender for Office 365</div>
+                        <div class="week-sub">CHAPTER 3 // EMAIL AND COLLABORATION PROTECTION</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Safe Attachments</span>
+                            <span class="obj-tag">Safe Links</span>
+                            <span class="obj-tag">Anti-Phishing</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 3 Progress</span>
+                            <span id="ch03-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch03-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">EMAIL SECURITY // THREAT EXPLORER</div>
+                        <div class="week-overview-desc">
+                            Configure Microsoft Defender for Office 365 to protect email and collaboration
+                            workloads. Set up Safe Attachments policies with dynamic delivery, Safe Links
+                            URL detonation, and anti-phishing policies with impersonation protection. Use
+                            Threat Explorer to hunt for malicious emails and investigate campaigns. Deploy
+                            attack simulation training to test user awareness and reduce phishing click rates.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch03-defender-office.presentation.html"
+                               class="content-card" data-module="sc200-ch03-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Defender for Office 365</div>
+                                    <div class="card-sub">Safe Attachments, Safe Links, anti-phishing, Threat Explorer, attack simulation</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch03-defender-office.lab.html"
+                               class="lab-card" data-module="sc200-ch03-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH03-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Email Protection and Threat Investigation</div>
+                                    <div class="card-sub">Configure Safe Attachments, Safe Links, anti-phishing, investigate threats.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch03.quiz.html"
+                               class="content-card" data-module="sc200-ch03-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH03-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 3 Quiz</div>
+                                    <div class="card-sub">Safe Attachments, Safe Links, anti-phishing, Threat Explorer</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 4 ====================== -->
+        <div class="week-card" id="ch04">
+            <div class="week-header" onclick="toggleWeek('ch04')">
+                <div class="week-header-left">
+                    <div class="week-num">4</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Defender for Identity</div>
+                        <div class="week-sub">CHAPTER 4 // IDENTITY THREAT DETECTION</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Lateral Movement</span>
+                            <span class="obj-tag">Credentials</span>
+                            <span class="obj-tag">Posture</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 4 Progress</span>
+                            <span id="ch04-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch04-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">IDENTITY SECURITY // LATERAL MOVEMENT PATHS</div>
+                        <div class="week-overview-desc">
+                            Deploy Microsoft Defender for Identity to monitor on-premises Active Directory
+                            and hybrid identity environments. Detect reconnaissance activities like DNS
+                            enumeration and account enumeration. Identify lateral movement paths that
+                            attackers exploit to move from compromised accounts to high-value targets.
+                            Detect compromised credentials and configure security posture assessments
+                            to harden your identity infrastructure proactively.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch04-defender-identity.presentation.html"
+                               class="content-card" data-module="sc200-ch04-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Defender for Identity</div>
+                                    <div class="card-sub">Identity threat detection, lateral movement paths, credential compromise, posture</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch04-defender-identity.lab.html"
+                               class="lab-card" data-module="sc200-ch04-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH04-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Identity Threat Detection and Investigation</div>
+                                    <div class="card-sub">Configure sensors, detect lateral movement, investigate compromised credentials.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch04.quiz.html"
+                               class="content-card" data-module="sc200-ch04-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH04-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 4 Quiz</div>
+                                    <div class="card-sub">Identity threat detection, lateral movement, credential protection, posture</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 5 ====================== -->
+        <div class="week-card" id="ch05">
+            <div class="week-header" onclick="toggleWeek('ch05')">
+                <div class="week-header-left">
+                    <div class="week-num">5</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Defender for Cloud Apps</div>
+                        <div class="week-sub">CHAPTER 5 // CLOUD APPLICATION SECURITY</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">CASB</span>
+                            <span class="obj-tag">App Discovery</span>
+                            <span class="obj-tag">OAuth</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 5 Progress</span>
+                            <span id="ch05-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch05-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">CLOUD APP SECURITY // CASB AND GOVERNANCE</div>
+                        <div class="week-overview-desc">
+                            Implement Microsoft Defender for Cloud Apps as a cloud access security broker (CASB).
+                            Discover shadow IT with cloud app discovery using firewall and proxy logs. Connect
+                            SaaS applications using app connectors for visibility and control. Configure
+                            conditional access app control for real-time session monitoring. Build anomaly
+                            detection policies and govern OAuth app permissions to prevent consent phishing
+                            and excessive privilege grants.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch05-defender-cloud-apps.presentation.html"
+                               class="content-card" data-module="sc200-ch05-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Defender for Cloud Apps</div>
+                                    <div class="card-sub">Cloud app discovery, app connectors, session controls, anomaly detection, OAuth</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch05-defender-cloud-apps.lab.html"
+                               class="lab-card" data-module="sc200-ch05-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH05-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Cloud App Discovery and Governance</div>
+                                    <div class="card-sub">Discover shadow IT, connect apps, configure session controls, govern OAuth apps.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">40 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch05.quiz.html"
+                               class="content-card" data-module="sc200-ch05-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH05-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 5 Quiz</div>
+                                    <div class="card-sub">CASB, cloud app discovery, session controls, anomaly detection, OAuth governance</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 6 ====================== -->
+        <div class="week-card" id="ch06">
+            <div class="week-header" onclick="toggleWeek('ch06')">
+                <div class="week-header-left">
+                    <div class="week-num">6</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Sentinel -- Setup</div>
+                        <div class="week-sub">CHAPTER 6 // SIEM DEPLOYMENT AND DATA CONNECTORS</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Log Analytics</span>
+                            <span class="obj-tag">Connectors</span>
+                            <span class="obj-tag">Content Hub</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 6 Progress</span>
+                            <span id="ch06-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch06-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">SENTINEL SETUP // WORKSPACE AND CONNECTORS</div>
+                        <div class="week-overview-desc">
+                            Deploy Microsoft Sentinel on top of a Log Analytics workspace. Configure data connectors
+                            for Azure services, Microsoft 365, Syslog, Common Event Format (CEF), and custom log
+                            sources. Use the Content Hub to install packaged solutions with analytics rules,
+                            workbooks, and playbooks. Understand workspace architecture, data retention policies,
+                            and cost optimization through data collection rules.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch06-sentinel-setup.presentation.html"
+                               class="content-card" data-module="sc200-ch06-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Sentinel Setup</div>
+                                    <div class="card-sub">Log Analytics workspace, data connectors, content hub, analytics rules</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch06-sentinel-setup.lab.html"
+                               class="lab-card" data-module="sc200-ch06-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH06-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Sentinel Workspace and Data Connector Configuration</div>
+                                    <div class="card-sub">Create workspace, enable connectors, install content hub solutions.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch06.quiz.html"
+                               class="content-card" data-module="sc200-ch06-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH06-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 6 Quiz</div>
+                                    <div class="card-sub">Log Analytics, data connectors, Syslog, CEF, content hub</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 7 ====================== -->
+        <div class="week-card" id="ch07">
+            <div class="week-header" onclick="toggleWeek('ch07')">
+                <div class="week-header-left">
+                    <div class="week-num">7</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Sentinel -- Detection</div>
+                        <div class="week-sub">CHAPTER 7 // KQL AND ANALYTICS RULES</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">KQL</span>
+                            <span class="obj-tag">NRT Rules</span>
+                            <span class="obj-tag">Fusion</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 7 Progress</span>
+                            <span id="ch07-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch07-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">DETECTION ENGINEERING // KQL AND ANALYTICS</div>
+                        <div class="week-overview-desc">
+                            Write Kusto Query Language (KQL) queries to search security logs and build detection
+                            rules. Create scheduled analytics rules with custom logic, near-real-time (NRT) rules
+                            for critical alerts, and understand Fusion rules that use machine learning to correlate
+                            low-fidelity signals into high-confidence multi-stage attack detections. Integrate
+                            threat intelligence feeds and use watchlists to enrich detections with contextual data.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch07-sentinel-detection.presentation.html"
+                               class="content-card" data-module="sc200-ch07-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH07-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Sentinel Detection</div>
+                                    <div class="card-sub">KQL queries, scheduled rules, NRT rules, fusion, threat intelligence, watchlists</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch07-sentinel-detection.lab.html"
+                               class="lab-card" data-module="sc200-ch07-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH07-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">KQL Detection Engineering</div>
+                                    <div class="card-sub">Write KQL queries, create analytics rules, configure threat intelligence.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch07.quiz.html"
+                               class="content-card" data-module="sc200-ch07-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH07-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 7 Quiz</div>
+                                    <div class="card-sub">KQL, analytics rules, NRT rules, fusion detection, watchlists</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 8 ====================== -->
+        <div class="week-card" id="ch08">
+            <div class="week-header" onclick="toggleWeek('ch08')">
+                <div class="week-header-left">
+                    <div class="week-num">8</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Sentinel -- Response</div>
+                        <div class="week-sub">CHAPTER 8 // SOAR AND ENTITY BEHAVIOR</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Playbooks</span>
+                            <span class="obj-tag">UEBA</span>
+                            <span class="obj-tag">SOAR</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 8 Progress</span>
+                            <span id="ch08-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch08-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">AUTOMATED RESPONSE // SOAR AND UEBA</div>
+                        <div class="week-overview-desc">
+                            Build automated response workflows using Sentinel automation rules and playbooks
+                            powered by Azure Logic Apps. Configure SOAR capabilities to automatically enrich
+                            incidents, isolate compromised devices, disable user accounts, and send notifications.
+                            Enable User and Entity Behavior Analytics (UEBA) to detect anomalous activity based
+                            on behavioral baselines. Use Jupyter notebooks for advanced investigation workflows.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch08-sentinel-response.presentation.html"
+                               class="content-card" data-module="sc200-ch08-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH08-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Sentinel Response</div>
+                                    <div class="card-sub">Automation rules, playbooks, SOAR, UEBA, entity behavior analytics, notebooks</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch08-sentinel-response.lab.html"
+                               class="lab-card" data-module="sc200-ch08-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH08-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">SOAR Automation and Entity Behavior Analysis</div>
+                                    <div class="card-sub">Build playbooks, configure automation rules, enable UEBA, analyze entities.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch08.quiz.html"
+                               class="content-card" data-module="sc200-ch08-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH08-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 8 Quiz</div>
+                                    <div class="card-sub">Automation rules, playbooks, SOAR, UEBA, entity behavior, notebooks</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== CHAPTER 9 ====================== -->
+        <div class="week-card" id="ch09">
+            <div class="week-header" onclick="toggleWeek('ch09')">
+                <div class="week-header-left">
+                    <div class="week-num">9</div>
+                    <div class="week-title-group">
+                        <div class="week-title">Microsoft Sentinel -- Threat Hunting</div>
+                        <div class="week-sub">CHAPTER 9 // PROACTIVE THREAT HUNTING</div>
+                        <div class="week-meta">
+                            <span class="obj-tag">Hunting</span>
+                            <span class="obj-tag">Bookmarks</span>
+                            <span class="obj-tag">MITRE ATT&amp;CK</span>
+                            <span class="item-count-tag">1 presentation + 1 lab + 1 quiz</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="week-toggle">&#9660;</span>
+            </div>
+            <div class="week-body">
+                <div class="week-inner">
+                    <div class="week-progress">
+                        <div class="week-progress-label">
+                            <span>Chapter 9 Progress</span>
+                            <span id="ch09-progress-text">0 / 3</span>
+                        </div>
+                        <div class="week-progress-bar-container">
+                            <div class="week-progress-bar" id="ch09-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="week-overview">
+                        <div class="week-overview-title">THREAT HUNTING // MITRE ATT&amp;CK AND NOTEBOOKS</div>
+                        <div class="week-overview-desc">
+                            Conduct proactive threat hunting using Sentinel hunting queries, bookmarks, and
+                            livestream. Build hypothesis-driven hunts mapped to MITRE ATT&amp;CK tactics and
+                            techniques. Use Jupyter notebooks with MSTICPy for advanced investigation and
+                            data analysis. Integrate threat intelligence feeds and indicators of compromise
+                            to enrich hunting workflows and identify stealthy adversary activity that evades
+                            automated detection rules.
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-presentation">Presentation</div>
+                        <div class="content-grid">
+                            <a href="presentations/sc200-ch09-sentinel-hunting.presentation.html"
+                               class="content-card" data-module="sc200-ch09-pres">
+                                <img src="../../../assets/images/icons/icon-desktop.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH09-P</span>
+                                <div class="card-info">
+                                    <div class="card-title">Sentinel Threat Hunting</div>
+                                    <div class="card-sub">Hunting queries, bookmarks, livestream, notebooks, threat intelligence, MITRE ATT&amp;CK</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-presentation">Slides</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-lab">Lab</div>
+                        <div class="content-grid">
+                            <a href="labs/sc200-ch09-sentinel-hunting.lab.html"
+                               class="lab-card" data-module="sc200-ch09-lab">
+                                <img src="../../../assets/images/icons/icon-shield.webp" alt="" class="lab-icon" aria-hidden="true">
+                                <span class="lab-id-badge">CH09-L</span>
+                                <div class="card-info">
+                                    <div class="card-title">Proactive Threat Hunting Operations</div>
+                                    <div class="card-sub">Write hunting queries, create bookmarks, use livestream, map to MITRE ATT&amp;CK.</div>
+                                </div>
+                                <div class="lab-stats"><span class="lab-stat-badge">45 min</span></div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="lab-check" aria-hidden="true">
+                            </a>
+                        </div>
+                    </div>
+                    <div class="subsection">
+                        <div class="subsection-label label-assessment">Assessment</div>
+                        <div class="content-grid">
+                            <a href="quizzes/sc200-ch09.quiz.html"
+                               class="content-card" data-module="sc200-ch09-quiz">
+                                <img src="../../../assets/images/icons/icon-clipboard.webp" alt="" class="card-icon" aria-hidden="true">
+                                <span class="card-id-badge">CH09-Q</span>
+                                <div class="card-info">
+                                    <div class="card-title">Chapter 9 Quiz</div>
+                                    <div class="card-sub">Hunting queries, bookmarks, livestream, notebooks, MITRE ATT&amp;CK mapping</div>
+                                </div>
+                                <img src="../../../assets/images/icons/icon-checkmark.webp" alt="Complete" class="card-check" aria-hidden="true">
+                                <span class="content-badge badge-quiz">Quiz</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- -- Exam Objectives -- -->
+        <div class="course-info-block">
+            <h3>SC-200 Exam Objectives</h3>
+            <ul class="objectives-list">
+                <li>Manage a security operations environment using the Microsoft Defender portal</li>
+                <li>Investigate and respond to incidents and alerts in Microsoft Defender XDR</li>
+                <li>Configure and manage automated investigation and response (AIR) in Defender XDR</li>
+                <li>Onboard and manage devices with Microsoft Defender for Endpoint</li>
+                <li>Configure attack surface reduction rules and endpoint detection and response</li>
+                <li>Use live response for remote investigation and remediation on endpoints</li>
+                <li>Configure Safe Attachments, Safe Links, and anti-phishing policies in Defender for Office 365</li>
+                <li>Investigate email threats using Threat Explorer and deploy attack simulation training</li>
+                <li>Detect identity-based threats and lateral movement with Defender for Identity</li>
+                <li>Discover and govern cloud applications with Defender for Cloud Apps (CASB)</li>
+                <li>Deploy Microsoft Sentinel and configure data connectors for log ingestion</li>
+                <li>Write KQL queries and create scheduled, NRT, and fusion analytics rules</li>
+                <li>Build automation rules and playbooks (Logic Apps) for SOAR capabilities in Sentinel</li>
+                <li>Enable UEBA and use entity behavior analytics for anomaly detection</li>
+                <li>Conduct proactive threat hunting using hunting queries, bookmarks, and livestream</li>
+                <li>Map detections to MITRE ATT&amp;CK framework and integrate threat intelligence</li>
+            </ul>
+        </div>
+
+        <!-- -- Page Footer -- -->
+        <div class="page-footer">
+            House of Shield // Microsoft Security Operations Analyst // SC-200
+            <div class="footer-sub">Mitigate threats using Microsoft Defender XDR and Microsoft Sentinel.</div>
+        </div>
+
+    </div>
+
+    <!-- -- JavaScript -- -->
+    <script>
+        function toggleWeek(id) {
+            var card = document.getElementById(id);
+            if (card) { card.classList.toggle('open'); }
+        }
+
+        (function () {
+            var hash = window.location.hash;
+            if (hash && /^#ch0[1-9]$/.test(hash)) {
+                var id   = hash.substring(1);
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.add('open');
+                    setTimeout(function () {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                }
+            }
+        })();
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ModuleProgress) {
+                document.getElementById('progressText').textContent = 'Progress unavailable';
+                return;
+            }
+
+            var weeks = {
+                ch01: ['sc200-ch01-pres', 'sc200-ch01-lab', 'sc200-ch01-quiz'],
+                ch02: ['sc200-ch02-pres', 'sc200-ch02-lab', 'sc200-ch02-quiz'],
+                ch03: ['sc200-ch03-pres', 'sc200-ch03-lab', 'sc200-ch03-quiz'],
+                ch04: ['sc200-ch04-pres', 'sc200-ch04-lab', 'sc200-ch04-quiz'],
+                ch05: ['sc200-ch05-pres', 'sc200-ch05-lab', 'sc200-ch05-quiz'],
+                ch06: ['sc200-ch06-pres', 'sc200-ch06-lab', 'sc200-ch06-quiz'],
+                ch07: ['sc200-ch07-pres', 'sc200-ch07-lab', 'sc200-ch07-quiz'],
+                ch08: ['sc200-ch08-pres', 'sc200-ch08-lab', 'sc200-ch08-quiz'],
+                ch09: ['sc200-ch09-pres', 'sc200-ch09-lab', 'sc200-ch09-quiz']
+            };
+
+            var totalItems     = 0;
+            var totalCompleted = 0;
+
+            Object.keys(weeks).forEach(function (chapterId) {
+                var ids       = weeks[chapterId];
+                var completed = 0;
+
+                ids.forEach(function (moduleId) {
+                    if (ModuleProgress.isCompleted('shield', moduleId)) {
+                        completed++;
+                        var el = document.querySelector('[data-module="' + moduleId + '"]');
+                        if (el) { el.classList.add('is-complete'); }
+                    }
+                });
+
+                var weekPct  = ids.length > 0 ? Math.round((completed / ids.length) * 100) : 0;
+                var weekBar  = document.getElementById(chapterId + '-progress-bar');
+                var weekText = document.getElementById(chapterId + '-progress-text');
+                if (weekBar)  { weekBar.style.width = weekPct + '%'; }
+                if (weekText) { weekText.textContent = completed + ' / ' + ids.length; }
+
+                totalItems     += ids.length;
+                totalCompleted += completed;
+            });
+
+            var overallPct  = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var overallBar  = document.getElementById('progressBar');
+            var overallText = document.getElementById('progressText');
+            if (overallBar)  { overallBar.style.width = overallPct + '%'; }
+            if (overallText) {
+                overallText.textContent =
+                    totalCompleted + ' of ' + totalItems + ' modules completed (' + overallPct + '%)';
+            }
+        });
+    </script>
+
+    <script src="../../../components/TenantShell.js"></script>
+    <script src="../../../components/ContentDiscovery.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>
