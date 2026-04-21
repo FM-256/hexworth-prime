@@ -1,0 +1,2896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity and Governance Lab — AZ-104 Chapter 2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">Exit Lab</a>
+            <span class="lab-title">Identity and Governance Lab</span>
+            <span class="lab-badge">AZ-104</span>
+            <span class="lab-badge-ch">CH.2</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Entra ID Users</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">List Existing Users</div>
+                    <div class="task-desc">Run <code>az ad user list</code> to see all users in the tenant. Your pre-configured environment has three existing accounts you will work with.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">Create a New User</div>
+                    <div class="task-desc">Use <code>az ad user create</code> to provision Carol Davis with UPN <code>carol.davis@contoso.onmicrosoft.com</code> and a secure initial password.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — Groups and Membership</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Create a Group and Add a Member</div>
+                    <div class="task-desc">Create the <code>IT-Admins</code> security group, add Carol as a member, then list group members to verify the assignment.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — RBAC Role Assignments</div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">Assign an RBAC Role</div>
+                    <div class="task-desc">Grant Carol the <code>Contributor</code> role scoped to <code>lab-rg-01</code> using <code>az role assignment create</code>. RBAC controls what actions a principal can perform.</div>
+                </div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Verify the Role Assignment</div>
+                    <div class="task-desc">Run <code>az role assignment list --assignee carol.davis@contoso.onmicrosoft.com</code> to confirm the Contributor assignment is active.</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Explore Built-in Role Definitions</div>
+                    <div class="task-desc">Use <code>az role definition list --name "Contributor"</code> to see the full permission set — what actions the role allows and what notActions block.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Azure Policy</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">List Built-in Policies</div>
+                    <div class="task-desc">Run <code>az policy definition list --output table</code> to browse built-in governance policies in table format. In production, add <code>--query "[?policyType=='BuiltIn']"</code> to filter by type.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Create a Policy Assignment</div>
+                    <div class="task-desc">Assign the <code>require-tags</code> policy to the subscription scope using <code>az policy assignment create</code>. This enforces tag requirements on all new resources.</div>
+                </div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">Check Policy Compliance</div>
+                    <div class="task-desc">Run <code>az policy state summarize</code> to see the compliance summary — how many resources are compliant or non-compliant against active policies.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 5 — Management Groups</div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Create a Management Group</div>
+                    <div class="task-desc">Use <code>az account management-group create --name "Production"</code> then list management groups to see the full hierarchy from Root down to the Production group.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">azadmin@identity-lab-vm — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    identity-lab-vm Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">azadmin@identity-lab-vm</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">AZ-104 Chapter 2 Complete!</div>
+                    <div class="success-message">
+                        You listed and created Entra ID users, built a security group and added members,
+                        assigned an RBAC Contributor role scoped to a resource group, inspected built-in
+                        role definitions to understand actions vs notActions, browsed built-in Azure Policy
+                        definitions, applied a tag-enforcement policy at subscription scope, reviewed policy
+                        compliance state, and created a management group hierarchy. You now understand the
+                        full Azure identity and governance model every Azure Administrator depends on daily.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER      = 'azadmin';
+        var HOST      = 'identity-lab-vm';
+        var HOME      = '/home/azadmin';
+        var SUB_ID    = 'sub-001';
+        var TENANT_ID = '72f988bf-86f1-41af-91ab-2d7cd011db47';
+        var SUB_NAME  = 'Contoso-Lab-Subscription';
+        var DOMAIN    = 'contoso.onmicrosoft.com';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ════════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+
+        /* Sub-step trackers for multi-command tasks */
+        var task3_group_created  = false;   /* IT-Admins group created */
+        var task3_member_added   = false;   /* Carol added to IT-Admins */
+        var task3_member_listed  = false;   /* member list run for IT-Admins */
+
+        var task10_mg_created    = false;   /* Production management group created */
+        var task10_mg_listed     = false;   /* management group list run */
+
+        /* Simulated identity state */
+        var adUsers = {
+            'admin@contoso.onmicrosoft.com': {
+                objectId:             'oid-00000000-admin',
+                displayName:          'Contoso Admin',
+                userPrincipalName:    'admin@contoso.onmicrosoft.com',
+                accountEnabled:       true,
+                mail:                 'admin@contoso.onmicrosoft.com',
+                jobTitle:             'Global Administrator',
+                department:           'IT',
+                createdDateTime:      '2024-01-10T08:00:00Z',
+                userType:             'Member'
+            },
+            'alice.johnson@contoso.onmicrosoft.com': {
+                objectId:             'oid-11111111-alice',
+                displayName:          'Alice Johnson',
+                userPrincipalName:    'alice.johnson@contoso.onmicrosoft.com',
+                accountEnabled:       true,
+                mail:                 'alice.johnson@contoso.onmicrosoft.com',
+                jobTitle:             'Cloud Engineer',
+                department:           'Engineering',
+                createdDateTime:      '2025-03-15T09:00:00Z',
+                userType:             'Member'
+            },
+            'bob.smith@contoso.onmicrosoft.com': {
+                objectId:             'oid-22222222-bob',
+                displayName:          'Bob Smith',
+                userPrincipalName:    'bob.smith@contoso.onmicrosoft.com',
+                accountEnabled:       true,
+                mail:                 'bob.smith@contoso.onmicrosoft.com',
+                jobTitle:             'Systems Analyst',
+                department:           'Operations',
+                createdDateTime:      '2025-06-20T10:30:00Z',
+                userType:             'Member'
+            }
+        };
+
+        /* Groups keyed by display name */
+        var adGroups = {};
+
+        /* Group memberships keyed by group display name -> array of objectIds */
+        var groupMembers = {};
+
+        /* RBAC role assignments — array of assignment objects */
+        var roleAssignments = [];
+
+        /* Policy assignments keyed by name */
+        var policyAssignments = {};
+
+        /* Policy compliance state — populated after first summarize or assignment */
+        var complianceInitialized = false;
+
+        /* Management groups */
+        var managementGroups = {
+            'Tenant Root Group': {
+                id:          '/providers/Microsoft.Management/managementGroups/tenant-root',
+                name:        'Tenant Root Group',
+                displayName: 'Tenant Root Group',
+                type:        '/providers/Microsoft.Management/managementGroups',
+                tenantId:    TENANT_ID,
+                parent:      null
+            }
+        };
+
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/azadmin',
+                '/home/azadmin/policies',
+                '/home/azadmin/rbac',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/azure-cli.log': {
+                    c: [
+                        '[2026-04-19 09:00:01] INFO  Azure CLI 2.58.0 initialised',
+                        '[2026-04-19 09:00:02] INFO  Subscription: ' + SUB_NAME + ' (' + SUB_ID + ')',
+                        '[2026-04-19 09:00:03] INFO  Tenant: ' + TENANT_ID,
+                        '[2026-04-19 09:00:04] INFO  Pre-configured tenant with Entra ID users ready'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                /* Sample policy parameter file for assignment */
+                '/home/azadmin/policies/require-tags-params.json': {
+                    c: JSON.stringify({
+                        tagName: {
+                            value: 'Environment'
+                        }
+                    }, null, 2),
+                    m: '-rw-r--r--'
+                },
+                /* Sample custom role definition template */
+                '/home/azadmin/rbac/readonly-role.json': {
+                    c: JSON.stringify({
+                        Name:             'Lab Read-Only Operator',
+                        Description:      'Read-only access to all resources in the lab subscription.',
+                        Actions:          ['*/read'],
+                        NotActions:       [],
+                        AssignableScopes: ['/subscriptions/' + SUB_ID]
+                    }, null, 2),
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ──
+           Serialises a JS object to indented JSON and colourises each token type. */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* Print a fixed-width table row */
+        function printTableRow(cols, widths) {
+            var row = '';
+            for (var i = 0; i < cols.length; i++) {
+                var cell = String(cols[i] || '');
+                var w    = widths[i] || 20;
+                row += cell.length > w ? cell.substring(0, w - 1) + ' ' : cell + ' '.repeat(w - cell.length + 2);
+            }
+            addLine(row.trimEnd(), 'term-line-out');
+        }
+
+        /* Print a formatted ASCII table */
+        function printTable(headers, rows, widths) {
+            printTableRow(headers, widths);
+            var sep = widths.map(function (w) { return '-'.repeat(w); }).join('  ');
+            addLine(sep, 'term-line-dim');
+            rows.forEach(function (r) { printTableRow(r, widths); });
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+           Handles quoted strings and flag extraction.
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        function hasFlag(args, flag) {
+            return args.indexOf(flag) >= 0;
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var path = args[0] ? resolve(args[0]) : cwd;
+            var long = args.indexOf('-l') >= 0 || args.indexOf('-la') >= 0 || args.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (args[0] || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 19 09:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 19 09:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return { catted: true, path: path };
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            addLine(args.join(' '), 'term-line-out');
+            return 'echoed';
+        }
+
+        function cmd_mkdir(args) {
+            if (!args.length) {
+                addLine('mkdir: missing operand', 'term-line-err');
+                return null;
+            }
+            var target = resolve(args[0]);
+            if (exists(target)) {
+                addLine('mkdir: cannot create directory \'' + args[0] + '\': File exists', 'term-line-err');
+                return null;
+            }
+            vfs[target] = { type: 'dir', mode: 'drwxr-xr-x' };
+            return 'mkdir';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                         'term-line-out');
+            addLine('USER=' + USER,                         'term-line-out');
+            addLine('SHELL=/bin/bash',                      'term-line-out');
+            addLine('TERM=xterm-256color',                  'term-line-out');
+            addLine('AZURE_SUBSCRIPTION_ID=' + SUB_ID,      'term-line-out');
+            addLine('AZURE_TENANT_ID=' + TENANT_ID,         'term-line-out');
+            addLine('AZURE_DOMAIN=' + DOMAIN,               'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az ad user
+        ════════════════════════════════════════════════ */
+        function cmd_az_ad_user(args) {
+            if (!args.length) {
+                addLine('az ad user: usage: az ad user <list|create|show|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az ad user list ── */
+            if (sub === 'list') {
+                var userList = Object.keys(adUsers).map(function (k) { return adUsers[k]; });
+                printJSON(userList);
+                addBlank();
+                addLine('  ' + userList.length + ' user(s) found in tenant.', 'term-line-info');
+                return { user_listed: true, count: userList.length, upns: Object.keys(adUsers) };
+            }
+
+            /* ── az ad user create ── */
+            if (sub === 'create') {
+                var displayName = flagVal(args, '--display-name');
+                var upn         = flagVal(args, '--user-principal-name');
+                var password    = flagVal(args, '--password');
+
+                if (!displayName) {
+                    addLine('az ad user create: --display-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!upn) {
+                    addLine('az ad user create: --user-principal-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!password) {
+                    addLine('az ad user create: --password is required.', 'term-line-err');
+                    return null;
+                }
+
+                /* UPN domain validation */
+                if (upn.indexOf('@') < 0) {
+                    addLine('ERROR: --user-principal-name must be in the format user@domain.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(adUsers, upn)) {
+                    addLine('ERROR: A user with UPN "' + upn + '" already exists.', 'term-line-err');
+                    return null;
+                }
+
+                var newUser = {
+                    objectId:          'oid-' + Math.floor(Math.random() * 90000000 + 10000000) + '-carol',
+                    displayName:       displayName,
+                    userPrincipalName: upn,
+                    accountEnabled:    true,
+                    mail:              upn,
+                    jobTitle:          null,
+                    department:        null,
+                    createdDateTime:   '2026-04-19T09:15:00Z',
+                    userType:          'Member'
+                };
+
+                adUsers[upn] = newUser;
+                addLine('Creating user "' + displayName + '" (' + upn + ')...', 'term-line-info');
+                printJSON(newUser);
+                addBlank();
+                addLine('  User created successfully. Account enabled: true', 'term-line-info');
+                addLine('  Note: User must change password on first sign-in.', 'term-line-dim');
+                return { user_created: true, upn: upn, displayName: displayName, objectId: newUser.objectId };
+            }
+
+            /* ── az ad user show ── */
+            if (sub === 'show') {
+                var id = flagVal(args, '--id');
+                if (!id) {
+                    addLine('az ad user show: --id is required (UPN or object ID).', 'term-line-err');
+                    return null;
+                }
+                /* Look up by UPN or objectId */
+                var found = null;
+                if (Object.prototype.hasOwnProperty.call(adUsers, id)) {
+                    found = adUsers[id];
+                } else {
+                    Object.keys(adUsers).forEach(function (k) {
+                        if (adUsers[k].objectId === id) found = adUsers[k];
+                    });
+                }
+                if (!found) {
+                    addLine('ERROR: User "' + id + '" not found. Run "az ad user list" to see all users.', 'term-line-err');
+                    return null;
+                }
+                printJSON(found);
+                return { user_shown: true, upn: found.userPrincipalName };
+            }
+
+            /* ── az ad user delete ── */
+            if (sub === 'delete') {
+                var delId = flagVal(args, '--id');
+                if (!delId) {
+                    addLine('az ad user delete: --id is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(adUsers, delId)) {
+                    addLine('ERROR: User "' + delId + '" not found.', 'term-line-err');
+                    return null;
+                }
+                delete adUsers[delId];
+                addLine('User "' + delId + '" deleted.', 'term-line-info');
+                return { user_deleted: true, upn: delId };
+            }
+
+            addLine('az ad user: unknown subcommand "' + sub + '". Try "list", "create", "show", or "delete".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az ad group
+        ════════════════════════════════════════════════ */
+        function cmd_az_ad_group(args) {
+            if (!args.length) {
+                addLine('az ad group: usage: az ad group <list|create|show|member>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az ad group list ── */
+            if (sub === 'list') {
+                var groupList = Object.keys(adGroups).map(function (k) { return adGroups[k]; });
+                if (!groupList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No security groups found.', 'term-line-dim');
+                } else {
+                    printJSON(groupList);
+                    addBlank();
+                    addLine('  ' + groupList.length + ' group(s) found.', 'term-line-info');
+                }
+                return { group_listed: true, count: groupList.length, names: Object.keys(adGroups) };
+            }
+
+            /* ── az ad group create ── */
+            if (sub === 'create') {
+                var displayName  = flagVal(args, '--display-name');
+                var mailNickname = flagVal(args, '--mail-nickname');
+
+                if (!displayName) {
+                    addLine('az ad group create: --display-name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!mailNickname) {
+                    addLine('az ad group create: --mail-nickname is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(adGroups, displayName)) {
+                    addLine('ERROR: Group "' + displayName + '" already exists.', 'term-line-err');
+                    return null;
+                }
+
+                var newGroup = {
+                    objectId:            'gid-' + Math.floor(Math.random() * 90000000 + 10000000),
+                    displayName:         displayName,
+                    mailNickname:        mailNickname,
+                    mail:                mailNickname + '@' + DOMAIN,
+                    securityEnabled:     true,
+                    mailEnabled:         false,
+                    groupTypes:          [],
+                    description:         'Security group: ' + displayName,
+                    createdDateTime:     '2026-04-19T09:18:00Z',
+                    membershipRule:      null
+                };
+
+                adGroups[displayName] = newGroup;
+                groupMembers[displayName] = [];
+
+                addLine('Creating security group "' + displayName + '"...', 'term-line-info');
+                printJSON(newGroup);
+                addBlank();
+                addLine('  Security group created successfully.', 'term-line-info');
+                return { group_created: true, displayName: displayName, objectId: newGroup.objectId };
+            }
+
+            /* ── az ad group show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--group') || flagVal(args, '-g');
+                if (!showName) {
+                    addLine('az ad group show: --group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(adGroups, showName)) {
+                    addLine('ERROR: Group "' + showName + '" not found. Run "az ad group list" to see all groups.', 'term-line-err');
+                    return null;
+                }
+                printJSON(adGroups[showName]);
+                return { group_shown: true, displayName: showName };
+            }
+
+            /* ── az ad group member add ── */
+            if (sub === 'member' && args[1] === 'add') {
+                var memberArgs  = args.slice(2);
+                var groupName   = flagVal(memberArgs, '--group');
+                var memberId    = flagVal(memberArgs, '--member-id');
+
+                if (!groupName) {
+                    addLine('az ad group member add: --group is required.', 'term-line-err');
+                    return null;
+                }
+                if (!memberId) {
+                    addLine('az ad group member add: --member-id is required (UPN or object ID).', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(adGroups, groupName)) {
+                    addLine('ERROR: Group "' + groupName + '" not found. Create it first with "az ad group create".', 'term-line-err');
+                    return null;
+                }
+
+                /* Resolve member — accept UPN or objectId */
+                var resolvedUser = null;
+                if (Object.prototype.hasOwnProperty.call(adUsers, memberId)) {
+                    resolvedUser = adUsers[memberId];
+                } else {
+                    Object.keys(adUsers).forEach(function (k) {
+                        if (adUsers[k].objectId === memberId) resolvedUser = adUsers[k];
+                    });
+                }
+
+                if (!resolvedUser) {
+                    addLine('ERROR: User "' + memberId + '" not found. Run "az ad user list" to see all users.', 'term-line-err');
+                    return null;
+                }
+
+                /* Prevent duplicates */
+                var members = groupMembers[groupName] || [];
+                var alreadyIn = members.some(function (m) { return m.objectId === resolvedUser.objectId; });
+                if (alreadyIn) {
+                    addLine('INFO: User "' + resolvedUser.displayName + '" is already a member of "' + groupName + '".', 'term-line-warn');
+                    return { member_added: true, groupName: groupName, upn: resolvedUser.userPrincipalName };
+                }
+
+                members.push(resolvedUser);
+                groupMembers[groupName] = members;
+
+                addBlank();
+                addLine('  Member "' + resolvedUser.displayName + '" added to group "' + groupName + '".', 'term-line-info');
+                addLine('  UPN: ' + resolvedUser.userPrincipalName, 'term-line-dim');
+                return { member_added: true, groupName: groupName, upn: resolvedUser.userPrincipalName };
+            }
+
+            /* ── az ad group member list ── */
+            if (sub === 'member' && args[1] === 'list') {
+                var listArgs  = args.slice(2);
+                var listGroup = flagVal(listArgs, '--group');
+
+                if (!listGroup) {
+                    addLine('az ad group member list: --group is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(adGroups, listGroup)) {
+                    addLine('ERROR: Group "' + listGroup + '" not found.', 'term-line-err');
+                    return null;
+                }
+
+                var members = groupMembers[listGroup] || [];
+                if (!members.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No members in group "' + listGroup + '".', 'term-line-dim');
+                } else {
+                    printJSON(members);
+                    addBlank();
+                    addLine('  ' + members.length + ' member(s) in group "' + listGroup + '".', 'term-line-info');
+                }
+                return {
+                    member_listed: true,
+                    groupName: listGroup,
+                    count: members.length,
+                    memberUpns: members.map(function (m) { return m.userPrincipalName; })
+                };
+            }
+
+            addLine('az ad group: unknown subcommand "' + sub + '". Try "list", "create", "show", or "member add/list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az role assignment
+        ════════════════════════════════════════════════ */
+        function cmd_az_role_assignment(args) {
+            if (!args.length) {
+                addLine('az role assignment: usage: az role assignment <create|list|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az role assignment create ── */
+            if (sub === 'create') {
+                var assignee = flagVal(args, '--assignee');
+                var role     = flagVal(args, '--role');
+                var scope    = flagVal(args, '--scope');
+
+                if (!assignee) {
+                    addLine('az role assignment create: --assignee is required (UPN or object ID).', 'term-line-err');
+                    return null;
+                }
+                if (!role) {
+                    addLine('az role assignment create: --role is required (role name or definition ID).', 'term-line-err');
+                    return null;
+                }
+                if (!scope) {
+                    addLine('az role assignment create: --scope is required (subscription or resource group path).', 'term-line-err');
+                    return null;
+                }
+
+                /* Resolve principal */
+                var principal = null;
+                if (Object.prototype.hasOwnProperty.call(adUsers, assignee)) {
+                    principal = adUsers[assignee];
+                } else {
+                    Object.keys(adUsers).forEach(function (k) {
+                        if (adUsers[k].objectId === assignee) principal = adUsers[k];
+                    });
+                }
+
+                if (!principal) {
+                    addLine('ERROR: Assignee "' + assignee + '" not found. The user must exist in Entra ID.', 'term-line-err');
+                    return null;
+                }
+
+                /* Check for duplicate assignment */
+                var duplicate = roleAssignments.some(function (a) {
+                    return a.principalName === principal.userPrincipalName &&
+                           a.roleDefinitionName === role &&
+                           a.scope === scope;
+                });
+
+                if (duplicate) {
+                    addLine('INFO: Role assignment already exists for "' + principal.displayName + '" with role "' + role + '" at this scope.', 'term-line-warn');
+                    return { role_assigned: true, upn: principal.userPrincipalName, role: role, scope: scope };
+                }
+
+                var assignment = {
+                    id:                   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleAssignments/ra-' +
+                                          Math.floor(Math.random() * 900000 + 100000),
+                    type:                 'Microsoft.Authorization/roleAssignments',
+                    name:                 'ra-' + principal.objectId + '-' + role.replace(/\s/g, '-').toLowerCase(),
+                    scope:                scope,
+                    roleDefinitionId:     '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c',
+                    roleDefinitionName:   role,
+                    principalId:          principal.objectId,
+                    principalName:        principal.userPrincipalName,
+                    principalType:        'User',
+                    createdOn:            '2026-04-19T09:22:00Z',
+                    updatedOn:            '2026-04-19T09:22:00Z',
+                    condition:            null,
+                    conditionVersion:     null,
+                    delegatedManagedIdentityResourceId: null
+                };
+
+                roleAssignments.push(assignment);
+
+                addLine('Creating role assignment...', 'term-line-info');
+                printJSON(assignment);
+                addBlank();
+                addLine('  Role "' + role + '" assigned to ' + principal.displayName + ' at scope: ' + scope, 'term-line-info');
+                return { role_assigned: true, upn: principal.userPrincipalName, role: role, scope: scope };
+            }
+
+            /* ── az role assignment list ── */
+            if (sub === 'list') {
+                var filterUpn = flagVal(args, '--assignee');
+                var filterScope = flagVal(args, '--scope');
+
+                var filtered = roleAssignments.filter(function (a) {
+                    if (filterUpn && a.principalName !== filterUpn && a.principalId !== filterUpn) return false;
+                    if (filterScope && a.scope !== filterScope) return false;
+                    return true;
+                });
+
+                if (!filtered.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No role assignments found' + (filterUpn ? ' for "' + filterUpn + '"' : '') + '.', 'term-line-dim');
+                } else {
+                    printJSON(filtered);
+                    addBlank();
+                    addLine('  ' + filtered.length + ' role assignment(s) found.', 'term-line-info');
+                }
+                return {
+                    role_assignment_listed: true,
+                    filterUpn: filterUpn,
+                    count: filtered.length,
+                    assignments: filtered.map(function (a) {
+                        return { role: a.roleDefinitionName, scope: a.scope, upn: a.principalName };
+                    })
+                };
+            }
+
+            /* ── az role assignment delete ── */
+            if (sub === 'delete') {
+                var delAssignee = flagVal(args, '--assignee');
+                var delRole     = flagVal(args, '--role');
+                if (!delAssignee || !delRole) {
+                    addLine('az role assignment delete: --assignee and --role are required.', 'term-line-err');
+                    return null;
+                }
+                var before = roleAssignments.length;
+                roleAssignments = roleAssignments.filter(function (a) {
+                    return !(a.principalName === delAssignee && a.roleDefinitionName === delRole);
+                });
+                if (roleAssignments.length < before) {
+                    addLine('Role assignment deleted.', 'term-line-info');
+                    return { role_assignment_deleted: true };
+                }
+                addLine('ERROR: No matching role assignment found.', 'term-line-err');
+                return null;
+            }
+
+            addLine('az role assignment: unknown subcommand "' + sub + '". Try "create", "list", or "delete".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az role definition
+        ════════════════════════════════════════════════ */
+        function cmd_az_role_definition(args) {
+            if (!args.length) {
+                addLine('az role definition: usage: az role definition <list|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az role definition list ── */
+            if (sub === 'list') {
+                var nameFilter = flagVal(args, '--name');
+
+                /* Catalogue of commonly used built-in roles */
+                var builtInRoles = [
+                    {
+                        id:   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
+                        name: 'Owner',
+                        type: 'Microsoft.Authorization/roleDefinitions',
+                        properties: {
+                            roleName:    'Owner',
+                            description: 'Grants full access to manage all resources, including the ability to assign roles in Azure RBAC.',
+                            type:        'BuiltInRole',
+                            permissions: [{
+                                actions:        ['*'],
+                                notActions:     [],
+                                dataActions:    [],
+                                notDataActions: []
+                            }],
+                            assignableScopes: ['/']
+                        }
+                    },
+                    {
+                        id:   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c',
+                        name: 'Contributor',
+                        type: 'Microsoft.Authorization/roleDefinitions',
+                        properties: {
+                            roleName:    'Contributor',
+                            description: 'Grants full access to manage all resources, but does not allow you to assign roles in Azure RBAC, manage assignments in Azure Blueprints, or share image galleries.',
+                            type:        'BuiltInRole',
+                            permissions: [{
+                                actions:        ['*'],
+                                notActions:     [
+                                    'Microsoft.Authorization/*/Delete',
+                                    'Microsoft.Authorization/*/Write',
+                                    'Microsoft.Authorization/elevateAccess/Action',
+                                    'Microsoft.Blueprint/blueprintAssignments/write',
+                                    'Microsoft.Blueprint/blueprintAssignments/delete',
+                                    'Microsoft.Compute/galleries/share/action'
+                                ],
+                                dataActions:    [],
+                                notDataActions: []
+                            }],
+                            assignableScopes: ['/']
+                        }
+                    },
+                    {
+                        id:   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7',
+                        name: 'Reader',
+                        type: 'Microsoft.Authorization/roleDefinitions',
+                        properties: {
+                            roleName:    'Reader',
+                            description: 'View all resources, but does not allow you to make any changes.',
+                            type:        'BuiltInRole',
+                            permissions: [{
+                                actions:        ['*/read'],
+                                notActions:     [],
+                                dataActions:    [],
+                                notDataActions: []
+                            }],
+                            assignableScopes: ['/']
+                        }
+                    },
+                    {
+                        id:   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/9980e02c-c2be-4d73-94e8-173b1dc7cf3c',
+                        name: 'Virtual Machine Contributor',
+                        type: 'Microsoft.Authorization/roleDefinitions',
+                        properties: {
+                            roleName:    'Virtual Machine Contributor',
+                            description: 'Lets you manage virtual machines, but not access to them, and not the virtual network or storage account they are connected to.',
+                            type:        'BuiltInRole',
+                            permissions: [{
+                                actions: [
+                                    'Microsoft.Authorization/*/read',
+                                    'Microsoft.Compute/*/read',
+                                    'Microsoft.Compute/availabilitySets/*',
+                                    'Microsoft.Compute/virtualMachines/*',
+                                    'Microsoft.Network/publicIPAddresses/read',
+                                    'Microsoft.Network/virtualNetworks/read',
+                                    'Microsoft.Storage/storageAccounts/listKeys/action'
+                                ],
+                                notActions:     [],
+                                dataActions:    [],
+                                notDataActions: []
+                            }],
+                            assignableScopes: ['/']
+                        }
+                    },
+                    {
+                        id:   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab',
+                        name: 'Storage Account Contributor',
+                        type: 'Microsoft.Authorization/roleDefinitions',
+                        properties: {
+                            roleName:    'Storage Account Contributor',
+                            description: 'Lets you manage storage accounts, including accessing storage account keys which provide full access to storage account data.',
+                            type:        'BuiltInRole',
+                            permissions: [{
+                                actions: [
+                                    'Microsoft.Authorization/*/read',
+                                    'Microsoft.Storage/storageAccounts/*',
+                                    'Microsoft.Resources/subscriptions/resourceGroups/read'
+                                ],
+                                notActions:     [],
+                                dataActions:    [],
+                                notDataActions: []
+                            }],
+                            assignableScopes: ['/']
+                        }
+                    }
+                ];
+
+                var results = nameFilter
+                    ? builtInRoles.filter(function (r) {
+                        return r.properties.roleName.toLowerCase() === nameFilter.toLowerCase();
+                      })
+                    : builtInRoles;
+
+                if (!results.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No built-in role definition found matching "' + nameFilter + '".', 'term-line-warn');
+                    return null;
+                }
+
+                printJSON(results);
+                addBlank();
+                addLine('  ' + results.length + ' role definition(s) found.', 'term-line-info');
+                return {
+                    role_def_listed: true,
+                    nameFilter: nameFilter,
+                    count: results.length,
+                    names: results.map(function (r) { return r.properties.roleName; })
+                };
+            }
+
+            addLine('az role definition: unknown subcommand "' + sub + '". Try "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az policy definition
+        ════════════════════════════════════════════════ */
+        function cmd_az_policy_definition(args) {
+            if (!args.length) {
+                addLine('az policy definition: usage: az policy definition <list|show>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'list') {
+                var outputFmt = flagVal(args, '--output') || flagVal(args, '-o') || 'json';
+
+                /* Catalogue of built-in policy definitions */
+                var builtInPolicies = [
+                    { name: 'Require a tag on resources',                    policyType: 'BuiltIn', category: 'Tags',                     description: 'Enforces existence of a tag and its value.' },
+                    { name: 'Allowed locations',                              policyType: 'BuiltIn', category: 'General',                  description: 'Restricts the locations your organization can specify when deploying resources.' },
+                    { name: 'Allowed virtual machine size SKUs',              policyType: 'BuiltIn', category: 'Compute',                  description: 'Restricts the set of virtual machine size SKUs that can be deployed.' },
+                    { name: 'Audit VMs that do not use managed disks',        policyType: 'BuiltIn', category: 'Compute',                  description: 'Audits VMs that do not use managed disks.' },
+                    { name: 'Configure Azure Defender for servers',           policyType: 'BuiltIn', category: 'Security Center',          description: 'Enables Azure Defender for servers on all subscriptions.' },
+                    { name: 'Require secure transfer to storage accounts',    policyType: 'BuiltIn', category: 'Storage',                  description: 'Audit requirement of HTTPS-only traffic on storage accounts.' },
+                    { name: 'SQL databases should have vulnerability findings resolved', policyType: 'BuiltIn', category: 'SQL',       description: 'Monitor SQL vulnerability assessment results and remediation recommendations.' },
+                    { name: 'Network Watcher should be enabled',              policyType: 'BuiltIn', category: 'Network',                 description: 'Network Watcher enables you to monitor and diagnose conditions at the network level.' },
+                    { name: 'Audit usage of custom RBAC roles',               policyType: 'BuiltIn', category: 'General',                 description: 'Audit built-in roles such as Owner, Contributor, Reader instead of custom roles.' },
+                    { name: 'Resource logs in Key Vault should be enabled',   policyType: 'BuiltIn', category: 'Key Vault',               description: 'Audit enabling of resource logs in Key Vault.' },
+                    { name: 'MFA should be enabled on accounts with owner permissions', policyType: 'BuiltIn', category: 'Security Center', description: 'MFA should be enabled for all subscription accounts with owner permissions.' },
+                    { name: 'Allowed resource types',                         policyType: 'BuiltIn', category: 'General',                 description: 'Restricts the resource types that can be deployed.' }
+                ];
+
+                if (outputFmt === 'table') {
+                    addLine('Listing built-in policy definitions...', 'term-line-info');
+                    addBlank();
+                    printTable(
+                        ['Name', 'PolicyType', 'Category'],
+                        builtInPolicies.map(function (p) { return [p.name, p.policyType, p.category]; }),
+                        [48, 12, 22]
+                    );
+                    addBlank();
+                    addLine('  ' + builtInPolicies.length + ' built-in policy definitions.', 'term-line-info');
+                } else {
+                    printJSON(builtInPolicies);
+                    addBlank();
+                    addLine('  ' + builtInPolicies.length + ' built-in policy definitions.', 'term-line-info');
+                }
+
+                return {
+                    policy_def_listed: true,
+                    count: builtInPolicies.length,
+                    outputFmt: outputFmt
+                };
+            }
+
+            if (sub === 'show') {
+                var defName = flagVal(args, '--name');
+                if (!defName) {
+                    addLine('az policy definition show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                printJSON({
+                    name:        defName,
+                    displayName: defName,
+                    policyType:  'BuiltIn',
+                    mode:        'All',
+                    description: 'Policy definition: ' + defName,
+                    parameters: {
+                        tagName: { type: 'String', metadata: { description: 'Name of the tag, e.g. "Environment".' } }
+                    }
+                });
+                return { policy_def_shown: true };
+            }
+
+            addLine('az policy definition: unknown subcommand "' + sub + '". Try "list" or "show".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az policy assignment
+        ════════════════════════════════════════════════ */
+        function cmd_az_policy_assignment(args) {
+            if (!args.length) {
+                addLine('az policy assignment: usage: az policy assignment <create|list|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az policy assignment create ── */
+            if (sub === 'create') {
+                var name   = flagVal(args, '--name');
+                var policy = flagVal(args, '--policy');
+                var scope  = flagVal(args, '--scope');
+
+                if (!name) {
+                    addLine('az policy assignment create: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!policy) {
+                    addLine('az policy assignment create: --policy is required (policy definition name or ID).', 'term-line-err');
+                    return null;
+                }
+                if (!scope) {
+                    addLine('az policy assignment create: --scope is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(policyAssignments, name)) {
+                    addLine('INFO: Policy assignment "' + name + '" already exists.', 'term-line-warn');
+                    return { policy_assigned: true, name: name, policy: policy, scope: scope };
+                }
+
+                var assignment = {
+                    id:                   '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/policyAssignments/' + name,
+                    type:                 'Microsoft.Authorization/policyAssignments',
+                    name:                 name,
+                    displayName:          name,
+                    description:          'Policy assignment: ' + policy,
+                    policyDefinitionId:   '/providers/Microsoft.Authorization/policyDefinitions/' + policy.replace(/\s+/g, '-').toLowerCase(),
+                    scope:                scope,
+                    enforcementMode:      'Default',
+                    parameters:           {},
+                    identity:             null,
+                    notScopes:            [],
+                    metadata: {
+                        assignedBy:     'azadmin@' + DOMAIN,
+                        createdBy:      'azadmin@' + DOMAIN,
+                        createdOn:      '2026-04-19T09:30:00Z',
+                        updatedBy:      null,
+                        updatedOn:      null,
+                        parameterScopes: {}
+                    }
+                };
+
+                policyAssignments[name] = assignment;
+                complianceInitialized = true;
+
+                addLine('Creating policy assignment "' + name + '"...', 'term-line-info');
+                printJSON(assignment);
+                addBlank();
+                addLine('  Policy "' + policy + '" assigned at scope: ' + scope, 'term-line-info');
+                addLine('  Enforcement mode: Default (Deny on non-compliant new resources)', 'term-line-dim');
+                return { policy_assigned: true, name: name, policy: policy, scope: scope };
+            }
+
+            /* ── az policy assignment list ── */
+            if (sub === 'list') {
+                var assignList = Object.keys(policyAssignments).map(function (k) { return policyAssignments[k]; });
+                if (!assignList.length) {
+                    addLine('[]', 'term-line-out');
+                    addLine('  No policy assignments found in this scope.', 'term-line-dim');
+                } else {
+                    printJSON(assignList);
+                    addBlank();
+                    addLine('  ' + assignList.length + ' policy assignment(s) found.', 'term-line-info');
+                }
+                return { policy_assignment_listed: true, count: assignList.length };
+            }
+
+            /* ── az policy assignment delete ── */
+            if (sub === 'delete') {
+                var delName = flagVal(args, '--name');
+                if (!delName) {
+                    addLine('az policy assignment delete: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(policyAssignments, delName)) {
+                    addLine('ERROR: Policy assignment "' + delName + '" not found.', 'term-line-err');
+                    return null;
+                }
+                delete policyAssignments[delName];
+                addLine('Policy assignment "' + delName + '" deleted.', 'term-line-info');
+                return { policy_assignment_deleted: true, name: delName };
+            }
+
+            addLine('az policy assignment: unknown subcommand "' + sub + '". Try "create", "list", or "delete".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az policy state
+        ════════════════════════════════════════════════ */
+        function cmd_az_policy_state(args) {
+            if (!args.length) {
+                addLine('az policy state: usage: az policy state <summarize|list>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'summarize') {
+                /* Build a compliance summary — simulated counts */
+                var policyCount = Object.keys(policyAssignments).length;
+
+                if (!policyCount) {
+                    addLine('WARNING: No policy assignments found. Assign policies first with "az policy assignment create".', 'term-line-warn');
+                    addLine('Showing pre-existing tenant-level compliance state...', 'term-line-dim');
+                    addBlank();
+                }
+
+                var summary = {
+                    '@odata.context': 'https://management.azure.com/subscriptions/' + SUB_ID + '/providers/Microsoft.PolicyInsights/policyStates/$metadata#summary',
+                    '@odata.count': 1,
+                    value: [{
+                        policyAssignments: Object.keys(policyAssignments).map(function (k, idx) {
+                            var a = policyAssignments[k];
+                            /* Deterministically simulate compliance numbers per policy */
+                            var total       = 34 + idx * 7;
+                            var compliant   = 22 + idx * 3;
+                            var noncompliant = total - compliant;
+                            return {
+                                policyAssignmentId:  a.id,
+                                displayName:         a.displayName,
+                                scope:               a.scope,
+                                results: {
+                                    queryResultsUri: '',
+                                    nonCompliantResources: noncompliant,
+                                    nonCompliantPolicies:  noncompliant > 0 ? 1 : 0,
+                                    resourceDetails: [
+                                        { complianceState: 'compliant',    count: compliant },
+                                        { complianceState: 'noncompliant', count: noncompliant }
+                                    ],
+                                    policyDetails: [
+                                        { complianceState: 'compliant',    count: compliant > 0 ? 1 : 0 },
+                                        { complianceState: 'noncompliant', count: noncompliant > 0 ? 1 : 0 }
+                                    ]
+                                }
+                            };
+                        }).concat(policyCount === 0 ? [{
+                            policyAssignmentId:  '/subscriptions/' + SUB_ID + '/providers/Microsoft.Authorization/policyAssignments/SecurityCenterBuiltIn',
+                            displayName:         'ASC Default',
+                            scope:               '/subscriptions/' + SUB_ID,
+                            results: {
+                                nonCompliantResources: 12,
+                                nonCompliantPolicies:  4,
+                                resourceDetails: [
+                                    { complianceState: 'compliant',    count: 48 },
+                                    { complianceState: 'noncompliant', count: 12 }
+                                ]
+                            }
+                        }] : []),
+                        results: {
+                            nonCompliantResources: policyCount > 0 ? (12 + policyCount * 4) : 12,
+                            nonCompliantPolicies:  policyCount > 0 ? policyCount : 4,
+                            resourceDetails: [
+                                { complianceState: 'compliant',    count: policyCount > 0 ? (22 + policyCount * 3) : 48 },
+                                { complianceState: 'noncompliant', count: policyCount > 0 ? (12 + policyCount * 4) : 12 }
+                            ]
+                        }
+                    }]
+                };
+
+                printJSON(summary);
+                addBlank();
+                var nc = policyCount > 0 ? (12 + policyCount * 4) : 12;
+                var c  = policyCount > 0 ? (22 + policyCount * 3) : 48;
+                addLine('  Compliance Summary — Subscription: ' + SUB_NAME, 'term-line-info');
+                addLine('  Compliant resources    : ' + c, 'term-line-out');
+                addLine('  Non-compliant resources: ' + nc, 'term-line-warn');
+                addLine('  Active policy assignments: ' + (policyCount || 1), 'term-line-dim');
+                addLine('  Tip: Use Azure Policy Remediation tasks to bring resources into compliance.', 'term-line-dim');
+                return { policy_state_summarized: true, compliant: c, noncompliant: nc };
+            }
+
+            if (sub === 'list') {
+                addLine('Listing non-compliant resources...', 'term-line-info');
+                printJSON([
+                    { resourceId: '/subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01', complianceState: 'NonCompliant', policyDefinitionName: 'Require a tag on resources', timestamp: '2026-04-19T09:35:00Z' },
+                    { resourceId: '/subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01/providers/Microsoft.Storage/storageAccounts/labstorage001', complianceState: 'NonCompliant', policyDefinitionName: 'Require a tag on resources', timestamp: '2026-04-19T09:35:01Z' },
+                    { resourceId: '/subscriptions/' + SUB_ID + '/resourceGroups/lab-rg-01/providers/Microsoft.Compute/virtualMachines/lab-vm-01', complianceState: 'NonCompliant', policyDefinitionName: 'Audit VMs that do not use managed disks', timestamp: '2026-04-19T09:35:02Z' }
+                ]);
+                return { policy_state_listed: true };
+            }
+
+            addLine('az policy state: unknown subcommand "' + sub + '". Try "summarize" or "list".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az account management-group
+        ════════════════════════════════════════════════ */
+        function cmd_az_account_mg(args) {
+            if (!args.length) {
+                addLine('az account management-group: usage: az account management-group <create|list|show|delete>', 'term-line-err');
+                return null;
+            }
+            var sub = args[0];
+
+            /* ── az account management-group create ── */
+            if (sub === 'create') {
+                var mgName        = flagVal(args, '--name');
+                var mgDisplayName = flagVal(args, '--display-name') || mgName;
+
+                if (!mgName) {
+                    addLine('az account management-group create: --name is required.', 'term-line-err');
+                    return null;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(managementGroups, mgName)) {
+                    addLine('INFO: Management group "' + mgName + '" already exists.', 'term-line-warn');
+                    return { mg_created: true, name: mgName };
+                }
+
+                var newMG = {
+                    id:          '/providers/Microsoft.Management/managementGroups/' + mgName.toLowerCase(),
+                    name:        mgName,
+                    displayName: mgDisplayName,
+                    type:        '/providers/Microsoft.Management/managementGroups',
+                    tenantId:    TENANT_ID,
+                    parent: {
+                        id:          '/providers/Microsoft.Management/managementGroups/tenant-root',
+                        name:        'Tenant Root Group',
+                        displayName: 'Tenant Root Group'
+                    },
+                    children:    []
+                };
+
+                managementGroups[mgName] = newMG;
+
+                addLine('Creating management group "' + mgName + '"...', 'term-line-info');
+                printJSON(newMG);
+                addBlank();
+                addLine('  Management group "' + mgDisplayName + '" created under Tenant Root Group.', 'term-line-info');
+                return { mg_created: true, name: mgName, displayName: mgDisplayName };
+            }
+
+            /* ── az account management-group list ── */
+            if (sub === 'list') {
+                var mgList = Object.keys(managementGroups).map(function (k) { return managementGroups[k]; });
+                printJSON(mgList);
+                addBlank();
+                addLine('  Management group hierarchy:', 'term-line-info');
+                addLine('  Tenant Root Group', 'term-line-out');
+                Object.keys(managementGroups).forEach(function (k) {
+                    if (k !== 'Tenant Root Group') {
+                        addLine('    +-- ' + managementGroups[k].displayName + ' (' + k + ')', 'term-line-out');
+                    }
+                });
+                return {
+                    mg_listed: true,
+                    count: mgList.length,
+                    names: Object.keys(managementGroups)
+                };
+            }
+
+            /* ── az account management-group show ── */
+            if (sub === 'show') {
+                var showName = flagVal(args, '--name');
+                if (!showName) {
+                    addLine('az account management-group show: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(managementGroups, showName)) {
+                    addLine('ERROR: Management group "' + showName + '" not found.', 'term-line-err');
+                    return null;
+                }
+                printJSON(managementGroups[showName]);
+                return { mg_shown: true, name: showName };
+            }
+
+            /* ── az account management-group delete ── */
+            if (sub === 'delete') {
+                var delName = flagVal(args, '--name');
+                if (!delName) {
+                    addLine('az account management-group delete: --name is required.', 'term-line-err');
+                    return null;
+                }
+                if (delName === 'Tenant Root Group') {
+                    addLine('ERROR: Cannot delete the Tenant Root Group.', 'term-line-err');
+                    return null;
+                }
+                if (!Object.prototype.hasOwnProperty.call(managementGroups, delName)) {
+                    addLine('ERROR: Management group "' + delName + '" not found.', 'term-line-err');
+                    return null;
+                }
+                delete managementGroups[delName];
+                addLine('Management group "' + delName + '" deleted.', 'term-line-info');
+                return { mg_deleted: true, name: delName };
+            }
+
+            addLine('az account management-group: unknown subcommand "' + sub + '". Try "create", "list", "show", or "delete".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: az account
+        ════════════════════════════════════════════════ */
+        function cmd_az_account(args) {
+            if (!args.length) {
+                addLine('az account: usage: az account <show|list|management-group>', 'term-line-err');
+                return null;
+            }
+
+            /* Route management-group sub-subcommand */
+            if (args[0] === 'management-group') {
+                return cmd_az_account_mg(args.slice(1));
+            }
+
+            var sub = args[0];
+
+            if (sub === 'show') {
+                printJSON({
+                    cloudName:       'AzureCloud',
+                    environmentName: 'AzureCloud',
+                    homeTenantId:    TENANT_ID,
+                    id:              SUB_ID,
+                    isDefault:       true,
+                    managedByTenants: [],
+                    name:            SUB_NAME,
+                    state:           'Enabled',
+                    tenantId:        TENANT_ID,
+                    user: {
+                        name: USER + '@' + DOMAIN,
+                        type: 'user'
+                    }
+                });
+                addBlank();
+                addLine('  Subscription: ' + SUB_NAME + '  |  State: Enabled', 'term-line-info');
+                return { account_shown: true };
+            }
+
+            if (sub === 'list') {
+                printJSON([{
+                    cloudName: 'AzureCloud',
+                    id:        SUB_ID,
+                    isDefault: true,
+                    name:      SUB_NAME,
+                    state:     'Enabled',
+                    tenantId:  TENANT_ID,
+                    user: { name: USER + '@' + DOMAIN, type: 'user' }
+                }]);
+                addBlank();
+                addLine('  1 subscription found.', 'term-line-info');
+                return { account_listed: true };
+            }
+
+            addLine('az account: unknown subcommand "' + sub + '". Try "show", "list", or "management-group".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           HELP COMMAND
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addLine('Identity and Governance Lab — Available Commands', 'term-line-info');
+            addBlank();
+            addLine('ENTRA ID USERS:', 'term-line-warn');
+            addLine('  az ad user list                                            List all users', 'term-line-dim');
+            addLine('  az ad user create --display-name <n> --user-principal-name <u> --password <p>', 'term-line-dim');
+            addLine('                                                             Create a user', 'term-line-dim');
+            addLine('  az ad user show --id <upn|objectId>                        Show user details', 'term-line-dim');
+            addLine('  az ad user delete --id <upn>                               Delete a user', 'term-line-dim');
+            addBlank();
+            addLine('ENTRA ID GROUPS:', 'term-line-warn');
+            addLine('  az ad group list                                           List all groups', 'term-line-dim');
+            addLine('  az ad group create --display-name <n> --mail-nickname <nick>', 'term-line-dim');
+            addLine('                                                             Create a group', 'term-line-dim');
+            addLine('  az ad group show --group <name>                            Show group details', 'term-line-dim');
+            addLine('  az ad group member add --group <n> --member-id <upn>       Add member', 'term-line-dim');
+            addLine('  az ad group member list --group <n>                        List members', 'term-line-dim');
+            addBlank();
+            addLine('RBAC ROLES:', 'term-line-warn');
+            addLine('  az role assignment create --assignee <upn> --role <role> --scope <scope>', 'term-line-dim');
+            addLine('  az role assignment list [--assignee <upn>]                 List assignments', 'term-line-dim');
+            addLine('  az role assignment delete --assignee <upn> --role <role>   Delete assignment', 'term-line-dim');
+            addLine('  az role definition list [--name <role>]                    Show role definitions', 'term-line-dim');
+            addBlank();
+            addLine('AZURE POLICY:', 'term-line-warn');
+            addLine('  az policy definition list --query "[?policyType==\'BuiltIn\']" --output table', 'term-line-dim');
+            addLine('  az policy definition show --name <name>                    Show policy details', 'term-line-dim');
+            addLine('  az policy assignment create --name <n> --policy <def> --scope <scope>', 'term-line-dim');
+            addLine('  az policy assignment list                                  List assignments', 'term-line-dim');
+            addLine('  az policy state summarize                                  Show compliance', 'term-line-dim');
+            addLine('  az policy state list                                       List non-compliant', 'term-line-dim');
+            addBlank();
+            addLine('MANAGEMENT GROUPS:', 'term-line-warn');
+            addLine('  az account management-group create --name <n> [--display-name <dn>]', 'term-line-dim');
+            addLine('  az account management-group list                           List hierarchy', 'term-line-dim');
+            addLine('  az account management-group show --name <n>               Show details', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   mkdir <dir>   env', 'term-line-dim');
+            addBlank();
+            addLine('LAB FILES:', 'term-line-warn');
+            addLine('  Policies : ~/policies/  (require-tags-params.json)', 'term-line-dim');
+            addLine('  RBAC     : ~/rbac/      (readonly-role.json — custom role template)', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'mkdir') {
+                result = cmd_mkdir(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'az') {
+                result = execAz(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route az sub-commands */
+        function execAz(args) {
+            if (!args.length) {
+                addLine('Welcome to Azure CLI (simulated). Type "help" for commands.', 'term-line-info');
+                return null;
+            }
+            var sub = args[0];
+
+            if (sub === 'ad') {
+                /* az ad user ... | az ad group ... */
+                var adSub = args[1];
+                if (adSub === 'user') {
+                    return cmd_az_ad_user(args.slice(2));
+                }
+                if (adSub === 'group') {
+                    return cmd_az_ad_group(args.slice(2));
+                }
+                addLine('az ad: unknown subcommand "' + adSub + '". Try "user" or "group".', 'term-line-err');
+                return null;
+            }
+
+            if (sub === 'role') {
+                /* az role assignment ... | az role definition ... */
+                var roleSub = args[1];
+                if (roleSub === 'assignment') {
+                    return cmd_az_role_assignment(args.slice(2));
+                }
+                if (roleSub === 'definition') {
+                    return cmd_az_role_definition(args.slice(2));
+                }
+                addLine('az role: unknown subcommand "' + roleSub + '". Try "assignment" or "definition".', 'term-line-err');
+                return null;
+            }
+
+            if (sub === 'policy') {
+                /* az policy definition ... | az policy assignment ... | az policy state ... */
+                var polSub = args[1];
+                if (polSub === 'definition') {
+                    return cmd_az_policy_definition(args.slice(2));
+                }
+                if (polSub === 'assignment') {
+                    return cmd_az_policy_assignment(args.slice(2));
+                }
+                if (polSub === 'state') {
+                    return cmd_az_policy_state(args.slice(2));
+                }
+                addLine('az policy: unknown subcommand "' + polSub + '". Try "definition", "assignment", or "state".', 'term-line-err');
+                return null;
+            }
+
+            if (sub === 'account') {
+                return cmd_az_account(args.slice(1));
+            }
+
+            if (sub === 'version' || sub === '--version') {
+                addLine('azure-cli                         2.58.0', 'term-line-out');
+                addLine('core                              2.58.0', 'term-line-out');
+                addLine('telemetry                          1.1.0', 'term-line-out');
+                addBlank();
+                addLine('Extensions: None installed', 'term-line-dim');
+                return { version: true };
+            }
+
+            addLine('az: unknown command "' + sub + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Each task checks specific names/UPNs — no generic pass-through.
+        ════════════════════════════════════════════════ */
+        function checkTasks(cmd, raw, result) {
+
+            /* ── Task 1: az ad user list (must return >= 3 pre-existing users) ── */
+            if (!taskDone[1]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.user_listed === true && result.count >= 3) {
+                    completeTask(1);
+                }
+            }
+
+            /* ── Task 2: Create carol.davis@contoso.onmicrosoft.com ── */
+            if (!taskDone[2]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.user_created === true &&
+                    result.upn === 'carol.davis@contoso.onmicrosoft.com') {
+                    completeTask(2);
+                }
+            }
+
+            /* ── Task 3: Create IT-Admins, add Carol, list members showing Carol ── */
+            if (!taskDone[3]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.group_created === true &&
+                    result.displayName === 'IT-Admins') {
+                    task3_group_created = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.member_added === true &&
+                    result.groupName === 'IT-Admins' &&
+                    result.upn === 'carol.davis@contoso.onmicrosoft.com') {
+                    task3_member_added = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.member_listed === true &&
+                    result.groupName === 'IT-Admins' &&
+                    result.count >= 1 &&
+                    result.memberUpns.indexOf('carol.davis@contoso.onmicrosoft.com') >= 0) {
+                    task3_member_listed = true;
+                }
+                if (task3_group_created && task3_member_added && task3_member_listed) {
+                    completeTask(3);
+                }
+            }
+
+            /* ── Task 4: Assign Contributor to carol.davis at lab-rg-01 scope ── */
+            if (!taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.role_assigned === true &&
+                    result.upn === 'carol.davis@contoso.onmicrosoft.com' &&
+                    result.role === 'Contributor' &&
+                    result.scope.indexOf('lab-rg-01') >= 0) {
+                    completeTask(4);
+                }
+            }
+
+            /* ── Task 5: List role assignments for carol.davis (must show Contributor) ── */
+            if (!taskDone[5] && taskDone[4]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.role_assignment_listed === true &&
+                    result.filterUpn === 'carol.davis@contoso.onmicrosoft.com' &&
+                    result.count >= 1 &&
+                    result.assignments.some(function (a) {
+                        return a.role === 'Contributor' && a.upn === 'carol.davis@contoso.onmicrosoft.com';
+                    })) {
+                    completeTask(5);
+                }
+            }
+
+            /* ── Task 6: az role definition list --name "Contributor" ── */
+            if (!taskDone[6]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.role_def_listed === true &&
+                    result.nameFilter === 'Contributor' &&
+                    result.count >= 1) {
+                    completeTask(6);
+                }
+            }
+
+            /* ── Task 7: List built-in policies with --output table ── */
+            if (!taskDone[7]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.policy_def_listed === true &&
+                    result.count >= 10 &&
+                    result.outputFmt === 'table') {
+                    completeTask(7);
+                }
+            }
+
+            /* ── Task 8: Create policy assignment named "require-tags" ── */
+            if (!taskDone[8]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.policy_assigned === true &&
+                    result.name === 'require-tags') {
+                    completeTask(8);
+                }
+            }
+
+            /* ── Task 9: az policy state summarize ── */
+            if (!taskDone[9]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.policy_state_summarized === true) {
+                    completeTask(9);
+                }
+            }
+
+            /* ── Task 10: Create "Production" management group AND list showing it ── */
+            if (!taskDone[10]) {
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.mg_created === true &&
+                    result.name === 'Production') {
+                    task10_mg_created = true;
+                }
+                if (cmd === 'az' && result && typeof result === 'object' &&
+                    result.mg_listed === true &&
+                    result.names.indexOf('Production') >= 0) {
+                    task10_mg_listed = true;
+                }
+                if (task10_mg_created && task10_mg_listed) {
+                    completeTask(10);
+                }
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'List Existing Users',
+                2:  'Create a New User',
+                3:  'Create a Group and Add a Member',
+                4:  'Assign an RBAC Role',
+                5:  'Verify the Role Assignment',
+                6:  'Explore Built-in Role Definitions',
+                7:  'List Built-in Policies',
+                8:  'Create a Policy Assignment',
+                9:  'Check Policy Compliance',
+                10: 'Create a Management Group'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Run this command to list all users in the Entra ID tenant:\n<code>az ad user list</code>\n\nYou should see three pre-existing accounts: the admin, alice.johnson, and bob.smith. Each entry shows the <code>objectId</code> (the unique identifier for RBAC assignments), <code>displayName</code>, <code>userPrincipalName</code>, and <code>accountEnabled</code> status.',
+                hint: 'Microsoft Entra ID is the identity backbone of Azure. Every Azure resource access decision flows through Entra ID. User Principal Names (UPNs) follow the format user@domain — the domain is your tenant\'s verified domain. The objectId is a GUID that never changes even if the UPN is renamed. Best practice: always use objectId in automation scripts to avoid breakage if users rename themselves.',
+                cmd: 'az ad user list'
+            },
+            2: {
+                step: 'Create a new user account for Carol Davis:\n<code>az ad user create --display-name "Carol Davis" --user-principal-name carol.davis@contoso.onmicrosoft.com --password P@ssw0rd123!</code>\n\nThe <code>accountEnabled: true</code> in the output confirms the account is immediately active. The <code>objectId</code> in the output is what you will use for subsequent group membership and role assignments.',
+                hint: 'Azure requires passwords to meet complexity requirements: minimum 8 characters, uppercase, lowercase, number, and special character. The <code>--force-change-password-next-login</code> flag (omitted here for lab simplicity) forces password reset on first sign-in — always set this in production. User accounts exist at the tenant level, not the subscription level. A user can be granted access to multiple subscriptions within the same tenant, or to subscriptions in different tenants via B2B guest invitations.',
+                cmd: 'az ad user create --display-name "Carol Davis" --user-principal-name carol.davis@contoso.onmicrosoft.com --password P@ssw0rd123!'
+            },
+            3: {
+                step: 'Three commands required:\n1. <code>az ad group create --display-name "IT-Admins" --mail-nickname "it-admins"</code>\n2. <code>az ad group member add --group IT-Admins --member-id carol.davis@contoso.onmicrosoft.com</code>\n3. <code>az ad group member list --group IT-Admins</code>\n\nThe final command must show Carol as a member. Groups are the recommended way to manage access at scale — assign roles to groups, not individuals.',
+                hint: 'Security groups in Entra ID can be assigned Azure RBAC roles — instead of assigning roles to individuals, add users to groups and assign roles to the group. This is the most scalable governance pattern: when Carol moves to a different team, you remove her from IT-Admins and she immediately loses all associated permissions. The mail-nickname creates a routing address for the group. Dynamic membership rules can auto-add users based on properties like department or job title, eliminating manual administration.',
+                cmd: 'az ad group create --display-name "IT-Admins" --mail-nickname "it-admins"\naz ad group member add --group IT-Admins --member-id carol.davis@contoso.onmicrosoft.com\naz ad group member list --group IT-Admins'
+            },
+            4: {
+                step: 'Assign the Contributor role to Carol at the resource group scope:\n<code>az role assignment create --assignee carol.davis@contoso.onmicrosoft.com --role "Contributor" --scope /subscriptions/sub-001/resourceGroups/lab-rg-01</code>\n\nThe scope determines where the permission is effective. Resource group scope means Carol can manage everything in lab-rg-01 but not in other resource groups or at the subscription level.',
+                hint: 'Azure RBAC uses a deny-by-default, least-privilege model. Three key concepts: 1) Security Principal — who (user, group, managed identity, service principal). 2) Role Definition — what actions are allowed/denied. 3) Scope — where the role applies (management group, subscription, resource group, or individual resource). Permissions are additive: if Carol has Reader on the subscription and Contributor on lab-rg-01, she has both. The scope can be specified as any valid Azure resource path.',
+                cmd: 'az role assignment create --assignee carol.davis@contoso.onmicrosoft.com --role "Contributor" --scope /subscriptions/sub-001/resourceGroups/lab-rg-01'
+            },
+            5: {
+                step: 'Verify Carol\'s role assignment:\n<code>az role assignment list --assignee carol.davis@contoso.onmicrosoft.com</code>\n\nYou should see the Contributor assignment scoped to lab-rg-01. Check the <code>roleDefinitionName</code>, <code>principalName</code>, and <code>scope</code> fields — these three together uniquely define what the assignment grants.',
+                hint: 'Azure RBAC changes can take up to 30 minutes to fully propagate in production (token cache refresh). In this simulation they are immediate. Use <code>az role assignment list --all</code> to see all assignments in a subscription. Use <code>--include-inherited</code> to see assignments inherited from parent scopes (subscription, management group). The effective permissions of a user are the union of all role assignments across all scopes, minus any explicit deny assignments (which have the highest precedence).',
+                cmd: 'az role assignment list --assignee carol.davis@contoso.onmicrosoft.com'
+            },
+            6: {
+                step: 'Inspect the Contributor role definition:\n<code>az role definition list --name "Contributor"</code>\n\nStudy the <code>actions</code> and <code>notActions</code> arrays carefully. Actions <code>["*"]</code> means all operations, but notActions lists explicit exceptions. The key insight: Contributor CAN manage all Azure resources but CANNOT manage role assignments (<code>Microsoft.Authorization/*/Write</code>) or delete role assignments (<code>Microsoft.Authorization/*/Delete</code>).',
+                hint: 'The separation between Owner and Contributor is precisely the Authorization namespace: Owner can assign roles, Contributor cannot. This is critical for the principle of least privilege — a developer with Contributor can deploy anything but cannot escalate their own privileges. DataActions and notDataActions operate on data plane (e.g., reading blob content) as opposed to the control plane (creating storage accounts). Storage Blob Data Reader/Contributor are separate data-plane roles. If a user has Contributor but not Storage Blob Data Reader, they can manage the storage account but cannot read the actual data inside it.',
+                cmd: 'az role definition list --name "Contributor"'
+            },
+            7: {
+                step: 'Browse Azure Policy built-in definitions in table format:\n<code>az policy definition list --output table</code>\n\nThe <code>--output table</code> flag renders results as a readable table instead of raw JSON. Identify policies relevant to governance: tag enforcement, allowed locations, allowed VM SKUs. In production, add <code>--query "[?policyType==\'BuiltIn\']"</code> to filter by policy type.',
+                hint: 'Azure Policy is a governance service that evaluates resources against rules. Policies can Audit (log non-compliance), Deny (block non-compliant deployments), DeployIfNotExists (auto-remediate), or Modify (add/change tags). Initiatives are collections of multiple policies applied as a unit — e.g., the "Azure Security Benchmark" initiative contains 200+ individual policies. Policies are inherited: a policy assigned at the management group level applies to all subscriptions and resource groups below it. This is why management group hierarchy is important for governance at enterprise scale.',
+                cmd: 'az policy definition list --query "[?policyType==\'BuiltIn\']" --output table'
+            },
+            8: {
+                step: 'Assign a tag-enforcement policy to the subscription:\n<code>az policy assignment create --name "require-tags" --policy "Require a tag on resources" --scope /subscriptions/sub-001</code>\n\nThe scope <code>/subscriptions/sub-001</code> means this policy applies to ALL resources in the subscription. The <code>enforcementMode: Default</code> means the policy is actively enforced — non-compliant new resources are denied.',
+                hint: 'Policy assignment scope determines the blast radius. Best practice for policy governance: assign broad security policies at the management group level, apply environment-specific policies at the subscription level, and use resource group scope for workload-specific constraints. The <code>--params</code> flag allows you to specify which tag name to require. Without parameters, the policy may use default values. Always test new policies in Audit mode before switching to Deny mode to avoid blocking legitimate deployments.',
+                cmd: 'az policy assignment create --name "require-tags" --policy "Require a tag on resources" --scope /subscriptions/sub-001'
+            },
+            9: {
+                step: 'Check compliance across all active policies:\n<code>az policy state summarize</code>\n\nThe output shows compliant and non-compliant resource counts per policy assignment. Review the <code>nonCompliantResources</code> count — these are resources that violate the policy rules and need remediation. The compliance state updates as resources are created or modified.',
+                hint: 'Policy compliance state takes up to 30 minutes to update after a new assignment or resource change in production. Remediation tasks can be triggered via <code>az policy remediation create</code> for policies with DeployIfNotExists or Modify effects. The Azure Policy compliance dashboard in the Azure Portal provides visual compliance percentage by policy initiative and resource type. In production governance, target 100% compliance for Deny-mode policies — non-compliant resources under a Deny policy indicate a configuration drift or a resource that predates the policy assignment.',
+                cmd: 'az policy state summarize'
+            },
+            10: {
+                step: 'Two commands required:\n1. <code>az account management-group create --name "Production" --display-name "Production Workloads"</code>\n2. <code>az account management-group list</code>\n\nThe list output shows the hierarchy: Tenant Root Group at the top, with Production as a child group. In production environments, you would move subscriptions under management groups using <code>az account management-group subscription add</code>.',
+                hint: 'Management groups exist above subscriptions in the Azure hierarchy: Management Group -> Subscription -> Resource Group -> Resource. Up to 6 levels of management group nesting are supported (plus the root). Azure RBAC and Azure Policy assigned at a management group scope cascade down to all child subscriptions and resource groups. This enables a single policy for all production subscriptions, applied in one place. The Tenant Root Group is auto-created and cannot be deleted — it is the top of every Azure tenant\'s management hierarchy.',
+                cmd: 'az account management-group create --name "Production" --display-name "Production Workloads"\naz account management-group list'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AZ_COMPLETIONS = {
+            'az ':                                                        ['ad', 'role', 'policy', 'account', 'version'],
+            'az ad ':                                                     ['user', 'group'],
+            'az ad user ':                                                ['list', 'create', 'show', 'delete'],
+            'az ad user create ':                                         ['--display-name', '--user-principal-name', '--password'],
+            'az ad user show ':                                           ['--id'],
+            'az ad user delete ':                                         ['--id'],
+            'az ad group ':                                               ['list', 'create', 'show', 'member'],
+            'az ad group create ':                                        ['--display-name', '--mail-nickname'],
+            'az ad group show ':                                          ['--group'],
+            'az ad group member ':                                        ['add', 'list'],
+            'az ad group member add ':                                    ['--group', '--member-id'],
+            'az ad group member list ':                                   ['--group'],
+            'az role ':                                                   ['assignment', 'definition'],
+            'az role assignment ':                                        ['create', 'list', 'delete'],
+            'az role assignment create ':                                 ['--assignee', '--role', '--scope'],
+            'az role assignment list ':                                   ['--assignee', '--scope'],
+            'az role assignment delete ':                                 ['--assignee', '--role'],
+            'az role definition ':                                        ['list'],
+            'az role definition list ':                                   ['--name'],
+            'az policy ':                                                 ['definition', 'assignment', 'state'],
+            'az policy definition ':                                      ['list', 'show'],
+            'az policy definition list ':                                 ['--query', '--output', '-o'],
+            'az policy assignment ':                                      ['create', 'list', 'delete'],
+            'az policy assignment create ':                               ['--name', '--policy', '--scope'],
+            'az policy assignment list ':                                 ['--scope'],
+            'az policy assignment delete ':                               ['--name'],
+            'az policy state ':                                           ['summarize', 'list'],
+            'az account ':                                                ['show', 'list', 'management-group'],
+            'az account management-group ':                               ['create', 'list', 'show', 'delete'],
+            'az account management-group create ':                        ['--name', '--display-name'],
+            'az account management-group show ':                          ['--name'],
+            'az account management-group delete ':                        ['--name']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AZ_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AZ_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'az104-ch02-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Identity and Governance Lab — Azure CLI Simulation', 'term-welcome');
+            addLine('Azure CLI 2.58.0   AZ-104 Chapter 2 — Manage Identities and Governance', 'term-welcome');
+            addBlank();
+            addLine('Tenant: ' + DOMAIN + '  |  Subscription: ' + SUB_NAME, 'term-line-info');
+            addLine('Pre-configured tenant with 3 existing Entra ID users.', 'term-line-info');
+            addBlank();
+            addLine('Lab files in this environment:', 'term-line-warn');
+            addLine('  Policies : ls ~/policies/  (require-tags-params.json)', 'term-line-dim');
+            addLine('  RBAC     : ls ~/rbac/      (readonly-role.json)', 'term-line-dim');
+            addBlank();
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks to finish the lab.', 'term-line-info');
+            addBlank();
+            addLine('NOTE: "az ad", "az role", and "az policy" commands are simulated.', 'term-line-warn');
+            addLine('In production, use Azure Cloud Shell (shell.azure.com) or Azure CLI.', 'term-line-warn');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

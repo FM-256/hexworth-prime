@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Identities and Governance | AZ-104 Chapter 2</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        /* code inline in fact rows uses gold accent */
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent for code highlights */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; }
+        .code-block .kw { color: #93c5fd; }
+        .code-block .st { color: #86efac; }
+        .code-block .nu { color: #fdba74; }
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Manage Identities and Governance — AZ-104 Chapter 2</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 12 &nbsp;|&nbsp; AZ-104 &nbsp;|&nbsp; Chapter 2 &nbsp;|&nbsp; Identities &amp; Governance</div>
+        <div class="title-hero">
+            <!-- Shield with user icons and policy gears converging -->
+            <svg width="420" height="130" viewBox="0 0 420 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central shield -->
+                <path d="M210 12 L248 30 L248 72 C248 96 228 112 210 118 C192 112 172 96 172 72 L172 30 Z"
+                    fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <!-- Shield inner check / lock mark -->
+                <circle cx="210" cy="62" r="14" fill="rgba(59,130,246,0.18)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.35s; opacity:0;"/>
+                <path d="M203 62 L208 67 L217 56" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <!-- Pulse ring on shield -->
+                <ellipse cx="210" cy="68" rx="54" ry="52" fill="none" stroke="rgba(59,130,246,0.1)" stroke-width="1.2"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+
+                <!-- User icons — left cluster -->
+                <circle cx="60" cy="38" r="10" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="60" cy="35" r="4" fill="#3ab577" opacity="0.7"/>
+                <path d="M52 48 Q60 44 68 48" fill="none" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="60" y="58" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Users</text>
+
+                <circle cx="40" cy="78" r="10" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="40" cy="75" r="4" fill="#06b6d4" opacity="0.7"/>
+                <path d="M32 88 Q40 84 48 88" fill="none" stroke="#06b6d4" stroke-width="1.2"/>
+                <text x="40" y="98" text-anchor="middle" font-size="7" fill="#06b6d4" font-family="Segoe UI,sans-serif">Groups</text>
+
+                <circle cx="70" cy="112" r="10" fill="rgba(167,139,250,0.15)" stroke="#a78bfa" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <rect x="64" y="108" width="12" height="9" rx="2" fill="#a78bfa" opacity="0.5"/>
+                <text x="70" y="130" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Segoe UI,sans-serif">Apps</text>
+
+                <!-- Arrows from left entities into shield -->
+                <line x1="71" y1="40" x2="170" y2="55" stroke="rgba(58,181,119,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="51" y1="80" x2="170" y2="65" stroke="rgba(6,182,212,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <line x1="75" y1="108" x2="170" y2="74" stroke="rgba(167,139,250,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.35s"/>
+                </line>
+
+                <!-- Policy gear — right -->
+                <circle cx="356" cy="52" r="18" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <!-- Gear teeth (simplified) -->
+                <circle cx="356" cy="52" r="10" fill="none" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: spin 8s linear infinite; transform-origin: 356px 52px;"/>
+                <line x1="356" y1="34" x2="356" y2="30" stroke="#c9a83a" stroke-width="2.5" stroke-linecap="round"
+                    style="animation: spin 8s linear infinite; transform-origin: 356px 52px;"/>
+                <line x1="356" y1="70" x2="356" y2="74" stroke="#c9a83a" stroke-width="2.5" stroke-linecap="round"
+                    style="animation: spin 8s linear infinite; transform-origin: 356px 52px;"/>
+                <line x1="338" y1="52" x2="334" y2="52" stroke="#c9a83a" stroke-width="2.5" stroke-linecap="round"
+                    style="animation: spin 8s linear infinite; transform-origin: 356px 52px;"/>
+                <line x1="374" y1="52" x2="378" y2="52" stroke="#c9a83a" stroke-width="2.5" stroke-linecap="round"
+                    style="animation: spin 8s linear infinite; transform-origin: 356px 52px;"/>
+                <text x="356" y="56" text-anchor="middle" font-size="7" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Policy</text>
+
+                <!-- RBAC label — right lower -->
+                <rect x="326" y="90" width="60" height="22" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="356" y="99" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">RBAC</text>
+                <text x="356" y="108" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Access Control</text>
+
+                <!-- Arrows from right elements into shield -->
+                <line x1="337" y1="52" x2="250" y2="60" stroke="rgba(201,168,58,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="326" y1="98" x2="250" y2="72" stroke="rgba(239,68,68,0.5)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+            </svg>
+            <div class="big-title">
+                Manage <span class="accent">Identities &amp; Governance</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Entra ID &nbsp;&bull;&nbsp; Users &amp; Groups &nbsp;&bull;&nbsp; SSPR &nbsp;&bull;&nbsp; Subscriptions &nbsp;&bull;&nbsp; Management Groups &nbsp;&bull;&nbsp; RBAC &nbsp;&bull;&nbsp; Azure Policy
+            </div>
+        </div>
+        <div class="scenario-strip">
+            This is the heaviest chapter on the AZ-104 exam — roughly 15-20% of scored questions. Identity is the foundation of every Azure security control. If you don't understand how Entra ID, RBAC, and Azure Policy work together, you can't reason about who can do what and how organizational standards are enforced.
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>AZ-104 Exam Objectives</span>
+            <span>Chapter 2 of 8</span>
+            <span>15-20% of Exam Score</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — MICROSOFT ENTRA ID ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12</div>
+        <div class="slide-title">Microsoft <span class="accent">Entra ID</span></div>
+        <div class="slide-subtitle">Cloud-based identity and access management service. The identity provider for Azure, Microsoft 365, and every application you register. Not a cloud version of on-premises Active Directory — a fundamentally different architecture.</div>
+
+        <!-- Tenant containing users, groups, and apps with auth arrows out -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Tenant boundary -->
+                <rect x="4" y="6" width="440" height="108" rx="12" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="6,3"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="20" y="20" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID Tenant: contoso.com</text>
+                <text x="20" y="30" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Tenant ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</text>
+
+                <!-- User object -->
+                <rect x="18" y="38" width="88" height="66" rx="8" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="62" cy="56" r="9" fill="rgba(58,181,119,0.25)" stroke="#3ab577" stroke-width="1.2"/>
+                <circle cx="62" cy="53" r="4" fill="#3ab577" opacity="0.8"/>
+                <path d="M53 65 Q62 61 71 65" fill="none" stroke="#3ab577" stroke-width="1.2"/>
+                <text x="62" y="79" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Users</text>
+                <text x="62" y="89" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Cloud / Synced</text>
+                <text x="62" y="99" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">/ Guest (B2B)</text>
+
+                <!-- Group object -->
+                <rect x="120" y="38" width="88" height="66" rx="8" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.3s; opacity:0;"/>
+                <circle cx="153" cy="54" r="7" fill="rgba(6,182,212,0.25)" stroke="#06b6d4" stroke-width="1"/>
+                <circle cx="171" cy="54" r="7" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1" stroke-dasharray="2,2"/>
+                <text x="164" y="75" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Groups</text>
+                <text x="164" y="85" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Security / M365</text>
+                <text x="164" y="95" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Static / Dynamic</text>
+
+                <!-- Application object -->
+                <rect x="222" y="38" width="88" height="66" rx="8" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.4)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.4s; opacity:0;"/>
+                <rect x="249" y="46" width="28" height="22" rx="4" fill="rgba(167,139,250,0.25)" stroke="#a78bfa" stroke-width="1.2"/>
+                <line x1="253" y1="51" x2="273" y2="51" stroke="#a78bfa" stroke-width="1"/>
+                <line x1="253" y1="55" x2="273" y2="55" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+                <line x1="253" y1="59" x2="265" y2="59" stroke="#a78bfa" stroke-width="1" opacity="0.3"/>
+                <text x="266" y="80" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Applications</text>
+                <text x="266" y="90" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">App Registrations</text>
+                <text x="266" y="100" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Service Principals</text>
+
+                <!-- Service Principal object -->
+                <rect x="324" y="38" width="108" height="66" rx="8" fill="rgba(249,115,22,0.07)" stroke="rgba(249,115,22,0.35)" stroke-width="1"
+                    style="animation: entityPop 0.35s ease forwards 0.5s; opacity:0;"/>
+                <rect x="346" y="46" width="18" height="18" rx="3" fill="rgba(249,115,22,0.2)" stroke="#f97316" stroke-width="1"/>
+                <line x1="350" y1="50" x2="360" y2="50" stroke="#f97316" stroke-width="1"/>
+                <line x1="350" y1="54" x2="360" y2="54" stroke="#f97316" stroke-width="1" opacity="0.5"/>
+                <text x="378" y="56" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Managed</text>
+                <text x="378" y="65" font-size="7" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Identities</text>
+                <text x="378" y="79" text-anchor="middle" font-size="7.5" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif"/>
+                <text x="378" y="86" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">No credentials</text>
+                <text x="378" y="96" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">stored by you</text>
+
+                <!-- Auth token arrows outward to services -->
+                <!-- Arrow to Azure -->
+                <line x1="446" y1="52" x2="490" y2="42" stroke="rgba(59,130,246,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="490,38 498,42 490,46" fill="#3b82f6"/>
+                <rect x="500" y="28" width="90" height="28" rx="7" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="545" y="40" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Azure Resources</text>
+                <text x="545" y="50" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">portal.azure.com</text>
+
+                <!-- Arrow to M365 -->
+                <line x1="446" y1="72" x2="490" y2="72" stroke="rgba(58,181,119,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="490,68 498,72 490,76" fill="#3ab577"/>
+                <rect x="500" y="58" width="90" height="28" rx="7" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="545" y="70" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft 365</text>
+                <text x="545" y="80" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Teams, SharePoint</text>
+
+                <!-- Arrow to 3rd party apps -->
+                <line x1="446" y1="92" x2="490" y2="102" stroke="rgba(167,139,250,0.5)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="490,98 498,102 490,106" fill="#a78bfa"/>
+                <rect x="500" y="88" width="90" height="28" rx="7" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.75s; opacity:0;"/>
+                <text x="545" y="100" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">SaaS / Custom Apps</text>
+                <text x="545" y="110" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">OAuth2 / OIDC / SAML</text>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Entra ID is the identity provider for all Azure and Microsoft 365 services. Every login, every token, every service principal resolves through the same tenant. Unlike on-prem Active Directory — which uses Kerberos and LDAP over a corporate network — Entra ID speaks OAuth 2.0, OpenID Connect, and SAML over HTTPS, designed for the internet from the ground up.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Tenant</div>
+                <div class="card-desc">A tenant is a dedicated, isolated instance of Entra ID created when your organization signs up for Microsoft cloud services. Every tenant has a unique <span class="ic">tenant ID</span> (GUID) and at least one domain (<span class="ic">contoso.onmicrosoft.com</span> or a custom verified domain). All users, groups, devices, and applications live inside a single tenant.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Entra ID vs. Active Directory DS</div>
+                <div class="card-desc">On-prem AD DS uses Kerberos, LDAP, NTLM, and Group Policy Objects. Entra ID uses REST-based protocols (OAuth2, OIDC, SAML), has no domain controllers to manage, and is globally distributed. They are complementary, not the same: Entra Connect syncs identities from AD DS to Entra ID, letting hybrid environments use cloud auth without abandoning on-prem investments.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Licenses Matter</div>
+                <div class="card-desc">Entra ID Free is included with every Azure subscription and covers basic SSO and user management. <strong>Entra ID P1</strong> adds Conditional Access, SSPR password writeback (hybrid), group-scoped SSPR, and hybrid join. <strong>Entra ID P2</strong> adds Privileged Identity Management (PIM) and Identity Protection (risk-based sign-in policies). The AZ-104 exam tests P1-level features heavily — know what requires a P1 license.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — USERS AND GROUPS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12</div>
+        <div class="slide-title">Users <span class="accent">&amp; Groups</span></div>
+        <div class="slide-subtitle">Three user types, two group types — each with distinct lifecycle, sourcing, and access patterns. Knowing which type to use and when is a core AZ-104 skill.</div>
+
+        <!-- User types flowing into group containers -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Cloud-only user -->
+                <rect x="4" y="8" width="110" height="46" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <circle cx="59" cy="22" r="6" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1.2"/>
+                <circle cx="59" cy="20" r="3" fill="#3b82f6" opacity="0.8"/>
+                <text x="59" y="38" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Cloud-Only</text>
+                <text x="59" y="48" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Created in Entra ID</text>
+
+                <!-- Synced / Hybrid user -->
+                <rect x="4" y="64" width="110" height="46" rx="8" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="59" cy="78" r="6" fill="rgba(58,181,119,0.3)" stroke="#3ab577" stroke-width="1.2"/>
+                <line x1="53" y1="74" x2="65" y2="74" stroke="#3ab577" stroke-width="1" opacity="0.6"/>
+                <text x="59" y="94" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Synced (Hybrid)</text>
+                <text x="59" y="104" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">AD DS via Entra Connect</text>
+
+                <!-- Guest / B2B user -->
+                <rect x="130" y="36" width="110" height="46" rx="8" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <circle cx="185" cy="50" r="6" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="1.2"/>
+                <text x="185" y="52" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif"/>
+                <text x="185" y="66" text-anchor="middle" font-size="8" fill="#f97316" font-weight="700" font-family="Segoe UI,sans-serif">Guest (B2B)</text>
+                <text x="185" y="76" text-anchor="middle" font-size="6.5" fill="#fdba74" font-family="Segoe UI,sans-serif">Invited external user</text>
+
+                <!-- Arrows into group containers -->
+                <line x1="116" y1="28" x2="280" y2="52" stroke="rgba(59,130,246,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <line x1="116" y1="86" x2="280" y2="72" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <line x1="242" y1="58" x2="280" y2="62" stroke="rgba(249,115,22,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Security Group container -->
+                <rect x="282" y="8" width="190" height="48" rx="9" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.4)" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="377" y="22" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Security Group</text>
+                <text x="377" y="33" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Controls access to Azure resources</text>
+                <text x="377" y="43" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Assign RBAC roles &amp; app permissions</text>
+                <text x="377" y="51" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Static membership or dynamic rules</text>
+
+                <!-- M365 Group container -->
+                <rect x="282" y="64" width="190" height="48" rx="9" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.4)" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.4s; opacity:0;"/>
+                <text x="377" y="78" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Microsoft 365 Group</text>
+                <text x="377" y="89" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Collaboration workspace</text>
+                <text x="377" y="99" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Shared mailbox, Teams, SharePoint site</text>
+                <text x="377" y="108" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Cloud-only members</text>
+
+                <!-- Dynamic membership indicator -->
+                <rect x="490" y="22" width="200" height="76" rx="9" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="590" y="36" text-anchor="middle" font-size="8" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">Dynamic Membership Rule</text>
+                <text x="498" y="49" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace">(user.department -eq</text>
+                <text x="498" y="59" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace"> "Engineering") and</text>
+                <text x="498" y="69" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace">(user.accountEnabled</text>
+                <text x="498" y="79" font-size="6.5" fill="#c9a83a" font-family="Courier New,monospace"> -eq true)</text>
+                <text x="590" y="93" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Requires Entra ID P1</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Cloud-Only Users</div>
+                <div class="card-desc">Created and live entirely in Entra ID. No on-prem footprint. Password is managed in the cloud. Use these for cloud-native employees, service accounts, and break-glass emergency accounts. UPN format: <span class="ic">user@contoso.onmicrosoft.com</span> or your custom domain. Can be created via portal, PowerShell (<span class="ic">New-AzureADUser</span>), or MS Graph API.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Synced (Hybrid) Users</div>
+                <div class="card-desc">Sourced from on-premises AD DS and synchronized to Entra ID via <strong>Microsoft Entra Connect</strong>. The on-prem AD is the authoritative source — you cannot edit synced attributes in the portal. Password hash sync (PHS), pass-through auth (PTA), or federation (AD FS) controls where authentication actually happens. Recommended: PHS for simplicity and offline fallback.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Guest (B2B) Users</div>
+                <div class="card-desc">External partners, vendors, and contractors invited to collaborate. They authenticate with their own organization's identity provider (or a one-time passcode). Guest users have <strong>limited permissions by default</strong> — they cannot enumerate the directory. Assign them explicit roles or group memberships. Guest access level is configurable at the tenant level via External Identities settings.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — SSPR ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12</div>
+        <div class="slide-title">Self-Service Password Reset <span class="accent">(SSPR)</span></div>
+        <div class="slide-subtitle">Lets users reset their own passwords without calling the helpdesk. Reduces IT support costs and user friction. Available in Entra ID Free for cloud-only users. P1 required for on-premises password writeback (hybrid) and group-scoped rollout.</div>
+
+        <!-- User locked out -> SSPR portal -> verify -> reset -> access restored -->
+        <div class="diagram-center">
+            <svg width="700" height="100" viewBox="0 0 700 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Step 1: Locked out -->
+                <rect x="4" y="16" width="104" height="68" rx="9" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.45)" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <circle cx="56" cy="34" r="8" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.3"/>
+                <line x1="52" y1="30" x2="60" y2="38" stroke="#ef4444" stroke-width="1.5"/>
+                <line x1="60" y1="30" x2="52" y2="38" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="56" y="54" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">1. Locked</text>
+                <text x="56" y="64" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Password expired</text>
+                <text x="56" y="74" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">or forgotten</text>
+
+                <!-- Arrow 1 -->
+                <line x1="110" y1="50" x2="130" y2="50" stroke="rgba(239,68,68,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="130,46 138,50 130,54" fill="#ef4444"/>
+
+                <!-- Step 2: SSPR Portal -->
+                <rect x="140" y="16" width="110" height="68" rx="9" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <rect x="150" y="26" width="90" height="10" rx="3" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="0.8"/>
+                <text x="195" y="34" text-anchor="middle" font-size="6" fill="#93c5fd" font-family="Segoe UI,sans-serif">aka.ms/sspr</text>
+                <text x="195" y="50" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">2. SSPR Portal</text>
+                <text x="195" y="61" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Enter UPN to</text>
+                <text x="195" y="71" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">start reset flow</text>
+
+                <!-- Arrow 2 -->
+                <line x1="252" y1="50" x2="272" y2="50" stroke="rgba(59,130,246,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="272,46 280,50 272,54" fill="#3b82f6"/>
+
+                <!-- Step 3: Verify identity -->
+                <rect x="282" y="16" width="120" height="68" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="342" y="32" text-anchor="middle" font-size="8" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">3. Verify Identity</text>
+                <text x="342" y="45" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Email / Phone / App</text>
+                <text x="342" y="55" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Security Questions</text>
+                <text x="342" y="65" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">1 or 2 methods</text>
+                <text x="342" y="75" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">(admin configures)</text>
+
+                <!-- Arrow 3 -->
+                <line x1="404" y1="50" x2="424" y2="50" stroke="rgba(201,168,58,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="424,46 432,50 424,54" fill="#c9a83a"/>
+
+                <!-- Step 4: Reset password -->
+                <rect x="434" y="16" width="110" height="68" rx="9" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="489" y="32" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">4. New Password</text>
+                <rect x="444" y="38" width="90" height="10" rx="3" fill="rgba(167,139,250,0.15)" stroke="rgba(167,139,250,0.3)" stroke-width="0.8"/>
+                <text x="489" y="45" text-anchor="middle" font-size="6" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Enter new password</text>
+                <text x="489" y="60" text-anchor="middle" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Meets policy rules</text>
+                <text x="489" y="70" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Writeback to AD DS</text>
+                <text x="489" y="78" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">(if hybrid, needs P1)</text>
+
+                <!-- Arrow 4 -->
+                <line x1="546" y1="50" x2="566" y2="50" stroke="rgba(167,139,250,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="0.9s" repeatCount="indefinite" begin="0.3s"/>
+                </line>
+                <polygon points="566,46 574,50 566,54" fill="#a78bfa"/>
+
+                <!-- Step 5: Access restored -->
+                <rect x="576" y="16" width="116" height="68" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <circle cx="634" cy="34" r="8" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1.3"/>
+                <path d="M629 34 L632 37 L639 30" stroke="#3ab577" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="634" y="52" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">5. Access OK</text>
+                <text x="634" y="63" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Login restored</text>
+                <text x="634" y="73" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Audit log written</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Authentication Methods</div>
+                <div class="card-desc">Admins configure which methods are allowed. Options: <strong>Microsoft Authenticator app</strong> (OATH TOTP or push notification), <strong>phone call</strong>, <strong>SMS code</strong>, <strong>email to alternate address</strong>, <strong>security questions</strong> (3-5, admin-defined), and <strong>hardware OATH tokens</strong>. Best practice: require two methods and prioritize Authenticator app — it is phishing-resistant and works offline.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Password Writeback</div>
+                <div class="card-desc">For hybrid environments, SSPR can write the new password back to on-premises AD DS in real time. This requires <strong>Entra ID P1</strong> and Entra Connect with the Password Writeback feature enabled. Without writeback, cloud SSPR only resets the Entra ID cloud password — the on-prem password remains stale and the user may still be locked out of domain-joined resources.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Scope and Registration</div>
+                <div class="card-desc">SSPR can be enabled for <strong>None</strong>, <strong>Selected</strong> (a specific group — requires P1), or <strong>All</strong> users. Enable for a pilot group first, verify the experience, then expand. Users must <strong>register their auth methods</strong> before they can use SSPR — typically done via the combined security info registration flow at <span class="ic">aka.ms/mysecurityinfo</span>. Admins can mandate this at next sign-in.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — AZURE SUBSCRIPTIONS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Subscriptions</span></div>
+        <div class="slide-subtitle">The management hierarchy is not arbitrary — it determines where you apply access controls, cost management, and governance policies. Understanding the hierarchy is foundational for the entire exam.</div>
+
+        <!-- Full hierarchy tree: Tenant -> Mgmt Groups -> Subscriptions -> Resource Groups -> Resources -->
+        <div class="diagram-center">
+            <svg width="700" height="116" viewBox="0 0 700 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Level 1: Entra ID Tenant -->
+                <rect x="270" y="4" width="160" height="26" rx="7" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="350" y="15" text-anchor="middle" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID Tenant</text>
+                <text x="350" y="25" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">contoso.com — Top of the hierarchy</text>
+
+                <!-- Connector line -->
+                <line x1="350" y1="30" x2="350" y2="38" stroke="rgba(255,255,255,0.15)" stroke-width="1.2"/>
+
+                <!-- Level 2: Management Groups (two) -->
+                <rect x="148" y="38" width="152" height="22" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="224" y="48" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">MG: Production</text>
+                <text x="224" y="56" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Policy: require tags</text>
+
+                <rect x="402" y="38" width="152" height="22" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="478" y="48" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">MG: Non-Production</text>
+                <text x="478" y="56" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Policy: allowed VM SKUs</text>
+
+                <!-- Lines: Tenant to each MG -->
+                <line x1="320" y1="30" x2="224" y2="38" stroke="rgba(167,139,250,0.3)" stroke-width="1.1"/>
+                <line x1="380" y1="30" x2="478" y2="38" stroke="rgba(167,139,250,0.3)" stroke-width="1.1"/>
+
+                <!-- Level 3: Subscriptions -->
+                <rect x="60" y="70" width="132" height="22" rx="6" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="126" y="79" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Sub: Contoso-Prod</text>
+                <text x="126" y="88" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Billing boundary</text>
+
+                <rect x="208" y="70" width="132" height="22" rx="6" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="274" y="79" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Sub: Contoso-DR</text>
+                <text x="274" y="88" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Disaster recovery</text>
+
+                <rect x="360" y="70" width="132" height="22" rx="6" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="426" y="79" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Sub: Contoso-Dev</text>
+                <text x="426" y="88" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Development / test</text>
+
+                <rect x="510" y="70" width="132" height="22" rx="6" fill="rgba(201,168,58,0.09)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="576" y="79" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Sub: Contoso-Sandbox</text>
+                <text x="576" y="88" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Experiments only</text>
+
+                <!-- Lines: MG to Subscriptions -->
+                <line x1="200" y1="60" x2="126" y2="70" stroke="rgba(201,168,58,0.25)" stroke-width="1.1"/>
+                <line x1="248" y1="60" x2="274" y2="70" stroke="rgba(201,168,58,0.25)" stroke-width="1.1"/>
+                <line x1="454" y1="60" x2="426" y2="70" stroke="rgba(201,168,58,0.25)" stroke-width="1.1"/>
+                <line x1="502" y1="60" x2="576" y2="70" stroke="rgba(201,168,58,0.25)" stroke-width="1.1"/>
+
+                <!-- Level 4: Resource Groups label -->
+                <rect x="60" y="100" width="580" height="14" rx="5" fill="rgba(58,181,119,0.06)" stroke="rgba(58,181,119,0.25)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="350" y="110" text-anchor="middle" font-size="7" fill="#3ab577" font-family="Segoe UI,sans-serif">Resource Groups (within each subscription) &rarr; Individual Resources (VMs, Storage, VNets, SQL, etc.)</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Subscription as Boundary</div>
+                <div class="card-desc">A subscription is both a <strong>billing boundary</strong> (all costs roll up to a payment method) and a <strong>management boundary</strong> (a natural RBAC and policy scope). Each subscription belongs to exactly one Entra ID tenant. You can have multiple subscriptions per tenant. Subscriptions have resource limits (e.g., 980 resource groups, 800 instances of a single resource type) that you scale around by using multiple subscriptions.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">When to Create More Subscriptions</div>
+                <div class="card-desc">Common patterns: <strong>environment isolation</strong> (prod/dev/sandbox — different risk profiles), <strong>compliance boundaries</strong> (PCI-DSS, HIPAA workloads isolated from others), <strong>billing clarity</strong> (separate P&amp;L reporting per team or product), and <strong>quota avoidance</strong> (hitting a per-subscription resource limit). Resist the urge to use a single subscription for everything — you'll lose governance control at scale.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Exam Reality Check</div>
+                <div class="card-desc">The AZ-104 exam expects you to map every action to its correct scope. Applying an RBAC role at the <strong>subscription scope</strong> grants access to all resource groups and resources in that subscription. A policy assigned at the <strong>management group</strong> scope flows down to all subscriptions and resource groups beneath it. This inheritance model is the core of Azure governance — it runs through every single exam domain.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — MANAGEMENT GROUPS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12</div>
+        <div class="slide-title">Management <span class="accent">Groups</span></div>
+        <div class="slide-subtitle">Organize subscriptions into a governance hierarchy. Assign Azure Policy and RBAC at the management group level — they inherit down through all child groups and subscriptions automatically.</div>
+
+        <!-- Root MG -> child groups -> subscriptions, with policy inheritance arrows -->
+        <div class="diagram-center">
+            <svg width="700" height="118" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Root MG -->
+                <rect x="260" y="4" width="180" height="28" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="350" y="16" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Root Management Group</text>
+                <text x="350" y="26" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">One per tenant &mdash; all subscriptions flow through here</text>
+
+                <!-- Policy badge on Root -->
+                <rect x="446" y="7" width="98" height="18" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="495" y="14" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Policy: Require TLS 1.2</text>
+                <text x="495" y="22" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Applies everywhere</text>
+
+                <!-- Vertical lines down from Root -->
+                <line x1="300" y1="32" x2="190" y2="44" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>
+                <line x1="350" y1="32" x2="350" y2="44" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>
+                <line x1="400" y1="32" x2="520" y2="44" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>
+
+                <!-- Child MGs -->
+                <rect x="92" y="44" width="196" height="24" rx="7" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="190" y="54" text-anchor="middle" font-size="8" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">MG: Corp</text>
+                <text x="190" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Policy: Deny public IPs | RBAC: Corp-Admin = Owner</text>
+
+                <rect x="300" y="44" width="100" height="24" rx="7" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="350" y="54" text-anchor="middle" font-size="8" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">MG: Online</text>
+                <text x="350" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">E-commerce workloads</text>
+
+                <rect x="420" y="44" width="196" height="24" rx="7" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="518" y="54" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">MG: Sandbox</text>
+                <text x="518" y="63" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Policy: Allowed locations = East US only</text>
+
+                <!-- Lines from Child MGs to Subscriptions -->
+                <line x1="140" y1="68" x2="100" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="190" y1="68" x2="190" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="240" y1="68" x2="280" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="350" y1="68" x2="350" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="470" y1="68" x2="440" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="518" y1="68" x2="518" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+                <line x1="566" y1="68" x2="596" y2="80" stroke="rgba(201,168,58,0.2)" stroke-width="1.1"/>
+
+                <!-- Subscription boxes -->
+                <rect x="60" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="100" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Corp-Prod</text>
+
+                <rect x="150" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="190" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Corp-DR</text>
+
+                <rect x="240" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="280" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Corp-Dev</text>
+
+                <rect x="310" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="350" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Online-Prod</text>
+
+                <rect x="400" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="440" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Sandbox-1</text>
+
+                <rect x="478" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.65s; opacity:0;"/>
+                <text x="518" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Sandbox-2</text>
+
+                <rect x="558" y="80" width="80" height="18" rx="5" fill="rgba(201,168,58,0.07)" stroke="rgba(201,168,58,0.3)" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.7s; opacity:0;"/>
+                <text x="598" y="91" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-family="Segoe UI,sans-serif">Sub: Sandbox-3</text>
+
+                <!-- Policy inheritance arrow — animated, flowing downward -->
+                <line x1="8" y1="18" x2="8" y2="108" stroke="rgba(201,168,58,0.4)" stroke-width="1.8" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1.2s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="4,108 8,116 12,108" fill="#c9a83a"/>
+                <text x="22" y="32" font-size="7" fill="#c9a83a" font-family="Segoe UI,sans-serif" transform="rotate(90,22,32)" text-anchor="middle">Policy Inheritance</text>
+
+                <!-- Resource groups below subs -->
+                <rect x="4" y="106" width="688" height="10" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.07)" stroke-width="0.8"
+                    style="animation: fadeUp 0.4s ease forwards 0.75s; opacity:0;"/>
+                <text x="350" y="113" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Resource Groups &rarr; Resources inside each subscription</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Hierarchy Rules</div>
+                <div class="card-desc">Up to <strong>6 levels</strong> of management groups (not counting root or subscription level). The Root Management Group cannot be deleted or moved. A management group can contain both child management groups AND subscriptions simultaneously — that is the primary use case. Each subscription has exactly one parent management group. Every new subscription is placed under the Root until you move it. You can have up to 10,000 management groups in a single directory.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Inheritance is the Payoff</div>
+                <div class="card-desc">This is why management groups exist. Instead of assigning a "require resource tags" policy to 40 individual subscriptions, you assign it once at a management group and it flows down to every subscription, every resource group, and every resource below it. Same for RBAC: give the <strong>Billing Reader</strong> role at the Corp management group and that user can see costs across every subscription in Corp — no per-subscription assignment needed.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Can Subscriptions Deny Inherited Policy?</div>
+                <div class="card-desc">No — and that is intentional. Policies inherited from a parent management group cannot be overridden by a child. This is what makes governance enforceable. You <em>can</em> exempt specific resources via policy exemptions, or use <strong>Deny</strong> effect at a lower scope to narrow what a parent Audit allows, but you cannot cancel an inherited Deny from above. Design your hierarchy with this immutability in mind.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — RBAC ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12</div>
+        <div class="slide-title">Role-Based Access Control <span class="accent">(RBAC)</span></div>
+        <div class="slide-subtitle">RBAC answers one question: who can do what on what? Three components combine to form a role assignment. Understanding scope inheritance is the key to getting exam questions right.</div>
+
+        <!-- Security principal + role definition + scope = role assignment diagram -->
+        <div class="diagram-center">
+            <svg width="700" height="108" viewBox="0 0 700 108" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Security Principal box -->
+                <rect x="4" y="12" width="150" height="84" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="79" y="27" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Security Principal</text>
+                <text x="79" y="39" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">WHO is accessing?</text>
+                <circle cx="44" cy="63" r="7" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1"/>
+                <text x="44" y="81" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">User</text>
+                <rect x="75" y="56" width="14" height="14" rx="3" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1"/>
+                <text x="82" y="81" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">Group</text>
+                <rect x="110" y="56" width="14" height="14" rx="3" fill="rgba(58,181,119,0.15)" stroke="#3ab577" stroke-width="1" stroke-dasharray="2,2"/>
+                <text x="117" y="81" text-anchor="middle" font-size="6" fill="#86efac" font-family="Segoe UI,sans-serif">SP / MI</text>
+                <text x="79" y="93" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">User, Group, Service</text>
+                <text x="79" y="100" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Principal, or Managed Identity</text>
+
+                <!-- Plus sign -->
+                <text x="166" y="60" font-size="22" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle" style="animation: fadeUp 0.3s ease forwards 0.2s; opacity:0;">+</text>
+
+                <!-- Role Definition box -->
+                <rect x="178" y="12" width="154" height="84" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="255" y="27" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Role Definition</text>
+                <text x="255" y="38" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">WHAT actions are allowed?</text>
+                <text x="186" y="52" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Actions: ["Microsoft.Compute</text>
+                <text x="186" y="61" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">  /virtualMachines/*"]</text>
+                <text x="186" y="73" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">NotActions: ["Microsoft.Compute</text>
+                <text x="186" y="82" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">  /*/delete"]</text>
+                <text x="255" y="97" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Built-in or custom JSON definition</text>
+
+                <!-- Plus sign -->
+                <text x="344" y="60" font-size="22" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle" style="animation: fadeUp 0.3s ease forwards 0.25s; opacity:0;">+</text>
+
+                <!-- Scope box -->
+                <rect x="356" y="12" width="154" height="84" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="433" y="27" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Scope</text>
+                <text x="433" y="38" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">WHERE does it apply?</text>
+                <text x="364" y="52" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Management Group</text>
+                <text x="364" y="62" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">  Subscription</text>
+                <text x="364" y="72" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">    Resource Group</text>
+                <text x="364" y="82" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">      Resource</text>
+                <text x="433" y="97" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Inherits down the hierarchy</text>
+
+                <!-- Equals sign -->
+                <text x="522" y="62" font-size="22" fill="#475569" font-family="Segoe UI,sans-serif" text-anchor="middle" style="animation: fadeUp 0.3s ease forwards 0.3s; opacity:0;">=</text>
+
+                <!-- Role Assignment result box -->
+                <rect x="534" y="12" width="158" height="84" rx="10" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.8"
+                    style="animation: boxGrow 0.4s ease forwards 0.35s; opacity:0;"/>
+                <text x="613" y="26" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Role Assignment</text>
+                <text x="613" y="40" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="600" font-family="Segoe UI,sans-serif">alice@contoso.com</text>
+                <text x="613" y="52" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="600" font-family="Segoe UI,sans-serif">Contributor</text>
+                <text x="613" y="64" text-anchor="middle" font-size="7.5" fill="#fca5a5" font-weight="600" font-family="Segoe UI,sans-serif">rg-webapp-prod</text>
+                <text x="613" y="80" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Alice can create/manage</text>
+                <text x="613" y="89" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">all resources in the RG</text>
+                <text x="613" y="98" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">but cannot assign roles to others</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Scope Inheritance — The Critical Concept</div>
+                <div class="card-desc">A role assignment at a <strong>higher scope inherits down</strong>. If you assign the Reader role to Bob at the subscription scope, Bob can read every resource group and every resource in that subscription — you don't assign it per-resource. Conversely, you can grant narrower access at a lower scope: give Alice Contributor on one specific resource group, and her access is contained there. <strong>Additive model</strong> — effective access is the union of all applicable role assignments.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Actions vs. NotActions</div>
+                <div class="card-desc">A role definition lists <span class="ic">Actions</span> (what the role permits), <span class="ic">NotActions</span> (operations explicitly excluded from the Actions wildcard), <span class="ic">DataActions</span> (data plane operations like reading blob content), and <span class="ic">NotDataActions</span>. <span class="ic">NotActions</span> is not a deny — it just removes items from the Actions wildcard. If another role assignment grants the operation back, the user can still do it. True deny requires Azure Policy Deny effect or an explicit Deny assignment (rare).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Where to Assign</div>
+                <div class="card-desc">Prefer assigning roles to <strong>groups, not individual users</strong>. When someone joins or leaves a team, you add/remove them from the group — the role assignment itself never changes. This drastically reduces role assignment sprawl. Each subscription has a limit of 4,000 role assignments. Assign at the <strong>narrowest scope that satisfies the requirement</strong> — principle of least privilege. Don't give Contributor at subscription scope when the user only needs it in one resource group.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — RBAC BUILT-IN ROLES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12</div>
+        <div class="slide-title">RBAC <span class="accent">Built-In Roles</span></div>
+        <div class="slide-subtitle">Four fundamental built-in roles form the backbone of most Azure access patterns. Know exactly what each can and cannot do — this shows up directly on the exam.</div>
+
+        <!-- Four role cards with permission matrices -->
+        <div class="diagram-center">
+            <svg width="700" height="106" viewBox="0 0 700 106" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Owner card -->
+                <rect x="4" y="6" width="160" height="94" rx="10" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.8"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="84" y="22" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="800" font-family="Segoe UI,sans-serif">Owner</text>
+                <line x1="12" y1="27" x2="156" y2="27" stroke="rgba(239,68,68,0.25)" stroke-width="0.8"/>
+                <text x="12" y="40" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Create resources</text>
+                <text x="12" y="51" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Read resources</text>
+                <text x="12" y="62" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Update resources</text>
+                <text x="12" y="73" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Delete resources</text>
+                <text x="12" y="84" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Assign roles to others</text>
+                <text x="12" y="97" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Full access + role management</text>
+
+                <!-- Contributor card -->
+                <rect x="176" y="6" width="160" height="94" rx="10" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="256" y="22" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">Contributor</text>
+                <line x1="184" y1="27" x2="328" y2="27" stroke="rgba(59,130,246,0.25)" stroke-width="0.8"/>
+                <text x="184" y="40" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Create resources</text>
+                <text x="184" y="51" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Read resources</text>
+                <text x="184" y="62" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Update resources</text>
+                <text x="184" y="73" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Delete resources</text>
+                <text x="184" y="84" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Assign roles to others</text>
+                <text x="184" y="97" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Full access, no role assignment</text>
+
+                <!-- Reader card -->
+                <rect x="348" y="6" width="160" height="94" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.8"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="428" y="22" text-anchor="middle" font-size="9" fill="#3ab577" font-weight="800" font-family="Segoe UI,sans-serif">Reader</text>
+                <line x1="356" y1="27" x2="500" y2="27" stroke="rgba(58,181,119,0.25)" stroke-width="0.8"/>
+                <text x="356" y="40" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Create resources</text>
+                <text x="356" y="51" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Read resources</text>
+                <text x="356" y="62" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Update resources</text>
+                <text x="356" y="73" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Delete resources</text>
+                <text x="356" y="84" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Assign roles</text>
+                <text x="356" y="97" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">View only, zero modifications</text>
+
+                <!-- User Access Admin card -->
+                <rect x="520" y="6" width="176" height="94" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.8"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="608" y="22" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif">User Access Admin</text>
+                <line x1="528" y1="27" x2="688" y2="27" stroke="rgba(201,168,58,0.25)" stroke-width="0.8"/>
+                <text x="528" y="40" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Create resources</text>
+                <text x="528" y="51" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Read resources</text>
+                <text x="528" y="62" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Update resources</text>
+                <text x="528" y="73" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">&#10007; Delete resources</text>
+                <text x="528" y="84" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">&#10003; Assign roles to others</text>
+                <text x="528" y="97" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">Only manages access, not resources</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Owner vs. Contributor — The Key Difference</div>
+                <div class="card-desc">Contributor has full resource management rights but <strong>cannot assign roles</strong>. This matters a lot: a Contributor-level devops engineer cannot delegate their own access to a service principal they create. They would need to ask an Owner to do that. When you need to deploy automation that creates resources <em>and</em> assigns permissions to them (e.g., deploying an app that needs a role assignment), you need Owner or User Access Administrator at the target scope.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">User Access Administrator — Narrow by Design</div>
+                <div class="card-desc">This role lets someone manage role assignments without giving them any resource management rights. Useful for access request workflows where a non-admin reviews and approves access without being able to modify the underlying resources. Often combined with PIM (Privileged Identity Management) to require just-in-time elevation and approval for Owner-level operations. Covered in Entra ID P2 — worth knowing for exam questions about delegating role assignment.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Service-Specific Built-In Roles</div>
+                <div class="card-desc">Beyond the four foundational roles, Azure has hundreds of service-specific ones: <strong>Storage Blob Data Reader</strong> (read blob content, not the storage account management plane), <strong>Virtual Machine Contributor</strong> (manage VMs, not the VNet or storage they attach to), <strong>Key Vault Secrets Officer</strong> (read/write/delete secrets), <strong>AcrPush</strong> (push images to Azure Container Registry). Use the narrowest applicable role. Never give Contributor when a service-specific role is available.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — CUSTOM ROLES ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12</div>
+        <div class="slide-title">Custom <span class="accent">RBAC Roles</span></div>
+        <div class="slide-subtitle">When built-in roles are too broad or too narrow. Custom roles are JSON-defined permission sets scoped to specific subscriptions or management groups. Use them sparingly — they add maintenance overhead.</div>
+
+        <div class="diagram-row">
+            <!-- Custom role JSON structure -->
+            <div class="code-block" style="flex:1; font-size:0.76rem;">
+<span class="cm">// Custom Role: VM Restart Operator
+// Can restart/start/stop VMs — cannot create or delete</span>
+{
+  <span class="kw">"Name"</span>: <span class="st">"VM Restart Operator"</span>,
+  <span class="kw">"IsCustom"</span>: <span class="nu">true</span>,
+  <span class="kw">"Description"</span>: <span class="st">"Restart, start, and stop VMs only"</span>,
+  <span class="kw">"Actions"</span>: [
+    <span class="st">"Microsoft.Compute/virtualMachines/read"</span>,
+    <span class="st">"Microsoft.Compute/virtualMachines/start/action"</span>,
+    <span class="st">"Microsoft.Compute/virtualMachines/restart/action"</span>,
+    <span class="st">"Microsoft.Compute/virtualMachines/deallocate/action"</span>
+  ],
+  <span class="kw">"NotActions"</span>: [],   <span class="cm">// nothing excluded</span>
+  <span class="kw">"DataActions"</span>: [], <span class="cm">// no data plane ops needed</span>
+  <span class="kw">"AssignableScopes"</span>: [
+    <span class="st">"/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"</span>
+  ]
+}
+            </div>
+
+            <!-- What the custom role enables vs. blocks -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-green">
+                    <div class="box-label">Allowed</div>
+                    Read VM status, start a stopped VM, restart a running VM, deallocate (stop/deallocate) a VM. Sufficient for on-call operators who need to restart hung services without touching infrastructure.
+                </div>
+                <div class="box box-red">
+                    <div class="box-label">Blocked</div>
+                    Cannot create new VMs, cannot delete VMs, cannot resize or reconfigure VMs, cannot modify networking or storage, cannot assign roles to anyone. The operator stays in their lane.
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">AssignableScopes</div>
+                    Custom roles must declare which subscriptions (or management groups) they can be assigned in. The role only appears in the portal's role assignment UI for those scopes. Limit scope as tightly as reasonable.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">When to Build a Custom Role</div>
+                <div class="card-desc">When built-in roles are too broad: Contributor gives create/delete rights you don't want the user to have. When built-in roles are too narrow: Reader gives view-only but you need the user to also be able to restart VMs. Custom roles fill the gap. They are JSON-defined, version-controllable, and deployable via ARM template or Bicep. Limit the number of custom roles — each one is a maintenance burden. Reuse and expand existing custom roles before creating new ones.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Actions vs. DataActions</div>
+                <div class="card-desc"><span class="ic">Actions</span> control the <strong>management plane</strong> — creating, listing, and configuring resources via ARM. <span class="ic">DataActions</span> control the <strong>data plane</strong> — reading or writing actual data inside the resource (e.g., reading blob content, sending messages to a Service Bus queue). Storage Blob Data Reader is a DataActions role. A user can have Actions rights to manage a storage account but still be blocked from reading its blob contents without a DataActions role.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Limits</div>
+                <div class="card-desc">Each Microsoft Entra ID directory supports a maximum of <strong>5,000 custom role definitions</strong>. Custom roles take a few minutes to propagate globally after creation or modification. They cannot reference resources outside their <span class="ic">AssignableScopes</span>. To deploy via Bicep, use the <span class="ic">Microsoft.Authorization/roleDefinitions</span> resource type — this lets you version-control your entire permission model alongside your infrastructure code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — AZURE POLICY ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12</div>
+        <div class="slide-title">Azure <span class="accent">Policy</span></div>
+        <div class="slide-subtitle">Enforce organizational standards at scale. Policy is not about who can act — it is about what configurations are allowed regardless of who is acting. RBAC and Policy are complementary, not competing.</div>
+
+        <!-- Policy definition -> initiative -> assignment -> compliance dashboard -->
+        <div class="diagram-center">
+            <svg width="700" height="104" viewBox="0 0 700 104" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Policy Definition -->
+                <rect x="4" y="14" width="138" height="76" rx="10" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="73" y="28" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Policy Definition</text>
+                <text x="73" y="39" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Single rule as JSON</text>
+                <text x="12" y="52" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">if: tag 'Environment'</text>
+                <text x="12" y="62" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">     is missing</text>
+                <text x="12" y="75" font-size="6.5" fill="#ef4444" font-family="Segoe UI,sans-serif">then: Deny</text>
+                <text x="12" y="86" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Effect: Deny</text>
+
+                <!-- Arrow 1 -->
+                <line x1="144" y1="52" x2="162" y2="52" stroke="rgba(201,168,58,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="162,48 170,52 162,56" fill="#c9a83a"/>
+
+                <!-- Initiative (Policy Set) -->
+                <rect x="172" y="14" width="148" height="76" rx="10" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="246" y="28" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Initiative</text>
+                <text x="246" y="38" text-anchor="middle" font-size="7" fill="#c4b5fd" font-family="Segoe UI,sans-serif">(Policy Set Definition)</text>
+                <text x="180" y="52" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Require tags (Deny)</text>
+                <text x="180" y="62" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Require HTTPS (Deny)</text>
+                <text x="180" y="72" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Audit public IPs (Audit)</text>
+                <text x="180" y="82" font-size="6.5" fill="#c4b5fd" font-family="Segoe UI,sans-serif">Deploy Defender (DINE)</text>
+                <text x="246" y="94" text-anchor="middle" font-size="6" fill="#475569" font-family="Segoe UI,sans-serif">Group related policies together</text>
+
+                <!-- Arrow 2 -->
+                <line x1="322" y1="52" x2="340" y2="52" stroke="rgba(167,139,250,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="340,48 348,52 340,56" fill="#a78bfa"/>
+
+                <!-- Assignment -->
+                <rect x="350" y="14" width="148" height="76" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.25s; opacity:0;"/>
+                <text x="424" y="28" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Assignment</text>
+                <text x="358" y="40" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Initiative: Corp-Standards</text>
+                <text x="358" y="51" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Scope: MG/Corp</text>
+                <text x="358" y="62" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Exclusions: rg-legacy-app</text>
+                <text x="358" y="73" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Parameters:</text>
+                <text x="358" y="83" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">  tagName = "Environment"</text>
+
+                <!-- Arrow 3 -->
+                <line x1="500" y1="52" x2="518" y2="52" stroke="rgba(59,130,246,0.4)" stroke-width="1.3" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+                <polygon points="518,48 526,52 518,56" fill="#3b82f6"/>
+
+                <!-- Compliance Dashboard result -->
+                <rect x="528" y="14" width="168" height="76" rx="10" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.35s; opacity:0;"/>
+                <text x="612" y="28" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Compliance State</text>
+                <!-- Compliance bar -->
+                <rect x="536" y="35" width="152" height="10" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.8"/>
+                <rect x="536" y="35" width="112" height="10" rx="3" fill="#3ab577" opacity="0.7"
+                    style="animation: barGrow 1s ease forwards 0.5s; animation-fill-mode: backwards;"/>
+                <text x="612" y="57" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">74% Compliant</text>
+                <text x="536" y="68" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Non-compliant: 42 resources</text>
+                <text x="536" y="78" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Compliant: 118 resources</text>
+                <text x="536" y="88" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Exemptions: 3 resources</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Policy Effects — Know All Five</div>
+                <div class="card-desc"><strong>Deny</strong> — blocks the resource creation or update if it violates the policy. <strong>Audit</strong> — allows the operation but writes a warning to the Activity Log; non-compliant resources show up in the compliance dashboard. <strong>Append</strong> — adds fields to the resource (e.g., auto-adds a tag value). <strong>DeployIfNotExists (DINE)</strong> — deploys a companion resource if it doesn't exist (e.g., auto-deploy Defender for Cloud on every new VM). <strong>Modify</strong> — adds, updates, or removes tags on resources. DINE and Modify require a Managed Identity for the policy assignment to perform deployments.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Initiatives Group Related Policies</div>
+                <div class="card-desc">An initiative (policy set) bundles multiple policy definitions into one assignable unit. Instead of assigning 15 individual policies to enforce CIS Benchmark controls, you assign one initiative. Microsoft publishes built-in initiatives for common compliance frameworks: <strong>Azure Security Benchmark</strong>, <strong>NIST SP 800-53</strong>, <strong>PCI-DSS</strong>, <strong>HIPAA/HITRUST</strong>. You can also build custom initiatives. Assign the initiative at a management group once and it covers all subscriptions below.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Remediation Tasks</div>
+                <div class="card-desc">Policy with <strong>Deny</strong> effect is prospective — it stops new non-compliant resources but does nothing about existing ones. To fix existing non-compliance, use <strong>Remediation Tasks</strong>. A remediation task runs the DINE or Modify policy effect against already-deployed, non-compliant resources. Requires the policy assignment to have a system-assigned Managed Identity with appropriate permissions. Run remediation tasks after assigning a new policy to get the existing environment into compliance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — AZURE POLICY VS RBAC ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12</div>
+        <div class="slide-title">Azure Policy <span class="accent">vs. RBAC</span></div>
+        <div class="slide-subtitle">The most commonly misunderstood distinction on the AZ-104 exam. RBAC and Policy operate on different axes — they complement each other and you need both to govern Azure properly.</div>
+
+        <!-- Side-by-side comparison SVG -->
+        <div class="diagram-center">
+            <svg width="700" height="112" viewBox="0 0 700 112" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- RBAC side -->
+                <rect x="4" y="6" width="310" height="100" rx="10" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.4)" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.05s; opacity:0;"/>
+                <text x="159" y="22" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="800" font-family="Segoe UI,sans-serif">RBAC</text>
+                <text x="159" y="33" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">Controls WHO can perform actions</text>
+
+                <!-- RBAC flow: user -> permission check -> resource -->
+                <circle cx="40" cy="72" r="14" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.2s; opacity:0;"/>
+                <circle cx="40" cy="68" r="5" fill="#ef4444" opacity="0.7"/>
+                <path d="M30 80 Q40 76 50 80" fill="none" stroke="#ef4444" stroke-width="1.2"/>
+                <text x="40" y="95" text-anchor="middle" font-size="7" fill="#fca5a5" font-family="Segoe UI,sans-serif">alice@contoso.com</text>
+
+                <line x1="56" y1="72" x2="100" y2="72" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="100,68 108,72 100,76" fill="#ef4444"/>
+
+                <rect x="110" y="58" width="80" height="28" rx="7" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="150" y="70" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Role Check</text>
+                <text x="150" y="80" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Has Contributor?</text>
+
+                <line x1="192" y1="72" x2="220" y2="72" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.1s"/>
+                </line>
+                <polygon points="220,68 228,72 220,76" fill="#ef4444"/>
+
+                <rect x="230" y="58" width="76" height="28" rx="7" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="268" y="70" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Resource</text>
+                <text x="268" y="80" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Access granted</text>
+
+                <text x="159" y="107" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">ANSWER: Who is allowed in?</text>
+
+                <!-- VS divider -->
+                <text x="350" y="60" text-anchor="middle" font-size="16" fill="#475569" font-weight="800" font-family="Segoe UI,sans-serif"
+                    style="animation: pulse 2s ease-in-out infinite;">VS</text>
+                <line x1="350" y1="6" x2="350" y2="106" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Policy side -->
+                <rect x="386" y="6" width="310" height="100" rx="10" fill="rgba(201,168,58,0.06)" stroke="rgba(201,168,58,0.4)" stroke-width="1.6"
+                    style="animation: boxGrow 0.35s ease forwards 0.1s; opacity:0;"/>
+                <text x="541" y="22" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="800" font-family="Segoe UI,sans-serif">Azure Policy</text>
+                <text x="541" y="33" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Controls WHAT configurations are allowed</text>
+
+                <!-- Policy flow: any user -> rule check -> resource configuration -->
+                <circle cx="420" cy="72" r="14" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: entityPop 0.3s ease forwards 0.25s; opacity:0;"/>
+                <circle cx="420" cy="68" r="5" fill="#c9a83a" opacity="0.5"/>
+                <path d="M410 80 Q420 76 430 80" fill="none" stroke="#c9a83a" stroke-width="1.2"/>
+                <text x="420" y="95" text-anchor="middle" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">ANY authorized user</text>
+
+                <line x1="436" y1="72" x2="472" y2="72" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.15s"/>
+                </line>
+                <polygon points="472,68 480,72 472,76" fill="#c9a83a"/>
+
+                <rect x="482" y="58" width="84" height="28" rx="7" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="524" y="70" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Policy Check</text>
+                <text x="524" y="80" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Has 'Env' tag?</text>
+
+                <line x1="568" y1="72" x2="594" y2="72" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" begin="0.25s"/>
+                </line>
+                <polygon points="594,68 602,72 594,76" fill="#c9a83a"/>
+
+                <rect x="604" y="58" width="84" height="28" rx="7" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.35)" stroke-width="1"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="646" y="70" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Denied</text>
+                <text x="646" y="80" text-anchor="middle" font-size="6.5" fill="#fca5a5" font-family="Segoe UI,sans-serif">Tag missing</text>
+
+                <text x="541" y="107" text-anchor="middle" font-size="7" fill="#64748b" font-family="Segoe UI,sans-serif">ANSWER: What config is permitted?</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">RBAC: Identity-Centric</div>
+                <div class="card-desc">RBAC asks: <em>"Is this identity allowed to perform this operation?"</em> If Alice has the Contributor role on a resource group, she can create a public IP address in it. RBAC does not care whether the organizational standard allows public IPs — it only checks if Alice has the right role. RBAC is the authentication/authorization layer — it controls the door.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Policy: Configuration-Centric</div>
+                <div class="card-desc">Policy asks: <em>"Does this resource configuration meet organizational standards?"</em> Even if Alice has Contributor rights, a Deny policy that blocks public IP creation will stop her request at the ARM layer before the resource is created. Policy does not care who Alice is — it evaluates the resource properties. Policy is the code of conduct that applies to everyone with access.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">You Need Both — They Don't Overlap</div>
+                <div class="card-desc">RBAC alone lets authorized users create misconfigured resources. Policy alone cannot stop unauthorized users — it only evaluates configurations, not identities. The complete governance model is: RBAC controls <em>who can act</em>, Policy controls <em>what the result can look like</em>. In practice: use management groups for policy inheritance at scale, use groups for RBAC inheritance at scale. Both are cumulative and inherit down the same hierarchy.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — SUMMARY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12</div>
+        <div class="slide-title">Chapter 2 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Identities and governance form the permission and policy backbone of every Azure deployment. Every other chapter builds on these foundations.</div>
+
+        <!-- Key concepts summary SVG -->
+        <div class="diagram-center">
+            <svg width="700" height="110" viewBox="0 0 700 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Central "Governance" hub -->
+                <circle cx="350" cy="55" r="38" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.8"
+                    style="animation: glowPulse 3s ease-in-out infinite;"/>
+                <text x="350" y="50" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">Azure</text>
+                <text x="350" y="62" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="800" font-family="Segoe UI,sans-serif">Governance</text>
+
+                <!-- Spoke 1: Entra ID -->
+                <line x1="312" y1="55" x2="190" y2="28" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.1s; opacity:0;"/>
+                <rect x="80" y="12" width="108" height="32" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="134" y="24" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Entra ID</text>
+                <text x="134" y="35" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif">Identity provider / Tenant</text>
+
+                <!-- Spoke 2: Users & Groups -->
+                <line x1="322" y1="30" x2="230" y2="10" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.2s; opacity:0;"/>
+                <rect x="200" y="2" width="108" height="20" rx="6" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="254" y="14" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Users, Groups, SSPR</text>
+
+                <!-- Spoke 3: Subscriptions -->
+                <line x1="388" y1="30" x2="456" y2="10" stroke="rgba(201,168,58,0.4)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.3s; opacity:0;"/>
+                <rect x="392" y="2" width="124" height="20" rx="6" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="454" y="14" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Subscriptions / Mgmt Groups</text>
+
+                <!-- Spoke 4: RBAC -->
+                <line x1="388" y1="80" x2="460" y2="100" stroke="rgba(239,68,68,0.4)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.4s; opacity:0;"/>
+                <rect x="418" y="90" width="124" height="20" rx="6" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.45s; opacity:0;"/>
+                <text x="480" y="102" text-anchor="middle" font-size="7.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">RBAC (who can act)</text>
+
+                <!-- Spoke 5: Azure Policy -->
+                <line x1="312" y1="80" x2="230" y2="98" stroke="rgba(167,139,250,0.4)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.5s; opacity:0;"/>
+                <rect x="160" y="90" width="130" height="20" rx="6" fill="rgba(167,139,250,0.07)" stroke="#a78bfa" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.55s; opacity:0;"/>
+                <text x="225" y="102" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Azure Policy (what config)</text>
+
+                <!-- Spoke 6: Custom Roles -->
+                <line x1="316" y1="20" x2="300" y2="4" stroke="rgba(249,115,22,0.35)" stroke-width="1.2" stroke-dasharray="4,3"
+                    style="animation: spokePulse 1.2s ease forwards 0.25s; opacity:0;"/>
+                <rect x="520" y="44" width="168" height="22" rx="6" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="1"
+                    style="animation: fadeUp 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="604" y="53" text-anchor="middle" font-size="7.5" fill="#f1f5f9" font-weight="700" font-family="Segoe UI,sans-serif">15-20% of AZ-104 Exam</text>
+                <text x="604" y="63" text-anchor="middle" font-size="6.5" fill="#475569" font-family="Segoe UI,sans-serif">Heaviest identity domain</text>
+            </svg>
+        </div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Entra ID is the identity layer.</strong> Every Azure action starts with an Entra ID identity — user, group, service principal, or managed identity. Tenants are the boundary. Licenses (Free/P1/P2) determine which features are available.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Management hierarchy controls governance scope.</strong> Root MG &rarr; Management Groups &rarr; Subscriptions &rarr; Resource Groups &rarr; Resources. Policies and RBAC assigned at a higher scope inherit down to everything below. Design the hierarchy before deploying workloads.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>RBAC is additive, scope-inherited, and identity-focused.</strong> Assign to groups, not users. Use the narrowest scope that satisfies the requirement. Know Owner vs. Contributor vs. Reader vs. User Access Administrator cold — those four roles appear in exam questions constantly.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Azure Policy is configuration enforcement, not access control.</strong> Deny blocks non-compliant creates. Audit reports without blocking. DINE auto-deploys companion resources. Remediation tasks fix existing non-compliance. Initiatives group policies for compliance framework coverage.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>RBAC and Policy are not the same thing and they don't compete.</strong> RBAC asks "who?" Policy asks "what configuration?" You need both. An Owner can still be blocked by a Deny policy. A compliant resource still requires RBAC to access it. They operate on different axes.</span></div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.85rem; text-align:center;">
+            <strong>Next: Chapter 3 &mdash; Implement and Manage Storage</strong> &nbsp;|&nbsp; Storage Accounts &bull; Blob Storage &bull; Azure Files &bull; Storage Security &bull; Data Lifecycle
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; AZ-104</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'az104-ch02-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
